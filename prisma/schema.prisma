@@ -1,0 +1,1119 @@
+// prisma/schema.prisma
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [uuid_ossp(map: "uuid-ossp"), pgcrypto, pg_trgm, btree_gin]
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  BRANCH_MANAGER
+  FINANCE_MANAGER
+  ACCOUNTANT
+  SALES_MANAGER
+  SALES_EXECUTIVE
+  OPERATIONS_MANAGER
+  OPERATIONS_EXECUTIVE
+  WAREHOUSE_STAFF
+  HR_MANAGER
+  CUSTOMER
+  AGENT
+  READ_ONLY
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+  SUSPENDED
+  LOCKED
+}
+
+enum JobType {
+  AIR_EXPORT
+  AIR_IMPORT
+  SEA_FCL_EXPORT
+  SEA_FCL_IMPORT
+  SEA_LCL_EXPORT
+  SEA_LCL_IMPORT
+  LAND
+  COURIER
+}
+
+enum JobStatus {
+  ENQUIRY
+  QUOTATION
+  BOOKING_CONFIRMED
+  IN_PROGRESS
+  DOCS_PENDING
+  CUSTOMS_CLEARANCE
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum ShipmentMode {
+  AIR
+  SEA
+  LAND
+  COURIER
+}
+
+enum TaxType {
+  VAT
+  GST
+  CUSTOMS
+  WITHHOLDING
+  NONE
+}
+
+enum PartyType {
+  CUSTOMER
+  AGENT
+  AIRLINE
+  SHIPPING_LINE
+  TRUCKER
+  CUSTOMS_BROKER
+  CFS_PORT_AGENT
+  WAREHOUSE
+  SUPPLIER
+  OVERSEAS_AGENT
+  OTHER
+}
+
+enum ChargeGroup {
+  FREIGHT
+  LOCAL_CHARGES
+  CUSTOMS
+  DOCUMENTATION
+  HANDLING
+  STORAGE
+  DEMURRAGE
+  DETENTION
+  INSURANCE
+  ORIGIN_CHARGES
+  DESTINATION_CHARGES
+  SURCHARGES
+  OTHER
+}
+
+enum ContainerSize {
+  SIZE_20GP
+  SIZE_40GP
+  SIZE_40HC
+  SIZE_45HC
+  SIZE_20REEFER
+  SIZE_40REEFER
+  SIZE_20OT
+  SIZE_40OT
+  SIZE_20FR
+  SIZE_40FR
+  SIZE_20TANK
+  SIZE_40TANK
+}
+
+enum QuotationStatus {
+  DRAFT
+  PENDING_APPROVAL
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum DocumentType {
+  HAWB
+  MAWB
+  HBL
+  MBL
+  BOOKING_CONFIRMATION
+  CARGO_MANIFEST
+  PACKING_LIST
+  COMMERCIAL_INVOICE
+  CERTIFICATE_OF_ORIGIN
+  DELIVERY_ORDER
+  ARRIVAL_NOTICE
+  PRE_ALERT
+  CUSTOMS_ENTRY
+  VGM
+  SHIPPING_INSTRUCTION
+  FREIGHT_MANIFEST
+  JOB_CARD
+  OTHER
+}
+
+// ─── TENANTS ─────────────────────────────────────────────────
+
+model Tenant {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                 String    @db.VarChar(200)
+  slug                 String    @unique @db.VarChar(100)
+  domain               String?   @unique @db.VarChar(200)
+  logo_url             String?   @db.Text
+  base_currency        String    @default("USD") @db.Char(3)
+  financial_year_start Int       @default(1)
+  timezone             String    @default("Asia/Dubai") @db.VarChar(100)
+  country_code         String    @default("AE") @db.Char(2)
+  vat_number           String?   @db.VarChar(50)
+  cr_number            String?   @db.VarChar(50)
+  address              String?   @db.Text
+  city                 String?   @db.VarChar(100)
+  phone                String?   @db.VarChar(30)
+  email                String?   @db.VarChar(255)
+  subscription_plan    String    @default("trial") @db.VarChar(50)
+  subscription_ends    DateTime?
+  max_users            Int       @default(10)
+  is_active            Boolean   @default(true)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+
+  users    User[]
+  branches Branch[]
+
+  @@map("tenants")
+}
+
+// ─── USERS ───────────────────────────────────────────────────
+
+model User {
+  id                      String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id               String     @db.Uuid
+  email                   String     @db.VarChar(255)
+  password_hash           String     @db.Text
+  first_name              String     @db.VarChar(100)
+  last_name               String     @db.VarChar(100)
+  phone                   String?    @db.VarChar(30)
+  avatar_url              String?    @db.Text
+  role                    UserRole   @default(READ_ONLY)
+  status                  UserStatus @default(INVITED)
+  branch_id               String?    @db.Uuid
+  department_id           String?    @db.Uuid
+  is_salesperson          Boolean    @default(false)
+  is_cs_rep               Boolean    @default(false)
+  is_operations           Boolean    @default(false)
+  is_finance              Boolean    @default(false)
+  can_see_sales           Boolean    @default(false)
+  can_see_cost            Boolean    @default(false)
+  can_see_gp              Boolean    @default(false)
+  can_see_invoices        Boolean    @default(false)
+  can_see_payments        Boolean    @default(false)
+  can_see_bank_balances   Boolean    @default(false)
+  can_see_ar_ap           Boolean    @default(false)
+  can_see_mgmt_reports    Boolean    @default(false)
+  can_see_job_pnl         Boolean    @default(false)
+  last_login_at           DateTime?  @db.Timestamptz
+  last_login_ip           String?    @db.VarChar(45)
+  failed_login_count      Int        @default(0)
+  locked_until            DateTime?  @db.Timestamptz
+  allowed_ips             String[]   @db.Text
+  allowed_mac_addresses   String[]   @db.Text
+  office_hours_start      String?    @db.VarChar(5)
+  office_hours_end        String?    @db.VarChar(5)
+  office_hours_timezone   String?    @db.VarChar(100)
+  max_concurrent_sessions Int        @default(3)
+  two_factor_enabled      Boolean    @default(false)
+  two_factor_secret       String?    @db.Text
+  two_factor_backup_codes String[]   @db.Text
+  invite_token            String?    @db.VarChar(200)
+  invite_expires_at       DateTime?  @db.Timestamptz
+  password_reset_token    String?    @db.VarChar(200)
+  password_reset_expires  DateTime?  @db.Timestamptz
+  password_changed_at     DateTime?  @db.Timestamptz
+  refresh_token_hash      String?    @db.Text
+  created_at              DateTime   @default(now()) @db.Timestamptz
+  updated_at              DateTime   @updatedAt @db.Timestamptz
+  created_by              String?    @db.Uuid
+  updated_by              String?    @db.Uuid
+  deleted_at              DateTime?  @db.Timestamptz
+
+  tenant      Tenant          @relation(fields: [tenant_id], references: [id])
+  sessions    Session[]
+  permissions UserPermission[]
+
+  @@unique([tenant_id, email])
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, role])
+  @@index([email])
+  @@map("users")
+}
+
+// ─── SESSIONS ────────────────────────────────────────────────
+
+model Session {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String    @db.Uuid
+  user_id            String    @db.Uuid
+  jti                String    @unique @db.VarChar(200)
+  refresh_token_hash String    @db.Text
+  ip_address         String?   @db.VarChar(45)
+  user_agent         String?   @db.Text
+  device_info        Json?
+  is_active          Boolean   @default(true)
+  expires_at         DateTime  @db.Timestamptz
+  last_used_at       DateTime  @default(now()) @db.Timestamptz
+  revoked_at         DateTime? @db.Timestamptz
+  revoked_reason     String?   @db.VarChar(100)
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @updatedAt @db.Timestamptz
+  created_by         String?   @db.Uuid
+  updated_by         String?   @db.Uuid
+  deleted_at         DateTime? @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, user_id])
+  @@index([jti])
+  @@index([tenant_id, is_active])
+  @@map("sessions")
+}
+
+// ─── ROLES & PERMISSIONS ─────────────────────────────────────
+
+model Role {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  name        String    @db.VarChar(100)
+  description String?   @db.Text
+  is_system   Boolean   @default(false)
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @updatedAt @db.Timestamptz
+  created_by  String?   @db.Uuid
+  updated_by  String?   @db.Uuid
+  deleted_at  DateTime? @db.Timestamptz
+
+  permissions RolePermission[]
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id])
+  @@map("roles")
+}
+
+model Permission {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  module      String    @db.VarChar(100)
+  action      String    @db.VarChar(50)
+  description String?   @db.Text
+  created_at  DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @updatedAt @db.Timestamptz
+  created_by  String?   @db.Uuid
+  updated_by  String?   @db.Uuid
+  deleted_at  DateTime? @db.Timestamptz
+
+  role_permissions RolePermission[]
+  user_permissions UserPermission[]
+
+  @@unique([tenant_id, module, action])
+  @@index([tenant_id])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  role_id       String    @db.Uuid
+  permission_id String    @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  created_by    String?   @db.Uuid
+
+  role       Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, role_id, permission_id])
+  @@index([tenant_id])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String   @db.Uuid
+  user_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  granted       Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz
+  created_by    String?  @db.Uuid
+
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, user_id, permission_id])
+  @@index([tenant_id])
+  @@map("user_permissions")
+}
+
+// ─── AUDIT LOGS ──────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String   @db.Uuid
+  user_id    String?  @db.Uuid
+  action     String   @db.VarChar(50)
+  entity     String   @db.VarChar(100)
+  entity_id  String?  @db.Uuid
+  old_values Json?
+  new_values Json?
+  ip_address String?  @db.VarChar(45)
+  user_agent String?  @db.Text
+  metadata   Json?
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  @@index([tenant_id])
+  @@index([tenant_id, entity, entity_id])
+  @@index([tenant_id, user_id])
+  @@index([tenant_id, created_at(sort: Desc)])
+  @@map("audit_logs")
+}
+
+// ─── BRANCHES ────────────────────────────────────────────────
+
+model Branch {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  name           String    @db.VarChar(200)
+  code           String    @db.VarChar(20)
+  address        String?   @db.Text
+  city           String?   @db.VarChar(100)
+  country_code   String    @default("AE") @db.Char(2)
+  phone          String?   @db.VarChar(30)
+  email          String?   @db.VarChar(255)
+  is_head_office Boolean   @default(false)
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("branches")
+}
+
+// ─── MASTER DATA ─────────────────────────────────────────────
+
+model Country {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  iso_code   String    @db.Char(2)
+  iso3_code  String    @db.Char(3)
+  name       String    @db.VarChar(100)
+  dial_code  String?   @db.VarChar(10)
+  region     String?   @db.VarChar(100)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, iso_code])
+  @@index([tenant_id])
+  @@map("countries")
+}
+
+model Currency {
+  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String         @db.Uuid
+  code           String         @db.Char(3)
+  name           String         @db.VarChar(100)
+  symbol         String         @db.VarChar(10)
+  decimal_places Int            @default(2)
+  is_base        Boolean        @default(false)
+  is_active      Boolean        @default(true)
+  created_at     DateTime       @default(now()) @db.Timestamptz
+  updated_at     DateTime       @updatedAt @db.Timestamptz
+  created_by     String?        @db.Uuid
+  updated_by     String?        @db.Uuid
+  deleted_at     DateTime?      @db.Timestamptz
+
+  exchange_rates ExchangeRate[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String    @db.Uuid
+  currency_id     String    @db.Uuid
+  base_currency   String    @db.Char(3)
+  rate            Decimal   @db.Decimal(20, 8)
+  rate_date       DateTime  @db.Date
+  source          String    @default("xe.com") @db.VarChar(50)
+  manual_override Boolean   @default(false)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+  created_by      String?   @db.Uuid
+  updated_by      String?   @db.Uuid
+  deleted_at      DateTime? @db.Timestamptz
+
+  currency Currency @relation(fields: [currency_id], references: [id])
+
+  @@unique([tenant_id, currency_id, rate_date])
+  @@index([tenant_id])
+  @@index([tenant_id, rate_date])
+  @@map("exchange_rates")
+}
+
+model Port {
+  id           String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String       @db.Uuid
+  un_locode    String       @db.VarChar(10)
+  name         String       @db.VarChar(200)
+  city         String?      @db.VarChar(100)
+  country_code String       @db.Char(2)
+  mode         ShipmentMode @default(SEA)
+  latitude     Decimal?     @db.Decimal(10, 7)
+  longitude    Decimal?     @db.Decimal(10, 7)
+  is_active    Boolean      @default(true)
+  created_at   DateTime     @default(now()) @db.Timestamptz
+  updated_at   DateTime     @updatedAt @db.Timestamptz
+  created_by   String?      @db.Uuid
+  updated_by   String?      @db.Uuid
+  deleted_at   DateTime?    @db.Timestamptz
+
+  @@unique([tenant_id, un_locode])
+  @@index([tenant_id])
+  @@index([tenant_id, mode])
+  @@map("ports")
+}
+
+model Airport {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  iata_code    String    @db.Char(3)
+  icao_code    String?   @db.Char(4)
+  name         String    @db.VarChar(200)
+  city         String?   @db.VarChar(100)
+  country_code String    @db.Char(2)
+  latitude     Decimal?  @db.Decimal(10, 7)
+  longitude    Decimal?  @db.Decimal(10, 7)
+  timezone     String?   @db.VarChar(100)
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, iata_code])
+  @@index([tenant_id])
+  @@map("airports")
+}
+
+model Airline {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  iata_code    String    @db.Char(2)
+  icao_code    String?   @db.Char(3)
+  prefix_code  String?   @db.Char(3)
+  name         String    @db.VarChar(200)
+  country_code String?   @db.Char(2)
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, iata_code])
+  @@index([tenant_id])
+  @@map("airlines")
+}
+
+model ShippingLine {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  scac_code    String    @db.VarChar(10)
+  name         String    @db.VarChar(200)
+  short_name   String?   @db.VarChar(50)
+  country_code String?   @db.Char(2)
+  website      String?   @db.VarChar(200)
+  tracking_url String?   @db.Text
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, scac_code])
+  @@index([tenant_id])
+  @@map("shipping_lines")
+}
+
+model Vessel {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String    @db.Uuid
+  name             String    @db.VarChar(200)
+  imo_number       String?   @db.VarChar(20)
+  flag_country     String?   @db.Char(2)
+  shipping_line_id String?   @db.Uuid
+  vessel_type      String?   @db.VarChar(50)
+  year_built       Int?
+  gross_tonnage    Decimal?  @db.Decimal(12, 2)
+  is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  updated_at       DateTime  @updatedAt @db.Timestamptz
+  created_by       String?   @db.Uuid
+  updated_by       String?   @db.Uuid
+  deleted_at       DateTime? @db.Timestamptz
+
+  @@index([tenant_id])
+  @@map("vessels")
+}
+
+model ContainerType {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String        @db.Uuid
+  code        String        @db.VarChar(20)
+  name        String        @db.VarChar(100)
+  size        ContainerSize
+  teu         Decimal       @default(1) @db.Decimal(4, 2)
+  max_payload Decimal?      @db.Decimal(10, 2)
+  volume_cbm  Decimal?      @db.Decimal(10, 2)
+  is_active   Boolean       @default(true)
+  created_at  DateTime      @default(now()) @db.Timestamptz
+  updated_at  DateTime      @updatedAt @db.Timestamptz
+  created_by  String?       @db.Uuid
+  updated_by  String?       @db.Uuid
+  deleted_at  DateTime?     @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("container_types")
+}
+
+model ChargeCode {
+  id               String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String      @db.Uuid
+  code             String      @db.VarChar(20)
+  description      String      @db.VarChar(200)
+  charge_group     ChargeGroup @default(OTHER)
+  applicable_modes String[]    @db.Text
+  tax_applicable   Boolean     @default(false)
+  tax_rate_id      String?     @db.Uuid
+  gl_revenue_code  String?     @db.VarChar(20)
+  gl_cost_code     String?     @db.VarChar(20)
+  unit             String?     @db.VarChar(30)
+  is_mandatory     Boolean     @default(false)
+  is_active        Boolean     @default(true)
+  created_at       DateTime    @default(now()) @db.Timestamptz
+  updated_at       DateTime    @updatedAt @db.Timestamptz
+  created_by       String?     @db.Uuid
+  updated_by       String?     @db.Uuid
+  deleted_at       DateTime?   @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("charge_codes")
+}
+
+model HsCode {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String    @db.Uuid
+  hs_code          String    @db.VarChar(12)
+  description      String    @db.VarChar(500)
+  import_duty_rate Decimal?  @db.Decimal(6, 3)
+  export_duty_rate Decimal?  @db.Decimal(6, 3)
+  dg_class         String?   @db.VarChar(20)
+  un_number        String?   @db.VarChar(10)
+  is_prohibited    Boolean   @default(false)
+  is_restricted    Boolean   @default(false)
+  notes            String?   @db.Text
+  is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  updated_at       DateTime  @updatedAt @db.Timestamptz
+  created_by       String?   @db.Uuid
+  updated_by       String?   @db.Uuid
+  deleted_at       DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, hs_code])
+  @@index([tenant_id])
+  @@map("hs_codes")
+}
+
+model TaxRate {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  name           String    @db.VarChar(100)
+  code           String    @db.VarChar(20)
+  tax_type       TaxType   @default(VAT)
+  rate           Decimal   @db.Decimal(6, 3)
+  country_code   String    @db.Char(2)
+  effective_from DateTime  @db.Date
+  effective_to   DateTime? @db.Date
+  is_default     Boolean   @default(false)
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("tax_rates")
+}
+
+model Department {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  name       String    @db.VarChar(100)
+  code       String    @db.VarChar(20)
+  parent_id  String?   @db.Uuid
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("departments")
+}
+
+model Designation {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  name          String    @db.VarChar(100)
+  department_id String?   @db.Uuid
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @updatedAt @db.Timestamptz
+  created_by    String?   @db.Uuid
+  updated_by    String?   @db.Uuid
+  deleted_at    DateTime? @db.Timestamptz
+
+  @@index([tenant_id])
+  @@map("designations")
+}
+
+model Bank {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  name         String    @db.VarChar(200)
+  short_name   String?   @db.VarChar(50)
+  swift_code   String?   @db.VarChar(20)
+  iban_prefix  String?   @db.VarChar(10)
+  country_code String?   @db.Char(2)
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  @@index([tenant_id])
+  @@map("banks")
+}
+
+model Holiday {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  country_code String    @db.Char(2)
+  date         DateTime  @db.Date
+  name         String    @db.VarChar(200)
+  is_recurring Boolean   @default(false)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, country_code, date])
+  @@index([tenant_id])
+  @@map("holidays")
+}
+
+model UnitOfMeasure {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(20)
+  name       String    @db.VarChar(100)
+  category   String    @db.VarChar(50)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("units_of_measure")
+}
+
+model Trucker {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  name           String    @db.VarChar(200)
+  code           String    @db.VarChar(20)
+  country_code   String?   @db.Char(2)
+  phone          String?   @db.VarChar(30)
+  email          String?   @db.VarChar(255)
+  contact_person String?   @db.VarChar(100)
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("truckers")
+}
+
+model Warehouse {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  name         String    @db.VarChar(200)
+  code         String    @db.VarChar(20)
+  address      String?   @db.Text
+  city         String?   @db.VarChar(100)
+  country_code String?   @db.Char(2)
+  capacity_sqm Decimal?  @db.Decimal(10, 2)
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("warehouses")
+}
+
+// ─── PARTIES ─────────────────────────────────────────────────
+
+model Party {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  party_type     PartyType
+  code           String    @db.VarChar(30)
+  name           String    @db.VarChar(300)
+  short_name     String?   @db.VarChar(100)
+  vat_number     String?   @db.VarChar(50)
+  cr_number      String?   @db.VarChar(50)
+  country_code   String?   @db.Char(2)
+  city           String?   @db.VarChar(100)
+  address        String?   @db.Text
+  phone          String?   @db.VarChar(30)
+  email          String?   @db.VarChar(255)
+  credit_limit   Decimal?  @db.Decimal(18, 2)
+  credit_days    Int?
+  currency_code  String?   @db.Char(3)
+  salesperson_id String?   @db.Uuid
+  is_active      Boolean   @default(true)
+  notes          String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  contacts  PartyContact[]
+  addresses PartyAddress[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@index([tenant_id, party_type])
+  @@map("parties")
+}
+
+model PartyContact {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  party_id    String    @db.Uuid
+  name        String    @db.VarChar(200)
+  designation String?   @db.VarChar(100)
+  phone       String?   @db.VarChar(30)
+  mobile      String?   @db.VarChar(30)
+  email       String?   @db.VarChar(255)
+  is_primary  Boolean   @default(false)
+  created_at  DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @updatedAt @db.Timestamptz
+  created_by  String?   @db.Uuid
+  updated_by  String?   @db.Uuid
+  deleted_at  DateTime? @db.Timestamptz
+
+  party Party @relation(fields: [party_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, party_id])
+  @@map("party_contacts")
+}
+
+model PartyAddress {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  party_id       String    @db.Uuid
+  label          String    @db.VarChar(50)
+  address_line1  String    @db.Text
+  address_line2  String?   @db.Text
+  city           String?   @db.VarChar(100)
+  state          String?   @db.VarChar(100)
+  postal_code    String?   @db.VarChar(20)
+  country_code   String    @db.Char(2)
+  is_default     Boolean   @default(false)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  party Party @relation(fields: [party_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, party_id])
+  @@map("party_addresses")
+}
+
+// ─── JOBS ────────────────────────────────────────────────────
+
+model Job {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  job_number        String    @db.VarChar(30)
+  job_type          JobType
+  status            JobStatus @default(ENQUIRY)
+  branch_id         String?   @db.Uuid
+  shipper_id        String?   @db.Uuid
+  consignee_id      String?   @db.Uuid
+  agent_id          String?   @db.Uuid
+  salesperson_id    String?   @db.Uuid
+  ops_user_id       String?   @db.Uuid
+  origin_port_id    String?   @db.Uuid
+  dest_port_id      String?   @db.Uuid
+  commodity         String?   @db.VarChar(500)
+  hs_code           String?   @db.VarChar(12)
+  gross_weight      Decimal?  @db.Decimal(12, 3)
+  chargeable_weight Decimal?  @db.Decimal(12, 3)
+  volume_cbm        Decimal?  @db.Decimal(10, 3)
+  pieces            Int?
+  incoterms         String?   @db.VarChar(10)
+  is_dg             Boolean   @default(false)
+  dg_class          String?   @db.VarChar(20)
+  notes             String?   @db.Text
+  etd               DateTime? @db.Date
+  eta               DateTime? @db.Date
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+  created_by        String?   @db.Uuid
+  updated_by        String?   @db.Uuid
+  deleted_at        DateTime? @db.Timestamptz
+
+  air_details     AirJobDetail?
+  sea_fcl_details SeaFclJobDetail?
+  charges         JobCharge[]
+  milestones      JobMilestone[]
+  documents       JobDocument[]
+  notes_list      JobNote[]
+
+  @@unique([tenant_id, job_number])
+  @@index([tenant_id])
+  @@index([tenant_id, job_type])
+  @@index([tenant_id, status])
+  @@index([tenant_id, etd])
+  @@index([tenant_id, created_at(sort: Desc)])
+  @@map("jobs")
+}
+
+model AirJobDetail {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String    @db.Uuid
+  job_id              String    @unique @db.Uuid
+  airline_id          String?   @db.Uuid
+  origin_airport_id   String?   @db.Uuid
+  dest_airport_id     String?   @db.Uuid
+  hawb_number         String?   @db.VarChar(50)
+  mawb_number         String?   @db.VarChar(50)
+  flight_number       String?   @db.VarChar(20)
+  flight_date         DateTime? @db.Date
+  screened            Boolean   @default(false)
+  screening_ref       String?   @db.VarChar(50)
+  created_at          DateTime  @default(now()) @db.Timestamptz
+  updated_at          DateTime  @updatedAt @db.Timestamptz
+  created_by          String?   @db.Uuid
+  updated_by          String?   @db.Uuid
+  deleted_at          DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@map("air_job_details")
+}
+
+model SeaFclJobDetail {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  job_id               String    @unique @db.Uuid
+  shipping_line_id     String?   @db.Uuid
+  vessel_id            String?   @db.Uuid
+  voyage_number        String?   @db.VarChar(50)
+  hbl_number           String?   @db.VarChar(50)
+  mbl_number           String?   @db.VarChar(50)
+  booking_number       String?   @db.VarChar(50)
+  si_cutoff            DateTime? @db.Timestamptz
+  vgm_cutoff           DateTime? @db.Timestamptz
+  cy_cutoff            DateTime? @db.Timestamptz
+  port_of_loading_id   String?   @db.Uuid
+  port_of_discharge_id String?   @db.Uuid
+  bl_type              String?   @db.VarChar(20)
+  freight_terms        String?   @db.VarChar(20)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+  created_by           String?   @db.Uuid
+  updated_by           String?   @db.Uuid
+  deleted_at           DateTime? @db.Timestamptz
+
+  job        Job            @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  containers JobContainer[]
+
+  @@index([tenant_id])
+  @@map("sea_fcl_job_details")
+}
+
+model JobContainer {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  sea_fcl_detail_id String    @db.Uuid
+  container_number  String?   @db.VarChar(20)
+  container_type_id String    @db.Uuid
+  seal_number       String?   @db.VarChar(30)
+  tare_weight       Decimal?  @db.Decimal(10, 3)
+  gross_weight      Decimal?  @db.Decimal(10, 3)
+  vgm_weight        Decimal?  @db.Decimal(10, 3)
+  cbm               Decimal?  @db.Decimal(10, 3)
+  is_soc            Boolean   @default(false)
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+  created_by        String?   @db.Uuid
+  updated_by        String?   @db.Uuid
+  deleted_at        DateTime? @db.Timestamptz
+
+  sea_fcl_detail SeaFclJobDetail @relation(fields: [sea_fcl_detail_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@map("job_containers")
+}
+
+model JobCharge {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  job_id               String    @db.Uuid
+  charge_code_id       String    @db.Uuid
+  description          String    @db.VarChar(300)
+  quantity             Decimal   @default(1) @db.Decimal(10, 3)
+  unit_price           Decimal   @db.Decimal(18, 4)
+  currency_code        String    @db.Char(3)
+  exchange_rate        Decimal   @default(1) @db.Decimal(20, 8)
+  amount               Decimal   @db.Decimal(18, 4)
+  amount_base_currency Decimal   @db.Decimal(18, 4)
+  tax_rate_id          String?   @db.Uuid
+  tax_amount           Decimal   @default(0) @db.Decimal(18, 4)
+  is_billable          Boolean   @default(true)
+  is_cost              Boolean   @default(false)
+  party_id             String?   @db.Uuid
+  is_invoiced          Boolean   @default(false)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+  created_by           String?   @db.Uuid
+  updated_by           String?   @db.Uuid
+  deleted_at           DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("job_charges")
+}
+
+model JobMilestone {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  job_id       String    @db.Uuid
+  milestone    String    @db.VarChar(100)
+  planned_date DateTime? @db.Date
+  actual_date  DateTime? @db.Date
+  notes        String?   @db.Text
+  completed_by String?   @db.Uuid
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("job_milestones")
+}
+
+model JobDocument {
+  id               String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String       @db.Uuid
+  job_id           String       @db.Uuid
+  document_type    DocumentType
+  reference_number String?      @db.VarChar(100)
+  file_name        String       @db.VarChar(300)
+  file_url         String       @db.Text
+  s3_key           String?      @db.Text
+  file_size        Int?
+  mime_type        String?      @db.VarChar(100)
+  is_finalized     Boolean      @default(false)
+  finalized_at     DateTime?    @db.Timestamptz
+  finalized_by     String?      @db.Uuid
+  uploaded_by      String       @db.Uuid
+  created_at       DateTime     @default(now()) @db.Timestamptz
+  updated_at       DateTime     @updatedAt @db.Timestamptz
+  created_by       String?      @db.Uuid
+  updated_by       String?      @db.Uuid
+  deleted_at       DateTime?    @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("job_documents")
+}
+
+model JobNote {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  job_id     String    @db.Uuid
+  note       String    @db.Text
+  is_private Boolean   @default(false)
+  is_pinned  Boolean   @default(false)
+  created_by String    @db.Uuid
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("job_notes")
+}
