@@ -152,31 +152,78 @@ enum DocumentType {
   OTHER
 }
 
-// ─── TENANTS ─────────────────────────────────────────────────
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  ARCHIVED
+}
+
+enum SubscriptionPlan {
+  TRIAL
+  BASIC
+  STANDARD
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+// ───────────────────────────────────────────────────────────────
+// TENANTS
+// ───────────────────────────────────────────────────────────────
 
 model Tenant {
-  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name                 String    @db.VarChar(200)
-  slug                 String    @unique @db.VarChar(100)
-  domain               String?   @unique @db.VarChar(200)
-  logo_url             String?   @db.Text
-  base_currency        String    @default("USD") @db.Char(3)
-  financial_year_start Int       @default(1)
-  timezone             String    @default("Asia/Dubai") @db.VarChar(100)
-  country_code         String    @default("AE") @db.Char(2)
-  vat_number           String?   @db.VarChar(50)
-  cr_number            String?   @db.VarChar(50)
-  address              String?   @db.Text
-  city                 String?   @db.VarChar(100)
-  phone                String?   @db.VarChar(30)
-  email                String?   @db.VarChar(255)
-  subscription_plan    String    @default("trial") @db.VarChar(50)
-  subscription_ends    DateTime?
-  max_users            Int       @default(10)
-  is_active            Boolean   @default(true)
-  created_at           DateTime  @default(now()) @db.Timestamptz
-  updated_at           DateTime  @updatedAt @db.Timestamptz
+  id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
 
+  // Identity
+  code         String  @unique @db.VarChar(20)
+  name         String  @db.VarChar(200)
+  display_name String? @db.VarChar(200)
+  slug         String  @unique @db.VarChar(100)
+
+  // Branding
+  domain        String? @unique @db.VarChar(200)
+  website       String? @db.VarChar(255)
+  logo_url      String? @db.Text
+  primary_color String? @db.VarChar(20)
+
+  // Localization
+  language             String @default("en") @db.VarChar(10)
+  base_currency        String @default("USD") @db.Char(3)
+  timezone             String @default("Asia/Dubai") @db.VarChar(100)
+  country_code         String @default("AE") @db.Char(2)
+  financial_year_start Int    @default(1)
+
+  // Business Registration
+  vat_number String? @db.VarChar(50)
+  cr_number  String? @db.VarChar(50)
+
+  // Contact
+  address String? @db.Text
+  city    String? @db.VarChar(100)
+  phone   String? @db.VarChar(30)
+  email   String? @db.VarChar(255)
+
+  // Subscription
+  subscription_plan SubscriptionPlan @default(TRIAL)
+  status            TenantStatus     @default(TRIAL)
+  trial_ends        DateTime?
+  subscription_ends DateTime?
+
+  // Limits
+  max_users      Int @default(10)
+  max_branches   Int @default(1)
+  max_storage_gb Int @default(5)
+
+  // Status
+  is_active Boolean @default(true)
+
+  // Audit
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
+
+  // Relationships
   users    User[]
   branches Branch[]
 
@@ -236,7 +283,7 @@ model User {
   updated_by              String?    @db.Uuid
   deleted_at              DateTime?  @db.Timestamptz
 
-  tenant      Tenant          @relation(fields: [tenant_id], references: [id])
+  tenant      Tenant           @relation(fields: [tenant_id], references: [id])
   sessions    Session[]
   permissions UserPermission[]
 
@@ -322,12 +369,12 @@ model Permission {
 }
 
 model RolePermission {
-  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id     String    @db.Uuid
-  role_id       String    @db.Uuid
-  permission_id String    @db.Uuid
-  created_at    DateTime  @default(now()) @db.Timestamptz
-  created_by    String?   @db.Uuid
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String   @db.Uuid
+  role_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz
+  created_by    String?  @db.Uuid
 
   role       Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
@@ -427,19 +474,19 @@ model Country {
 }
 
 model Currency {
-  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id      String         @db.Uuid
-  code           String         @db.Char(3)
-  name           String         @db.VarChar(100)
-  symbol         String         @db.VarChar(10)
-  decimal_places Int            @default(2)
-  is_base        Boolean        @default(false)
-  is_active      Boolean        @default(true)
-  created_at     DateTime       @default(now()) @db.Timestamptz
-  updated_at     DateTime       @updatedAt @db.Timestamptz
-  created_by     String?        @db.Uuid
-  updated_by     String?        @db.Uuid
-  deleted_at     DateTime?      @db.Timestamptz
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  code           String    @db.Char(3)
+  name           String    @db.VarChar(100)
+  symbol         String    @db.VarChar(10)
+  decimal_places Int       @default(2)
+  is_base        Boolean   @default(false)
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
 
   exchange_rates ExchangeRate[]
 
@@ -864,22 +911,22 @@ model PartyContact {
 }
 
 model PartyAddress {
-  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id      String    @db.Uuid
-  party_id       String    @db.Uuid
-  label          String    @db.VarChar(50)
-  address_line1  String    @db.Text
-  address_line2  String?   @db.Text
-  city           String?   @db.VarChar(100)
-  state          String?   @db.VarChar(100)
-  postal_code    String?   @db.VarChar(20)
-  country_code   String    @db.Char(2)
-  is_default     Boolean   @default(false)
-  created_at     DateTime  @default(now()) @db.Timestamptz
-  updated_at     DateTime  @updatedAt @db.Timestamptz
-  created_by     String?   @db.Uuid
-  updated_by     String?   @db.Uuid
-  deleted_at     DateTime? @db.Timestamptz
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  party_id      String    @db.Uuid
+  label         String    @db.VarChar(50)
+  address_line1 String    @db.Text
+  address_line2 String?   @db.Text
+  city          String?   @db.VarChar(100)
+  state         String?   @db.VarChar(100)
+  postal_code   String?   @db.VarChar(20)
+  country_code  String    @db.Char(2)
+  is_default    Boolean   @default(false)
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @updatedAt @db.Timestamptz
+  created_by    String?   @db.Uuid
+  updated_by    String?   @db.Uuid
+  deleted_at    DateTime? @db.Timestamptz
 
   party Party @relation(fields: [party_id], references: [id], onDelete: Cascade)
 
@@ -939,23 +986,23 @@ model Job {
 }
 
 model AirJobDetail {
-  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id           String    @db.Uuid
-  job_id              String    @unique @db.Uuid
-  airline_id          String?   @db.Uuid
-  origin_airport_id   String?   @db.Uuid
-  dest_airport_id     String?   @db.Uuid
-  hawb_number         String?   @db.VarChar(50)
-  mawb_number         String?   @db.VarChar(50)
-  flight_number       String?   @db.VarChar(20)
-  flight_date         DateTime? @db.Date
-  screened            Boolean   @default(false)
-  screening_ref       String?   @db.VarChar(50)
-  created_at          DateTime  @default(now()) @db.Timestamptz
-  updated_at          DateTime  @updatedAt @db.Timestamptz
-  created_by          String?   @db.Uuid
-  updated_by          String?   @db.Uuid
-  deleted_at          DateTime? @db.Timestamptz
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  job_id            String    @unique @db.Uuid
+  airline_id        String?   @db.Uuid
+  origin_airport_id String?   @db.Uuid
+  dest_airport_id   String?   @db.Uuid
+  hawb_number       String?   @db.VarChar(50)
+  mawb_number       String?   @db.VarChar(50)
+  flight_number     String?   @db.VarChar(20)
+  flight_date       DateTime? @db.Date
+  screened          Boolean   @default(false)
+  screening_ref     String?   @db.VarChar(50)
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+  created_by        String?   @db.Uuid
+  updated_by        String?   @db.Uuid
+  deleted_at        DateTime? @db.Timestamptz
 
   job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
