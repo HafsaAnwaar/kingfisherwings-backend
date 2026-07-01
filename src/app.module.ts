@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { UsersModule } from './modules/users';
+import {AuthModule} from './modules/auth/auth.module';
 
 @Module({
 
@@ -22,7 +23,8 @@ HealthModule,
 
 TenantsModule,
 
-UsersModule
+UsersModule,
+AuthModule
 
 ]
 

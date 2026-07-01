@@ -1,35 +1,24 @@
 import { User } from '@prisma/client';
+import { PaginationQuery } from './interfaces/pagination.interface';
 
-export interface PaginationResult<T> {
-  data: T[];
-
-  total: number;
-
-  page: number;
-
-  limit: number;
-
-  totalPages: number;
+export interface UserSearchFilters extends PaginationQuery {
+  search?: string;
+  role?: string;
+  status?: string;
+  branchId?: string;
+  departmentId?: string;
 }
 
 export interface CreateUserResponse {
   user: User;
-
   temporaryPassword: string;
 }
 
-export interface UserSearchFilters {
-  search?: string;
+export interface AdminResetPasswordResult {
+  temporaryPassword: string;
+}
 
-  role?: string;
-
-  status?: string;
-
-  branchId?: string;
-
-  departmentId?: string;
-
-  page: number;
-
-  limit: number;
+export interface BulkActionResult {
+  requested: number;
+  affected: number;
 }

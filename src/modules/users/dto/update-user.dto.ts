@@ -1,4 +1,4 @@
-import { PartialType } from '@nestjs/swagger';
+import { PartialType, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   ArrayUnique,
@@ -10,148 +10,182 @@ import {
   IsPhoneNumber,
   IsString,
   IsUUID,
+  IsTimeZone,
   Length,
+  Matches,
   Max,
   Min,
 } from 'class-validator';
-
-import {
-  UserRole,
-  UserStatus,
-} from '@prisma/client';
-
+import { UserRole, UserStatus } from '@prisma/client';
 import { CreateUserDto } from './create-user.dto';
+import { USERS_CONSTANTS } from '../constants/users.constants';
 
+const OFFICE_HOURS_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/**
+ * All fields optional. Deliberately excludes password — use
+ * ChangePasswordDto / AdminResetPasswordDto for password changes.
+ */
 export class UpdateUserDto extends PartialType(CreateUserDto) {
-
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   email?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
-  @Length(2,100)
+  @Length(2, 100)
   first_name?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
-  @Length(2,100)
+  @Length(2, 100)
   last_name?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsPhoneNumber()
   phone?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   avatar_url?: string;
 
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
   department_id?: string;
 
+  @ApiPropertyOptional({ enum: UserRole })
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
 
+  @ApiPropertyOptional({ enum: UserStatus })
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   is_salesperson?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   is_cs_rep?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   is_operations?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   is_finance?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_sales?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_cost?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_gp?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_invoices?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_payments?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_bank_balances?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_ar_ap?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_mgmt_reports?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   can_see_job_pnl?: boolean;
 
+  @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })
   allowed_ips?: string[];
 
+  @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })
   allowed_mac_addresses?: string[];
 
+  @ApiPropertyOptional({ example: '09:00' })
   @IsOptional()
-  @IsString()
+  @Matches(OFFICE_HOURS_REGEX, { message: 'office_hours_start must be in "HH:mm" 24h format.' })
   office_hours_start?: string;
 
+  @ApiPropertyOptional({ example: '18:00' })
   @IsOptional()
-  @IsString()
+  @Matches(OFFICE_HOURS_REGEX, { message: 'office_hours_end must be in "HH:mm" 24h format.' })
   office_hours_end?: string;
 
+  @ApiPropertyOptional({ example: 'Asia/Dubai' })
   @IsOptional()
-  @IsString()
+  @IsTimeZone()
   office_hours_timezone?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   two_factor_enabled?: boolean;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: USERS_CONSTANTS.MAX_CONCURRENT_SESSIONS_CEILING })
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(20)
+  @Max(USERS_CONSTANTS.MAX_CONCURRENT_SESSIONS_CEILING)
   max_concurrent_sessions?: number;
 
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
   @IsUUID('4', { each: true })
   role_ids?: string[];
 
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
