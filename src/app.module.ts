@@ -24,7 +24,7 @@ HealthModule,
 TenantsModule,
 
 UsersModule,
-AuthModule
+// AuthModule
 
 ]
 

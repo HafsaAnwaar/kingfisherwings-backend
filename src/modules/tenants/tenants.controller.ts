@@ -35,9 +35,10 @@ export class TenantsController {
   // CREATE TENANT
   // =====================================================
 
+  
   @Post()
   @ApiOperation({
-    summary: 'Create a new tenant',
+    summary: 'Create a new tenant (public — self-signup / bootstrap)',
   })
   @ApiResponse({
     status: 201,

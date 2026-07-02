@@ -163,7 +163,6 @@ export class AuthService {
           refresh_token_hash: refreshTokenHash,
           ip_address: meta.ip_address,
           user_agent: meta.user_agent,
-          device_name: dto.device_name,
           browser: meta.browser,
           operating_system: meta.operating_system,
           remember_me: dto.remember_me ?? false,

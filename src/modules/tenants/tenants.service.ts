@@ -7,9 +7,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 
-import { Prisma, TenantStatus } from '@prisma/client';
+import { Prisma, Tenant, TenantStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { PasswordUtil } from '../../common/utils/password.util';
 
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
@@ -28,10 +29,15 @@ export class TenantsService {
   async create(createTenantDto: CreateTenantDto) {
     await this.validateUniqueFields(createTenantDto);
 
+    const { password, ...tenantData } = createTenantDto;
+
+    const passwordHash = await PasswordUtil.hash(password);
+
     const tenant = await this.prisma.$transaction(async (tx) => {
       return tx.tenant.create({
         data: {
-          ...createTenantDto,
+          ...tenantData,
+          password_hash: passwordHash,
         },
       });
     });
@@ -39,7 +45,7 @@ export class TenantsService {
     return {
       success: true,
       message: 'Tenant created successfully.',
-      data: tenant,
+      data: this.sanitizeTenant(tenant),
     };
   }
 
@@ -115,7 +121,7 @@ export class TenantsService {
     return {
       success: true,
 
-      data: tenants,
+      data: tenants.map((tenant) => this.sanitizeTenant(tenant)),
 
       pagination: {
         page,
@@ -145,7 +151,7 @@ export class TenantsService {
 
     return {
       success: true,
-      data: tenant,
+      data: this.sanitizeTenant(tenant),
     };
   }
 
@@ -266,6 +272,16 @@ export class TenantsService {
       }
     }
 
+    // Password is not editable through this endpoint (and updateTenantDto
+    // has no `password_hash` field to spread into Prisma — only `password`,
+    // which isn't a real column). Reject explicitly with a clear message
+    // rather than letting Prisma throw an "unknown argument" error.
+    if ('password' in updateTenantDto) {
+      throw new BadRequestException(
+        'Tenant password cannot be changed via PATCH /tenants/:id.',
+      );
+    }
+
     const updatedTenant = await this.prisma.$transaction(
       async (tx) => {
         return tx.tenant.update({
@@ -282,7 +298,7 @@ export class TenantsService {
     return {
       success: true,
       message: 'Tenant updated successfully.',
-      data: updatedTenant,
+      data: this.sanitizeTenant(updatedTenant),
     };
   }
 
@@ -355,7 +371,7 @@ export class TenantsService {
     return {
       success: true,
       message: 'Tenant restored successfully.',
-      data: restored,
+      data: this.sanitizeTenant(restored),
     };
   }
 
@@ -379,7 +395,7 @@ export class TenantsService {
     return {
       success: true,
       message: 'Tenant activated successfully.',
-      data: tenant,
+      data: this.sanitizeTenant(tenant),
     };
   }
 
@@ -403,7 +419,7 @@ export class TenantsService {
     return {
       success: true,
       message: 'Tenant deactivated successfully.',
-      data: tenant,
+      data: this.sanitizeTenant(tenant),
     };
   }
 
@@ -469,6 +485,12 @@ export class TenantsService {
   // =====================================================
   // PRIVATE HELPERS
   // =====================================================
+
+  /** Never return password_hash — applied to every response that includes a tenant. */
+  private sanitizeTenant(tenant: Tenant): Omit<Tenant, 'password_hash'> {
+    const { password_hash, ...safe } = tenant;
+    return safe;
+  }
 
   private async validateUniqueFields(
     dto: CreateTenantDto,

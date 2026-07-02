@@ -36,8 +36,6 @@ export class LoginDto {
   @IsBoolean()
   remember_me?: boolean;
 
-  @IsOptional()
-  @IsString()
-  device_name?: string;
+  
 
 }
