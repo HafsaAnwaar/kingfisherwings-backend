@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 
 import { SubscriptionPlan, TenantStatus } from '@prisma/client';
+import { IsStrongPassword } from '../../users/validators/password.validator';
 
 export class CreateTenantDto {
 
@@ -25,11 +26,11 @@ export class CreateTenantDto {
 
   @IsString()
   @Length(3, 20)
-  code: string;
+  code!: string;
 
   @IsString()
   @Length(3, 200)
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
@@ -39,7 +40,17 @@ export class CreateTenantDto {
   @IsString()
   @Length(3, 100)
   @Matches(/^[a-z0-9-]+$/)
-  slug: string;
+  slug!: string;
+
+  // ==========================
+  // Security
+  // ==========================
+
+  @IsString()
+  @IsStrongPassword()
+  password!: string;
+
+
 
   // ==========================
   // Branding
