@@ -28,20 +28,20 @@ export class UsersRepository {
   // READ — SINGLE
   // ============================================================
 
-  async findById(tenantId: string, id: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
+  async findById(tx: Prisma.TransactionClient, tenantId: string, id: string): Promise<User | null> {
+    return tx.user.findFirst({
       where: { id, tenant_id: tenantId, deleted_at: null },
     });
   }
 
-  async findByIdIncludingDeleted(tenantId: string, id: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
+  async findByIdIncludingDeleted(tx: Prisma.TransactionClient, tenantId: string, id: string): Promise<User | null> {
+    return tx.user.findFirst({
       where: { id, tenant_id: tenantId },
     });
   }
 
-  async findByIdWithRelations(tenantId: string, id: string) {
-    return this.prisma.user.findFirst({
+  async findByIdWithRelations(tx: Prisma.TransactionClient, tenantId: string, id: string) {
+    return tx.user.findFirst({
       where: { id, tenant_id: tenantId, deleted_at: null },
       include: {
         tenant: {
@@ -51,8 +51,8 @@ export class UsersRepository {
     });
   }
 
-  async findByEmail(tenantId: string, email: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
+  async findByEmail(tx: Prisma.TransactionClient, tenantId: string, email: string): Promise<User | null> {
+    return tx.user.findFirst({
       where: {
         tenant_id: tenantId,
         email: email.toLowerCase(),
@@ -61,8 +61,8 @@ export class UsersRepository {
     });
   }
 
-  async findByEmailIncludingDeleted(tenantId: string, email: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
+  async findByEmailIncludingDeleted(tx: Prisma.TransactionClient, tenantId: string, email: string): Promise<User | null> {
+    return tx.user.findFirst({
       where: {
         tenant_id: tenantId,
         email: email.toLowerCase(),
@@ -70,14 +70,14 @@ export class UsersRepository {
     });
   }
 
-  async findByInviteToken(token: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
+  async findByInviteToken(tx: Prisma.TransactionClient, token: string): Promise<User | null> {
+    return tx.user.findFirst({
       where: { invite_token: token, deleted_at: null },
     });
   }
 
-  async findByPasswordResetToken(token: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
+  async findByPasswordResetToken(tx: Prisma.TransactionClient, token: string): Promise<User | null> {
+    return tx.user.findFirst({
       where: { password_reset_token: token, deleted_at: null },
     });
   }
@@ -86,8 +86,8 @@ export class UsersRepository {
   // READ — MANY
   // ============================================================
 
-  async findByIds(tenantId: string, ids: string[]): Promise<User[]> {
-    return this.prisma.user.findMany({
+  async findByIds(tx: Prisma.TransactionClient, tenantId: string, ids: string[]): Promise<User[]> {
+    return tx.user.findMany({
       where: {
         tenant_id: tenantId,
         id: { in: ids },
@@ -97,6 +97,7 @@ export class UsersRepository {
   }
 
   async findMany(
+    tx: Prisma.TransactionClient,
     tenantId: string,
     options: UserSearchFilters & { sortBy?: string; order?: 'asc' | 'desc' },
   ): Promise<{
@@ -148,14 +149,14 @@ export class UsersRepository {
       where.department_id = departmentId;
     }
 
-    const [users, total] = await this.prisma.$transaction([
-      this.prisma.user.findMany({
+    const [users, total] = await Promise.all([
+      tx.user.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { [sortBy]: order },
       }),
-      this.prisma.user.count({ where }),
+      tx.user.count({ where }),
     ]);
 
     return {
@@ -171,15 +172,15 @@ export class UsersRepository {
   // EXISTENCE / COUNTS
   // ============================================================
 
-  async exists(tenantId: string, id: string): Promise<boolean> {
-    const count = await this.prisma.user.count({
+  async exists(tx: Prisma.TransactionClient, tenantId: string, id: string): Promise<boolean> {
+    const count = await tx.user.count({
       where: { id, tenant_id: tenantId, deleted_at: null },
     });
     return count > 0;
   }
 
-  async existsByEmail(tenantId: string, email: string, excludeId?: string): Promise<boolean> {
-    const count = await this.prisma.user.count({
+  async existsByEmail(tx: Prisma.TransactionClient, tenantId: string, email: string, excludeId?: string): Promise<boolean> {
+    const count = await tx.user.count({
       where: {
         tenant_id: tenantId,
         email: email.toLowerCase(),
@@ -190,20 +191,20 @@ export class UsersRepository {
     return count > 0;
   }
 
-  async count(tenantId: string): Promise<number> {
-    return this.prisma.user.count({
+  async count(tx: Prisma.TransactionClient, tenantId: string): Promise<number> {
+    return tx.user.count({
       where: { tenant_id: tenantId, deleted_at: null },
     });
   }
 
-  async countActive(tenantId: string): Promise<number> {
-    return this.prisma.user.count({
+  async countActive(tx: Prisma.TransactionClient, tenantId: string): Promise<number> {
+    return tx.user.count({
       where: { tenant_id: tenantId, deleted_at: null, status: UserStatus.ACTIVE },
     });
   }
 
-  async countByRole(tenantId: string, role: string): Promise<number> {
-    return this.prisma.user.count({
+  async countByRole(tx: Prisma.TransactionClient, tenantId: string, role: string): Promise<number> {
+    return tx.user.count({
       where: {
         tenant_id: tenantId,
         role: role as Prisma.EnumUserRoleFilter['equals'],
@@ -212,8 +213,8 @@ export class UsersRepository {
     });
   }
 
-  async countByStatus(tenantId: string, status: UserStatus): Promise<number> {
-    return this.prisma.user.count({
+  async countByStatus(tx: Prisma.TransactionClient, tenantId: string, status: UserStatus): Promise<number> {
+    return tx.user.count({
       where: { tenant_id: tenantId, status, deleted_at: null },
     });
   }
@@ -304,8 +305,8 @@ export class UsersRepository {
     });
   }
 
-  async getPasswordHistory(tenantId: string, userId: string, limit: number) {
-    return this.prisma.passwordHistory.findMany({
+  async getPasswordHistory(tx: Prisma.TransactionClient, tenantId: string, userId: string, limit: number) {
+    return tx.passwordHistory.findMany({
       where: { tenant_id: tenantId, user_id: userId },
       orderBy: { changed_at: 'desc' },
       take: limit,

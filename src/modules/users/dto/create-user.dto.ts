@@ -23,6 +23,19 @@ const OFFICE_HOURS_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export class CreateUserDto {
   // =====================================================
+  // TARGET TENANT (super admin callers only — ignored/overridden by the
+  // caller's own tenantId for regular tenant-scoped users)
+  // =====================================================
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Required only when a super admin is creating this user. Ignored for tenant-scoped callers.',
+  })
+  @IsOptional()
+  @IsUUID()
+  tenant_id?: string;
+
+  // =====================================================
   // BASIC INFORMATION
   // =====================================================
 

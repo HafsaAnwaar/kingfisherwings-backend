@@ -57,6 +57,9 @@ export class UserMapper {
     response.locked_until = user.locked_until ?? undefined;
     response.created_at = user.created_at;
     response.updated_at = user.updated_at;
+    response.created_by_user_id = user.created_by_user_id ?? undefined;
+    response.created_by_tenant_id = user.created_by_tenant_id ?? undefined;
+    response.created_by_super_admin_id = user.created_by_super_admin_id ?? undefined;
 
     return response;
   }

@@ -24,6 +24,7 @@ import {
   AdminResetPasswordResult,
   BulkActionResult,
   CreateUserResponse,
+  CreatorContext,
   UserSearchFilters,
 } from './users.types';
 
@@ -51,6 +52,13 @@ export class UsersService {
 
   // ============================================================
   // VALIDATION HELPERS
+  //
+  // All of these except validateTenant() take `tx` and run against
+  // tenant-scoped tables, so they must always be called from inside
+  // this.prisma.runWithTenant(). validateTenant() itself queries
+  // `tenants`, which has no RLS policy (see the migration's note on
+  // why: it's the root table, resolved before any tenant context
+  // exists), so it's always safe to call first, outside runWithTenant.
   // ============================================================
 
   private async validateTenant(tenantId: string): Promise<Tenant> {
@@ -70,31 +78,36 @@ export class UsersService {
   }
 
   private async validateEmailAvailable(
+    tx: Prisma.TransactionClient,
     tenantId: string,
     email: string,
     excludeId?: string,
   ): Promise<void> {
-    const taken = await this.repository.existsByEmail(tenantId, email, excludeId);
+    const taken = await this.repository.existsByEmail(tx, tenantId, email, excludeId);
 
     if (taken) {
       throw new ConflictException('Email already exists.');
     }
   }
 
-  private async validateUserLimit(tenant: Tenant): Promise<void> {
-    const totalUsers = await this.repository.count(tenant.id);
+  private async validateUserLimit(tx: Prisma.TransactionClient, tenant: Tenant): Promise<void> {
+    const totalUsers = await this.repository.count(tx, tenant.id);
 
     if (totalUsers >= tenant.max_users) {
       throw new ForbiddenException('Maximum user limit reached for this tenant.');
     }
   }
 
-  private async validateBranch(tenantId: string, branchId?: string): Promise<Branch | null> {
+  private async validateBranch(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    branchId?: string,
+  ): Promise<Branch | null> {
     if (!branchId) {
       return null;
     }
 
-    const branch = await this.prisma.branch.findFirst({
+    const branch = await tx.branch.findFirst({
       where: { id: branchId, tenant_id: tenantId, deleted_at: null },
     });
 
@@ -106,6 +119,7 @@ export class UsersService {
   }
 
   private async validateDepartment(
+    tx: Prisma.TransactionClient,
     tenantId: string,
     departmentId?: string,
   ): Promise<Department | null> {
@@ -113,7 +127,7 @@ export class UsersService {
       return null;
     }
 
-    const department = await this.prisma.department.findFirst({
+    const department = await tx.department.findFirst({
       where: { id: departmentId, tenant_id: tenantId, deleted_at: null },
     });
 
@@ -124,8 +138,8 @@ export class UsersService {
     return department;
   }
 
-  private async validateRole(tenantId: string, roleId: string) {
-    const role = await this.prisma.role.findFirst({
+  private async validateRole(tx: Prisma.TransactionClient, tenantId: string, roleId: string) {
+    const role = await tx.role.findFirst({
       where: { id: roleId, tenant_id: tenantId, deleted_at: null, is_active: true },
     });
 
@@ -136,8 +150,12 @@ export class UsersService {
     return role;
   }
 
-  private async validatePermission(tenantId: string, permissionId: string) {
-    const permission = await this.prisma.permission.findFirst({
+  private async validatePermission(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    permissionId: string,
+  ) {
+    const permission = await tx.permission.findFirst({
       where: { id: permissionId, tenant_id: tenantId, deleted_at: null },
     });
 
@@ -148,8 +166,12 @@ export class UsersService {
     return permission;
   }
 
-  private async getExistingOrThrow(tenantId: string, id: string): Promise<User> {
-    const user = await this.repository.findById(tenantId, id);
+  private async getExistingOrThrow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    id: string,
+  ): Promise<User> {
+    const user = await this.repository.findById(tx, tenantId, id);
 
     if (!user) {
       throw new NotFoundException('User not found.');
@@ -182,7 +204,7 @@ export class UsersService {
     assignedBy?: string,
   ): Promise<void> {
     for (const roleId of roleIds) {
-      await this.validateRole(tenantId, roleId);
+      await this.validateRole(tx, tenantId, roleId);
 
       await tx.userRoleAssignment.upsert({
         where: { user_id_role_id: { user_id: userId, role_id: roleId } },
@@ -211,7 +233,7 @@ export class UsersService {
     grantedBy?: string,
   ): Promise<void> {
     for (const permissionId of permissionIds) {
-      await this.validatePermission(tenantId, permissionId);
+      await this.validatePermission(tx, tenantId, permissionId);
 
       await tx.userPermission.upsert({
         where: {
@@ -251,23 +273,30 @@ export class UsersService {
   async createUser(
     tenantId: string,
     dto: CreateUserDto,
-    createdBy?: string,
+    creator: CreatorContext = {},
   ): Promise<CreateUserResponse> {
-    this.log('CREATE_USER', `Creating user ${dto.email} for tenant ${tenantId}`);
+    const creatorLabel = creator.superAdminId
+      ? `super admin ${creator.superAdminId}`
+      : creator.userId
+        ? `user ${creator.userId}`
+        : 'system';
+    this.log('CREATE_USER', `Creating user ${dto.email} for tenant ${tenantId} (by ${creatorLabel})`);
 
     const tenant = await this.validateTenant(tenantId);
-    await this.validateUserLimit(tenant);
-    await this.validateEmailAvailable(tenantId, dto.email);
-    await this.validateBranch(tenantId, dto.branch_id);
-    await this.validateDepartment(tenantId, dto.department_id);
 
     const temporaryPassword = PasswordUtil.generateTemporaryPassword(
       PASSWORD_CONSTANTS.TEMP_PASSWORD_LENGTH,
     );
     const passwordHash = await PasswordUtil.hash(temporaryPassword);
+    const auditActorId = creator.userId ?? creator.superAdminId;
 
     try {
-      const user = await this.prisma.$transaction(async (tx) => {
+      const user = await this.prisma.runWithTenant(tenantId, async (tx) => {
+        await this.validateUserLimit(tx, tenant);
+        await this.validateEmailAvailable(tx, tenantId, dto.email);
+        await this.validateBranch(tx, tenantId, dto.branch_id);
+        await this.validateDepartment(tx, tenantId, dto.department_id);
+
         const createdUser = await tx.user.create({
           data: {
             tenant_id: tenantId,
@@ -305,7 +334,9 @@ export class UsersService {
             max_concurrent_sessions:
               dto.max_concurrent_sessions ?? USERS_CONSTANTS.DEFAULT_MAX_CONCURRENT_SESSIONS,
             two_factor_enabled: false,
-            ...AuditHelper.buildCreateAudit(createdBy),
+            created_by_user_id: creator.userId,
+            created_by_super_admin_id: creator.superAdminId,
+            updated_by: auditActorId,
           },
         });
 
@@ -314,7 +345,7 @@ export class UsersService {
             tenant_id: tenantId,
             user_id: createdUser.id,
             password_hash: passwordHash,
-            changed_by: createdBy,
+            changed_by: auditActorId,
             reason: 'INITIAL_PASSWORD',
           },
         });
@@ -334,17 +365,17 @@ export class UsersService {
               tenant_id: tenantId,
               user_id: createdUser.id,
               role_id: defaultRole.id,
-              assigned_by: createdBy,
+              assigned_by: auditActorId,
             },
           });
         }
 
         if (dto.role_ids?.length) {
-          await this.assignRoles(tx, tenantId, createdUser.id, dto.role_ids, createdBy);
+          await this.assignRoles(tx, tenantId, createdUser.id, dto.role_ids, auditActorId);
         }
 
         if (dto.permission_ids?.length) {
-          await this.assignPermissions(tx, tenantId, createdUser.id, dto.permission_ids, createdBy);
+          await this.assignPermissions(tx, tenantId, createdUser.id, dto.permission_ids, auditActorId);
         }
 
         return createdUser;
@@ -381,7 +412,9 @@ export class UsersService {
       order: query.order,
     };
 
-    const result = await this.repository.findMany(tenantId, filters);
+    const result = await this.prisma.runWithTenant(tenantId, (tx) =>
+      this.repository.findMany(tx, tenantId, filters),
+    );
 
     return UserMapper.toPaginated(result);
   }
@@ -389,7 +422,9 @@ export class UsersService {
   async findOne(tenantId: string, id: string): Promise<UserResponse> {
     await this.validateTenant(tenantId);
 
-    const user = await this.getExistingOrThrow(tenantId, id);
+    const user = await this.prisma.runWithTenant(tenantId, (tx) =>
+      this.getExistingOrThrow(tx, tenantId, id),
+    );
 
     return UserMapper.toResponse(user);
   }
@@ -407,17 +442,18 @@ export class UsersService {
     this.log('UPDATE_USER', `Updating user ${id} for tenant ${tenantId}`);
 
     await this.validateTenant(tenantId);
-    await this.getExistingOrThrow(tenantId, id);
-
-    if (dto.email) {
-      await this.validateEmailAvailable(tenantId, dto.email, id);
-    }
-
-    await this.validateBranch(tenantId, dto.branch_id);
-    await this.validateDepartment(tenantId, dto.department_id);
 
     try {
-      const updated = await this.prisma.$transaction(async (tx) => {
+      const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+        await this.getExistingOrThrow(tx, tenantId, id);
+
+        if (dto.email) {
+          await this.validateEmailAvailable(tx, tenantId, dto.email, id);
+        }
+
+        await this.validateBranch(tx, tenantId, dto.branch_id);
+        await this.validateDepartment(tx, tenantId, dto.department_id);
+
         const { role_ids, permission_ids, email, ...rest } = dto;
 
         const user = await tx.user.update({
@@ -458,11 +494,11 @@ export class UsersService {
     this.log('UPDATE_STATUS', `Setting user ${id} status to ${dto.status}`);
 
     await this.validateTenant(tenantId);
-    await this.getExistingOrThrow(tenantId, id);
 
-    const updated = await this.prisma.$transaction((tx) =>
-      this.repository.updateStatus(tx, id, dto.status, updatedBy),
-    );
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getExistingOrThrow(tx, tenantId, id);
+      return this.repository.updateStatus(tx, id, dto.status, updatedBy);
+    });
 
     return UserMapper.toResponse(updated);
   }
@@ -480,15 +516,15 @@ export class UsersService {
 
     await this.validateTenant(tenantId);
 
-    const existing = await this.repository.findByIds(tenantId, dto.ids);
+    const affected = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const existing = await this.repository.findByIds(tx, tenantId, dto.ids);
 
-    if (existing.length === 0) {
-      throw new NotFoundException('None of the specified users were found.');
-    }
+      if (existing.length === 0) {
+        throw new NotFoundException('None of the specified users were found.');
+      }
 
-    const eligibleIds = existing.map((user) => user.id);
+      const eligibleIds = existing.map((user) => user.id);
 
-    const affected = await this.prisma.$transaction(async (tx) => {
       switch (dto.action) {
         case BulkUserAction.ACTIVATE: {
           const result = await this.repository.bulkUpdateStatus(
@@ -549,9 +585,11 @@ export class UsersService {
     this.log('DELETE_USER', `Soft-deleting user ${id}`);
 
     await this.validateTenant(tenantId);
-    await this.getExistingOrThrow(tenantId, id);
 
-    await this.prisma.$transaction((tx) => this.repository.softDelete(tx, id, deletedBy));
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getExistingOrThrow(tx, tenantId, id);
+      return this.repository.softDelete(tx, id, deletedBy);
+    });
   }
 
   async restoreUser(tenantId: string, id: string, restoredBy?: string): Promise<UserResponse> {
@@ -559,19 +597,19 @@ export class UsersService {
 
     await this.validateTenant(tenantId);
 
-    const user = await this.repository.findByIdIncludingDeleted(tenantId, id);
+    const restored = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const user = await this.repository.findByIdIncludingDeleted(tx, tenantId, id);
 
-    if (!user) {
-      throw new NotFoundException('User not found.');
-    }
+      if (!user) {
+        throw new NotFoundException('User not found.');
+      }
 
-    if (!user.deleted_at) {
-      throw new BadRequestException('User is not deleted.');
-    }
+      if (!user.deleted_at) {
+        throw new BadRequestException('User is not deleted.');
+      }
 
-    const restored = await this.prisma.$transaction((tx) =>
-      this.repository.restore(tx, id, restoredBy),
-    );
+      return this.repository.restore(tx, id, restoredBy);
+    });
 
     return UserMapper.toResponse(restored);
   }
@@ -585,26 +623,27 @@ export class UsersService {
 
     await this.validateTenant(tenantId);
 
-    const user = await this.getExistingOrThrow(tenantId, userId);
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const user = await this.getExistingOrThrow(tx, tenantId, userId);
 
-    const currentValid = await PasswordUtil.verify(user.password_hash, dto.current_password);
+      const currentValid = await PasswordUtil.verify(user.password_hash, dto.current_password);
 
-    if (!currentValid) {
-      throw new UnauthorizedException('Current password is incorrect.');
-    }
+      if (!currentValid) {
+        throw new UnauthorizedException('Current password is incorrect.');
+      }
 
-    PasswordHelper.assertStrength(dto.new_password);
+      PasswordHelper.assertStrength(dto.new_password);
 
-    const history = await this.repository.getPasswordHistory(
-      tenantId,
-      userId,
-      PASSWORD_CONSTANTS.HISTORY_LIMIT,
-    );
-    await PasswordHelper.assertNotReused(dto.new_password, history);
+      const history = await this.repository.getPasswordHistory(
+        tx,
+        tenantId,
+        userId,
+        PASSWORD_CONSTANTS.HISTORY_LIMIT,
+      );
+      await PasswordHelper.assertNotReused(dto.new_password, history);
 
-    const passwordHash = await PasswordUtil.hash(dto.new_password);
+      const passwordHash = await PasswordUtil.hash(dto.new_password);
 
-    await this.prisma.$transaction(async (tx) => {
       await this.repository.updatePassword(tx, userId, passwordHash, {
         updatedBy: userId,
         mustChangePassword: false,
@@ -638,14 +677,15 @@ export class UsersService {
     this.log('ADMIN_RESET_PASSWORD', `Admin ${adminId} resetting password for ${targetUserId}`);
 
     await this.validateTenant(tenantId);
-    await this.getExistingOrThrow(tenantId, targetUserId);
 
     const temporaryPassword = PasswordUtil.generateTemporaryPassword(
       PASSWORD_CONSTANTS.TEMP_PASSWORD_LENGTH,
     );
     const passwordHash = await PasswordUtil.hash(temporaryPassword);
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getExistingOrThrow(tx, tenantId, targetUserId);
+
       await this.repository.updatePassword(tx, targetUserId, passwordHash, {
         updatedBy: adminId,
         mustChangePassword: dto.require_password_change ?? true,
@@ -665,44 +705,44 @@ export class UsersService {
 
     this.log('ADMIN_RESET_PASSWORD', `Password reset for ${targetUserId} by ${adminId}`);
 
-    // NOTE: dto.send_email is a hook for the Notifications module (future
-    // work) to dispatch the temporary password by email instead of
-    // returning it in the API response.
     return { temporaryPassword };
   }
 
   // ============================================================
   // PASSWORD — FORGOT / RESET (token flow)
-  //
-  // Token issuance/emailing is orchestrated by the Auth module's
-  // forgot-password endpoint (Phase 1); these methods operate on the
-  // User aggregate and are called by that endpoint.
   // ============================================================
 
   async requestPasswordReset(tenantId: string, email: string): Promise<{ token: string } | null> {
     await this.validateTenant(tenantId);
 
-    const user = await this.repository.findByEmail(tenantId, email);
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const user = await this.repository.findByEmail(tx, tenantId, email);
 
-    // Do not reveal whether the email exists.
-    if (!user) {
-      return null;
-    }
+      if (!user) {
+        return null;
+      }
 
-    const token = PasswordHelper.generateResetToken();
-    const expiresAt = PasswordHelper.resetTokenExpiry();
+      const token = PasswordHelper.generateResetToken();
+      const expiresAt = PasswordHelper.resetTokenExpiry();
 
-    await this.prisma.$transaction((tx) =>
-      this.repository.setPasswordResetToken(tx, user.id, token, expiresAt),
-    );
+      await this.repository.setPasswordResetToken(tx, user.id, token, expiresAt);
 
-    this.log('REQUEST_PASSWORD_RESET', `Reset token issued for user ${user.id}`);
+      this.log('REQUEST_PASSWORD_RESET', `Reset token issued for user ${user.id}`);
 
-    return { token };
+      return { token };
+    });
   }
 
+  /**
+   * The reset token is presented with no tenant context (an emailed
+   * link, not an authenticated request), so findByPasswordResetToken
+   * is intentionally the one lookup NOT wrapped in runWithTenant
+   * beforehand — it runs on the base client to discover which tenant
+   * the token belongs to, and only then do we open an RLS context for
+   * the actual update.
+   */
   async resetPassword(tenantId: string, dto: ResetPasswordDto): Promise<void> {
-    const user = await this.repository.findByPasswordResetToken(dto.token);
+    const user = await this.repository.findByPasswordResetToken(this.prisma, dto.token);
 
     if (!user || user.tenant_id !== tenantId) {
       throw new BadRequestException('Invalid or expired reset token.');
@@ -714,16 +754,17 @@ export class UsersService {
 
     PasswordHelper.assertStrength(dto.new_password);
 
-    const history = await this.repository.getPasswordHistory(
-      tenantId,
-      user.id,
-      PASSWORD_CONSTANTS.HISTORY_LIMIT,
-    );
-    await PasswordHelper.assertNotReused(dto.new_password, history);
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const history = await this.repository.getPasswordHistory(
+        tx,
+        tenantId,
+        user.id,
+        PASSWORD_CONSTANTS.HISTORY_LIMIT,
+      );
+      await PasswordHelper.assertNotReused(dto.new_password, history);
 
-    const passwordHash = await PasswordUtil.hash(dto.new_password);
+      const passwordHash = await PasswordUtil.hash(dto.new_password);
 
-    await this.prisma.$transaction(async (tx) => {
       await this.repository.updatePassword(tx, user.id, passwordHash, {
         mustChangePassword: false,
         passwordExpiresAt: PasswordHelper.calculateExpiryDate(),

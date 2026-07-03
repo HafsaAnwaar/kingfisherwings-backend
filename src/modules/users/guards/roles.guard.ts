@@ -8,11 +8,13 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { AuthenticatedRequest } from '../interfaces/current-user.interface';
+import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
 
 /**
  * Requires request.user to be populated by the Auth module's
  * JwtAuthGuard, which must run before this guard in the guard chain
  * (e.g. @UseGuards(JwtAuthGuard, RolesGuard)). Fails closed if absent.
+ * A SuperAdmin principal bypasses this check entirely.
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -33,6 +35,10 @@ export class RolesGuard implements CanActivate {
 
     if (!user) {
       throw new UnauthorizedException('Authentication required.');
+    }
+
+    if (isSuperAdminPrincipal(user)) {
+      return true;
     }
 
     const authorized = requiredRoles.includes(user.role);

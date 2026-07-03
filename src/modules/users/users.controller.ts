@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  BadRequestException,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
 import { RequirePermissions } from './decorators/permissions.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CurrentUser as CurrentUserType } from './interfaces/current-user.interface';
+import { isSuperAdminPrincipal } from '../../common/utils/principal.util';
 
 import { USERS_PERMISSIONS } from './constants/permission.constants';
 
@@ -79,11 +81,30 @@ export class UsersController {
   @ApiOperation({ summary: 'Create a user. Returns a system-generated temporary password.' })
   @ApiResponse({ status: HttpStatus.CREATED, type: UserResponse })
   async create(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') actorId: string,
+    @CurrentUser() principal: unknown,
     @Body() dto: CreateUserDto,
   ): Promise<{ user: UserResponse; temporaryPassword: string }> {
-    const result = await this.usersService.createUser(tenantId, dto, actorId);
+    let tenantId: string;
+    let creator: { userId?: string; superAdminId?: string };
+
+    if (isSuperAdminPrincipal(principal)) {
+      const superAdmin = principal as { id: string };
+
+      if (!dto.tenant_id) {
+        throw new BadRequestException(
+          'tenant_id is required in the request body when a super admin creates a user.',
+        );
+      }
+
+      tenantId = dto.tenant_id;
+      creator = { superAdminId: superAdmin.id };
+    } else {
+      const user = principal as CurrentUserType;
+      tenantId = user.tenantId;
+      creator = { userId: user.id };
+    }
+
+    const result = await this.usersService.createUser(tenantId, dto, creator);
 
     return {
       user: UserMapper.toResponse(result.user),

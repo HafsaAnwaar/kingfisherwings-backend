@@ -1,6 +1,11 @@
 import { User } from '@prisma/client';
 import { PaginationQuery } from './interfaces/pagination.interface';
 
+export interface CreatorContext {
+  userId?: string;
+  superAdminId?: string;
+}
+
 export interface UserSearchFilters extends PaginationQuery {
   search?: string;
   role?: string;

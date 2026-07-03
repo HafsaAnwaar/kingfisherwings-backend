@@ -1,24 +1,19 @@
-// src/modules/auth/interfaces/request-with-user.interface.ts
-
 import { Request } from 'express';
-import { UserRole } from '@prisma/client';
+import { CurrentUser } from '../../users/interfaces/current-user.interface';
+import { CurrentSuperAdmin } from './current-super-admin.interface';
 
-export interface AuthenticatedUser {
+export type { CurrentUser as AuthenticatedUser } from '../../users/interfaces/current-user.interface';
+export type { CurrentSuperAdmin } from './current-super-admin.interface';
 
-  id: string;
-
-  tenant_id: string;
-
-  email: string;
-
-  role: UserRole;
-
-  jti: string;
-
-}
+export type RequestPrincipal = CurrentUser | CurrentSuperAdmin;
 
 export interface RequestWithUser extends Request {
+  user: RequestPrincipal;
+}
 
-  user: AuthenticatedUser;
+import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
 
+/** True if the request principal is a SuperAdmin — CurrentUser always has tenantId, CurrentSuperAdmin never does. */
+export function isSuperAdmin(principal: RequestPrincipal): principal is CurrentSuperAdmin {
+  return isSuperAdminPrincipal(principal);
 }

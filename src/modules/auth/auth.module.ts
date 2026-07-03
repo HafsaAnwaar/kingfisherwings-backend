@@ -7,6 +7,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from '../../prisma/prisma.module';
+import { UsersModule } from '../users';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -17,9 +18,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 @Module({
   imports: [
     PrismaModule,
-
+    UsersModule,
     PassportModule,
-
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -32,25 +32,21 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     }),
   ],
 
-  controllers: [
-    AuthController,
-  ],
+  controllers: [AuthController],
 
   providers: [
     AuthService,
     JwtStrategy,
 
     // Registers JwtAuthGuard globally — every route requires auth
-    // unless marked with @Public(). Remove this provider and apply
-    // the guard per-controller instead if you'd rather opt IN to auth.
+    // unless marked with @Public(). Health and the tenant-creation
+    // endpoint are explicitly marked @Public() for that reason.
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
   ],
 
-  exports: [
-    AuthService,
-  ],
+  exports: [AuthService],
 })
 export class AuthModule {}
