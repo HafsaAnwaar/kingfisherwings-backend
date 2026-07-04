@@ -44,12 +44,14 @@ export class TenantsService {
     const passwordHash = await PasswordUtil.hash(password);
 
     const result = await this.prisma.$transaction(async (tx) => {
+      const tenantCreateData: Prisma.TenantUncheckedCreateInput = {
+        ...tenantData,
+        password_hash: passwordHash,
+        created_by_super_admin_id: createdBySuperAdminId,
+      };
+
       const tenant = await tx.tenant.create({
-        data: {
-          ...tenantData,
-          password_hash: passwordHash,
-          created_by_super_admin_id: createdBySuperAdminId,
-        },
+        data: tenantCreateData,
       });
 
       // `tenants` itself has no RLS policy, but every write below this
