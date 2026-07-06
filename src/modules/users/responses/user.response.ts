@@ -47,5 +47,8 @@ export class UserResponse {
   @ApiPropertyOptional() locked_until?: Date;
 
   @ApiProperty() created_at!: Date;
+  @ApiPropertyOptional() created_by_user_id?: string;
+  @ApiPropertyOptional() created_by_tenant_id?: string;
+  @ApiPropertyOptional() created_by_super_admin_id?: string;
   @ApiProperty() updated_at!: Date;
 }

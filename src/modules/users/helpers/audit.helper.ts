@@ -4,6 +4,14 @@
  * same way.
  */
 export class AuditHelper {
+  /**
+   * Generic fallback for models with a simple loose `created_by`/
+   * `updated_by` pair. User no longer uses this for creation — it has
+   * three typed, FK-enforced creator columns instead (see
+   * created_by_user_id / created_by_tenant_id / created_by_super_admin_id
+   * on the User model) — but this remains available for future modules
+   * that don't need that distinction.
+   */
   static buildCreateAudit(actorId?: string) {
     return {
       created_by: actorId,

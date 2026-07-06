@@ -33,9 +33,9 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
 
-    .setTitle('Fresa Gold ERP API')
+    .setTitle('KingFisher Wings ERP API')
 
-    .setDescription('Freight ERP Backend')
+    .setDescription('Kingfisher Wings ERP Backend')
 
     .setVersion('1.0')
 

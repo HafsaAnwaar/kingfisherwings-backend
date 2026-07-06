@@ -8,12 +8,15 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { AuthenticatedRequest } from '../interfaces/current-user.interface';
+import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
 
 /**
  * Requires ALL permissions declared via @RequirePermissions(...) to be
  * present in request.user.permissions. Requires request.user to be
  * populated by the Auth module's JwtAuthGuard, which must run first in
- * the guard chain. Fails closed if absent.
+ * the guard chain. Fails closed if absent. A SuperAdmin principal
+ * bypasses this check entirely — the platform owner implicitly has
+ * every permission, in every tenant.
  */
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -34,6 +37,10 @@ export class PermissionsGuard implements CanActivate {
 
     if (!user) {
       throw new UnauthorizedException('Authentication required.');
+    }
+
+    if (isSuperAdminPrincipal(user)) {
+      return true;
     }
 
     const grantedPermissions = new Set(user.permissions ?? []);

@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 
 import {
@@ -23,8 +24,17 @@ import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantQueryDto } from './dto/tenant-query.dto';
 
-@ApiTags('Tenants')
+import { SuperAdminGuard } from '../auth/guards/super-admin.guard';
+import { CurrentSuperAdminUser } from '../auth/decorators/current-super-admin.decorator';
+
+/**
+ * Platform-admin-only: every route here requires a SuperAdmin token
+ * (see POST /auth/super-admin/login). Tenant staff and tenant owners
+ * never call this controller — they use /users/* and /auth/tenant-login.
+ */
+@ApiTags('Tenants (Super Admin)')
 @ApiBearerAuth()
+@UseGuards(SuperAdminGuard)
 @Controller('tenants')
 export class TenantsController {
   constructor(
@@ -35,10 +45,9 @@ export class TenantsController {
   // CREATE TENANT
   // =====================================================
 
-  
   @Post()
   @ApiOperation({
-    summary: 'Create a new tenant (public — self-signup / bootstrap)',
+    summary: 'Create a new tenant (also provisions its TENANT_ADMIN owner user)',
   })
   @ApiResponse({
     status: 201,
@@ -47,8 +56,11 @@ export class TenantsController {
   create(
     @Body()
     createTenantDto: CreateTenantDto,
+
+    @CurrentSuperAdminUser('id')
+    superAdminId: string,
   ) {
-    return this.tenantsService.create(createTenantDto);
+    return this.tenantsService.create(createTenantDto, superAdminId);
   }
 
   // =====================================================

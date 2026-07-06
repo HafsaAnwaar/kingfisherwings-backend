@@ -1,30 +1,36 @@
-// src/modules/auth/auth.service.ts
-
 import {
   Injectable,
   UnauthorizedException,
-  BadRequestException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 
-import { TenantStatus, UserStatus } from '@prisma/client';
+import { Prisma, TenantStatus, UserStatus, User, Tenant } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { PasswordUtil } from '../../common/utils/password.util';
+
+import { UsersService } from '../users/users.service';
+import { UserMapper } from '../users/mappers/user.mapper';
+import { ChangePasswordDto } from '../users/dto/change-password.dto';
+import { TenantChangePasswordDto } from './dto/tenant-change-password.dto';
 
 import { LoginDto } from './dto/login.dto';
+import { TenantLoginDto } from './dto/tenant-login.dto';
+import { SuperAdminSignupDto } from './dto/super-admin-signup.dto';
+import { SuperAdminLoginDto } from './dto/super-admin-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
 
 import { LoginMeta } from './interfaces/login-meta.interface';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { JwtPayload, UserJwtPayload, SuperAdminJwtPayload } from './interfaces/jwt-payload.interface';
+import { RequestPrincipal, isSuperAdmin } from './interfaces/request-with-user.interface';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 30;
-const BCRYPT_SALT_ROUNDS = 12;
+const OWNER_ROLE_CODE = 'TENANT_ADMIN';
 
 @Injectable()
 export class AuthService {
@@ -32,169 +38,244 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
   ) {}
 
   // =====================================================
-  // LOGIN
+  // USER LOGIN (tenant_slug + email + password)
   // =====================================================
 
-  async login(
-    dto: LoginDto,
-    meta: LoginMeta,
-  ) {
+  async login(dto: LoginDto, meta: LoginMeta) {
     const tenant = await this.prisma.tenant.findFirst({
-      where: {
-        slug: dto.tenant_slug,
-        deleted_at: null,
-      },
+      where: { slug: dto.tenant_slug, deleted_at: null },
     });
 
     if (!tenant) {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
-    const activeTenantStatuses: TenantStatus[] = [
-      TenantStatus.ACTIVE,
-      TenantStatus.TRIAL,
-    ];
+    this.assertTenantActive(tenant);
 
-    if (
-      !tenant.is_active ||
-      !activeTenantStatuses.includes(tenant.status)
-    ) {
-      throw new ForbiddenException('This account is not active.');
+    return this.prisma.runWithTenant(tenant.id, async (tx) => {
+      const user = await tx.user.findFirst({
+        where: { tenant_id: tenant.id, email: dto.email.toLowerCase(), deleted_at: null },
+      });
+
+      if (!user) {
+        await this.recordLoginHistory(tx, {
+          tenant_id: tenant.id,
+          user_id: null,
+          email: dto.email,
+          meta,
+          success: false,
+          failure_reason: 'USER_NOT_FOUND',
+        });
+
+        throw new UnauthorizedException('Invalid credentials.');
+      }
+
+      if (user.locked_until && user.locked_until > new Date()) {
+        throw new ForbiddenException('Account is temporarily locked due to failed login attempts.');
+      }
+
+      if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.INVITED) {
+        throw new ForbiddenException(`Account is ${user.status.toLowerCase()}. Contact your administrator.`);
+      }
+
+      const passwordValid = await PasswordUtil.verify(user.password_hash, dto.password);
+
+      if (!passwordValid) {
+        await this.handleFailedUserLogin(tx, user.id, user.failed_login_count);
+
+        await this.recordLoginHistory(tx, {
+          tenant_id: tenant.id,
+          user_id: user.id,
+          email: dto.email,
+          meta,
+          success: false,
+          failure_reason: 'INVALID_PASSWORD',
+        });
+
+        throw new UnauthorizedException('Invalid credentials.');
+      }
+
+      return this.completeUserLogin(tx, tenant, user, dto, meta);
+    });
+  }
+
+  // =====================================================
+  // TENANT LOGIN (tenant_slug + the tenant's own password)
+  //
+  // Authenticates against Tenant.password_hash directly, then issues a
+  // token for that tenant's auto-provisioned TENANT_ADMIN owner user —
+  // reusing the exact same session/JWT/RBAC machinery as a regular user
+  // login, so every existing guard and endpoint works unchanged. The
+  // owner user's own password_hash is never checked for this flow.
+  // =====================================================
+
+  async tenantLogin(dto: TenantLoginDto, meta: LoginMeta) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { slug: dto.tenant_slug, deleted_at: null },
+    });
+
+    if (!tenant) {
+      throw new UnauthorizedException('Invalid credentials.');
     }
 
-    const user = await this.prisma.user.findFirst({
-      where: {
-        tenant_id: tenant.id,
-        email: dto.email,
-        deleted_at: null,
+    this.assertTenantActive(tenant);
+
+    const passwordValid = await PasswordUtil.verify(tenant.password_hash, dto.password);
+
+    return this.prisma.runWithTenant(tenant.id, async (tx) => {
+      if (!passwordValid) {
+        await this.recordLoginHistory(tx, {
+          tenant_id: tenant.id,
+          user_id: null,
+          email: tenant.email ?? tenant.slug,
+          meta,
+          success: false,
+          failure_reason: 'INVALID_TENANT_PASSWORD',
+        });
+
+        throw new UnauthorizedException('Invalid credentials.');
+      }
+
+      const owner = await tx.user.findFirst({
+        where: {
+          tenant_id: tenant.id,
+          role: 'TENANT_ADMIN',
+          deleted_at: null,
+        },
+        orderBy: { created_at: 'asc' },
+      });
+
+      if (!owner) {
+        // Should never happen — TenantsService.create() always provisions
+        // the owner user atomically with the tenant.
+        throw new NotFoundException(
+          'This tenant has no admin user provisioned. Contact platform support.',
+        );
+      }
+
+      if (owner.status !== UserStatus.ACTIVE) {
+        throw new ForbiddenException(`Tenant admin account is ${owner.status.toLowerCase()}.`);
+      }
+
+      return this.completeUserLogin(tx, tenant, owner, dto, meta);
+    });
+  }
+
+  // =====================================================
+  // SUPER ADMIN LOGIN
+  // =====================================================
+
+  // =====================================================
+  // SUPER ADMIN SIGNUP
+  //
+  // Public self-registration for the platform owner. Unlike Tenant and
+  // User creation (which always require an existing higher-privileged
+  // actor), SuperAdmin is the root of the trust chain, so it has to be
+  // able to bootstrap itself. Auto-logs in on success, same as signup
+  // flows typically do, so the caller doesn't need a second round trip.
+  // =====================================================
+
+  async superAdminSignup(dto: SuperAdminSignupDto, meta: LoginMeta) {
+    const existing = await this.prisma.superAdmin.findFirst({
+      where: { email: dto.email.toLowerCase() },
+    });
+
+    if (existing) {
+      throw new ForbiddenException('An account with this email already exists.');
+    }
+
+    const passwordHash = await PasswordUtil.hash(dto.password);
+
+    const superAdmin = await this.prisma.superAdmin.create({
+      data: {
+        email: dto.email.toLowerCase(),
+        password_hash: passwordHash,
+        first_name: dto.first_name,
+        last_name: dto.last_name,
       },
     });
 
-    if (!user) {
-      await this.recordLoginHistory({
-        tenant_id: tenant.id,
-        user_id: null,
-        email: dto.email,
-        meta,
-        success: false,
-        failure_reason: 'USER_NOT_FOUND',
-      });
+    return this.completeSuperAdminLogin(superAdmin, meta);
+  }
 
+  async superAdminLogin(dto: SuperAdminLoginDto, meta: LoginMeta) {
+    const superAdmin = await this.prisma.superAdmin.findFirst({
+      where: { email: dto.email.toLowerCase(), deleted_at: null },
+    });
+
+    if (!superAdmin) {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
-    // -----------------------------
-    // Lockout Check
-    // -----------------------------
-
-    if (user.locked_until && user.locked_until > new Date()) {
-      throw new ForbiddenException(
-        'Account is temporarily locked due to failed login attempts.',
-      );
+    if (superAdmin.locked_until && superAdmin.locked_until > new Date()) {
+      throw new ForbiddenException('Account is temporarily locked due to failed login attempts.');
     }
 
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new ForbiddenException(
-        `Account is ${user.status.toLowerCase()}. Contact your administrator.`,
-      );
+    if (!superAdmin.is_active) {
+      throw new ForbiddenException('Account is inactive.');
     }
 
-    // -----------------------------
-    // Password Check
-    // -----------------------------
-
-    const passwordValid = await bcrypt.compare(
-      dto.password,
-      user.password_hash,
-    );
+    const passwordValid = await PasswordUtil.verify(superAdmin.password_hash, dto.password);
 
     if (!passwordValid) {
-      await this.handleFailedLogin(user.id, user.failed_login_count);
+      const nextCount = superAdmin.failed_login_count + 1;
+      const shouldLock = nextCount >= MAX_FAILED_ATTEMPTS;
 
-      await this.recordLoginHistory({
-        tenant_id: tenant.id,
-        user_id: user.id,
-        email: dto.email,
-        meta,
-        success: false,
-        failure_reason: 'INVALID_PASSWORD',
+      await this.prisma.superAdmin.update({
+        where: { id: superAdmin.id },
+        data: {
+          failed_login_count: shouldLock ? 0 : nextCount,
+          locked_until: shouldLock
+            ? new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000)
+            : undefined,
+        },
       });
 
       throw new UnauthorizedException('Invalid credentials.');
     }
 
-    // -----------------------------
-    // Enforce Concurrent Session Limit
-    // -----------------------------
+    return this.completeSuperAdminLogin(superAdmin, meta);
+  }
 
-    await this.enforceSessionLimit(user.id, user.max_concurrent_sessions);
+  private async completeSuperAdminLogin(
+    superAdmin: { id: string; email: string; first_name: string; last_name: string },
+    meta: LoginMeta,
+  ) {
+    const sessionId = randomUUID();
 
-    // -----------------------------
-    // Issue Tokens
-    // -----------------------------
-
-    const jti = randomUUID();
-
-    const { access_token, refresh_token, expires_in } =
-      await this.issueTokens({
-        userId: user.id,
-        tenantId: tenant.id,
-        email: user.email,
-        role: user.role,
-        jti,
-      });
-
-    const refreshTokenHash = await bcrypt.hash(
-      refresh_token,
-      BCRYPT_SALT_ROUNDS,
+    const { access_token, refresh_token, expires_in } = await this.issueSuperAdminTokens(
+      superAdmin.id,
+      superAdmin.email,
+      sessionId,
     );
 
-    const refreshExpiryDays = dto.remember_me ? 30 : 7;
+    const refreshTokenHash = await PasswordUtil.hash(refresh_token);
 
     await this.prisma.$transaction([
-      this.prisma.session.create({
+      this.prisma.superAdminSession.create({
         data: {
-          tenant_id: tenant.id,
-          user_id: user.id,
-          jti,
+          super_admin_id: superAdmin.id,
+          jti: sessionId,
           refresh_token_hash: refreshTokenHash,
           ip_address: meta.ip_address,
           user_agent: meta.user_agent,
-          browser: meta.browser,
-          operating_system: meta.operating_system,
-          remember_me: dto.remember_me ?? false,
-          expires_at: new Date(
-            Date.now() + refreshExpiryDays * 24 * 60 * 60 * 1000,
-          ),
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
       }),
-
-      this.prisma.user.update({
-        where: {
-          id: user.id,
-        },
+      this.prisma.superAdmin.update({
+        where: { id: superAdmin.id },
         data: {
           failed_login_count: 0,
           locked_until: null,
           last_login_at: new Date(),
           last_login_ip: meta.ip_address,
-          last_login_device: meta.device_name,
-          last_login_browser: meta.browser,
-          last_activity_at: new Date(),
         },
       }),
     ]);
-
-    await this.recordLoginHistory({
-      tenant_id: tenant.id,
-      user_id: user.id,
-      email: dto.email,
-      meta,
-      success: true,
-    });
 
     return {
       success: true,
@@ -203,25 +284,27 @@ export class AuthService {
         access_token,
         refresh_token,
         expires_in,
-        user: this.sanitizeUser(user),
+        super_admin: {
+          id: superAdmin.id,
+          email: superAdmin.email,
+          first_name: superAdmin.first_name,
+          last_name: superAdmin.last_name,
+        },
       },
     };
   }
 
   // =====================================================
-  // REFRESH TOKEN (rotation + reuse detection)
+  // REFRESH (handles user, tenant-owner, and super-admin tokens alike)
   // =====================================================
 
   async refresh(dto: RefreshTokenDto) {
     let payload: JwtPayload;
 
     try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(
-        dto.refresh_token,
-        {
-          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        },
-      );
+      payload = await this.jwtService.verifyAsync<JwtPayload>(dto.refresh_token, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      });
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token.');
     }
@@ -230,89 +313,64 @@ export class AuthService {
       throw new UnauthorizedException('Invalid token type.');
     }
 
-    const session = await this.prisma.session.findUnique({
-      where: {
-        jti: payload.jti,
-      },
-    });
+    if (payload.principal === 'super_admin') {
+      return this.refreshSuperAdmin(payload, dto.refresh_token);
+    }
 
-    if (
-      !session ||
-      !session.is_active ||
-      session.revoked_at ||
-      session.expires_at < new Date()
-    ) {
+    return this.refreshUser(payload, dto.refresh_token);
+  }
+
+  private async refreshUser(payload: UserJwtPayload, presentedToken: string) {
+    const session = await this.prisma.session.findUnique({ where: { jti: payload.sessionId } });
+
+    if (!session || !session.is_active || session.revoked_at || session.expires_at < new Date()) {
       throw new UnauthorizedException('Session is no longer valid.');
     }
 
-    const tokenMatches = await bcrypt.compare(
-      dto.refresh_token,
-      session.refresh_token_hash,
-    );
+    const tokenMatches = await PasswordUtil.verify(session.refresh_token_hash, presentedToken);
 
     if (!tokenMatches) {
-      // Reuse of a rotated-out refresh token — treat as compromise.
       await this.prisma.session.updateMany({
-        where: {
-          user_id: session.user_id,
-          is_active: true,
-        },
-        data: {
-          is_active: false,
-          revoked_at: new Date(),
-          revoked_reason: 'REUSE_DETECTED',
-        },
+        where: { user_id: session.user_id, is_active: true },
+        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'REUSE_DETECTED' },
       });
 
-      throw new UnauthorizedException(
-        'Refresh token reuse detected. All sessions revoked.',
-      );
+      throw new UnauthorizedException('Refresh token reuse detected. All sessions revoked.');
     }
 
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: session.user_id,
-        deleted_at: null,
-      },
-    });
+    const user = await this.prisma.runWithTenant(session.tenant_id, (tx) =>
+      tx.user.findFirst({ where: { id: session.user_id, deleted_at: null } }),
+    );
 
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Account is no longer active.');
     }
 
-    const newJti = randomUUID();
+    const { roleId, permissions } = await this.resolveRbac(session.tenant_id, user.id);
+    const newSessionId = randomUUID();
 
-    const { access_token, refresh_token, expires_in } =
-      await this.issueTokens({
-        userId: user.id,
-        tenantId: session.tenant_id,
-        email: user.email,
-        role: user.role,
-        jti: newJti,
-      });
+    const { access_token, refresh_token, expires_in } = await this.issueUserTokens({
+      user,
+      tenantId: session.tenant_id,
+      roleId,
+      permissions,
+      sessionId: newSessionId,
+    });
 
-    const newRefreshTokenHash = await bcrypt.hash(
-      refresh_token,
-      BCRYPT_SALT_ROUNDS,
-    );
+    const newRefreshTokenHash = await PasswordUtil.hash(refresh_token);
 
+    // Sessions are excluded from RLS (see migration note), so these run
+    // directly on the base client — no tenant context needed here.
     await this.prisma.$transaction([
       this.prisma.session.update({
-        where: {
-          jti: payload.jti,
-        },
-        data: {
-          is_active: false,
-          revoked_at: new Date(),
-          revoked_reason: 'ROTATED',
-        },
+        where: { jti: payload.sessionId },
+        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'ROTATED' },
       }),
-
       this.prisma.session.create({
         data: {
           tenant_id: session.tenant_id,
           user_id: user.id,
-          jti: newJti,
+          jti: newSessionId,
           refresh_token_hash: newRefreshTokenHash,
           ip_address: session.ip_address,
           user_agent: session.user_agent,
@@ -328,128 +386,133 @@ export class AuthService {
     return {
       success: true,
       message: 'Token refreshed successfully.',
-      data: {
-        access_token,
-        refresh_token,
-        expires_in,
-      },
+      data: { access_token, refresh_token, expires_in },
     };
   }
 
-  // =====================================================
-  // LOGOUT
-  // =====================================================
-
-  async logout(userId: string, jti: string) {
-    await this.prisma.session.updateMany({
-      where: {
-        user_id: userId,
-        jti,
-        is_active: true,
-      },
-      data: {
-        is_active: false,
-        revoked_at: new Date(),
-        revoked_reason: 'LOGOUT',
-      },
+  private async refreshSuperAdmin(payload: SuperAdminJwtPayload, presentedToken: string) {
+    const session = await this.prisma.superAdminSession.findUnique({
+      where: { jti: payload.sessionId },
     });
 
-    return {
-      success: true,
-      message: 'Logged out successfully.',
-    };
-  }
-
-  // =====================================================
-  // GET CURRENT USER
-  // =====================================================
-
-  async me(userId: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        deleted_at: null,
-      },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found.');
+    if (!session || !session.is_active || session.revoked_at || session.expires_at < new Date()) {
+      throw new UnauthorizedException('Session is no longer valid.');
     }
 
-    return {
-      success: true,
-      data: this.sanitizeUser(user),
-    };
-  }
+    const tokenMatches = await PasswordUtil.verify(session.refresh_token_hash, presentedToken);
 
-  // =====================================================
-  // CHANGE PASSWORD
-  // =====================================================
+    if (!tokenMatches) {
+      await this.prisma.superAdminSession.updateMany({
+        where: { super_admin_id: session.super_admin_id, is_active: true },
+        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'REUSE_DETECTED' },
+      });
 
-  async changePassword(
-    userId: string,
-    dto: ChangePasswordDto,
-  ) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        deleted_at: null,
-      },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found.');
+      throw new UnauthorizedException('Refresh token reuse detected. All sessions revoked.');
     }
 
-    const currentValid = await bcrypt.compare(
-      dto.current_password,
-      user.password_hash,
+    const superAdmin = await this.prisma.superAdmin.findFirst({
+      where: { id: session.super_admin_id, deleted_at: null, is_active: true },
+    });
+
+    if (!superAdmin) {
+      throw new UnauthorizedException('Account is no longer active.');
+    }
+
+    const newSessionId = randomUUID();
+
+    const { access_token, refresh_token, expires_in } = await this.issueSuperAdminTokens(
+      superAdmin.id,
+      superAdmin.email,
+      newSessionId,
     );
 
-    if (!currentValid) {
-      throw new BadRequestException('Current password is incorrect.');
-    }
-
-    const newPasswordHash = await bcrypt.hash(
-      dto.new_password,
-      BCRYPT_SALT_ROUNDS,
-    );
+    const newRefreshTokenHash = await PasswordUtil.hash(refresh_token);
 
     await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: {
-          id: userId,
-        },
-        data: {
-          password_hash: newPasswordHash,
-          password_changed_at: new Date(),
-          must_change_password: false,
-        },
+      this.prisma.superAdminSession.update({
+        where: { jti: payload.sessionId },
+        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'ROTATED' },
       }),
-
-      this.prisma.passwordHistory.create({
+      this.prisma.superAdminSession.create({
         data: {
-          tenant_id: user.tenant_id,
-          user_id: user.id,
-          password_hash: user.password_hash,
-          changed_by: userId,
-          reason: 'USER_INITIATED',
-        },
-      }),
-
-      // Revoke all existing sessions on password change.
-      this.prisma.session.updateMany({
-        where: {
-          user_id: userId,
-          is_active: true,
-        },
-        data: {
-          is_active: false,
-          revoked_at: new Date(),
-          revoked_reason: 'PASSWORD_CHANGED',
+          super_admin_id: superAdmin.id,
+          jti: newSessionId,
+          refresh_token_hash: newRefreshTokenHash,
+          ip_address: session.ip_address,
+          user_agent: session.user_agent,
+          expires_at: session.expires_at,
         },
       }),
     ]);
+
+    return {
+      success: true,
+      message: 'Token refreshed successfully.',
+      data: { access_token, refresh_token, expires_in },
+    };
+  }
+
+  // =====================================================
+  // LOGOUT (unified — branches on principal type)
+  // =====================================================
+
+  async logout(principal: RequestPrincipal) {
+    if (isSuperAdmin(principal)) {
+      await this.prisma.superAdminSession.updateMany({
+        where: { super_admin_id: principal.id, jti: principal.sessionId, is_active: true },
+        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT' },
+      });
+    } else {
+      await this.prisma.session.updateMany({
+        where: { user_id: principal.id, jti: principal.sessionId, is_active: true },
+        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT' },
+      });
+    }
+
+    return { success: true, message: 'Logged out successfully.' };
+  }
+
+  // =====================================================
+  // GET CURRENT PRINCIPAL (unified)
+  // =====================================================
+
+  async me(principal: RequestPrincipal) {
+    if (isSuperAdmin(principal)) {
+      const superAdmin = await this.prisma.superAdmin.findFirst({
+        where: { id: principal.id, deleted_at: null },
+      });
+
+      if (!superAdmin) {
+        throw new UnauthorizedException('Account not found.');
+      }
+
+      return {
+        success: true,
+        data: {
+          id: superAdmin.id,
+          email: superAdmin.email,
+          first_name: superAdmin.first_name,
+          last_name: superAdmin.last_name,
+        },
+      };
+    }
+
+    const response = await this.usersService.findOne(principal.tenantId, principal.id);
+
+    return { success: true, data: response };
+  }
+
+  // =====================================================
+  // CHANGE PASSWORD (regular users only, for now)
+  // =====================================================
+
+  async changePassword(tenantId: string, userId: string, dto: ChangePasswordDto) {
+    await this.usersService.changePassword(tenantId, userId, dto);
+
+    await this.prisma.session.updateMany({
+      where: { user_id: userId, is_active: true },
+      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'PASSWORD_CHANGED' },
+    });
 
     return {
       success: true,
@@ -458,69 +521,264 @@ export class AuthService {
   }
 
   // =====================================================
+  // CHANGE TENANT PASSWORD
+  //
+  // Changes Tenant.password_hash (the POST /auth/tenant-login
+  // credential) — a different field from the acting user's own
+  // password. Restricted to TENANT_ADMIN by the controller's
+  // @Roles(UserRole.TENANT_ADMIN) guard, since this credential grants
+  // owner-level access to the whole tenant.
+  // =====================================================
+
+  async changeTenantPassword(tenantId: string, dto: TenantChangePasswordDto) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deleted_at: null },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    const currentValid = await PasswordUtil.verify(tenant.password_hash, dto.current_password);
+
+    if (!currentValid) {
+      throw new UnauthorizedException('Current tenant password is incorrect.');
+    }
+
+    const newPasswordHash = await PasswordUtil.hash(dto.new_password);
+
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { password_hash: newPasswordHash },
+    });
+
+    return {
+      success: true,
+      message: 'Tenant password changed successfully.',
+    };
+  }
+
+  // =====================================================
   // PRIVATE HELPERS
   // =====================================================
 
-  private async issueTokens(params: {
-    userId: string;
+  private assertTenantActive(tenant: Tenant): void {
+    const activeTenantStatuses: TenantStatus[] = [TenantStatus.ACTIVE, TenantStatus.TRIAL];
+
+    if (!tenant.is_active || !activeTenantStatuses.includes(tenant.status)) {
+      throw new ForbiddenException('This account is not active.');
+    }
+  }
+
+  /**
+   * Shared tail end of login() and tenantLogin() once credentials are
+   * verified: session-limit enforcement, RBAC resolution, token
+   * issuance, session persistence, and login history.
+   */
+  private async completeUserLogin(
+    tx: Prisma.TransactionClient,
+    tenant: Tenant,
+    user: User,
+    dto: { remember_me?: boolean; device_name?: string },
+    meta: LoginMeta,
+  ) {
+    if (user.single_device_login) {
+      await this.enforceSingleDeviceLogin(user.id, user.single_device_policy);
+    } else {
+      await this.enforceSessionLimit(user.id, user.max_concurrent_sessions);
+    }
+
+    const { roleId, permissions } = await this.resolveRbac(tenant.id, user.id, tx);
+    const sessionId = randomUUID();
+
+    const { access_token, refresh_token, expires_in } = await this.issueUserTokens({
+      user,
+      tenantId: tenant.id,
+      roleId,
+      permissions,
+      sessionId,
+    });
+
+    const refreshTokenHash = await PasswordUtil.hash(refresh_token);
+    const refreshExpiryDays = dto.remember_me ? 30 : 7;
+
+    // Sessions are excluded from RLS (see migration note) — safe on the
+    // base client. `users` is RLS-protected, so that update goes
+    // through `tx`, which already has app.tenant_id set for this tenant.
+    await Promise.all([
+      this.prisma.session.create({
+        data: {
+          tenant_id: tenant.id,
+          user_id: user.id,
+          jti: sessionId,
+          refresh_token_hash: refreshTokenHash,
+          ip_address: meta.ip_address,
+          user_agent: meta.user_agent,
+          device_name: dto.device_name,
+          browser: meta.browser,
+          operating_system: meta.operating_system,
+          remember_me: dto.remember_me ?? false,
+          expires_at: new Date(Date.now() + refreshExpiryDays * 24 * 60 * 60 * 1000),
+        },
+      }),
+      tx.user.update({
+        where: { id: user.id },
+        data: {
+          // A successful login is exactly the "first use" a temporary
+          // password exists for — INVITED means "hasn't logged in yet",
+          // not "should never be able to."
+          status: UserStatus.ACTIVE,
+          failed_login_count: 0,
+          locked_until: null,
+          last_login_at: new Date(),
+          last_login_ip: meta.ip_address,
+          last_login_device: meta.device_name,
+          last_login_browser: meta.browser,
+          last_activity_at: new Date(),
+        },
+      }),
+    ]);
+
+    await this.recordLoginHistory(tx, {
+      tenant_id: tenant.id,
+      user_id: user.id,
+      email: user.email,
+      meta,
+      success: true,
+    });
+
+    return {
+      success: true,
+      message: 'Login successful.',
+      data: {
+        access_token,
+        refresh_token,
+        expires_in,
+        // The frontend should redirect straight to a change-password
+        // screen when this is true, before letting the user do
+        // anything else — the token IS fully valid either way (see
+        // note on scope in AuthService docs), this is a UX signal, not
+        // an access restriction enforced server-side yet.
+        must_change_password: user.must_change_password,
+        user: UserMapper.toResponse({ ...user, status: UserStatus.ACTIVE }),
+      },
+    };
+  }
+
+  /**
+   * Resolves the effective RBAC claims to embed in the token: the
+   * user's primary role assignment (first UserRoleAssignment found)
+   * and the union of permissions granted via any assigned role plus
+   * direct UserPermission grants.
+   */
+  private async resolveRbac(
+    tenantId: string,
+    userId: string,
+    existingTx?: Prisma.TransactionClient,
+  ): Promise<{ roleId: string | null; permissions: string[] }> {
+    const run = existingTx
+      ? (fn: (tx: Prisma.TransactionClient) => Promise<{ roleId: string | null; permissions: string[] }>) =>
+          fn(existingTx)
+      : (fn: (tx: Prisma.TransactionClient) => Promise<{ roleId: string | null; permissions: string[] }>) =>
+          this.prisma.runWithTenant(tenantId, fn);
+
+    return run(async (tx) => {
+      const roleAssignments = await tx.userRoleAssignment.findMany({
+        where: { tenant_id: tenantId, user_id: userId },
+        orderBy: { assigned_at: 'asc' },
+        include: {
+          role: {
+            include: { role_permissions: { include: { permission: true } } },
+          },
+        },
+      });
+
+      const directGrants = await tx.userPermission.findMany({
+        where: { tenant_id: tenantId, user_id: userId, granted: true },
+        include: { permission: true },
+      });
+
+      const activeAssignments = roleAssignments.filter(
+        (assignment) => assignment.role.is_active && !assignment.role.deleted_at,
+      );
+
+      const codes = new Set<string>();
+
+      for (const assignment of activeAssignments) {
+        for (const rolePermission of assignment.role.role_permissions) {
+          codes.add(`${rolePermission.permission.module}.${rolePermission.permission.action}`);
+        }
+      }
+
+      for (const grant of directGrants) {
+        codes.add(`${grant.permission.module}.${grant.permission.action}`);
+      }
+
+      return {
+        roleId: activeAssignments[0]?.role_id ?? null,
+        permissions: Array.from(codes),
+      };
+    });
+  }
+
+  private async issueUserTokens(params: {
+    user: User;
     tenantId: string;
-    email: string;
-    role: JwtPayload['role'];
-    jti: string;
+    roleId: string | null;
+    permissions: string[];
+    sessionId: string;
   }) {
-    const { userId, tenantId, email, role, jti } = params;
+    const { user, tenantId, roleId, permissions, sessionId } = params;
 
-    const accessPayload: JwtPayload = {
-      sub: userId,
-      tenant_id: tenantId,
-      email,
-      role,
-      jti,
-      type: 'access',
+    const basePayload = {
+      principal: 'user' as const,
+      sub: user.id,
+      tenantId,
+      branchId: user.branch_id,
+      roleId,
+      role: user.role,
+      sessionId,
+      email: user.email,
+      permissions,
     };
 
-    const refreshPayload: JwtPayload = {
-      ...accessPayload,
-      type: 'refresh',
-    };
+    return this.signTokenPair({ ...basePayload, type: 'access' }, { ...basePayload, type: 'refresh' });
+  }
 
-    const accessExpiresIn =
-      this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m';
+  private async issueSuperAdminTokens(superAdminId: string, email: string, sessionId: string) {
+    const basePayload = { principal: 'super_admin' as const, sub: superAdminId, email, sessionId };
 
-    const refreshExpiresIn =
-      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+    return this.signTokenPair({ ...basePayload, type: 'access' }, { ...basePayload, type: 'refresh' });
+  }
+
+  private async signTokenPair(accessPayload: JwtPayload, refreshPayload: JwtPayload) {
+    const accessExpiresIn = this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m';
+    const refreshExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
 
     const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(accessPayload, {
         secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
         expiresIn: accessExpiresIn,
       }),
-
       this.jwtService.signAsync(refreshPayload, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: refreshExpiresIn,
       }),
     ]);
 
-    return {
-      access_token,
-      refresh_token,
-      expires_in: accessExpiresIn,
-    };
+    return { access_token, refresh_token, expires_in: accessExpiresIn };
   }
 
-  private async handleFailedLogin(
+  private async handleFailedUserLogin(
+    tx: Prisma.TransactionClient,
     userId: string,
     currentFailedCount: number,
   ) {
     const nextCount = currentFailedCount + 1;
-
     const shouldLock = nextCount >= MAX_FAILED_ATTEMPTS;
 
-    await this.prisma.user.update({
-      where: {
-        id: userId,
-      },
+    await tx.user.update({
+      where: { id: userId },
       data: {
         failed_login_count: shouldLock ? 0 : nextCount,
         last_failed_login_at: new Date(),
@@ -531,19 +789,10 @@ export class AuthService {
     });
   }
 
-  private async enforceSessionLimit(
-    userId: string,
-    maxConcurrentSessions: number,
-  ) {
+  private async enforceSessionLimit(userId: string, maxConcurrentSessions: number) {
     const activeSessions = await this.prisma.session.findMany({
-      where: {
-        user_id: userId,
-        is_active: true,
-        revoked_at: null,
-      },
-      orderBy: {
-        last_used_at: 'asc',
-      },
+      where: { user_id: userId, is_active: true, revoked_at: null },
+      orderBy: { last_used_at: 'asc' },
     });
 
     if (activeSessions.length < maxConcurrentSessions) {
@@ -551,7 +800,6 @@ export class AuthService {
     }
 
     const excess = activeSessions.length - maxConcurrentSessions + 1;
-
     const toRevoke = activeSessions.slice(0, excess).map((s) => s.id);
 
     if (toRevoke.length === 0) {
@@ -559,31 +807,115 @@ export class AuthService {
     }
 
     await this.prisma.session.updateMany({
-      where: {
-        id: {
-          in: toRevoke,
-        },
-      },
+      where: { id: { in: toRevoke } },
+      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'SESSION_LIMIT_EXCEEDED' },
+    });
+  }
+
+  /**
+   * Premium Single Device Login (Auth spec Phase 7): when enabled on a
+   * user, a new login while any session is already active either
+   * rejects the new login outright (REJECT_NEW) or silently terminates
+   * the existing session(s) and lets the new one through
+   * (TERMINATE_OLDEST — "oldest" is moot with a single-device cap, but
+   * named to match the general enforceSessionLimit policy).
+   */
+  private async enforceSingleDeviceLogin(
+    userId: string,
+    policy: 'TERMINATE_OLDEST' | 'REJECT_NEW',
+  ): Promise<void> {
+    const activeSessions = await this.prisma.session.findMany({
+      where: { user_id: userId, is_active: true, revoked_at: null },
+    });
+
+    if (activeSessions.length === 0) {
+      return;
+    }
+
+    if (policy === 'REJECT_NEW') {
+      throw new ForbiddenException(
+        'This account is restricted to a single device. Log out of your other session first.',
+      );
+    }
+
+    await this.prisma.session.updateMany({
+      where: { id: { in: activeSessions.map((s) => s.id) } },
       data: {
         is_active: false,
         revoked_at: new Date(),
-        revoked_reason: 'SESSION_LIMIT_EXCEEDED',
+        revoked_reason: 'SINGLE_DEVICE_LOGIN_NEW_SESSION',
       },
     });
   }
 
-  private async recordLoginHistory(params: {
-    tenant_id: string;
-    user_id: string | null;
-    email: string;
-    meta: LoginMeta;
-    success: boolean;
-    failure_reason?: string;
-  }) {
-    const { tenant_id, user_id, email, meta, success, failure_reason } =
-      params;
+  // ============================================================
+  // SESSION MANAGEMENT (Auth spec Phase 7)
+  // ============================================================
 
-    await this.prisma.loginHistory.create({
+  /** Lists the calling user's own active sessions. Sessions carry no RLS (see migration note) — scoped here by user_id at the application layer. */
+  async listSessions(userId: string) {
+    const sessions = await this.prisma.session.findMany({
+      where: { user_id: userId, is_active: true, revoked_at: null },
+      orderBy: { last_used_at: 'desc' },
+      select: {
+        id: true,
+        jti: true,
+        device_name: true,
+        browser: true,
+        operating_system: true,
+        ip_address: true,
+        remember_me: true,
+        last_used_at: true,
+        expires_at: true,
+        created_at: true,
+      },
+    });
+
+    return { success: true, data: sessions };
+  }
+
+  /** Revokes one of the calling user's own sessions by Session.id (not jti — the id is what's shown in listSessions, jti is the bearer secret). */
+  async revokeSession(userId: string, sessionId: string) {
+    const session = await this.prisma.session.findFirst({
+      where: { id: sessionId, user_id: userId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found.');
+    }
+
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'REVOKED_BY_USER' },
+    });
+
+    return { success: true, message: 'Session revoked.' };
+  }
+
+  /** Logs out every device — revokes all of the calling user's active sessions, including the one making this request. */
+  async logoutAll(userId: string) {
+    await this.prisma.session.updateMany({
+      where: { user_id: userId, is_active: true },
+      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT_ALL' },
+    });
+
+    return { success: true, message: 'Logged out of all devices.' };
+  }
+
+  private async recordLoginHistory(
+    tx: Prisma.TransactionClient,
+    params: {
+      tenant_id: string;
+      user_id: string | null;
+      email: string;
+      meta: LoginMeta;
+      success: boolean;
+      failure_reason?: string;
+    },
+  ) {
+    const { tenant_id, user_id, email, meta, success, failure_reason } = params;
+
+    await tx.loginHistory.create({
       data: {
         tenant_id,
         user_id,
@@ -597,19 +929,5 @@ export class AuthService {
         failure_reason,
       },
     });
-  }
-
-  private sanitizeUser(user: Record<string, any>) {
-    const {
-      password_hash,
-      two_factor_secret,
-      two_factor_backup_codes,
-      invite_token,
-      password_reset_token,
-      refresh_token_hash,
-      ...safe
-    } = user;
-
-    return safe;
   }
 }

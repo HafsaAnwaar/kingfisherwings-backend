@@ -27,6 +27,9 @@ enum UserRole {
   CUSTOMER
   AGENT
   READ_ONLY
+  DOCUMENTATION
+  CUSTOMER_SUPPORT
+  DRIVER
 }
 
 enum UserStatus {
@@ -227,13 +230,19 @@ model Tenant {
   updated_at DateTime  @updatedAt @db.Timestamptz
   deleted_at DateTime? @db.Timestamptz
 
+  created_by_super_admin_id String? @db.Uuid
+
   // Relationships
-  users            User[]
+  created_by_super_admin SuperAdmin? @relation("TenantCreatedBySuperAdmin", fields: [created_by_super_admin_id], references: [id])
+
+  users            User[]            @relation("TenantUsers")
+  users_created    User[]            @relation("UserCreatedByTenant")
   branches         Branch[]
   roles            Role[]
   password_history PasswordHistory[]
   login_history    LoginHistory[]
 
+  @@index([created_by_super_admin_id])
   @@map("tenants")
 }
 
@@ -328,6 +337,12 @@ model User {
 
   max_concurrent_sessions Int @default(3)
 
+  // Premium Single Device Login (spec Phase 7): when enabled, a new
+  // login while a session already exists either rejects the new login
+  // or terminates the old one, per single_device_policy.
+  single_device_login  Boolean            @default(false)
+  single_device_policy SingleDevicePolicy @default(TERMINATE_OLDEST)
+
   // ================================
   // Two Factor Authentication
   // ================================
@@ -373,7 +388,10 @@ model User {
   created_at DateTime @default(now()) @db.Timestamptz
   updated_at DateTime @updatedAt @db.Timestamptz
 
-  created_by String? @db.Uuid
+  created_by_user_id        String? @db.Uuid
+  created_by_tenant_id      String? @db.Uuid
+  created_by_super_admin_id String? @db.Uuid
+
   updated_by String? @db.Uuid
 
   deleted_at DateTime? @db.Timestamptz
@@ -382,7 +400,13 @@ model User {
   // Relationships
   // ================================
 
-  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  tenant Tenant @relation("TenantUsers", fields: [tenant_id], references: [id])
+
+  created_by_user        User?       @relation("UserCreatedByUser", fields: [created_by_user_id], references: [id])
+  created_by_tenant      Tenant?     @relation("UserCreatedByTenant", fields: [created_by_tenant_id], references: [id])
+  created_by_super_admin SuperAdmin? @relation("UserCreatedBySuperAdmin", fields: [created_by_super_admin_id], references: [id])
+
+  users_created User[] @relation("UserCreatedByUser")
 
   sessions Session[]
 
@@ -399,6 +423,9 @@ model User {
   @@index([tenant_id, status])
   @@index([tenant_id, role])
   @@index([email])
+  @@index([created_by_user_id])
+  @@index([created_by_tenant_id])
+  @@index([created_by_super_admin_id])
   @@map("users")
 }
 
@@ -1409,6 +1436,9 @@ model SuperAdmin {
 
   sessions SuperAdminSession[]
 
+  tenants_created Tenant[] @relation("TenantCreatedBySuperAdmin")
+  users_created   User[]   @relation("UserCreatedBySuperAdmin")
+
   @@map("super_admins")
 }
 
@@ -1435,4 +1465,9 @@ model SuperAdminSession {
   @@index([super_admin_id])
   @@index([jti])
   @@map("super_admin_sessions")
+}
+
+enum SingleDevicePolicy {
+  TERMINATE_OLDEST
+  REJECT_NEW
 }

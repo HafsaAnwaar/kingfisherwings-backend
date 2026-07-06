@@ -1,17 +1,19 @@
-// src/modules/auth/strategies/jwt.strategy.ts
-
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 
+import { PrismaService } from '../../../prisma/prisma.service';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
-import { AuthenticatedUser } from '../interfaces/request-with-user.interface';
+import { RequestPrincipal } from '../interfaces/request-with-user.interface';
+import { CurrentUser } from '../../users/interfaces/current-user.interface';
+import { CurrentSuperAdmin } from '../interfaces/current-super-admin.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -20,21 +22,72 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  // =====================================================
-  // VALIDATE ACCESS TOKEN PAYLOAD
-  // =====================================================
-
-  validate(payload: JwtPayload): AuthenticatedUser {
+  async validate(payload: JwtPayload): Promise<RequestPrincipal> {
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type.');
     }
 
+    if (payload.principal === 'super_admin') {
+      return this.validateSuperAdmin(payload);
+    }
+
+    return this.validateUser(payload);
+  }
+
+  /**
+   * Trusts the token's embedded RBAC claims (tenantId/branchId/roleId/
+   * role/permissions) for the lifetime of the access token, but still
+   * verifies the underlying session hasn't been revoked, so logout /
+   * force-logout / password-change session revocation take effect
+   * immediately instead of waiting for the access token to expire.
+   */
+  private async validateUser(payload: Extract<JwtPayload, { principal: 'user' }>): Promise<CurrentUser> {
+    const session = await this.prisma.session.findUnique({
+      where: { jti: payload.sessionId },
+      include: { user: true },
+    });
+
+    if (!session || !session.is_active || session.revoked_at || session.expires_at < new Date()) {
+      throw new UnauthorizedException('Session is no longer valid.');
+    }
+
+    if (!session.user || session.user.deleted_at || session.user.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Account is no longer active.');
+    }
+
     return {
       id: payload.sub,
-      tenant_id: payload.tenant_id,
-      email: payload.email,
+      tenantId: payload.tenantId,
+      branchId: payload.branchId,
+      roleId: payload.roleId,
       role: payload.role,
-      jti: payload.jti,
+      sessionId: payload.sessionId,
+      email: payload.email,
+      permissions: payload.permissions,
+    };
+  }
+
+  private async validateSuperAdmin(
+    payload: Extract<JwtPayload, { principal: 'super_admin' }>,
+  ): Promise<CurrentSuperAdmin> {
+    const session = await this.prisma.superAdminSession.findUnique({
+      where: { jti: payload.sessionId },
+      include: { super_admin: true },
+    });
+
+    if (!session || !session.is_active || session.revoked_at || session.expires_at < new Date()) {
+      throw new UnauthorizedException('Session is no longer valid.');
+    }
+
+    if (!session.super_admin || session.super_admin.deleted_at || !session.super_admin.is_active) {
+      throw new UnauthorizedException('Account is no longer active.');
+    }
+
+    return {
+      principal: 'super_admin',
+      id: payload.sub,
+      email: payload.email,
+      sessionId: payload.sessionId,
     };
   }
 }

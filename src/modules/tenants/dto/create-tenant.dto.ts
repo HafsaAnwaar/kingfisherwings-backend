@@ -43,14 +43,24 @@ export class CreateTenantDto {
   slug!: string;
 
   // ==========================
-  // Security
+  // Security — this tenant's own login credential
+  // (see POST /auth/tenant-login). Also becomes the initial password
+  // for the auto-provisioned TENANT_ADMIN owner user.
   // ==========================
 
   @IsString()
   @IsStrongPassword()
   password!: string;
 
+  @IsOptional()
+  @IsString()
+  @Length(2, 100)
+  admin_first_name?: string;
 
+  @IsOptional()
+  @IsString()
+  @Length(2, 100)
+  admin_last_name?: string;
 
   // ==========================
   // Branding
@@ -126,9 +136,8 @@ export class CreateTenantDto {
   @IsString()
   phone?: string;
 
-  @IsOptional()
   @IsEmail()
-  email?: string;
+  email!: string;
 
   // ==========================
   // Subscription

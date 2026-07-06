@@ -11,10 +11,17 @@ import { Prisma, Tenant, TenantStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordUtil } from '../../common/utils/password.util';
+import { PERMISSION_CATALOG } from '../../common/constants/permission-catalog';
+import { ROLE_CATALOG } from '../../common/constants/role-catalog';
+import { setTenantContextQuery } from '../../common/utils/rls.util';
+
+import { UserMapper } from '../users/mappers/user.mapper';
 
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantQueryDto } from './dto/tenant-query.dto';
+
+const OWNER_ROLE_CODE = 'TENANT_ADMIN';
 
 @Injectable()
 export class TenantsService {
@@ -23,29 +30,133 @@ export class TenantsService {
   ) {}
 
   // =====================================================
-  // CREATE TENANT
+  // CREATE TENANT (+ its own login password, + an
+  // auto-provisioned TENANT_ADMIN owner user so
+  // POST /auth/tenant-login has something to issue a
+  // real session for)
   // =====================================================
 
-  async create(createTenantDto: CreateTenantDto) {
+  async create(createTenantDto: CreateTenantDto, createdBySuperAdminId?: string) {
     await this.validateUniqueFields(createTenantDto);
 
-    const { password, ...tenantData } = createTenantDto;
+    const { password, admin_first_name, admin_last_name, ...tenantData } = createTenantDto;
 
     const passwordHash = await PasswordUtil.hash(password);
 
-    const tenant = await this.prisma.$transaction(async (tx) => {
-      return tx.tenant.create({
+    const result = await this.prisma.$transaction(async (tx) => {
+      const tenantCreateData: Prisma.TenantUncheckedCreateInput = {
+        ...tenantData,
+        password_hash: passwordHash,
+        created_by_super_admin_id: createdBySuperAdminId,
+      };
+
+      const tenant = await tx.tenant.create({
+        data: tenantCreateData,
+      });
+
+      // `tenants` itself has no RLS policy, but every write below this
+      // point (permissions, roles, the owner user) touches tables that
+      // do — set the context on THIS transaction now that the tenant
+      // (and its id) exists.
+      await tx.$executeRaw(setTenantContextQuery(tenant.id));
+
+      // Permission is tenant-scoped (@@unique([tenant_id, module, action])),
+      // so every new tenant needs its own copy of the catalog.
+      const permissions = await Promise.all(
+        PERMISSION_CATALOG.map((entry) =>
+          tx.permission.create({
+            data: {
+              tenant_id: tenant.id,
+              module: entry.module,
+              action: entry.action,
+              description: entry.description,
+            },
+          }),
+        ),
+      );
+
+      // Seed every named role from the spec (all 10 tenant-scoped ones —
+      // SUPER_ADMIN is the separate SuperAdmin table/principal, never a
+      // Role row here) with its permission subset.
+      const permissionsByCode = new Map(
+        permissions.map((permission) => [`${permission.module}.${permission.action}`, permission]),
+      );
+
+      const rolesByCode = new Map<string, { id: string }>();
+
+      for (const roleEntry of ROLE_CATALOG) {
+        const role = await tx.role.create({
+          data: {
+            tenant_id: tenant.id,
+            code: roleEntry.code,
+            name: roleEntry.name,
+            is_system: true,
+            is_default: roleEntry.isDefault ?? false,
+            is_active: true,
+          },
+        });
+
+        rolesByCode.set(roleEntry.code, role);
+
+        if (roleEntry.permissions.length > 0) {
+          await tx.rolePermission.createMany({
+            data: roleEntry.permissions.map((code) => ({
+              tenant_id: tenant.id,
+              role_id: role.id,
+              permission_id: permissionsByCode.get(code)!.id,
+            })),
+          });
+        }
+      }
+
+      const ownerRole = rolesByCode.get(OWNER_ROLE_CODE)!;
+
+      // The owner user POST /auth/tenant-login issues a session for.
+      // Its own password_hash mirrors the tenant's (same plaintext was
+      // just entered once) purely so it's also usable via the regular
+      // POST /auth/login flow if ever needed — tenant-login itself only
+      // ever checks Tenant.password_hash, never this field.
+      const owner = await tx.user.create({
         data: {
-          ...tenantData,
+          tenant_id: tenant.id,
+          email: tenantData.email.toLowerCase(),
           password_hash: passwordHash,
+          password_changed_at: new Date(),
+          must_change_password: false,
+          first_name: admin_first_name ?? 'Tenant',
+          last_name: admin_last_name ?? 'Admin',
+          role: 'TENANT_ADMIN',
+          status: 'ACTIVE',
+          email_verified: true,
+          email_verified_at: new Date(),
+          created_by_tenant_id: tenant.id,
         },
       });
+
+      await tx.userRoleAssignment.create({
+        data: { tenant_id: tenant.id, user_id: owner.id, role_id: ownerRole.id },
+      });
+
+      await tx.passwordHistory.create({
+        data: {
+          tenant_id: tenant.id,
+          user_id: owner.id,
+          password_hash: passwordHash,
+          changed_by: createdBySuperAdminId,
+          reason: 'INITIAL_PASSWORD',
+        },
+      });
+
+      return { tenant, owner };
     });
 
     return {
       success: true,
-      message: 'Tenant created successfully.',
-      data: this.sanitizeTenant(tenant),
+      message: 'Tenant created successfully. Log in at POST /auth/tenant-login with the password you set.',
+      data: {
+        tenant: this.sanitizeTenant(result.tenant),
+        owner: UserMapper.toResponse(result.owner),
+      },
     };
   }
 
@@ -272,10 +383,6 @@ export class TenantsService {
       }
     }
 
-    // Password is not editable through this endpoint (and updateTenantDto
-    // has no `password_hash` field to spread into Prisma — only `password`,
-    // which isn't a real column). Reject explicitly with a clear message
-    // rather than letting Prisma throw an "unknown argument" error.
     if ('password' in updateTenantDto) {
       throw new BadRequestException(
         'Tenant password cannot be changed via PATCH /tenants/:id.',
