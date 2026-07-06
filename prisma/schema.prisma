@@ -285,6 +285,9 @@ model User {
   branch_id     String? @db.Uuid
   department_id String? @db.Uuid
 
+  branch     Branch?     @relation(fields: [branch_id], references: [id])
+  department Department? @relation(fields: [department_id], references: [id])
+
   is_salesperson Boolean @default(false)
   is_cs_rep      Boolean @default(false)
   is_operations  Boolean @default(false)
@@ -689,6 +692,7 @@ model Branch {
   deleted_at     DateTime? @db.Timestamptz
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
+  users  User[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -976,6 +980,11 @@ model Department {
   updated_by String?   @db.Uuid
   deleted_at DateTime? @db.Timestamptz
 
+  parent      Department?   @relation("DepartmentHierarchy", fields: [parent_id], references: [id])
+  children    Department[]  @relation("DepartmentHierarchy")
+  users       User[]
+  Designation Designation[]
+
   @@unique([tenant_id, code])
   @@index([tenant_id])
   @@map("departments")
@@ -992,6 +1001,8 @@ model Designation {
   created_by    String?   @db.Uuid
   updated_by    String?   @db.Uuid
   deleted_at    DateTime? @db.Timestamptz
+
+  department Department? @relation(fields: [department_id], references: [id])
 
   @@index([tenant_id])
   @@map("designations")

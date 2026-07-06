@@ -52,6 +52,15 @@ import { UnitsOfMeasureService } from './units-of-measure/units-of-measure.servi
 import { TaxRatesController } from './tax-rates/tax-rates.controller';
 import { TaxRatesService } from './tax-rates/tax-rates.service';
 
+import { BranchesController } from './branches/branches.controller';
+import { BranchesService } from './branches/branches.service';
+
+import { DepartmentsController } from './departments/departments.controller';
+import { DepartmentsService } from './departments/departments.service';
+
+import { DesignationsController } from './designations/designations.controller';
+import { DesignationsService } from './designations/designations.service';
+
 const CONTROLLERS = [
   CountriesController,
   CurrenciesController,
@@ -70,6 +79,9 @@ const CONTROLLERS = [
   HolidaysController,
   UnitsOfMeasureController,
   TaxRatesController,
+  BranchesController,
+  DepartmentsController,
+  DesignationsController,
 ];
 
 const SERVICES = [
@@ -90,6 +102,9 @@ const SERVICES = [
   HolidaysService,
   UnitsOfMeasureService,
   TaxRatesService,
+  BranchesService,
+  DepartmentsService,
+  DesignationsService,
 ];
 
 @Module({
