@@ -202,4 +202,16 @@ export class UsersController {
   ) {
     return this.usersService.adminResetPassword(tenantId, id, dto, actorId);
   }
+
+  @Post(':id/force-logout')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(USERS_PERMISSIONS.FORCE_LOGOUT)
+  @ApiOperation({ summary: "Force-logout: revoke a target user's active sessions on all devices." })
+  async forceLogout(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.usersService.forceLogout(tenantId, id);
+    return { success: true, message: 'User logged out of all devices.' };
+  }
 }

@@ -615,6 +615,27 @@ export class UsersService {
   }
 
   // ============================================================
+  // FORCE LOGOUT (Auth spec Phase 7 — admin action)
+  // ============================================================
+
+  async forceLogout(tenantId: string, targetUserId: string): Promise<void> {
+    this.log('FORCE_LOGOUT', `Force-logging-out user ${targetUserId}`);
+
+    await this.validateTenant(tenantId);
+
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getExistingOrThrow(tx, tenantId, targetUserId);
+    });
+
+    // Sessions carry no RLS (see migration note) — scoped here by
+    // tenant_id/user_id explicitly at the application layer.
+    await this.prisma.session.updateMany({
+      where: { user_id: targetUserId, tenant_id: tenantId, is_active: true },
+      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'FORCE_LOGOUT_BY_ADMIN' },
+    });
+  }
+
+  // ============================================================
   // PASSWORD — SELF-SERVICE CHANGE
   // ============================================================
 

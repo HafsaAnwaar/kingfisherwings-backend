@@ -27,6 +27,9 @@ enum UserRole {
   CUSTOMER
   AGENT
   READ_ONLY
+  DOCUMENTATION
+  CUSTOMER_SUPPORT
+  DRIVER
 }
 
 enum UserStatus {
@@ -333,6 +336,12 @@ model User {
   office_hours_timezone String? @db.VarChar(100)
 
   max_concurrent_sessions Int @default(3)
+
+  // Premium Single Device Login (spec Phase 7): when enabled, a new
+  // login while a session already exists either rejects the new login
+  // or terminates the old one, per single_device_policy.
+  single_device_login  Boolean            @default(false)
+  single_device_policy SingleDevicePolicy @default(TERMINATE_OLDEST)
 
   // ================================
   // Two Factor Authentication
@@ -1456,4 +1465,9 @@ model SuperAdminSession {
   @@index([super_admin_id])
   @@index([jti])
   @@map("super_admin_sessions")
+}
+
+enum SingleDevicePolicy {
+  TERMINATE_OLDEST
+  REJECT_NEW
 }

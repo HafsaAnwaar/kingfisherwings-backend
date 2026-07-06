@@ -1,8 +1,9 @@
 // src/modules/auth/auth.controller.ts
 
-import { Controller, Post, Get, Body, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Req, Param, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { UserRole } from '@prisma/client';
 
 import { AuthService } from './auth.service';
 
@@ -11,10 +12,14 @@ import { TenantLoginDto } from './dto/tenant-login.dto';
 import { SuperAdminSignupDto } from './dto/super-admin-signup.dto';
 import { SuperAdminLoginDto } from './dto/super-admin-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ChangePasswordDto } from '../users/dto/change-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { TenantChangePasswordDto } from './dto/tenant-change-password.dto';
 
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
+
+import { RolesGuard } from '../users/guards/roles.guard';
+import { Roles } from '../users/decorators/roles.decorator';
 
 import { RequestWithUser } from './interfaces/request-with-user.interface';
 import { LoginMeta } from './interfaces/login-meta.interface';
@@ -57,7 +62,7 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Platform super admin self-registration' })
   superAdminSignup(@Body() dto: SuperAdminSignupDto, @Req() req: Request) {
-    return (this.authService as any).superAdminSignup(dto, this.extractMeta(req));
+    return this.authService.superAdminSignup(dto, this.extractMeta(req));
   }
 
   // =====================================================
@@ -97,6 +102,33 @@ export class AuthController {
   }
 
   // =====================================================
+  // SESSION MANAGEMENT
+  // =====================================================
+
+  @ApiBearerAuth()
+  @Get('sessions')
+  @ApiOperation({ summary: "List the authenticated user's own active sessions" })
+  listSessions(@CurrentUser('id') userId: string) {
+    return this.authService.listSessions(userId);
+  }
+
+  @ApiBearerAuth()
+  @Post('sessions/:sessionId/revoke')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Revoke one of the authenticated user's own sessions" })
+  revokeSession(@CurrentUser('id') userId: string, @Param('sessionId') sessionId: string) {
+    return this.authService.revokeSession(userId, sessionId);
+  }
+
+  @ApiBearerAuth()
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Log out of every device (revokes all active sessions)' })
+  logoutAll(@CurrentUser('id') userId: string) {
+    return this.authService.logoutAll(userId);
+  }
+
+  // =====================================================
   // CURRENT PRINCIPAL (works for all three principal types)
   // =====================================================
 
@@ -121,6 +153,26 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(tenantId, userId, dto);
+  }
+
+  // =====================================================
+  // CHANGE TENANT PASSWORD (the tenant's own login credential,
+  // distinct from the acting user's own password)
+  // =====================================================
+
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TENANT_ADMIN)
+  @Post('tenant/change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Change the tenant's own login password (POST /auth/tenant-login credential). Tenant admins only.",
+  })
+  changeTenantPassword(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: TenantChangePasswordDto,
+  ) {
+    return this.authService.changeTenantPassword(tenantId, dto);
   }
 
   // =====================================================

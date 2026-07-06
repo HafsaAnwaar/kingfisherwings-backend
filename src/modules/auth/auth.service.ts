@@ -16,6 +16,7 @@ import { PasswordUtil } from '../../common/utils/password.util';
 import { UsersService } from '../users/users.service';
 import { UserMapper } from '../users/mappers/user.mapper';
 import { ChangePasswordDto } from '../users/dto/change-password.dto';
+import { TenantChangePasswordDto } from './dto/tenant-change-password.dto';
 
 import { LoginDto } from './dto/login.dto';
 import { TenantLoginDto } from './dto/tenant-login.dto';
@@ -77,7 +78,7 @@ export class AuthService {
         throw new ForbiddenException('Account is temporarily locked due to failed login attempts.');
       }
 
-      if (user.status !== UserStatus.ACTIVE) {
+      if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.INVITED) {
         throw new ForbiddenException(`Account is ${user.status.toLowerCase()}. Contact your administrator.`);
       }
 
@@ -520,6 +521,44 @@ export class AuthService {
   }
 
   // =====================================================
+  // CHANGE TENANT PASSWORD
+  //
+  // Changes Tenant.password_hash (the POST /auth/tenant-login
+  // credential) — a different field from the acting user's own
+  // password. Restricted to TENANT_ADMIN by the controller's
+  // @Roles(UserRole.TENANT_ADMIN) guard, since this credential grants
+  // owner-level access to the whole tenant.
+  // =====================================================
+
+  async changeTenantPassword(tenantId: string, dto: TenantChangePasswordDto) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deleted_at: null },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    const currentValid = await PasswordUtil.verify(tenant.password_hash, dto.current_password);
+
+    if (!currentValid) {
+      throw new UnauthorizedException('Current tenant password is incorrect.');
+    }
+
+    const newPasswordHash = await PasswordUtil.hash(dto.new_password);
+
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { password_hash: newPasswordHash },
+    });
+
+    return {
+      success: true,
+      message: 'Tenant password changed successfully.',
+    };
+  }
+
+  // =====================================================
   // PRIVATE HELPERS
   // =====================================================
 
@@ -543,7 +582,11 @@ export class AuthService {
     dto: { remember_me?: boolean; device_name?: string },
     meta: LoginMeta,
   ) {
-    await this.enforceSessionLimit(user.id, user.max_concurrent_sessions);
+    if (user.single_device_login) {
+      await this.enforceSingleDeviceLogin(user.id, user.single_device_policy);
+    } else {
+      await this.enforceSessionLimit(user.id, user.max_concurrent_sessions);
+    }
 
     const { roleId, permissions } = await this.resolveRbac(tenant.id, user.id, tx);
     const sessionId = randomUUID();
@@ -581,6 +624,10 @@ export class AuthService {
       tx.user.update({
         where: { id: user.id },
         data: {
+          // A successful login is exactly the "first use" a temporary
+          // password exists for — INVITED means "hasn't logged in yet",
+          // not "should never be able to."
+          status: UserStatus.ACTIVE,
           failed_login_count: 0,
           locked_until: null,
           last_login_at: new Date(),
@@ -607,7 +654,13 @@ export class AuthService {
         access_token,
         refresh_token,
         expires_in,
-        user: UserMapper.toResponse(user),
+        // The frontend should redirect straight to a change-password
+        // screen when this is true, before letting the user do
+        // anything else — the token IS fully valid either way (see
+        // note on scope in AuthService docs), this is a UX signal, not
+        // an access restriction enforced server-side yet.
+        must_change_password: user.must_change_password,
+        user: UserMapper.toResponse({ ...user, status: UserStatus.ACTIVE }),
       },
     };
   }
@@ -757,6 +810,96 @@ export class AuthService {
       where: { id: { in: toRevoke } },
       data: { is_active: false, revoked_at: new Date(), revoked_reason: 'SESSION_LIMIT_EXCEEDED' },
     });
+  }
+
+  /**
+   * Premium Single Device Login (Auth spec Phase 7): when enabled on a
+   * user, a new login while any session is already active either
+   * rejects the new login outright (REJECT_NEW) or silently terminates
+   * the existing session(s) and lets the new one through
+   * (TERMINATE_OLDEST — "oldest" is moot with a single-device cap, but
+   * named to match the general enforceSessionLimit policy).
+   */
+  private async enforceSingleDeviceLogin(
+    userId: string,
+    policy: 'TERMINATE_OLDEST' | 'REJECT_NEW',
+  ): Promise<void> {
+    const activeSessions = await this.prisma.session.findMany({
+      where: { user_id: userId, is_active: true, revoked_at: null },
+    });
+
+    if (activeSessions.length === 0) {
+      return;
+    }
+
+    if (policy === 'REJECT_NEW') {
+      throw new ForbiddenException(
+        'This account is restricted to a single device. Log out of your other session first.',
+      );
+    }
+
+    await this.prisma.session.updateMany({
+      where: { id: { in: activeSessions.map((s) => s.id) } },
+      data: {
+        is_active: false,
+        revoked_at: new Date(),
+        revoked_reason: 'SINGLE_DEVICE_LOGIN_NEW_SESSION',
+      },
+    });
+  }
+
+  // ============================================================
+  // SESSION MANAGEMENT (Auth spec Phase 7)
+  // ============================================================
+
+  /** Lists the calling user's own active sessions. Sessions carry no RLS (see migration note) — scoped here by user_id at the application layer. */
+  async listSessions(userId: string) {
+    const sessions = await this.prisma.session.findMany({
+      where: { user_id: userId, is_active: true, revoked_at: null },
+      orderBy: { last_used_at: 'desc' },
+      select: {
+        id: true,
+        jti: true,
+        device_name: true,
+        browser: true,
+        operating_system: true,
+        ip_address: true,
+        remember_me: true,
+        last_used_at: true,
+        expires_at: true,
+        created_at: true,
+      },
+    });
+
+    return { success: true, data: sessions };
+  }
+
+  /** Revokes one of the calling user's own sessions by Session.id (not jti — the id is what's shown in listSessions, jti is the bearer secret). */
+  async revokeSession(userId: string, sessionId: string) {
+    const session = await this.prisma.session.findFirst({
+      where: { id: sessionId, user_id: userId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found.');
+    }
+
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'REVOKED_BY_USER' },
+    });
+
+    return { success: true, message: 'Session revoked.' };
+  }
+
+  /** Logs out every device — revokes all of the calling user's active sessions, including the one making this request. */
+  async logoutAll(userId: string) {
+    await this.prisma.session.updateMany({
+      where: { user_id: userId, is_active: true },
+      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT_ALL' },
+    });
+
+    return { success: true, message: 'Logged out of all devices.' };
   }
 
   private async recordLoginHistory(

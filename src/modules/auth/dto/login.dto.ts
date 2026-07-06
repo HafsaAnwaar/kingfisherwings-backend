@@ -15,18 +15,18 @@ export class LoginDto {
   // ==========================
 
   @IsString()
-  tenant_slug: string;
+  tenant_slug!: string;
 
   // ==========================
   // Credentials
   // ==========================
 
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
   @MinLength(1)
-  password: string;
+  password!: string;
 
   // ==========================
   // Session Preferences
@@ -36,6 +36,8 @@ export class LoginDto {
   @IsBoolean()
   remember_me?: boolean;
 
-  
+  @IsOptional()
+  @IsString()
+  device_name?: string;
 
 }

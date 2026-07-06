@@ -16,7 +16,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { UserRole, UserStatus } from '@prisma/client';
+import { UserRole, UserStatus, SingleDevicePolicy } from '@prisma/client';
 import { CreateUserDto } from './create-user.dto';
 import { USERS_CONSTANTS } from '../constants/users.constants';
 
@@ -177,6 +177,16 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @Min(1)
   @Max(USERS_CONSTANTS.MAX_CONCURRENT_SESSIONS_CEILING)
   max_concurrent_sessions?: number;
+
+  @ApiPropertyOptional({ description: 'Premium Single Device Login — restrict this user to one active session.' })
+  @IsOptional()
+  @IsBoolean()
+  single_device_login?: boolean;
+
+  @ApiPropertyOptional({ enum: SingleDevicePolicy, description: 'Behavior when single_device_login is enabled and a new login occurs.' })
+  @IsOptional()
+  @IsEnum(SingleDevicePolicy)
+  single_device_policy?: SingleDevicePolicy;
 
   @ApiPropertyOptional({ type: [String], format: 'uuid' })
   @IsOptional()

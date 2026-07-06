@@ -1,4 +1,5 @@
 import { PERMISSION_CONSTANTS as USERS_PERMISSION_CONSTANTS } from '../../modules/users/constants/permission.constants';
+import { MASTERS_PERMISSION_CONSTANTS } from '../../modules/masters/constants/masters-permission.constants';
 
 export interface PermissionCatalogEntry {
   module: string;
@@ -16,10 +17,15 @@ export interface PermissionCatalogEntry {
  * tenant-scoped (@@unique([tenant_id, module, action])) rather than
  * global — each tenant gets its own copy of the catalog.
  */
-export const PERMISSION_CATALOG: PermissionCatalogEntry[] = Object.values(
-  USERS_PERMISSION_CONSTANTS.ACTIONS,
-).map((action) => ({
-  module: USERS_PERMISSION_CONSTANTS.MODULE,
-  action,
-  description: `${USERS_PERMISSION_CONSTANTS.MODULE}.${action}`,
-}));
+export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
+  ...Object.values(USERS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: USERS_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${USERS_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(MASTERS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: MASTERS_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${MASTERS_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+];

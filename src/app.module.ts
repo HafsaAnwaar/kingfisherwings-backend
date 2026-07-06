@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { UsersModule } from './modules/users';
 import { AuthModule } from './modules/auth/auth.module';
+import { MastersModule } from './modules/masters/masters.module';
 
 import { TenantContextStorage } from './common/context/tenant-context.storage';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
@@ -21,6 +22,7 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     TenantsModule,
     UsersModule,
     AuthModule,
+    MastersModule,
   ],
   providers: [
     TenantContextStorage,

@@ -12,6 +12,7 @@ import { Prisma, Tenant, TenantStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordUtil } from '../../common/utils/password.util';
 import { PERMISSION_CATALOG } from '../../common/constants/permission-catalog';
+import { ROLE_CATALOG } from '../../common/constants/role-catalog';
 import { setTenantContextQuery } from '../../common/utils/rls.util';
 
 import { UserMapper } from '../users/mappers/user.mapper';
@@ -21,7 +22,6 @@ import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantQueryDto } from './dto/tenant-query.dto';
 
 const OWNER_ROLE_CODE = 'TENANT_ADMIN';
-const DEFAULT_ROLE_CODE = 'READ_ONLY';
 
 @Injectable()
 export class TenantsService {
@@ -75,37 +75,41 @@ export class TenantsService {
         ),
       );
 
-      const ownerRole = await tx.role.create({
-        data: {
-          tenant_id: tenant.id,
-          code: OWNER_ROLE_CODE,
-          name: 'Tenant Admin',
-          is_system: true,
-          is_default: false,
-          is_active: true,
-        },
-      });
+      // Seed every named role from the spec (all 10 tenant-scoped ones —
+      // SUPER_ADMIN is the separate SuperAdmin table/principal, never a
+      // Role row here) with its permission subset.
+      const permissionsByCode = new Map(
+        permissions.map((permission) => [`${permission.module}.${permission.action}`, permission]),
+      );
 
-      await tx.rolePermission.createMany({
-        data: permissions.map((permission) => ({
-          tenant_id: tenant.id,
-          role_id: ownerRole.id,
-          permission_id: permission.id,
-        })),
-      });
+      const rolesByCode = new Map<string, { id: string }>();
 
-      // Default role for future staff users invited without an explicit
-      // role — see UsersService.createUser, which assigns this automatically.
-      await tx.role.create({
-        data: {
-          tenant_id: tenant.id,
-          code: DEFAULT_ROLE_CODE,
-          name: 'Read Only',
-          is_system: true,
-          is_default: true,
-          is_active: true,
-        },
-      });
+      for (const roleEntry of ROLE_CATALOG) {
+        const role = await tx.role.create({
+          data: {
+            tenant_id: tenant.id,
+            code: roleEntry.code,
+            name: roleEntry.name,
+            is_system: true,
+            is_default: roleEntry.isDefault ?? false,
+            is_active: true,
+          },
+        });
+
+        rolesByCode.set(roleEntry.code, role);
+
+        if (roleEntry.permissions.length > 0) {
+          await tx.rolePermission.createMany({
+            data: roleEntry.permissions.map((code) => ({
+              tenant_id: tenant.id,
+              role_id: role.id,
+              permission_id: permissionsByCode.get(code)!.id,
+            })),
+          });
+        }
+      }
+
+      const ownerRole = rolesByCode.get(OWNER_ROLE_CODE)!;
 
       // The owner user POST /auth/tenant-login issues a session for.
       // Its own password_hash mirrors the tenant's (same plaintext was
