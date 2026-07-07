@@ -1,5 +1,3 @@
-// src/main.ts
-
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -8,7 +6,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-
   const app = await NestFactory.create(AppModule);
 
   const config = app.get(ConfigService);
@@ -18,41 +15,29 @@ async function bootstrap() {
   app.enableCors();
 
   app.useGlobalPipes(
-
     new ValidationPipe({
-
       whitelist: true,
-
       transform: true,
-
       forbidNonWhitelisted: true,
-
     }),
-
   );
 
   const swaggerConfig = new DocumentBuilder()
-
     .setTitle('KingFisher Wings ERP API')
-
-    .setDescription('Kingfisher Wings ERP Backend')
-
+    .setDescription('KingFisher Wings ERP Backend')
     .setVersion('1.0')
-
     .addBearerAuth()
-
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
   SwaggerModule.setup('docs', app, document);
 
-  await app.listen(port);
+  // Render requires binding to 0.0.0.0
+  await app.listen(port, '0.0.0.0');
 
-  console.log(`Server running on http://localhost:${port}`);
-
-  console.log(`Swagger: http://localhost:${port}/docs`);
-
+  console.log(`Server is running on port ${port}`);
+  console.log(`Swagger available at /docs`);
 }
 
 bootstrap();
