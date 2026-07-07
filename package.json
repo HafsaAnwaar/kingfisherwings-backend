@@ -1,7 +1,7 @@
 {
   "name": "fresa-gold-backend",
   "version": "1.0.0",
-  "description": "Kingfisherwings Management SaaS Backend",
+  "description": "kingfisherwings Management SaaS Backend",
   "author": "Kingfisher Wings Logistic LLC",
   "private": true,
   "license": "UNLICENSED",
@@ -11,7 +11,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
