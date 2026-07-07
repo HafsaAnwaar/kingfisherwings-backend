@@ -1,0 +1,76 @@
+import { VesselsService } from './vessels.service';
+import { CreateVesselDto, UpdateVesselDto } from '../dto/vessel.dto';
+import { MasterQueryDto } from '../dto/master-query.dto';
+export declare class VesselsController {
+    private readonly service;
+    constructor(service: VesselsService);
+    findAll(tenantId: string, query: MasterQueryDto): Promise<import("../base-master.service").PaginatedMasterResult<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        created_by: string | null;
+        imo_number: string | null;
+        flag_country: string | null;
+        shipping_line_id: string | null;
+        vessel_type: string | null;
+        year_built: number | null;
+        gross_tonnage: import("@prisma/client/runtime/library").Decimal | null;
+    }>>;
+    findOne(tenantId: string, id: string): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        created_by: string | null;
+        imo_number: string | null;
+        flag_country: string | null;
+        shipping_line_id: string | null;
+        vessel_type: string | null;
+        year_built: number | null;
+        gross_tonnage: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    create(tenantId: string, actorId: string, dto: CreateVesselDto): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        created_by: string | null;
+        imo_number: string | null;
+        flag_country: string | null;
+        shipping_line_id: string | null;
+        vessel_type: string | null;
+        year_built: number | null;
+        gross_tonnage: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    update(tenantId: string, actorId: string, id: string, dto: UpdateVesselDto): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        created_by: string | null;
+        imo_number: string | null;
+        flag_country: string | null;
+        shipping_line_id: string | null;
+        vessel_type: string | null;
+        year_built: number | null;
+        gross_tonnage: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    remove(tenantId: string, actorId: string, id: string): Promise<void>;
+}

@@ -4,12 +4,12 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: fresa_gold_postgres
+    container_name: kingfisherwings_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: fresa_gold_dev
+      POSTGRES_DB: kingfisherwings_dev
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=en_US.utf8"
     ports:
       - '5432:5432'
@@ -17,7 +17,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d fresa_gold_dev']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d kingfisherwings_dev']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,7 +38,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: fresa_gold_redis
+    container_name: kingfisherwings_redis
     restart: unless-stopped
     command: >
       redis-server
@@ -56,11 +56,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - fresa_net
+      - kingfisherwings_net
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: fresa_gold_pgadmin
+    container_name: kingfisherwings_pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@fresagold.local
@@ -79,7 +79,7 @@ services:
 
   redis-commander:
     image: rediscommander/redis-commander:latest
-    container_name: fresa_gold_redis_ui
+    container_name: kingfisherwings_redis_ui
     restart: unless-stopped
     environment:
       REDIS_HOSTS: local:redis:6379
@@ -97,12 +97,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    container_name: fresa_gold_api
+    container_name: kingfisherwings_api
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://postgres:password@postgres:5432/fresa_gold_dev
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/kingfisherwings_dev
       REDIS_HOST: redis
       REDIS_PORT: 6379
     ports:
@@ -128,4 +128,4 @@ volumes:
 networks:
   fresa_net:
     driver: bridge
-    name: fresa_gold_network
+    name: kingfisherwings_network

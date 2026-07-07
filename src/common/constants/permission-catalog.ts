@@ -1,5 +1,6 @@
 import { PERMISSION_CONSTANTS as USERS_PERMISSION_CONSTANTS } from '../../modules/users/constants/permission.constants';
 import { MASTERS_PERMISSION_CONSTANTS } from '../../modules/masters/constants/masters-permission.constants';
+import { PARTIES_PERMISSION_CONSTANTS } from '../../modules/parties/constants/parties-permission.constants';
 
 export interface PermissionCatalogEntry {
   module: string;
@@ -27,5 +28,10 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: MASTERS_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${MASTERS_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(PARTIES_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: PARTIES_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${PARTIES_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
 ];

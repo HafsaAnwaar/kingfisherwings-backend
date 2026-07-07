@@ -1,0 +1,76 @@
+import { PortsService } from './ports.service';
+import { CreatePortDto, UpdatePortDto } from '../dto/port.dto';
+import { MasterQueryDto } from '../dto/master-query.dto';
+export declare class PortsController {
+    private readonly service;
+    constructor(service: PortsService);
+    findAll(tenantId: string, query: MasterQueryDto): Promise<import("../base-master.service").PaginatedMasterResult<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        country_code: string;
+        city: string | null;
+        mode: import(".prisma/client").$Enums.ShipmentMode;
+        created_by: string | null;
+        un_locode: string;
+        latitude: import("@prisma/client/runtime/library").Decimal | null;
+        longitude: import("@prisma/client/runtime/library").Decimal | null;
+    }>>;
+    findOne(tenantId: string, id: string): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        country_code: string;
+        city: string | null;
+        mode: import(".prisma/client").$Enums.ShipmentMode;
+        created_by: string | null;
+        un_locode: string;
+        latitude: import("@prisma/client/runtime/library").Decimal | null;
+        longitude: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    create(tenantId: string, actorId: string, dto: CreatePortDto): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        country_code: string;
+        city: string | null;
+        mode: import(".prisma/client").$Enums.ShipmentMode;
+        created_by: string | null;
+        un_locode: string;
+        latitude: import("@prisma/client/runtime/library").Decimal | null;
+        longitude: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    update(tenantId: string, actorId: string, id: string, dto: UpdatePortDto): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        country_code: string;
+        city: string | null;
+        mode: import(".prisma/client").$Enums.ShipmentMode;
+        created_by: string | null;
+        un_locode: string;
+        latitude: import("@prisma/client/runtime/library").Decimal | null;
+        longitude: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    remove(tenantId: string, actorId: string, id: string): Promise<void>;
+}

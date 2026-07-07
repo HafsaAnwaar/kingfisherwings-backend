@@ -1,0 +1,35 @@
+import { UserRole, UserStatus } from '@prisma/client';
+export declare class CreateUserDto {
+    tenant_id?: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone?: string;
+    avatar_url?: string;
+    branch_id?: string;
+    department_id?: string;
+    role: UserRole;
+    status?: UserStatus;
+    is_salesperson?: boolean;
+    is_cs_rep?: boolean;
+    is_operations?: boolean;
+    is_finance?: boolean;
+    can_see_sales?: boolean;
+    can_see_cost?: boolean;
+    can_see_gp?: boolean;
+    can_see_invoices?: boolean;
+    can_see_payments?: boolean;
+    can_see_bank_balances?: boolean;
+    can_see_ar_ap?: boolean;
+    can_see_mgmt_reports?: boolean;
+    can_see_job_pnl?: boolean;
+    allowed_ips?: string[];
+    allowed_mac_addresses?: string[];
+    office_hours_start?: string;
+    office_hours_end?: string;
+    office_hours_timezone?: string;
+    two_factor_enabled?: boolean;
+    max_concurrent_sessions?: number;
+    role_ids?: string[];
+    permission_ids?: string[];
+}
