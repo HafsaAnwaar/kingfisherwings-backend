@@ -1,67 +1,28 @@
-==> Starting pre-deploy: npx prisma migrate deploy
-==> Running 'npx prisma migrate deploy'
-Prisma schema loaded from prisma/schema.prisma
-Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-late-glade-aika9hxx-pooler.c-4.us-east-1.aws.neon.tech"
-13 migrations found in prisma/migrations
-No pending migrations to apply.
-==> Pre-deploy complete!
-==> Deploying...
-==> Setting WEB_CONCURRENCY=2 by default, based on available CPUs in the instance
-==> Running 'npm run start:prod'
-> fresa-gold-backend@1.0.0 start:prod
-> node dist/main
-node:internal/modules/cjs/loader:1459
-  throw err;
-  ^
-Error: Cannot find module '/opt/render/project/src/dist/main'
-    at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
-    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
-    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
-    at Module._load (node:internal/modules/cjs/loader:1242:25)
-    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
-    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
-    at node:internal/main/run_main_module:33:47 {
-  code: 'MODULE_NOT_FOUND',
-  requireStack: []
-}
-Node.js v24.14.1
-==> Running 'npm run start:prod'
-==> Exited with status 1
-==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
-> fresa-gold-backend@1.0.0 start:prod
-> node dist/main
-node:internal/modules/cjs/loader:1459
-  throw err;
-  ^
-Error: Cannot find module '/opt/render/project/src/dist/main'
-    at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
-    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
-    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
-    at Module._load (node:internal/modules/cjs/loader:1242:25)
-    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
-    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
-    at node:internal/main/run_main_module:33:47 {
-  code: 'MODULE_NOT_FOUND',
-  requireStack: []
-}
-Node.js v24.14.1
-==> Instance srv-d96dlli8qa3s738rq040-bmf5w restarted
-==> Instance srv-d96dlli8qa3s738rq040-bmf5w restarted
-==> Running 'npm run start:prod'
-> fresa-gold-backend@1.0.0 start:prod
-> node dist/main
-node:internal/modules/cjs/loader:1459
-  throw err;
-  ^
-Error: Cannot find module '/opt/render/project/src/dist/main'
-    at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
-    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
-    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
-    at Module._load (node:internal/modules/cjs/loader:1242:25)
-    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
-    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
-    at node:internal/main/run_main_module:33:47 {
-  code: 'MODULE_NOT_FOUND',
-  requireStack: []
-}
-Node.js v24.14.1
+node_modules
+node_modules/
+.env
+.env.example
+dist/
+dist
+
+build/
+coverage/
+
+# Prisma
+prisma/dev.db
+prisma/dev.db-journal
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Generated
+*.tsbuildinfo
