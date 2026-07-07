@@ -8,6 +8,8 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { UsersModule } from './modules/users';
 import { AuthModule } from './modules/auth/auth.module';
 import { MastersModule } from './modules/masters/masters.module';
+import { PartiesModule } from './modules/parties/parties.module';
+import { OrganizationModule } from './modules/organization/organization.module';
 
 import { TenantContextStorage } from './common/context/tenant-context.storage';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
@@ -23,6 +25,8 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     UsersModule,
     AuthModule,
     MastersModule,
+    PartiesModule,
+    OrganizationModule,
   ],
   providers: [
     TenantContextStorage,

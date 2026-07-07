@@ -1,0 +1,72 @@
+import { WarehousesService } from './warehouses.service';
+import { CreateWarehouseDto, UpdateWarehouseDto } from '../dto/warehouse.dto';
+import { MasterQueryDto } from '../dto/master-query.dto';
+export declare class WarehousesController {
+    private readonly service;
+    constructor(service: WarehousesService);
+    findAll(tenantId: string, query: MasterQueryDto): Promise<import("../base-master.service").PaginatedMasterResult<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        code: string;
+        country_code: string | null;
+        address: string | null;
+        city: string | null;
+        created_by: string | null;
+        capacity_sqm: import("@prisma/client/runtime/library").Decimal | null;
+    }>>;
+    findOne(tenantId: string, id: string): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        code: string;
+        country_code: string | null;
+        address: string | null;
+        city: string | null;
+        created_by: string | null;
+        capacity_sqm: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    create(tenantId: string, actorId: string, dto: CreateWarehouseDto): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        code: string;
+        country_code: string | null;
+        address: string | null;
+        city: string | null;
+        created_by: string | null;
+        capacity_sqm: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    update(tenantId: string, actorId: string, id: string, dto: UpdateWarehouseDto): Promise<{
+        id: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        name: string;
+        tenant_id: string;
+        updated_by: string | null;
+        code: string;
+        country_code: string | null;
+        address: string | null;
+        city: string | null;
+        created_by: string | null;
+        capacity_sqm: import("@prisma/client/runtime/library").Decimal | null;
+    }>;
+    remove(tenantId: string, actorId: string, id: string): Promise<void>;
+}

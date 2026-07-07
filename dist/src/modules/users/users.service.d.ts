@@ -1,0 +1,48 @@
+import { PrismaService } from '../../prisma/prisma.service';
+import { UsersRepository } from './users.repository';
+import { AdminResetPasswordResult, BulkActionResult, CreateUserResponse, CreatorContext } from './users.types';
+import { UserResponse } from './responses/user.response';
+import { PaginatedUsersResponse } from './responses/paginated-users.response';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { QueryUserDto } from './dto/query-user.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { BulkUserDto } from './dto/bulk-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AdminResetPasswordDto } from './dto/admin-reset-password.dto';
+export declare class UsersService {
+    private readonly prisma;
+    private readonly repository;
+    private readonly logger;
+    constructor(prisma: PrismaService, repository: UsersRepository);
+    private validateTenant;
+    private validateEmailAvailable;
+    private validateUserLimit;
+    private validateBranch;
+    private validateDepartment;
+    private validateRole;
+    private validatePermission;
+    private getExistingOrThrow;
+    private log;
+    private logError;
+    private assignRoles;
+    private replaceRoles;
+    private assignPermissions;
+    private replacePermissions;
+    createUser(tenantId: string, dto: CreateUserDto, creator?: CreatorContext): Promise<CreateUserResponse>;
+    findAll(tenantId: string, query: QueryUserDto): Promise<PaginatedUsersResponse>;
+    findOne(tenantId: string, id: string): Promise<UserResponse>;
+    updateUser(tenantId: string, id: string, dto: UpdateUserDto, updatedBy?: string): Promise<UserResponse>;
+    updateStatus(tenantId: string, id: string, dto: UpdateStatusDto, updatedBy?: string): Promise<UserResponse>;
+    bulkAction(tenantId: string, dto: BulkUserDto, actorId?: string): Promise<BulkActionResult>;
+    softDeleteUser(tenantId: string, id: string, deletedBy?: string): Promise<void>;
+    restoreUser(tenantId: string, id: string, restoredBy?: string): Promise<UserResponse>;
+    forceLogout(tenantId: string, targetUserId: string): Promise<void>;
+    changePassword(tenantId: string, userId: string, dto: ChangePasswordDto): Promise<void>;
+    adminResetPassword(tenantId: string, targetUserId: string, dto: AdminResetPasswordDto, adminId?: string): Promise<AdminResetPasswordResult>;
+    requestPasswordReset(tenantId: string, email: string): Promise<{
+        token: string;
+    } | null>;
+    resetPassword(tenantId: string, dto: ResetPasswordDto): Promise<void>;
+}
