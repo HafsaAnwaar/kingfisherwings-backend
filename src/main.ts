@@ -10,7 +10,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
 
-  const port = config.get<number>('PORT') || "https://kingfisherwings.onrender.com/";
+  const port = config.get<number>('PORT') || 3000;
 
   app.enableCors();
 

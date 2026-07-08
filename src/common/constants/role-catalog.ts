@@ -1,6 +1,7 @@
 import { USERS_PERMISSIONS } from '../../modules/users/constants/permission.constants';
 import { MASTERS_PERMISSIONS } from '../../modules/masters/constants/masters-permission.constants';
 import { PARTIES_PERMISSIONS } from '../../modules/parties/constants/parties-permission.constants';
+import { QUOTATIONS_PERMISSIONS } from '../../modules/quotations/constants/quotations-permission.constants';
 
 export interface RoleCatalogEntry {
   /** Matches a UserRole enum value — kept 1:1 so User.role and the Role row it's assigned agree. */
@@ -30,6 +31,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(USERS_PERMISSIONS),
       ...Object.values(MASTERS_PERMISSIONS),
       ...Object.values(PARTIES_PERMISSIONS),
+      ...Object.values(QUOTATIONS_PERMISSIONS),
     ],
   },
   {
@@ -47,12 +49,20 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PARTIES_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.CREATE,
       PARTIES_PERMISSIONS.UPDATE,
+      QUOTATIONS_PERMISSIONS.VIEW,
+      QUOTATIONS_PERMISSIONS.APPROVE,
     ],
   },
   {
     code: 'OPERATIONS_MANAGER',
     name: 'Operations Staff',
-    permissions: [USERS_PERMISSIONS.VIEW, USERS_PERMISSIONS.UPDATE, MASTERS_PERMISSIONS.VIEW, PARTIES_PERMISSIONS.VIEW],
+    permissions: [
+      USERS_PERMISSIONS.VIEW,
+      USERS_PERMISSIONS.UPDATE,
+      MASTERS_PERMISSIONS.VIEW,
+      PARTIES_PERMISSIONS.VIEW,
+      QUOTATIONS_PERMISSIONS.VIEW,
+    ],
   },
   {
     code: 'SALES_MANAGER',
@@ -64,6 +74,12 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PARTIES_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.CREATE,
       PARTIES_PERMISSIONS.UPDATE,
+      QUOTATIONS_PERMISSIONS.VIEW,
+      QUOTATIONS_PERMISSIONS.CREATE,
+      QUOTATIONS_PERMISSIONS.UPDATE,
+      QUOTATIONS_PERMISSIONS.SUBMIT,
+      QUOTATIONS_PERMISSIONS.SEND,
+      QUOTATIONS_PERMISSIONS.CLOSE,
     ],
   },
   {
@@ -74,22 +90,38 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       MASTERS_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.MANAGE_CREDIT,
+      QUOTATIONS_PERMISSIONS.VIEW,
     ],
   },
   {
     code: 'DOCUMENTATION',
     name: 'Documentation',
-    permissions: [USERS_PERMISSIONS.VIEW, MASTERS_PERMISSIONS.VIEW, PARTIES_PERMISSIONS.VIEW],
+    permissions: [
+      USERS_PERMISSIONS.VIEW,
+      MASTERS_PERMISSIONS.VIEW,
+      PARTIES_PERMISSIONS.VIEW,
+      QUOTATIONS_PERMISSIONS.VIEW,
+    ],
   },
   {
     code: 'CUSTOMER_SUPPORT',
     name: 'Customer Support',
-    permissions: [USERS_PERMISSIONS.VIEW, MASTERS_PERMISSIONS.VIEW, PARTIES_PERMISSIONS.VIEW],
+    permissions: [
+      USERS_PERMISSIONS.VIEW,
+      MASTERS_PERMISSIONS.VIEW,
+      PARTIES_PERMISSIONS.VIEW,
+      QUOTATIONS_PERMISSIONS.VIEW,
+    ],
   },
   {
     code: 'WAREHOUSE_STAFF',
     name: 'Warehouse',
-    permissions: [USERS_PERMISSIONS.VIEW, MASTERS_PERMISSIONS.VIEW, PARTIES_PERMISSIONS.VIEW],
+    permissions: [
+      USERS_PERMISSIONS.VIEW,
+      MASTERS_PERMISSIONS.VIEW,
+      PARTIES_PERMISSIONS.VIEW,
+      QUOTATIONS_PERMISSIONS.VIEW,
+    ],
   },
   {
     code: 'DRIVER',
@@ -100,6 +132,11 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     code: 'READ_ONLY',
     name: 'Read Only',
     isDefault: true,
-    permissions: [USERS_PERMISSIONS.VIEW, MASTERS_PERMISSIONS.VIEW, PARTIES_PERMISSIONS.VIEW],
+    permissions: [
+      USERS_PERMISSIONS.VIEW,
+      MASTERS_PERMISSIONS.VIEW,
+      PARTIES_PERMISSIONS.VIEW,
+      QUOTATIONS_PERMISSIONS.VIEW,
+    ],
   },
 ];
