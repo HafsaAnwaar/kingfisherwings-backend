@@ -49,6 +49,11 @@ enum JobType {
   SEA_LCL_IMPORT
   LAND
   COURIER
+  CUSTOMS_CLEARANCE
+  NVOCC_EXPORT
+  NVOCC_IMPORT
+  SERVICE_JOB
+  WAREHOUSE
 }
 
 enum JobStatus {
@@ -126,12 +131,20 @@ enum ContainerSize {
 
 enum QuotationStatus {
   DRAFT
-  PENDING_APPROVAL
-  SENT
-  ACCEPTED
+  SUBMITTED
+  APPROVED
   REJECTED
+  SENT
+  WON
+  LOST
   EXPIRED
   CONVERTED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum DocumentType {
@@ -1528,6 +1541,237 @@ model JobNote {
   @@index([tenant_id])
   @@index([tenant_id, job_id])
   @@map("job_notes")
+}
+
+// =====================================================
+// QUOTATIONS (spec Ch.7) — full lifecycle, GP calc, revisions,
+// approval workflow. Converts to a Job (above) once won.
+// =====================================================
+
+model Quotation {
+  id               String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String          @db.Uuid
+  quotation_number String          @db.VarChar(30)
+  status           QuotationStatus @default(DRAFT)
+  job_type         JobType
+
+  // Parties / ownership
+  customer_id    String  @db.Uuid
+  salesperson_id String? @db.Uuid
+  branch_id      String? @db.Uuid
+  department_id  String? @db.Uuid
+  /// The quoted carrier (a Party of type AIRLINE/SHIPPING_LINE/TRUCKER) — distinct from carrier_preference, which is a free-text note.
+  carrier_id     String? @db.Uuid
+
+  // Route
+  origin_port_id String? @db.Uuid
+  dest_port_id   String? @db.Uuid
+  incoterm       String? @db.VarChar(10)
+
+  // Cargo
+  commodity            String?  @db.VarChar(500)
+  hs_code              String?  @db.VarChar(12)
+  gross_weight         Decimal? @db.Decimal(12, 3)
+  chargeable_weight    Decimal? @db.Decimal(12, 3)
+  volume_cbm           Decimal? @db.Decimal(10, 3)
+  pieces               Int?
+  container_type_id    String?  @db.Uuid
+  container_count      Int?
+  is_dg                Boolean  @default(false)
+  dg_class             String?  @db.VarChar(20)
+  special_requirements String?  @db.Text
+
+  // Routing / commercial
+  carrier_preference String?   @db.VarChar(200)
+  transit_time_days  Int?
+  routing_notes      String?   @db.Text
+  remarks            String?   @db.Text
+  internal_notes     String?   @db.Text
+  valid_until        DateTime? @db.Date
+
+  // Money — currency_code/exchange_rate follow the same convention as
+  // JobCharge: a validated string against Currency, not a hard FK.
+  currency_code    String   @db.Char(3)
+  exchange_rate    Decimal  @default(1) @db.Decimal(20, 8)
+  revenue_total    Decimal  @default(0) @db.Decimal(18, 4)
+  cost_total       Decimal  @default(0) @db.Decimal(18, 4)
+  gp_amount        Decimal  @default(0) @db.Decimal(18, 4)
+  gp_percent       Decimal  @default(0) @db.Decimal(7, 4)
+  discount_percent Decimal? @db.Decimal(5, 2)
+  discount_amount  Decimal? @db.Decimal(18, 4)
+
+  // Revisions — cloning creates a new row with parent_quotation_id set
+  // and version incremented; the original is left untouched (status
+  // history is per-row, so the full chain is reconstructable).
+  version             Int     @default(1)
+  parent_quotation_id String? @db.Uuid
+
+  // Lifecycle timestamps
+  lost_reason  String?   @db.VarChar(200)
+  submitted_at DateTime? @db.Timestamptz
+  approved_at  DateTime? @db.Timestamptz
+  approved_by  String?   @db.Uuid
+  sent_at      DateTime? @db.Timestamptz
+  won_at       DateTime? @db.Timestamptz
+  lost_at      DateTime? @db.Timestamptz
+
+  // Set once converted to a Job (post-WON) — Job itself doesn't need
+  // to know its origin quotation, but reporting needs the reverse link.
+  converted_job_id String? @db.Uuid
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  lines          QuotationLine[]
+  status_history QuotationStatusHistory[]
+  approvals      QuotationApproval[]
+
+  @@unique([tenant_id, quotation_number])
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, customer_id])
+  @@index([tenant_id, parent_quotation_id])
+  @@index([tenant_id, department_id])
+  @@index([tenant_id, carrier_id])
+  @@map("quotations")
+}
+
+model QuotationLine {
+  id             String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String  @db.Uuid
+  quotation_id   String  @db.Uuid
+  charge_code_id String  @db.Uuid
+  description    String  @db.VarChar(300)
+  unit           String? @db.VarChar(50)
+
+  quantity             Decimal @default(1) @db.Decimal(10, 3)
+  unit_price           Decimal @db.Decimal(18, 4)
+  currency_code        String  @db.Char(3)
+  exchange_rate        Decimal @default(1) @db.Decimal(20, 8)
+  amount               Decimal @db.Decimal(18, 4)
+  amount_base_currency Decimal @db.Decimal(18, 4)
+
+  tax_rate_id String? @db.Uuid
+  tax_amount  Decimal @default(0) @db.Decimal(18, 4)
+
+  /// Revenue line if false, cost line if true — same convention as JobCharge.is_cost.
+  is_cost     Boolean @default(false)
+  supplier_id String? @db.Uuid
+  sort_order  Int     @default(0)
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_by String?  @db.Uuid
+
+  quotation Quotation @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, quotation_id])
+  @@map("quotation_lines")
+}
+
+model QuotationStatusHistory {
+  id           String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String           @db.Uuid
+  quotation_id String           @db.Uuid
+  from_status  QuotationStatus?
+  to_status    QuotationStatus
+  changed_by   String?          @db.Uuid
+  reason       String?          @db.VarChar(255)
+  created_at   DateTime         @default(now()) @db.Timestamptz
+
+  quotation Quotation @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, quotation_id])
+  @@map("quotation_status_history")
+}
+
+model QuotationApproval {
+  id           String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String         @db.Uuid
+  quotation_id String         @db.Uuid
+  level        Int
+  approver_id  String?        @db.Uuid
+  status       ApprovalStatus @default(PENDING)
+  decided_at   DateTime?      @db.Timestamptz
+  comments     String?        @db.Text
+  created_at   DateTime       @default(now()) @db.Timestamptz
+
+  quotation Quotation @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, quotation_id, level])
+  @@index([tenant_id, quotation_id])
+  @@map("quotation_approvals")
+}
+
+// =====================================================
+// ONLINE TARIFF MASTER — rate cards used to auto-populate quotation
+// charge lines (sale rate + cost rate per lane/service/container type).
+// customer_id NULL = applies to all customers; a specific customer_id
+// overrides the general rate for that lane when both exist.
+// =====================================================
+
+model Tariff {
+  id                String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String  @db.Uuid
+  service_type      JobType
+  origin_port_id    String? @db.Uuid
+  dest_port_id      String? @db.Uuid
+  container_type_id String? @db.Uuid
+  charge_code_id    String  @db.Uuid
+  customer_id       String? @db.Uuid
+
+  unit          String? @db.VarChar(50)
+  sale_rate     Decimal @db.Decimal(18, 4)
+  cost_rate     Decimal @db.Decimal(18, 4)
+  currency_code String  @db.Char(3)
+
+  valid_from DateTime  @db.Date
+  valid_to   DateTime? @db.Date
+  is_active  Boolean   @default(true)
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@index([tenant_id])
+  @@index([tenant_id, service_type])
+  @@index([tenant_id, origin_port_id, dest_port_id])
+  @@index([tenant_id, customer_id])
+  @@map("tariffs")
+}
+
+// =====================================================
+// ZIP DISTANCE MASTER — location-to-location distances, used for
+// distance-based rating on Land/Trucking and last-mile quotations.
+// =====================================================
+
+model ZipDistance {
+  id        String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id String  @db.Uuid
+  from_zip  String  @db.VarChar(20)
+  from_city String? @db.VarChar(100)
+  to_zip    String  @db.VarChar(20)
+  to_city   String? @db.VarChar(100)
+  distance  Decimal @db.Decimal(10, 2)
+  unit      String  @default("KM") @db.VarChar(10)
+  is_active Boolean @default(true)
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, from_zip, to_zip])
+  @@index([tenant_id])
+  @@map("zip_distances")
 }
 
 // =====================================================
