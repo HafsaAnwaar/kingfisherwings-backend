@@ -26,12 +26,14 @@ export class PartiesService {
 
   async create(tenantId: string, dto: CreatePartyDto, actorId?: string): Promise<Party> {
     await this.assertSalespersonValid(tenantId, dto.salesperson_id);
+    await this.assertCompanyExists(tenantId, dto.company_id);
 
     try {
       return await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.party.create({
           data: {
             tenant_id: tenantId,
+            company_id: dto.company_id,
             party_type: dto.party_type,
             code: dto.code,
             name: dto.name,
@@ -173,6 +175,10 @@ export class PartiesService {
         where.credit_status = query.credit_status;
       }
 
+      if (query.company_id) {
+        where.company_id = query.company_id;
+      }
+
       if (query.search) {
         where.OR = [
           { name: { contains: query.search, mode: 'insensitive' } },
@@ -224,6 +230,7 @@ export class PartiesService {
 
   async update(tenantId: string, id: string, dto: UpdatePartyDto, actorId?: string): Promise<Party> {
     await this.assertSalespersonValid(tenantId, dto.salesperson_id);
+    await this.assertCompanyExists(tenantId, dto.company_id);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.party.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } });
@@ -466,6 +473,20 @@ export class PartiesService {
 
     if (!exists) {
       throw new NotFoundException('Party not found.');
+    }
+  }
+
+  private async assertCompanyExists(tenantId: string, companyId?: string): Promise<void> {
+    if (!companyId) {
+      return;
+    }
+
+    const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } }),
+    );
+
+    if (!exists) {
+      throw new NotFoundException('Company not found.');
     }
   }
 

@@ -2,6 +2,11 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, IsUUID, Length } from 'class-validator';
 
 export class CreateDesignationDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  company_id?: string;
+
   @ApiProperty({ example: 'Operations Executive' })
   @IsString()
   @Length(2, 100)

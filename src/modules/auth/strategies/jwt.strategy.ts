@@ -41,6 +41,20 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
    * force-logout / password-change session revocation take effect
    * immediately instead of waiting for the access token to expire.
    */
+  /**
+   * Trusts the token's embedded RBAC claims (tenantId/branchId/roleId/
+   * role/permissions) for the lifetime of the access token, but still
+   * verifies the underlying session hasn't been revoked, so logout /
+   * force-logout / password-change session revocation take effect
+   * immediately instead of waiting for the access token to expire.
+   *
+   * Also re-checks the tenant's own active status on every request —
+   * not just at login. Without this, a Super Admin deactivating a
+   * tenant wouldn't actually cut off access: anyone already holding a
+   * valid access token could keep using the system until it expired
+   * naturally. This is what makes "Super Admin manages tenant access"
+   * actually true in real time, not just at the next login.
+   */
   private async validateUser(payload: Extract<JwtPayload, { principal: 'user' }>): Promise<CurrentUser> {
     const session = await this.prisma.session.findUnique({
       where: { jti: payload.sessionId },
@@ -53,6 +67,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     if (!session.user || session.user.deleted_at || session.user.status !== 'ACTIVE') {
       throw new UnauthorizedException('Account is no longer active.');
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: session.tenant_id },
+      select: { is_active: true, status: true, deleted_at: true },
+    });
+
+    const activeTenantStatuses = ['ACTIVE', 'TRIAL'];
+
+    if (!tenant || tenant.deleted_at || !tenant.is_active || !activeTenantStatuses.includes(tenant.status)) {
+      throw new UnauthorizedException('This account is not active.');
     }
 
     return {

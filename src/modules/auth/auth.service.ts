@@ -346,6 +346,14 @@ export class AuthService {
       throw new UnauthorizedException('Account is no longer active.');
     }
 
+    const tenantForRefresh = await this.prisma.tenant.findUnique({ where: { id: session.tenant_id } });
+
+    if (!tenantForRefresh) {
+      throw new UnauthorizedException('Account is no longer active.');
+    }
+
+    this.assertTenantActive(tenantForRefresh);
+
     const { roleId, permissions } = await this.resolveRbac(session.tenant_id, user.id);
     const newSessionId = randomUUID();
 

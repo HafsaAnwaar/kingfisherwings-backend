@@ -19,7 +19,11 @@ import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto, UpdateQuotationDto } from './dto/quotation.dto';
 import { CreateQuotationLineDto, UpdateQuotationLineDto } from './dto/quotation-line.dto';
 import { QuotationQueryDto } from './dto/quotation-query.dto';
+import { QuotationAnalyticsQueryDto } from './dto/quotation-analytics-query.dto';
+import { CreateOnlineQuoteDto } from './dto/online-quote.dto';
 import { MarkLostDto, ApprovalDecisionDto } from './dto/quotation-actions.dto';
+
+import { Public } from '../auth/decorators/public.decorator';
 
 import { RolesGuard } from '../users/guards/roles.guard';
 import { PermissionsGuard } from '../users/guards/permissions.guard';
@@ -48,11 +52,62 @@ export class QuotationsController {
     return this.service.findAllChargewise(tenantId, query);
   }
 
+  @Get('reports/analytics')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Quotation analytics summary — volume, conversion, GP totals (Ch.7.7)' })
+  getAnalytics(@CurrentUser('tenantId') tenantId: string, @Query() query: QuotationAnalyticsQueryDto) {
+    return this.service.getAnalytics(tenantId, query);
+  }
+
+  @Get('reports/analytics/conversion')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Win/loss and quote-to-job conversion rates' })
+  getConversionAnalytics(@CurrentUser('tenantId') tenantId: string, @Query() query: QuotationAnalyticsQueryDto) {
+    return this.service.getConversionAnalytics(tenantId, query);
+  }
+
+  @Get('reports/analytics/lost-reasons')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Lost quotation breakdown by reason code' })
+  getLostReasonAnalytics(@CurrentUser('tenantId') tenantId: string, @Query() query: QuotationAnalyticsQueryDto) {
+    return this.service.getLostReasonAnalytics(tenantId, query);
+  }
+
+  @Get('reports/analytics/response-time')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Average hours from creation to submit/send' })
+  getResponseTimeAnalytics(@CurrentUser('tenantId') tenantId: string, @Query() query: QuotationAnalyticsQueryDto) {
+    return this.service.getResponseTimeAnalytics(tenantId, query);
+  }
+
+  @Public()
+  @Post('online-quote')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Public online quote widget — customer submits cargo details, system auto-calculates from tariff (Ch.7.5)' })
+  createOnlineQuote(@Body() dto: CreateOnlineQuoteDto) {
+    return this.service.createOnlineQuote(dto);
+  }
+
+  @Post('expire-due')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Batch-expire all quotations past valid_until (intended for daily cron)' })
+  expireDue(@CurrentUser('tenantId') tenantId: string, @CurrentUser('id') actorId: string) {
+    return this.service.expireDue(tenantId, actorId);
+  }
+
   @Get(':id')
   @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: 'Get a quotation with its lines, status history, and approvals' })
   findOne(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
     return this.service.findOne(tenantId, id);
+  }
+
+  @Get(':id/revisions')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List all revisions in this quotation version chain' })
+  getRevisions(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getRevisions(tenantId, id);
   }
 
   @Post()
@@ -226,5 +281,28 @@ export class QuotationsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.service.convertToJob(tenantId, id, actorId);
+  }
+
+  @Post(':id/archive')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.DELETE)
+  @ApiOperation({ summary: 'Archive a closed quotation (soft-delete)' })
+  async archive(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.service.archive(tenantId, id, actorId);
+  }
+
+  @Post(':id/expire')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Manually expire a quotation past its valid_until date' })
+  expire(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.expire(tenantId, id, actorId);
   }
 }

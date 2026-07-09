@@ -70,6 +70,11 @@ export class CreateUserDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
+  company_id?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
   branch_id?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })

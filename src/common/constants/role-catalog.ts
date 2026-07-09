@@ -2,6 +2,7 @@ import { USERS_PERMISSIONS } from '../../modules/users/constants/permission.cons
 import { MASTERS_PERMISSIONS } from '../../modules/masters/constants/masters-permission.constants';
 import { PARTIES_PERMISSIONS } from '../../modules/parties/constants/parties-permission.constants';
 import { QUOTATIONS_PERMISSIONS } from '../../modules/quotations/constants/quotations-permission.constants';
+import { JOBS_PERMISSIONS } from '../../modules/jobs/constants/jobs-permission.constants';
 
 export interface RoleCatalogEntry {
   /** Matches a UserRole enum value — kept 1:1 so User.role and the Role row it's assigned agree. */
@@ -32,6 +33,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(MASTERS_PERMISSIONS),
       ...Object.values(PARTIES_PERMISSIONS),
       ...Object.values(QUOTATIONS_PERMISSIONS),
+      ...Object.values(JOBS_PERMISSIONS),
     ],
   },
   {
@@ -51,6 +53,11 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PARTIES_PERMISSIONS.UPDATE,
       QUOTATIONS_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.APPROVE,
+      JOBS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.CREATE,
+      JOBS_PERMISSIONS.UPDATE,
+      JOBS_PERMISSIONS.CLOSE,
+      JOBS_PERMISSIONS.VIEW_GP,
     ],
   },
   {
@@ -62,6 +69,10 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       MASTERS_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.CREATE,
+      JOBS_PERMISSIONS.UPDATE,
+      JOBS_PERMISSIONS.CLOSE,
     ],
   },
   {
@@ -80,6 +91,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       QUOTATIONS_PERMISSIONS.SUBMIT,
       QUOTATIONS_PERMISSIONS.SEND,
       QUOTATIONS_PERMISSIONS.CLOSE,
+      JOBS_PERMISSIONS.VIEW,
     ],
   },
   {
@@ -91,6 +103,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PARTIES_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.MANAGE_CREDIT,
       QUOTATIONS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.VIEW_GP,
     ],
   },
   {
@@ -101,6 +115,10 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       MASTERS_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.CREATE,
+      JOBS_PERMISSIONS.UPDATE,
+      JOBS_PERMISSIONS.CLOSE,
     ],
   },
   {
@@ -111,6 +129,10 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       MASTERS_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.CREATE,
+      JOBS_PERMISSIONS.UPDATE,
+      JOBS_PERMISSIONS.CLOSE,
     ],
   },
   {
@@ -121,6 +143,10 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       MASTERS_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.CREATE,
+      JOBS_PERMISSIONS.UPDATE,
+      JOBS_PERMISSIONS.CLOSE,
     ],
   },
   {
@@ -137,6 +163,10 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       MASTERS_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.VIEW,
+      JOBS_PERMISSIONS.CREATE,
+      JOBS_PERMISSIONS.UPDATE,
+      JOBS_PERMISSIONS.CLOSE,
     ],
   },
 ];

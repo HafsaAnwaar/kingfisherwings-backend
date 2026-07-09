@@ -39,7 +39,16 @@ export class TenantsService {
   async create(createTenantDto: CreateTenantDto, createdBySuperAdminId?: string) {
     await this.validateUniqueFields(createTenantDto);
 
-    const { password, admin_first_name, admin_last_name, ...tenantData } = createTenantDto;
+    const {
+      password,
+      admin_first_name,
+      admin_last_name,
+      company_code,
+      company_name,
+      company_legal_name,
+      company_registration_number,
+      ...tenantData
+    } = createTenantDto;
 
     const passwordHash = await PasswordUtil.hash(password);
 
@@ -59,6 +68,30 @@ export class TenantsService {
       // do — set the context on THIS transaction now that the tenant
       // (and its id) exists.
       await tx.$executeRaw(setTenantContextQuery(tenant.id));
+
+      // The default Company for this tenant — SuperAdmin can register
+      // it explicitly (company_code/company_name), or it falls back to
+      // the tenant's own code/name. Every tenant has exactly one
+      // default company from creation onward; additional companies for
+      // multi-entity groups are added later via POST /companies.
+      const defaultCompany = await tx.company.create({
+        data: {
+          tenant_id: tenant.id,
+          code: company_code ?? tenant.code,
+          name: company_name ?? tenant.name,
+          legal_name: company_legal_name,
+          registration_number: company_registration_number,
+          vat_number: tenant.vat_number,
+          address: tenant.address,
+          city: tenant.city,
+          country_code: tenant.country_code,
+          phone: tenant.phone,
+          email: tenant.email,
+          is_default: true,
+          created_by: createdBySuperAdminId,
+          updated_by: createdBySuperAdminId,
+        },
+      });
 
       // Permission is tenant-scoped (@@unique([tenant_id, module, action])),
       // so every new tenant needs its own copy of the catalog.
@@ -119,6 +152,7 @@ export class TenantsService {
       const owner = await tx.user.create({
         data: {
           tenant_id: tenant.id,
+          company_id: defaultCompany.id,
           email: tenantData.email.toLowerCase(),
           password_hash: passwordHash,
           password_changed_at: new Date(),
@@ -147,7 +181,7 @@ export class TenantsService {
         },
       });
 
-      return { tenant, owner };
+      return { tenant, owner, company: defaultCompany };
     });
 
     return {
@@ -155,8 +189,116 @@ export class TenantsService {
       message: 'Tenant created successfully. Log in at POST /auth/tenant-login with the password you set.',
       data: {
         tenant: this.sanitizeTenant(result.tenant),
+        company: result.company,
         owner: UserMapper.toResponse(result.owner),
       },
+    };
+  }
+
+  // =====================================================
+  // SYNC PERMISSIONS
+  //
+  // Permission/RolePermission rows are seeded ONCE, at tenant
+  // creation, from whatever PERMISSION_CATALOG/ROLE_CATALOG contained
+  // at that moment. A tenant created before a later module (e.g.
+  // Quotations, Companies) added new permission codes has no rows for
+  // them at all — not "denied", genuinely absent — so every check
+  // against those permissions fails. This reconciles a tenant's
+  // permission set up to the current catalog without touching
+  // anything it already has.
+  // =====================================================
+
+  async syncPermissions(tenantId: string) {
+    const tenant = await this.ensureTenantExists(tenantId);
+
+    const summary = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(setTenantContextQuery(tenant.id));
+
+      const existingPermissions = await tx.permission.findMany({ where: { tenant_id: tenantId } });
+      const existingByCode = new Map(existingPermissions.map((p) => [`${p.module}.${p.action}`, p]));
+
+      const missingCatalogEntries = PERMISSION_CATALOG.filter(
+        (entry) => !existingByCode.has(`${entry.module}.${entry.action}`),
+      );
+
+      const createdPermissions = await Promise.all(
+        missingCatalogEntries.map((entry) =>
+          tx.permission.create({
+            data: { tenant_id: tenantId, module: entry.module, action: entry.action, description: entry.description },
+          }),
+        ),
+      );
+
+      const permissionsByCode = new Map([
+        ...existingByCode,
+        ...createdPermissions.map((p) => [`${p.module}.${p.action}`, p] as const),
+      ]);
+
+      const roles = await tx.role.findMany({ where: { tenant_id: tenantId } });
+      const roleByCode = new Map(roles.map((r) => [r.code, r]));
+
+      let grantsAdded = 0;
+
+      for (const roleEntry of ROLE_CATALOG) {
+        const role = roleByCode.get(roleEntry.code);
+
+        if (!role) {
+          // A role added to ROLE_CATALOG after this tenant was created
+          // — same underlying issue, one level up. Out of scope for a
+          // permissions-only sync; flagged in the response instead of
+          // silently creating roles a tenant admin never asked for.
+          continue;
+        }
+
+        const existingGrants = await tx.rolePermission.findMany({ where: { tenant_id: tenantId, role_id: role.id } });
+        const grantedIds = new Set(existingGrants.map((g) => g.permission_id));
+
+        const toGrant = roleEntry.permissions
+          .map((code) => permissionsByCode.get(code))
+          .filter((p): p is NonNullable<typeof p> => !!p && !grantedIds.has(p.id));
+
+        if (toGrant.length > 0) {
+          await tx.rolePermission.createMany({
+            data: toGrant.map((p) => ({ tenant_id: tenantId, role_id: role.id, permission_id: p.id })),
+          });
+          grantsAdded += toGrant.length;
+        }
+      }
+
+      const missingRoles = ROLE_CATALOG.filter((r) => !roleByCode.has(r.code)).map((r) => r.code);
+
+      return {
+        permissionsCreated: createdPermissions.length,
+        roleGrantsAdded: grantsAdded,
+        rolesMissingEntirely: missingRoles,
+      };
+    });
+
+    return {
+      success: true,
+      message:
+        summary.permissionsCreated === 0 && summary.roleGrantsAdded === 0
+          ? 'Already up to date — nothing to sync.'
+          : `Synced: ${summary.permissionsCreated} new permission(s) created, ${summary.roleGrantsAdded} new role grant(s) added.`,
+      data: summary,
+    };
+  }
+
+  /** Same reconciliation across every tenant — for a catalog change that affects everyone, not just one test tenant. */
+  async syncPermissionsForAllTenants() {
+    const tenants = await this.prisma.tenant.findMany({ where: { deleted_at: null }, select: { id: true, code: true } });
+
+    const results = [];
+
+    for (const tenant of tenants) {
+      const result = await this.syncPermissions(tenant.id);
+      results.push({ tenantId: tenant.id, tenantCode: tenant.code, ...result.data });
+    }
+
+    return {
+      success: true,
+      message: `Synced permissions for ${tenants.length} tenant(s).`,
+      data: results,
     };
   }
 

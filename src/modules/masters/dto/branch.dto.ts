@@ -1,7 +1,12 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsPhoneNumber, IsString, Length } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsPhoneNumber, IsString, IsUUID, Length } from 'class-validator';
 
 export class CreateBranchDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  company_id?: string;
+
   @ApiProperty({ example: 'Dubai Head Office' })
   @IsString()
   @Length(2, 200)

@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PartyType, PartyCreditStatus } from '@prisma/client';
 
@@ -32,6 +32,11 @@ export class PartyQueryDto {
   @IsOptional()
   @IsEnum(PartyCreditStatus)
   credit_status?: PartyCreditStatus;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  company_id?: string;
 
   @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'asc' })
   @IsOptional()

@@ -98,6 +98,24 @@ export class UsersService {
     }
   }
 
+  private async validateCompany(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    companyId?: string,
+  ): Promise<void> {
+    if (!companyId) {
+      return;
+    }
+
+    const company = await tx.company.findFirst({
+      where: { id: companyId, tenant_id: tenantId, deleted_at: null },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Company not found.');
+    }
+  }
+
   private async validateBranch(
     tx: Prisma.TransactionClient,
     tenantId: string,
@@ -294,6 +312,7 @@ export class UsersService {
       const user = await this.prisma.runWithTenant(tenantId, async (tx) => {
         await this.validateUserLimit(tx, tenant);
         await this.validateEmailAvailable(tx, tenantId, dto.email);
+        await this.validateCompany(tx, tenantId, dto.company_id);
         await this.validateBranch(tx, tenantId, dto.branch_id);
         await this.validateDepartment(tx, tenantId, dto.department_id);
 
@@ -311,6 +330,7 @@ export class UsersService {
             avatar_url: dto.avatar_url,
             role: dto.role,
             status: dto.status ?? UserStatus.INVITED,
+            company_id: dto.company_id,
             branch_id: dto.branch_id,
             department_id: dto.department_id,
             is_salesperson: dto.is_salesperson ?? false,
@@ -451,6 +471,7 @@ export class UsersService {
           await this.validateEmailAvailable(tx, tenantId, dto.email, id);
         }
 
+        await this.validateCompany(tx, tenantId, dto.company_id);
         await this.validateBranch(tx, tenantId, dto.branch_id);
         await this.validateDepartment(tx, tenantId, dto.department_id);
 

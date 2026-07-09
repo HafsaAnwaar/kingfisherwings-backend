@@ -91,6 +91,27 @@ export class TenantsController {
   }
 
   // =====================================================
+  // SYNC PERMISSIONS
+  // =====================================================
+
+  @Post('sync-permissions')
+  @ApiOperation({
+    summary:
+      'Reconcile ALL tenants against the current permission/role catalog — for tenants created before a later module added new permissions.',
+  })
+  syncPermissionsForAllTenants() {
+    return this.tenantsService.syncPermissionsForAllTenants();
+  }
+
+  @Post(':id/sync-permissions')
+  @ApiOperation({
+    summary: 'Reconcile one tenant against the current permission/role catalog',
+  })
+  syncPermissions(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.tenantsService.syncPermissions(id);
+  }
+
+  // =====================================================
   // GET SINGLE TENANT
   // =====================================================
 

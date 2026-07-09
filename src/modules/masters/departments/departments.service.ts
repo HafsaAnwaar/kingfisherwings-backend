@@ -15,6 +15,7 @@ export class DepartmentsService extends BaseMasterService<Department> {
 
   async create(tenantId: string, data: Record<string, unknown>, actorId?: string): Promise<Department> {
     await this.assertParentValid(tenantId, data.parent_id as string | undefined);
+    await this.assertCompanyExists(tenantId, data.company_id as string | undefined);
     return super.create(tenantId, data, actorId);
   }
 
@@ -28,6 +29,9 @@ export class DepartmentsService extends BaseMasterService<Department> {
       throw new BadRequestException('A department cannot be its own parent.');
     }
     await this.assertParentValid(tenantId, data.parent_id as string | undefined);
+    if (data.company_id !== undefined) {
+      await this.assertCompanyExists(tenantId, data.company_id as string | undefined);
+    }
     return super.update(tenantId, id, data, actorId);
   }
 
@@ -42,6 +46,20 @@ export class DepartmentsService extends BaseMasterService<Department> {
 
     if (!exists) {
       throw new NotFoundException('Parent department not found.');
+    }
+  }
+
+  private async assertCompanyExists(tenantId: string, companyId?: string): Promise<void> {
+    if (!companyId) {
+      return;
+    }
+
+    const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } }),
+    );
+
+    if (!exists) {
+      throw new NotFoundException('Company not found.');
     }
   }
 }

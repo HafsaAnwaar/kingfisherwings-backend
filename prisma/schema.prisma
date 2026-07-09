@@ -260,9 +260,60 @@ model Tenant {
   password_history PasswordHistory[]
   login_history    LoginHistory[]
   bank_accounts    TenantBankAccount[]
+  companies        Company[]
 
   @@index([created_by_super_admin_id])
   @@map("tenants")
+}
+
+// =====================================================
+// COMPANY — a legal entity operating under a Tenant's SaaS
+// subscription. Most tenants have exactly one (created automatically
+// alongside the tenant, is_default=true); a holding-group tenant can
+// register more via POST /companies for multi-company consolidation
+// (spec's "Group P&L / Multi-Company" reports). Branches, Departments,
+// Users, Parties, and Quotations all carry company_id — see each
+// model for the reasoning on why that one does or doesn't.
+// =====================================================
+
+model Company {
+  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id String @db.Uuid
+
+  code                String  @db.VarChar(20)
+  name                String  @db.VarChar(300)
+  legal_name          String? @db.VarChar(300)
+  registration_number String? @db.VarChar(100)
+  vat_number          String? @db.VarChar(50)
+
+  address      String? @db.Text
+  city         String? @db.VarChar(100)
+  country_code String? @db.Char(2)
+  phone        String? @db.VarChar(30)
+  email        String? @db.VarChar(255)
+
+  /// Every tenant has exactly one default company (set at tenant creation); additional companies are opt-in for multi-entity groups.
+  is_default Boolean @default(false)
+  is_active  Boolean @default(true)
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  tenant       Tenant        @relation(fields: [tenant_id], references: [id])
+  branches     Branch[]
+  departments  Department[]
+  designations Designation[]
+  users        User[]
+  parties      Party[]
+  quotations   Quotation[]
+  jobs         Job[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("companies")
 }
 
 // =====================================================
@@ -389,9 +440,11 @@ model User {
   // Organization
   // ================================
 
+  company_id    String? @db.Uuid
   branch_id     String? @db.Uuid
   department_id String? @db.Uuid
 
+  company    Company?    @relation(fields: [company_id], references: [id])
   branch     Branch?     @relation(fields: [branch_id], references: [id])
   department Department? @relation(fields: [department_id], references: [id])
 
@@ -532,6 +585,7 @@ model User {
   @@index([tenant_id])
   @@index([tenant_id, status])
   @@index([tenant_id, role])
+  @@index([tenant_id, company_id])
   @@index([email])
   @@index([created_by_user_id])
   @@index([created_by_tenant_id])
@@ -783,6 +837,7 @@ model AuditLog {
 model Branch {
   id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id      String    @db.Uuid
+  company_id     String?   @db.Uuid
   name           String    @db.VarChar(200)
   code           String    @db.VarChar(20)
   address        String?   @db.Text
@@ -798,11 +853,13 @@ model Branch {
   updated_by     String?   @db.Uuid
   deleted_at     DateTime? @db.Timestamptz
 
-  tenant Tenant @relation(fields: [tenant_id], references: [id])
-  users  User[]
+  tenant  Tenant   @relation(fields: [tenant_id], references: [id])
+  company Company? @relation(fields: [company_id], references: [id])
+  users   User[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
+  @@index([tenant_id, company_id])
   @@map("branches")
 }
 
@@ -1077,6 +1134,7 @@ model TaxRate {
 model Department {
   id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id  String    @db.Uuid
+  company_id String?   @db.Uuid
   name       String    @db.VarChar(100)
   code       String    @db.VarChar(20)
   parent_id  String?   @db.Uuid
@@ -1087,6 +1145,7 @@ model Department {
   updated_by String?   @db.Uuid
   deleted_at DateTime? @db.Timestamptz
 
+  company     Company?      @relation(fields: [company_id], references: [id])
   parent      Department?   @relation("DepartmentHierarchy", fields: [parent_id], references: [id])
   children    Department[]  @relation("DepartmentHierarchy")
   users       User[]
@@ -1094,12 +1153,14 @@ model Department {
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
+  @@index([tenant_id, company_id])
   @@map("departments")
 }
 
 model Designation {
   id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id     String    @db.Uuid
+  company_id    String?   @db.Uuid
   name          String    @db.VarChar(100)
   department_id String?   @db.Uuid
   is_active     Boolean   @default(true)
@@ -1109,9 +1170,11 @@ model Designation {
   updated_by    String?   @db.Uuid
   deleted_at    DateTime? @db.Timestamptz
 
+  company    Company?    @relation(fields: [company_id], references: [id])
   department Department? @relation(fields: [department_id], references: [id])
 
   @@index([tenant_id])
+  @@index([tenant_id, company_id])
   @@map("designations")
 }
 
@@ -1217,6 +1280,7 @@ model Warehouse {
 model Party {
   id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id      String    @db.Uuid
+  company_id     String?   @db.Uuid
   party_type     PartyType
   code           String    @db.VarChar(30)
   name           String    @db.VarChar(300)
@@ -1249,6 +1313,7 @@ model Party {
   scac_code              String?           @db.VarChar(10)
   tags                   String[]          @db.Text
 
+  company   Company?       @relation(fields: [company_id], references: [id])
   contacts  PartyContact[]
   addresses PartyAddress[]
 
@@ -1256,6 +1321,7 @@ model Party {
   @@index([tenant_id])
   @@index([tenant_id, party_type])
   @@index([tenant_id, credit_status])
+  @@index([tenant_id, company_id])
   @@map("parties")
 }
 
@@ -1316,12 +1382,20 @@ model PartyAddress {
 // ─── JOBS ────────────────────────────────────────────────────
 
 model Job {
-  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id         String    @db.Uuid
-  job_number        String    @db.VarChar(30)
-  job_type          JobType
-  status            JobStatus @default(ENQUIRY)
-  branch_id         String?   @db.Uuid
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  company_id    String?   @db.Uuid
+  job_number    String    @db.VarChar(30)
+  job_type      JobType
+  status        JobStatus @default(ENQUIRY)
+  branch_id     String?   @db.Uuid
+  department_id String?   @db.Uuid
+
+  /// House job if set (points at the Master); NULL means this job IS a master (or a standalone job with no consolidation).
+  parent_job_id         String? @db.Uuid
+  /// Set when this job originated from a won Quotation — the reverse of Quotation.converted_job_id.
+  created_from_quote_id String? @db.Uuid
+
   shipper_id        String?   @db.Uuid
   consignee_id      String?   @db.Uuid
   agent_id          String?   @db.Uuid
@@ -1335,18 +1409,32 @@ model Job {
   chargeable_weight Decimal?  @db.Decimal(12, 3)
   volume_cbm        Decimal?  @db.Decimal(10, 3)
   pieces            Int?
+  container_type_id String?   @db.Uuid
+  container_count   Int?
   incoterms         String?   @db.VarChar(10)
   is_dg             Boolean   @default(false)
   dg_class          String?   @db.VarChar(20)
   notes             String?   @db.Text
+  customer_remarks  String?   @db.Text
+  tags              String[]  @db.Text
   etd               DateTime? @db.Date
   eta               DateTime? @db.Date
-  created_at        DateTime  @default(now()) @db.Timestamptz
-  updated_at        DateTime  @updatedAt @db.Timestamptz
-  created_by        String?   @db.Uuid
-  updated_by        String?   @db.Uuid
-  deleted_at        DateTime? @db.Timestamptz
 
+  // Job P&L (Ch.8.2) — recalculated live on every charge line change, same convention as Quotation.
+  revenue_total Decimal @default(0) @db.Decimal(18, 4)
+  cost_total    Decimal @default(0) @db.Decimal(18, 4)
+  gp_amount     Decimal @default(0) @db.Decimal(18, 4)
+  gp_percent    Decimal @default(0) @db.Decimal(7, 4)
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  company         Company?         @relation(fields: [company_id], references: [id])
+  parent_job      Job?             @relation("JobHierarchy", fields: [parent_job_id], references: [id])
+  house_jobs      Job[]            @relation("JobHierarchy")
   air_details     AirJobDetail?
   sea_fcl_details SeaFclJobDetail?
   charges         JobCharge[]
@@ -1360,6 +1448,8 @@ model Job {
   @@index([tenant_id, status])
   @@index([tenant_id, etd])
   @@index([tenant_id, created_at(sort: Desc)])
+  @@index([tenant_id, parent_job_id])
+  @@index([tenant_id, company_id])
   @@map("jobs")
 }
 
@@ -1376,11 +1466,19 @@ model AirJobDetail {
   flight_date       DateTime? @db.Date
   screened          Boolean   @default(false)
   screening_ref     String?   @db.VarChar(50)
-  created_at        DateTime  @default(now()) @db.Timestamptz
-  updated_at        DateTime  @updatedAt @db.Timestamptz
-  created_by        String?   @db.Uuid
-  updated_by        String?   @db.Uuid
-  deleted_at        DateTime? @db.Timestamptz
+
+  /// Direct / Back-to-Back / Consol — Ch.8.1
+  awb_type          String? @db.VarChar(20)
+  /// Prepaid / Collect — Ch.8.1
+  freight_type      String? @db.VarChar(20)
+  /// IATA standard is 167 (kg per CBM) unless overridden.
+  conversion_factor Decimal @default(167) @db.Decimal(6, 2)
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
 
   job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
@@ -1556,6 +1654,7 @@ model Quotation {
   job_type         JobType
 
   // Parties / ownership
+  company_id     String? @db.Uuid
   customer_id    String  @db.Uuid
   salesperson_id String? @db.Uuid
   branch_id      String? @db.Uuid
@@ -1625,6 +1724,7 @@ model Quotation {
   updated_by String?   @db.Uuid
   deleted_at DateTime? @db.Timestamptz
 
+  company        Company?                 @relation(fields: [company_id], references: [id])
   lines          QuotationLine[]
   status_history QuotationStatusHistory[]
   approvals      QuotationApproval[]
@@ -1636,6 +1736,7 @@ model Quotation {
   @@index([tenant_id, parent_quotation_id])
   @@index([tenant_id, department_id])
   @@index([tenant_id, carrier_id])
+  @@index([tenant_id, company_id])
   @@map("quotations")
 }
 

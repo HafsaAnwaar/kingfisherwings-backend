@@ -14,6 +14,8 @@ import { TariffsService } from './tariffs/tariffs.service';
 import { CreateQuotationDto, UpdateQuotationDto } from './dto/quotation.dto';
 import { CreateQuotationLineDto, UpdateQuotationLineDto } from './dto/quotation-line.dto';
 import { QuotationQueryDto } from './dto/quotation-query.dto';
+import { QuotationAnalyticsQueryDto } from './dto/quotation-analytics-query.dto';
+import { CreateOnlineQuoteDto } from './dto/online-quote.dto';
 import { MarkLostDto, ApprovalDecisionDto } from './dto/quotation-actions.dto';
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
@@ -35,6 +37,10 @@ const JOB_TYPE_CODE: Record<JobType, string> = {
 
 const EDITABLE_STATUSES: QuotationStatus[] = ['DRAFT', 'REJECTED'];
 
+const ARCHIVABLE_STATUSES: QuotationStatus[] = ['SENT', 'WON', 'LOST', 'EXPIRED', 'CONVERTED', 'APPROVED'];
+
+const EXPIRABLE_STATUSES: QuotationStatus[] = ['SENT', 'APPROVED', 'DRAFT', 'SUBMITTED'];
+
 @Injectable()
 export class QuotationsService {
   private readonly logger = new Logger(QuotationsService.name);
@@ -52,6 +58,7 @@ export class QuotationsService {
   async create(tenantId: string, dto: CreateQuotationDto, actorId?: string): Promise<Quotation> {
     await this.assertPartyExists(tenantId, dto.customer_id, 'Customer');
     await this.assertPartyExists(tenantId, dto.carrier_id, 'Carrier');
+    await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
     await this.assertDepartmentExists(tenantId, dto.department_id);
     await this.assertPortExists(tenantId, dto.origin_port_id, 'Origin port');
@@ -67,6 +74,7 @@ export class QuotationsService {
       tx.quotation.create({
         data: {
           tenant_id: tenantId,
+          company_id: dto.company_id,
           quotation_number: quotationNumber,
           status: 'DRAFT',
           job_type: dto.job_type,
@@ -118,6 +126,7 @@ export class QuotationsService {
     if (query.customer_id) where.customer_id = query.customer_id;
     if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
     if (query.branch_id) where.branch_id = query.branch_id;
+    if (query.company_id) where.company_id = query.company_id;
     if (query.department_id) where.department_id = query.department_id;
     if (query.carrier_id) where.carrier_id = query.carrier_id;
     if (query.origin_port_id) where.origin_port_id = query.origin_port_id;
@@ -201,6 +210,46 @@ export class QuotationsService {
     });
   }
 
+  async getRevisions(tenantId: string, id: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await tx.quotation.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      });
+
+      if (!quotation) {
+        throw new NotFoundException('Quotation not found.');
+      }
+
+      const rootId = quotation.parent_quotation_id ?? quotation.id;
+
+      return tx.quotation.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          OR: [{ id: rootId }, { parent_quotation_id: rootId }],
+        },
+        orderBy: { version: 'asc' },
+        select: {
+          id: true,
+          quotation_number: true,
+          version: true,
+          status: true,
+          parent_quotation_id: true,
+          revenue_total: true,
+          gp_amount: true,
+          gp_percent: true,
+          created_at: true,
+          created_by: true,
+          submitted_at: true,
+          sent_at: true,
+          won_at: true,
+          lost_at: true,
+          lost_reason: true,
+        },
+      });
+    });
+  }
+
   async findOne(tenantId: string, id: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await tx.quotation.findFirst({
@@ -225,6 +274,7 @@ export class QuotationsService {
   // ============================================================
 
   async update(tenantId: string, id: string, dto: UpdateQuotationDto, actorId?: string): Promise<Quotation> {
+    await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
     await this.assertDepartmentExists(tenantId, dto.department_id);
     await this.assertPortExists(tenantId, dto.origin_port_id, 'Origin port');
@@ -434,6 +484,311 @@ export class QuotationsService {
   }
 
   // ============================================================
+  // ARCHIVE & EXPIRY
+  // ============================================================
+
+  async archive(tenantId: string, id: string, actorId?: string): Promise<void> {
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await this.getOrThrow(tx, tenantId, id);
+
+      if (!ARCHIVABLE_STATUSES.includes(quotation.status)) {
+        throw new BadRequestException(
+          `Only closed quotations (${ARCHIVABLE_STATUSES.join(', ')}) can be archived.`,
+        );
+      }
+
+      await tx.quotation.update({
+        where: { id },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      });
+    });
+  }
+
+  async expire(tenantId: string, id: string, actorId?: string): Promise<Quotation> {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await this.getOrThrow(tx, tenantId, id);
+
+      if (!EXPIRABLE_STATUSES.includes(quotation.status)) {
+        throw new BadRequestException(`Cannot expire a quotation in ${quotation.status} status.`);
+      }
+
+      if (quotation.valid_until && quotation.valid_until > new Date()) {
+        throw new BadRequestException('Quotation is still within its validity period.');
+      }
+
+      const updated = await tx.quotation.update({
+        where: { id },
+        data: { status: 'EXPIRED', updated_by: actorId },
+      });
+
+      await this.recordStatusChange(tx, tenantId, id, quotation.status, 'EXPIRED', actorId, 'Manually expired.');
+
+      return updated;
+    });
+  }
+
+  /** Batch-expire all quotations past valid_until — intended for a daily cron. */
+  async expireDue(tenantId: string, actorId?: string): Promise<{ expired: number }> {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const due = await tx.quotation.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          status: { in: EXPIRABLE_STATUSES },
+          valid_until: { lt: new Date() },
+        },
+      });
+
+      for (const quotation of due) {
+        await tx.quotation.update({
+          where: { id: quotation.id },
+          data: { status: 'EXPIRED', updated_by: actorId },
+        });
+
+        await this.recordStatusChange(
+          tx,
+          tenantId,
+          quotation.id,
+          quotation.status,
+          'EXPIRED',
+          actorId,
+          'Auto-expired past valid_until.',
+        );
+      }
+
+      return { expired: due.length };
+    });
+  }
+
+  // ============================================================
+  // ANALYTICS (Ch.7.7)
+  // ============================================================
+
+  private buildAnalyticsWhere(tenantId: string, query: QuotationAnalyticsQueryDto): Prisma.QuotationWhereInput {
+    const where: Prisma.QuotationWhereInput = { tenant_id: tenantId, deleted_at: null };
+
+    if (query.branch_id) where.branch_id = query.branch_id;
+    if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
+    if (query.customer_id) where.customer_id = query.customer_id;
+    if (query.job_type) where.job_type = query.job_type;
+
+    if (query.from_date || query.to_date) {
+      where.created_at = {
+        ...(query.from_date ? { gte: new Date(query.from_date) } : {}),
+        ...(query.to_date ? { lte: new Date(query.to_date) } : {}),
+      };
+    }
+
+    return where;
+  }
+
+  async getAnalytics(tenantId: string, query: QuotationAnalyticsQueryDto) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const where = this.buildAnalyticsWhere(tenantId, query);
+
+      const [total, won, lost, sent, byStatus, byJobType] = await Promise.all([
+        tx.quotation.count({ where }),
+        tx.quotation.count({ where: { ...where, status: 'WON' } }),
+        tx.quotation.count({ where: { ...where, status: 'LOST' } }),
+        tx.quotation.count({ where: { ...where, status: 'SENT' } }),
+        tx.quotation.groupBy({ by: ['status'], where, _count: { id: true } }),
+        tx.quotation.groupBy({ by: ['job_type'], where, _count: { id: true } }),
+      ]);
+
+      const closed = won + lost;
+      const conversionRate = closed > 0 ? (won / closed) * 100 : 0;
+
+      const valueAgg = await tx.quotation.aggregate({
+        where,
+        _sum: { revenue_total: true, gp_amount: true },
+        _avg: { gp_percent: true },
+      });
+
+      return {
+        summary: {
+          total,
+          won,
+          lost,
+          sent,
+          conversion_rate: Math.round(conversionRate * 100) / 100,
+          total_quote_value: Number(valueAgg._sum.revenue_total ?? 0),
+          total_gp: Number(valueAgg._sum.gp_amount ?? 0),
+          average_gp_percent: Number(valueAgg._avg.gp_percent ?? 0),
+        },
+        by_status: byStatus.map((row) => ({ status: row.status, count: row._count.id })),
+        by_job_type: byJobType.map((row) => ({ job_type: row.job_type, count: row._count.id })),
+      };
+    });
+  }
+
+  async getConversionAnalytics(tenantId: string, query: QuotationAnalyticsQueryDto) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const where = this.buildAnalyticsWhere(tenantId, query);
+
+      const [won, lost, converted] = await Promise.all([
+        tx.quotation.count({ where: { ...where, status: 'WON' } }),
+        tx.quotation.count({ where: { ...where, status: 'LOST' } }),
+        tx.quotation.count({ where: { ...where, status: 'CONVERTED' } }),
+      ]);
+
+      const closed = won + lost;
+      const winRate = closed > 0 ? (won / closed) * 100 : 0;
+
+      return {
+        won,
+        lost,
+        converted,
+        win_rate: Math.round(winRate * 100) / 100,
+        conversion_to_job_rate: won > 0 ? Math.round((converted / won) * 10000) / 100 : 0,
+      };
+    });
+  }
+
+  async getLostReasonAnalytics(tenantId: string, query: QuotationAnalyticsQueryDto) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const where: Prisma.QuotationWhereInput = {
+        ...this.buildAnalyticsWhere(tenantId, query),
+        status: 'LOST',
+        lost_reason: { not: null },
+      };
+
+      const rows = await tx.quotation.groupBy({
+        by: ['lost_reason'],
+        where,
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+      });
+
+      return rows.map((row) => ({
+        reason: row.lost_reason,
+        count: row._count.id,
+      }));
+    });
+  }
+
+  async getResponseTimeAnalytics(tenantId: string, query: QuotationAnalyticsQueryDto) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotations = await tx.quotation.findMany({
+        where: {
+          ...this.buildAnalyticsWhere(tenantId, query),
+          submitted_at: { not: null },
+          sent_at: { not: null },
+        },
+        select: { created_at: true, submitted_at: true, sent_at: true },
+      });
+
+      if (quotations.length === 0) {
+        return { sample_size: 0, avg_hours_to_submit: 0, avg_hours_to_send: 0 };
+      }
+
+      let submitHours = 0;
+      let sendHours = 0;
+
+      for (const q of quotations) {
+        submitHours += (q.submitted_at!.getTime() - q.created_at.getTime()) / 3_600_000;
+        sendHours += (q.sent_at!.getTime() - q.created_at.getTime()) / 3_600_000;
+      }
+
+      return {
+        sample_size: quotations.length,
+        avg_hours_to_submit: Math.round((submitHours / quotations.length) * 100) / 100,
+        avg_hours_to_send: Math.round((sendHours / quotations.length) * 100) / 100,
+      };
+    });
+  }
+
+  // ============================================================
+  // ONLINE QUOTE (Ch.7.5) — public, no auth
+  // ============================================================
+
+  async createOnlineQuote(dto: CreateOnlineQuoteDto) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { slug: dto.tenant_slug, deleted_at: null },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    const tenantId = tenant.id;
+
+    let customerId = dto.customer_id;
+
+    if (!customerId) {
+      if (!dto.contact_email || !dto.contact_name) {
+        throw new BadRequestException('contact_email and contact_name are required when customer_id is not provided.');
+      }
+
+      const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.party.findFirst({
+          where: { tenant_id: tenantId, email: dto.contact_email!.toLowerCase(), deleted_at: null },
+        }),
+      );
+
+      if (existing) {
+        customerId = existing.id;
+      } else {
+        const created = await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.party.create({
+            data: {
+              tenant_id: tenantId,
+              party_type: 'CUSTOMER',
+              code: `WEB-${Date.now()}`,
+              name: dto.contact_name!,
+              email: dto.contact_email!.toLowerCase(),
+              is_active: true,
+            },
+          }),
+        );
+        customerId = created.id;
+      }
+    }
+
+    const quotation = await this.create(
+      tenantId,
+      {
+        job_type: dto.job_type,
+        customer_id: customerId,
+        origin_port_id: dto.origin_port_id,
+        dest_port_id: dto.dest_port_id,
+        commodity: dto.commodity,
+        gross_weight: dto.gross_weight,
+        chargeable_weight: dto.chargeable_weight,
+        volume_cbm: dto.volume_cbm,
+        pieces: dto.pieces,
+        container_type_id: dto.container_type_id,
+        special_requirements: dto.special_requirements,
+        valid_until: dto.valid_until,
+        currency_code: dto.currency_code,
+        remarks: 'Submitted via online quote widget.',
+      },
+      undefined,
+    );
+
+    try {
+      await this.applyTariff(tenantId, quotation.id, undefined);
+    } catch {
+      // Best-effort — a quote without a matching tariff is still valid.
+    }
+
+    const refreshed = await this.findOne(tenantId, quotation.id);
+
+    return {
+      success: true,
+      message: 'Online quote request received. Our sales team will follow up shortly.',
+      data: {
+        quotation_id: refreshed.id,
+        quotation_number: refreshed.quotation_number,
+        status: refreshed.status,
+        revenue_total: refreshed.revenue_total,
+        gp_amount: refreshed.gp_amount,
+        gp_percent: refreshed.gp_percent,
+        line_count: refreshed.lines.length,
+      },
+    };
+  }
+
+  // ============================================================
   // STATUS WORKFLOW
   // ============================================================
 
@@ -631,6 +986,7 @@ export class QuotationsService {
           quotation_number: quotationNumber,
           status: 'DRAFT',
           job_type: original.job_type,
+          company_id: original.company_id,
           customer_id: original.customer_id,
           salesperson_id: original.salesperson_id,
           branch_id: original.branch_id,
@@ -738,7 +1094,10 @@ export class QuotationsService {
           job_number: jobNumber,
           job_type: quotation.job_type,
           status: 'BOOKING_CONFIRMED',
+          created_from_quote_id: id,
+          company_id: quotation.company_id,
           branch_id: quotation.branch_id,
+          department_id: quotation.department_id,
           shipper_id: quotation.customer_id,
           salesperson_id: quotation.salesperson_id,
           origin_port_id: quotation.origin_port_id,
@@ -908,6 +1267,20 @@ export class QuotationsService {
 
     if (!exists) {
       throw new NotFoundException(`${label} not found.`);
+    }
+  }
+
+  private async assertCompanyExists(tenantId: string, companyId?: string): Promise<void> {
+    if (!companyId) {
+      return;
+    }
+
+    const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } }),
+    );
+
+    if (!exists) {
+      throw new NotFoundException('Company not found.');
     }
   }
 
