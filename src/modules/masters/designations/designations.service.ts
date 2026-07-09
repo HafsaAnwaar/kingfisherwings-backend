@@ -15,6 +15,7 @@ export class DesignationsService extends BaseMasterService<Designation> {
 
   async create(tenantId: string, data: Record<string, unknown>, actorId?: string): Promise<Designation> {
     await this.assertDepartmentExists(tenantId, data.department_id as string | undefined);
+    await this.assertCompanyExists(tenantId, data.company_id as string | undefined);
     return super.create(tenantId, data, actorId);
   }
 
@@ -25,6 +26,9 @@ export class DesignationsService extends BaseMasterService<Designation> {
     actorId?: string,
   ): Promise<Designation> {
     await this.assertDepartmentExists(tenantId, data.department_id as string | undefined);
+    if (data.company_id !== undefined) {
+      await this.assertCompanyExists(tenantId, data.company_id as string | undefined);
+    }
     return super.update(tenantId, id, data, actorId);
   }
 
@@ -39,6 +43,20 @@ export class DesignationsService extends BaseMasterService<Designation> {
 
     if (!exists) {
       throw new NotFoundException('Department not found.');
+    }
+  }
+
+  private async assertCompanyExists(tenantId: string, companyId?: string): Promise<void> {
+    if (!companyId) {
+      return;
+    }
+
+    const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } }),
+    );
+
+    if (!exists) {
+      throw new NotFoundException('Company not found.');
     }
   }
 }

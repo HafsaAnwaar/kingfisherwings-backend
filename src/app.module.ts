@@ -5,12 +5,14 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { CompaniesModule } from './modules/companies/companies.module';
 import { UsersModule } from './modules/users';
 import { AuthModule } from './modules/auth/auth.module';
 import { MastersModule } from './modules/masters/masters.module';
 import { PartiesModule } from './modules/parties/parties.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 
 import { TenantContextStorage } from './common/context/tenant-context.storage';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
@@ -23,12 +25,14 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     PrismaModule,
     HealthModule,
     TenantsModule,
+    CompaniesModule,
     UsersModule,
     AuthModule,
     MastersModule,
     PartiesModule,
     OrganizationModule,
     QuotationsModule,
+    JobsModule,
   ],
   providers: [
     TenantContextStorage,

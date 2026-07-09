@@ -1,9 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { QuotationStatus, JobType } from '@prisma/client';
+import { JobStatus, JobType } from '@prisma/client';
 
-export class QuotationQueryDto {
+export class JobQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Transform(({ value }) => Number(value))
@@ -18,25 +18,25 @@ export class QuotationQueryDto {
   @Min(1)
   limit: number = 20;
 
-  @ApiPropertyOptional({ description: 'Matches quotation_number, commodity.' })
+  @ApiPropertyOptional({ description: 'Matches job_number, commodity.' })
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ enum: QuotationStatus })
+  @ApiPropertyOptional({ enum: JobStatus })
   @IsOptional()
-  @IsEnum(QuotationStatus)
-  status?: QuotationStatus;
+  @IsEnum(JobStatus)
+  status?: JobStatus;
 
-  @ApiPropertyOptional({ enum: JobType, description: 'Service type — Air Export, FCL Export, NVOCC Export, etc.' })
+  @ApiPropertyOptional({ enum: JobType })
   @IsOptional()
   @IsEnum(JobType)
   job_type?: JobType;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Client / customer.' })
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
-  customer_id?: string;
+  shipper_id?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
@@ -56,16 +56,6 @@ export class QuotationQueryDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
-  department_id?: string;
-
-  @ApiPropertyOptional({ format: 'uuid', description: 'The quoted carrier (Party).' })
-  @IsOptional()
-  @IsUUID()
-  carrier_id?: string;
-
-  @ApiPropertyOptional({ format: 'uuid' })
-  @IsOptional()
-  @IsUUID()
   origin_port_id?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
@@ -73,20 +63,15 @@ export class QuotationQueryDto {
   @IsUUID()
   dest_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ description: 'Master jobs only (no parent_job_id).' })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  masters_only?: boolean;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'House jobs under this master.' })
   @IsOptional()
   @IsUUID()
-  container_type_id?: string;
-
-  @ApiPropertyOptional({ description: 'e.g. FOB, CIF, EXW.' })
-  @IsOptional()
-  @IsString()
-  incoterm?: string;
-
-  @ApiPropertyOptional({ format: 'uuid', description: 'Filter by who created the quotation.' })
-  @IsOptional()
-  @IsUUID()
-  created_by?: string;
+  parent_job_id?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

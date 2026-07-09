@@ -18,6 +18,11 @@ import {
 import { PartyType } from '@prisma/client';
 
 export class CreatePartyDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  company_id?: string;
+
   @ApiProperty({ enum: PartyType })
   @IsEnum(PartyType)
   party_type!: PartyType;

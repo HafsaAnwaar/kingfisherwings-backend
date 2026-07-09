@@ -140,6 +140,30 @@ export class CreateTenantDto {
   email!: string;
 
   // ==========================
+  // Company (spec: SuperAdmin registers the company alongside the
+  // tenant). Optional — if omitted, a default Company is still
+  // created automatically, reusing the tenant's own code/name.
+  // ==========================
+
+  @IsOptional()
+  @IsString()
+  @Length(2, 20)
+  company_code?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(2, 300)
+  company_name?: string;
+
+  @IsOptional()
+  @IsString()
+  company_legal_name?: string;
+
+  @IsOptional()
+  @IsString()
+  company_registration_number?: string;
+
+  // ==========================
   // Subscription
   // ==========================
 
