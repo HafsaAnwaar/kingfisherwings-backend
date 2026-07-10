@@ -1,6 +1,6 @@
 # Kingfisher Logistics ERP — Backend Overview
 
-> **Project:** KingFisher Wings ERP (package name: `fresa-gold-backend`)
+> **Project:** KingFisher Wings ERP
 > **Author:** Kingfisher Wings Logistic LLC
 > **Stack:** NestJS 10 · TypeScript 5 · PostgreSQL · **Prisma 5** · Passport JWT · class-validator · Swagger
 
