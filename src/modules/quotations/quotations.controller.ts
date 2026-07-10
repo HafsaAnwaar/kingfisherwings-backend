@@ -22,6 +22,7 @@ import { QuotationQueryDto } from './dto/quotation-query.dto';
 import { QuotationAnalyticsQueryDto } from './dto/quotation-analytics-query.dto';
 import { CreateOnlineQuoteDto } from './dto/online-quote.dto';
 import { MarkLostDto, ApprovalDecisionDto } from './dto/quotation-actions.dto';
+import { GenerateQuotationPdfDto, SendQuotationEmailDto } from './dto/quotation-pdf.dto';
 
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -304,5 +305,43 @@ export class QuotationsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.service.expire(tenantId, id, actorId);
+  }
+
+  @Post(':id/pdf')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
+  @ApiOperation({ summary: 'Queue PDF generation for a quotation (customer or internal mode)' })
+  generatePdf(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateQuotationPdfDto,
+  ) {
+    return this.service.generatePdf(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/pdf')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Get quotation PDF URLs and recent generation tasks' })
+  getPdfInfo(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getPdfInfo(tenantId, id);
+  }
+
+  @Get(':id/pdf/status')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List PDF generation task status for a quotation' })
+  getPdfStatus(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getPdfStatus(tenantId, id);
+  }
+
+  @Post(':id/send-email')
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
+  @ApiOperation({ summary: 'Email quotation PDF to customer (generates PDF if not yet available)' })
+  sendEmail(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SendQuotationEmailDto,
+  ) {
+    return this.service.sendEmail(tenantId, id, dto, actorId);
   }
 }

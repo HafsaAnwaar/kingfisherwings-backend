@@ -13,6 +13,15 @@ import { PartiesModule } from './modules/parties/parties.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { AwbStockModule } from './modules/awb-stock/awb-stock.module';
+import { SearchModule } from './modules/search/search.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { FilesModule } from './files/files.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+
+import redisConfig from './config/redis.config';
+import smtpConfig from './config/smtp.config';
+import storageConfig from './config/storage.config';
 
 import { TenantContextStorage } from './common/context/tenant-context.storage';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
@@ -21,6 +30,7 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [redisConfig, smtpConfig, storageConfig],
     }),
     PrismaModule,
     HealthModule,
@@ -33,6 +43,11 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     OrganizationModule,
     QuotationsModule,
     JobsModule,
+    AwbStockModule,
+    SearchModule,
+    SchedulerModule,
+    FilesModule,
+    InvoicesModule,
   ],
   providers: [
     TenantContextStorage,

@@ -3,6 +3,9 @@ import { MASTERS_PERMISSION_CONSTANTS } from '../../modules/masters/constants/ma
 import { PARTIES_PERMISSION_CONSTANTS } from '../../modules/parties/constants/parties-permission.constants';
 import { QUOTATIONS_PERMISSION_CONSTANTS } from '../../modules/quotations/constants/quotations-permission.constants';
 import { JOBS_PERMISSION_CONSTANTS } from '../../modules/jobs/constants/jobs-permission.constants';
+import { AWB_STOCK_PERMISSION_CONSTANTS } from '../../modules/awb-stock/constants/awb-stock-permission.constants';
+import { SEARCH_PERMISSION_CONSTANTS } from '../../modules/search/constants/search-permission.constants';
+import { INVOICES_PERMISSION_CONSTANTS } from '../../modules/invoices/constants/invoices-permission.constants';
 
 export interface PermissionCatalogEntry {
   module: string;
@@ -45,5 +48,20 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: JOBS_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${JOBS_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(AWB_STOCK_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: AWB_STOCK_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${AWB_STOCK_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(SEARCH_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: SEARCH_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${SEARCH_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(INVOICES_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: INVOICES_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${INVOICES_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
 ];

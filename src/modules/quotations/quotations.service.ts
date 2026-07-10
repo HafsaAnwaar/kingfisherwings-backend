@@ -6,7 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Quotation, QuotationStatus, JobType } from '@prisma/client';
+import { Prisma, Quotation, QuotationStatus, JobType, QuotationPdfMode } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
 import { TariffsService } from './tariffs/tariffs.service';
@@ -17,6 +17,10 @@ import { QuotationQueryDto } from './dto/quotation-query.dto';
 import { QuotationAnalyticsQueryDto } from './dto/quotation-analytics-query.dto';
 import { CreateOnlineQuoteDto } from './dto/online-quote.dto';
 import { MarkLostDto, ApprovalDecisionDto } from './dto/quotation-actions.dto';
+import { GenerateQuotationPdfDto, SendQuotationEmailDto } from './dto/quotation-pdf.dto';
+import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
+import { EmailService } from '../../shared/email/email.service';
+import { StorageService } from '../../shared/storage/storage.service';
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -49,6 +53,9 @@ export class QuotationsService {
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
     private readonly tariffsService: TariffsService,
+    private readonly documentGeneration: DocumentGenerationService,
+    private readonly emailService: EmailService,
+    private readonly storage: StorageService,
   ) {}
 
   // ============================================================
@@ -558,6 +565,129 @@ export class QuotationsService {
 
       return { expired: due.length };
     });
+  }
+
+  // ============================================================
+  // PDF & EMAIL (Ch.7)
+  // ============================================================
+
+  async generatePdf(tenantId: string, quotationId: string, dto: GenerateQuotationPdfDto, actorId?: string) {
+    await this.findOne(tenantId, quotationId);
+
+    const task = await this.documentGeneration.enqueueQuotationPdf(
+      tenantId,
+      quotationId,
+      dto.mode,
+      actorId,
+      dto.layout_variant,
+    );
+
+    return {
+      task_id: task.id,
+      status: task.status,
+      mode: dto.mode,
+      message: 'PDF generation queued.',
+    };
+  }
+
+  async getPdfInfo(tenantId: string, quotationId: string) {
+    const quotation = await this.findOne(tenantId, quotationId);
+
+    const tasks = await this.documentGeneration.listTasks(tenantId, { quotationId });
+
+    return {
+      quotation_id: quotationId,
+      quotation_number: quotation.quotation_number,
+      customer_pdf: quotation.customer_pdf_url
+        ? {
+            url: quotation.customer_pdf_url,
+            generated_at: quotation.customer_pdf_generated_at,
+          }
+        : null,
+      internal_pdf: quotation.internal_pdf_url
+        ? {
+            url: quotation.internal_pdf_url,
+            generated_at: quotation.internal_pdf_generated_at,
+          }
+        : null,
+      last_emailed_at: quotation.last_emailed_at,
+      last_emailed_to: quotation.last_emailed_to,
+      recent_tasks: tasks,
+    };
+  }
+
+  async getPdfStatus(tenantId: string, quotationId: string) {
+    await this.findOne(tenantId, quotationId);
+    return this.documentGeneration.listTasks(tenantId, { quotationId });
+  }
+
+  async sendEmail(tenantId: string, quotationId: string, dto: SendQuotationEmailDto, actorId?: string) {
+    const quotation = await this.findOne(tenantId, quotationId);
+    const mode = dto.pdf_mode ?? QuotationPdfMode.CUSTOMER;
+
+    let pdfUrl =
+      mode === QuotationPdfMode.CUSTOMER ? quotation.customer_pdf_url : quotation.internal_pdf_url;
+
+    let attachmentBuffer: Buffer | undefined;
+    let attachmentName: string | undefined;
+
+    if (!pdfUrl) {
+      const task = await this.documentGeneration.enqueueQuotationPdf(
+        tenantId,
+        quotationId,
+        mode,
+        actorId,
+      );
+      await this.documentGeneration.processTask(task.id, tenantId);
+
+      const refreshed = await this.findOne(tenantId, quotationId);
+      pdfUrl =
+        mode === QuotationPdfMode.CUSTOMER ? refreshed.customer_pdf_url : refreshed.internal_pdf_url;
+
+      if (pdfUrl && !pdfUrl.startsWith('http')) {
+        const filename = pdfUrl.split('/').pop();
+        if (filename) {
+          attachmentBuffer = await this.storage.readBuffer(tenantId, decodeURIComponent(filename));
+          attachmentName = filename;
+        }
+      }
+    }
+
+    const body =
+      dto.message ??
+      `<p>Please find attached quotation <strong>${quotation.quotation_number}</strong>.</p>`;
+
+    const emailLog = await this.emailService.send({
+      tenantId,
+      eventType: 'QUOTATION_PDF',
+      to: dto.to_email,
+      cc: dto.cc_email,
+      subject: `Quotation ${quotation.quotation_number}`,
+      body,
+      attachmentBuffer,
+      attachmentName,
+      attachmentPath: pdfUrl ?? undefined,
+      quotationId,
+      createdBy: actorId,
+    });
+
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.update({
+        where: { id: quotationId },
+        data: {
+          last_emailed_at: new Date(),
+          last_emailed_to: dto.to_email,
+          updated_by: actorId,
+        },
+      }),
+    );
+
+    return {
+      success: emailLog.status === 'SENT',
+      email_log_id: emailLog.id,
+      status: emailLog.status,
+      to_email: dto.to_email,
+    };
   }
 
   // ============================================================

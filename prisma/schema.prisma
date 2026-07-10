@@ -176,6 +176,73 @@ enum TenantStatus {
   ARCHIVED
 }
 
+enum AwbStockStatus {
+  AVAILABLE
+  ALLOCATED
+  USED
+  VOIDED
+  DEPLETED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum EmailEventType {
+  QUOTATION_PDF
+  QUOTATION_SENT
+  PRE_ALERT
+  JOB_DOCUMENT
+  AWB_LOW_STOCK_ALERT
+  INVOICE_SENT
+  OTHER
+}
+
+enum DocumentGenerationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum QuotationPdfMode {
+  CUSTOMER
+  INTERNAL
+}
+
+enum DocumentEntityType {
+  QUOTATION
+  JOB
+  INVOICE
+}
+
+enum InvoiceType {
+  CUSTOMER_INVOICE
+  PURCHASE_INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  POSTED
+  SENT
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+  VOID
+}
+
+enum PaymentRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+  CANCELLED
+}
+
 enum SubscriptionPlan {
   TRIAL
   BASIC
@@ -310,6 +377,7 @@ model Company {
   parties      Party[]
   quotations   Quotation[]
   jobs         Job[]
+  invoices     Invoice[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -991,6 +1059,8 @@ model Airline {
   updated_by   String?   @db.Uuid
   deleted_at   DateTime? @db.Timestamptz
 
+  awb_stock_batches AwbStockBatch[]
+
   @@unique([tenant_id, iata_code])
   @@index([tenant_id])
   @@map("airlines")
@@ -1316,6 +1386,8 @@ model Party {
   company   Company?       @relation(fields: [company_id], references: [id])
   contacts  PartyContact[]
   addresses PartyAddress[]
+  invoices         Invoice[]
+  payment_requests PaymentRequest[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -1437,10 +1509,15 @@ model Job {
   house_jobs      Job[]            @relation("JobHierarchy")
   air_details     AirJobDetail?
   sea_fcl_details SeaFclJobDetail?
-  charges         JobCharge[]
-  milestones      JobMilestone[]
-  documents       JobDocument[]
-  notes_list      JobNote[]
+  charges          JobCharge[]
+  milestones       JobMilestone[]
+  documents        JobDocument[]
+  notes_list       JobNote[]
+  awb_allocations  AwbStockAllocation[]
+  document_tasks   DocumentGenerationTask[] @relation("JobDocumentTasks")
+  email_logs       EmailLog[]               @relation("JobEmailLogs")
+  invoices         Invoice[]
+  payment_requests PaymentRequest[]
 
   @@unique([tenant_id, job_number])
   @@index([tenant_id])
@@ -1564,7 +1641,8 @@ model JobCharge {
   updated_by           String?   @db.Uuid
   deleted_at           DateTime? @db.Timestamptz
 
-  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  job          Job          @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  invoice_line InvoiceLine?
 
   @@index([tenant_id])
   @@index([tenant_id, job_id])
@@ -1594,30 +1672,40 @@ model JobMilestone {
 }
 
 model JobDocument {
-  id               String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id        String       @db.Uuid
-  job_id           String       @db.Uuid
-  document_type    DocumentType
-  reference_number String?      @db.VarChar(100)
-  file_name        String       @db.VarChar(300)
-  file_url         String       @db.Text
-  s3_key           String?      @db.Text
-  file_size        Int?
-  mime_type        String?      @db.VarChar(100)
-  is_finalized     Boolean      @default(false)
-  finalized_at     DateTime?    @db.Timestamptz
-  finalized_by     String?      @db.Uuid
-  uploaded_by      String       @db.Uuid
-  created_at       DateTime     @default(now()) @db.Timestamptz
-  updated_at       DateTime     @updatedAt @db.Timestamptz
-  created_by       String?      @db.Uuid
-  updated_by       String?      @db.Uuid
-  deleted_at       DateTime?    @db.Timestamptz
+  id                 String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String                   @db.Uuid
+  job_id             String                   @db.Uuid
+  document_type      DocumentType
+  reference_number   String?                  @db.VarChar(100)
+  file_name          String                   @db.VarChar(300)
+  file_url           String                   @db.Text
+  s3_key             String?                  @db.Text
+  file_size          Int?
+  mime_type          String?                  @db.VarChar(100)
+  version            Int                      @default(1)
+  is_original        Boolean                  @default(false)
+  layout_variant     String?                  @db.VarChar(50)
+  generation_status  DocumentGenerationStatus @default(COMPLETED)
+  generated_at       DateTime?                @db.Timestamptz
+  generation_task_id String?                  @db.Uuid
+  is_finalized       Boolean                  @default(false)
+  finalized_at       DateTime?                @db.Timestamptz
+  finalized_by       String?                  @db.Uuid
+  emailed_at         DateTime?                @db.Timestamptz
+  emailed_to         String?                  @db.VarChar(500)
+  uploaded_by        String                   @db.Uuid
+  created_at         DateTime                 @default(now()) @db.Timestamptz
+  updated_at         DateTime                 @updatedAt @db.Timestamptz
+  created_by         String?                  @db.Uuid
+  updated_by         String?                  @db.Uuid
+  deleted_at         DateTime?                @db.Timestamptz
 
-  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  job              Job                     @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  generation_task  DocumentGenerationTask? @relation(fields: [generation_task_id], references: [id])
 
   @@index([tenant_id])
   @@index([tenant_id, job_id])
+  @@index([tenant_id, generation_status])
   @@map("job_documents")
 }
 
@@ -1718,16 +1806,28 @@ model Quotation {
   // to know its origin quotation, but reporting needs the reverse link.
   converted_job_id String? @db.Uuid
 
+  // PDF generation (Ch.7.4) — customer-facing vs internal-with-GP
+  customer_pdf_url          String?   @db.Text
+  customer_pdf_s3_key       String?   @db.Text
+  customer_pdf_generated_at DateTime? @db.Timestamptz
+  internal_pdf_url          String?   @db.Text
+  internal_pdf_s3_key       String?   @db.Text
+  internal_pdf_generated_at DateTime? @db.Timestamptz
+  last_emailed_at           DateTime? @db.Timestamptz
+  last_emailed_to           String?   @db.VarChar(500)
+
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
   created_by String?   @db.Uuid
   updated_by String?   @db.Uuid
   deleted_at DateTime? @db.Timestamptz
 
-  company        Company?                 @relation(fields: [company_id], references: [id])
-  lines          QuotationLine[]
-  status_history QuotationStatusHistory[]
-  approvals      QuotationApproval[]
+  company               Company?                 @relation(fields: [company_id], references: [id])
+  lines                 QuotationLine[]
+  status_history        QuotationStatusHistory[]
+  approvals             QuotationApproval[]
+  document_gen_tasks    DocumentGenerationTask[] @relation("QuotationDocumentTasks")
+  email_logs            EmailLog[]               @relation("QuotationEmailLogs")
 
   @@unique([tenant_id, quotation_number])
   @@index([tenant_id])
@@ -1873,6 +1973,262 @@ model ZipDistance {
   @@unique([tenant_id, from_zip, to_zip])
   @@index([tenant_id])
   @@map("zip_distances")
+}
+
+// =====================================================
+// AWB STOCK MANAGEMENT (Ch.8.7)
+// =====================================================
+
+model AwbStockBatch {
+  id                  String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String         @db.Uuid
+  branch_id           String?        @db.Uuid
+  airline_id          String         @db.Uuid
+  prefix              String         @db.VarChar(3)
+  range_from          Int
+  range_to            Int
+  next_number         Int
+  status              AwbStockStatus @default(AVAILABLE)
+  low_stock_threshold Int            @default(10)
+  received_at         DateTime       @default(now()) @db.Timestamptz
+  notes               String?        @db.Text
+  created_at          DateTime       @default(now()) @db.Timestamptz
+  updated_at          DateTime       @updatedAt @db.Timestamptz
+  created_by          String?        @db.Uuid
+  updated_by          String?        @db.Uuid
+  deleted_at          DateTime?      @db.Timestamptz
+
+  airline     Airline              @relation(fields: [airline_id], references: [id])
+  allocations AwbStockAllocation[]
+
+  @@index([tenant_id])
+  @@index([tenant_id, airline_id])
+  @@index([tenant_id, branch_id])
+  @@index([tenant_id, status])
+  @@map("awb_stock_batches")
+}
+
+model AwbStockAllocation {
+  id           String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String         @db.Uuid
+  batch_id     String         @db.Uuid
+  job_id       String?        @db.Uuid
+  awb_number   String         @db.VarChar(20)
+  status       AwbStockStatus @default(ALLOCATED)
+  void_reason  String?        @db.VarChar(255)
+  allocated_at DateTime       @default(now()) @db.Timestamptz
+  used_at      DateTime?      @db.Timestamptz
+  voided_at    DateTime?      @db.Timestamptz
+  created_by   String?        @db.Uuid
+  updated_by   String?        @db.Uuid
+
+  batch AwbStockBatch @relation(fields: [batch_id], references: [id])
+  job   Job?          @relation(fields: [job_id], references: [id])
+
+  @@unique([tenant_id, awb_number])
+  @@index([tenant_id])
+  @@index([tenant_id, batch_id])
+  @@index([tenant_id, job_id])
+  @@map("awb_stock_allocations")
+}
+
+// =====================================================
+// EMAIL LOG — audit trail for all outbound emails
+// =====================================================
+
+model EmailLog {
+  id                  String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String         @db.Uuid
+  event_type          EmailEventType
+  to_email            String         @db.VarChar(255)
+  cc_email            String?        @db.VarChar(500)
+  subject             String         @db.VarChar(500)
+  body                String?        @db.Text
+  status              EmailStatus    @default(PENDING)
+  attachment_url      String?        @db.Text
+  attachment_name     String?        @db.VarChar(300)
+  error_message       String?        @db.Text
+  quotation_id        String?        @db.Uuid
+  job_id              String?        @db.Uuid
+  job_document_id     String?        @db.Uuid
+  sent_at             DateTime?      @db.Timestamptz
+  created_by          String?        @db.Uuid
+  created_at          DateTime       @default(now()) @db.Timestamptz
+
+  quotation Quotation? @relation("QuotationEmailLogs", fields: [quotation_id], references: [id])
+  job       Job?       @relation("JobEmailLogs", fields: [job_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([tenant_id, event_type])
+  @@index([tenant_id, status])
+  @@index([tenant_id, quotation_id])
+  @@index([tenant_id, job_id])
+  @@map("email_logs")
+}
+
+// =====================================================
+// DOCUMENT GENERATION QUEUE — BullMQ task tracking
+// =====================================================
+
+model DocumentGenerationTask {
+  id              String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String                   @db.Uuid
+  entity_type     DocumentEntityType
+  quotation_id    String?                  @db.Uuid
+  job_id          String?                  @db.Uuid
+  document_type   DocumentType?
+  pdf_mode        QuotationPdfMode?
+  layout_variant  String?                  @db.VarChar(50)
+  status          DocumentGenerationStatus @default(PENDING)
+  bull_job_id     String?                  @db.VarChar(100)
+  file_url        String?                  @db.Text
+  s3_key          String?                  @db.Text
+  file_name       String?                  @db.VarChar(300)
+  file_size       Int?
+  error_message   String?                  @db.Text
+  requested_by    String?                  @db.Uuid
+  started_at      DateTime?                @db.Timestamptz
+  completed_at    DateTime?                @db.Timestamptz
+  created_at      DateTime                 @default(now()) @db.Timestamptz
+  updated_at      DateTime                 @updatedAt @db.Timestamptz
+
+  quotation    Quotation?    @relation("QuotationDocumentTasks", fields: [quotation_id], references: [id])
+  job          Job?          @relation("JobDocumentTasks", fields: [job_id], references: [id])
+  job_document JobDocument[]
+
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, entity_type])
+  @@index([bull_job_id])
+  @@map("document_generation_tasks")
+}
+
+// =====================================================
+// INVOICING (Ch.18) — customer/purchase invoices, credit notes, payment requests
+// =====================================================
+
+model Invoice {
+  id                   String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String        @db.Uuid
+  company_id           String?       @db.Uuid
+  invoice_number       String        @db.VarChar(40)
+  invoice_type         InvoiceType   @default(CUSTOMER_INVOICE)
+  status               InvoiceStatus @default(DRAFT)
+  job_id               String?       @db.Uuid
+  party_id             String        @db.Uuid
+  branch_id            String?       @db.Uuid
+  department_id        String?       @db.Uuid
+  credited_invoice_id  String?       @db.Uuid
+  invoice_date         DateTime      @default(now()) @db.Date
+  due_date             DateTime?     @db.Date
+  currency_code        String        @db.Char(3)
+  exchange_rate        Decimal       @default(1) @db.Decimal(20, 8)
+  subtotal             Decimal       @default(0) @db.Decimal(18, 4)
+  tax_amount           Decimal       @default(0) @db.Decimal(18, 4)
+  total_amount         Decimal       @default(0) @db.Decimal(18, 4)
+  amount_paid          Decimal       @default(0) @db.Decimal(18, 4)
+  balance_due          Decimal       @default(0) @db.Decimal(18, 4)
+  vat_rate             Decimal       @default(5) @db.Decimal(6, 3)
+  party_vat_number     String?       @db.VarChar(50)
+  lpo_number           String?       @db.VarChar(100)
+  remarks              String?       @db.Text
+  internal_notes       String?       @db.Text
+  pdf_url              String?       @db.Text
+  pdf_s3_key           String?       @db.Text
+  pdf_generated_at     DateTime?     @db.Timestamptz
+  posted_at            DateTime?     @db.Timestamptz
+  sent_at              DateTime?     @db.Timestamptz
+  last_emailed_at      DateTime?     @db.Timestamptz
+  last_emailed_to      String?       @db.VarChar(255)
+  created_at           DateTime      @default(now()) @db.Timestamptz
+  updated_at           DateTime      @updatedAt @db.Timestamptz
+  created_by           String?       @db.Uuid
+  updated_by           String?       @db.Uuid
+  deleted_at           DateTime?     @db.Timestamptz
+
+  company          Company?  @relation(fields: [company_id], references: [id])
+  job              Job?      @relation(fields: [job_id], references: [id])
+  party            Party     @relation(fields: [party_id], references: [id])
+  credited_invoice Invoice?  @relation("InvoiceCreditNotes", fields: [credited_invoice_id], references: [id])
+  credit_notes     Invoice[] @relation("InvoiceCreditNotes")
+  lines            InvoiceLine[]
+  payment_requests PaymentRequest[]
+
+  @@unique([tenant_id, invoice_number])
+  @@index([tenant_id])
+  @@index([tenant_id, invoice_type])
+  @@index([tenant_id, status])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, invoice_date])
+  @@index([tenant_id, due_date])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  invoice_id           String    @db.Uuid
+  job_id               String?   @db.Uuid
+  job_charge_id        String?   @unique @db.Uuid
+  charge_code_id       String?   @db.Uuid
+  description          String    @db.VarChar(300)
+  quantity             Decimal   @default(1) @db.Decimal(10, 3)
+  unit_price           Decimal   @db.Decimal(18, 4)
+  amount               Decimal   @db.Decimal(18, 4)
+  tax_rate_id          String?   @db.Uuid
+  tax_rate             Decimal   @default(0) @db.Decimal(6, 3)
+  tax_amount           Decimal   @default(0) @db.Decimal(18, 4)
+  is_taxable           Boolean   @default(true)
+  sort_order           Int       @default(0)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+  created_by           String?   @db.Uuid
+  updated_by           String?   @db.Uuid
+  deleted_at           DateTime? @db.Timestamptz
+
+  invoice    Invoice     @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  job_charge JobCharge?  @relation(fields: [job_charge_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([tenant_id, invoice_id])
+  @@index([tenant_id, job_id])
+  @@map("invoice_lines")
+}
+
+model PaymentRequest {
+  id              String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String               @db.Uuid
+  request_number  String               @db.VarChar(40)
+  status          PaymentRequestStatus @default(PENDING)
+  invoice_id      String?              @db.Uuid
+  job_id          String?              @db.Uuid
+  party_id        String               @db.Uuid
+  amount          Decimal              @db.Decimal(18, 4)
+  currency_code   String               @db.Char(3)
+  due_date        DateTime?            @db.Date
+  remarks         String?              @db.Text
+  approved_at     DateTime?            @db.Timestamptz
+  approved_by     String?              @db.Uuid
+  rejected_reason String?              @db.VarChar(500)
+  paid_at         DateTime?            @db.Timestamptz
+  created_at      DateTime             @default(now()) @db.Timestamptz
+  updated_at      DateTime             @updatedAt @db.Timestamptz
+  created_by      String?              @db.Uuid
+  updated_by      String?              @db.Uuid
+  deleted_at      DateTime?            @db.Timestamptz
+
+  invoice Invoice? @relation(fields: [invoice_id], references: [id])
+  job     Job?     @relation(fields: [job_id], references: [id])
+  party   Party    @relation(fields: [party_id], references: [id])
+
+  @@unique([tenant_id, request_number])
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, invoice_id])
+  @@index([tenant_id, job_id])
+  @@map("payment_requests")
 }
 
 // =====================================================

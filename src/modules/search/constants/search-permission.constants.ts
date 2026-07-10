@@ -1,0 +1,10 @@
+export const SEARCH_PERMISSION_CONSTANTS = {
+  MODULE: 'search',
+  ACTIONS: {
+    VIEW: 'view',
+  },
+} as const;
+
+export const SEARCH_PERMISSIONS = {
+  VIEW: `${SEARCH_PERMISSION_CONSTANTS.MODULE}.${SEARCH_PERMISSION_CONSTANTS.ACTIONS.VIEW}`,
+} as const;

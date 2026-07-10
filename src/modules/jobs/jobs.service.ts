@@ -1,7 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Job, JobType, Prisma } from '@prisma/client';
+import { DocumentType, Job, JobType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
+import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
+import { EmailService } from '../../shared/email/email.service';
 import { AIR_EXPORT_MILESTONES } from './constants/air-export-milestones';
 
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
@@ -13,6 +15,7 @@ import { CreateJobNoteDto, UpdateJobNoteDto } from './dto/job-note.dto';
 import { CreateJobDocumentDto, UpdateJobDocumentDto, FinalizeJobDocumentDto } from './dto/job-document.dto';
 import { CreateJobContainerDto, UpdateJobContainerDto } from './dto/job-container.dto';
 import { SendPreAlertDto } from './dto/pre-alert.dto';
+import { GenerateJobDocumentDto } from './dto/generate-job-document.dto';
 import { JobQueryDto } from './dto/job-query.dto';
 
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -36,6 +39,8 @@ export class JobsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
+    private readonly documentGeneration: DocumentGenerationService,
+    private readonly emailService: EmailService,
   ) {}
 
   // ============================================================
@@ -962,17 +967,56 @@ export class JobsService {
   }
 
   // ============================================================
+  // ASYNC DOCUMENT GENERATION (Ch.8)
+  // ============================================================
+
+  async generateDocument(
+    tenantId: string,
+    jobId: string,
+    documentType: DocumentType,
+    dto: GenerateJobDocumentDto,
+    actorId?: string,
+  ) {
+    await this.findOne(tenantId, jobId);
+
+    const task = await this.documentGeneration.enqueueJobDocument(
+      tenantId,
+      jobId,
+      documentType,
+      actorId,
+      dto.layout_variant,
+      dto.is_original ?? false,
+    );
+
+    return {
+      task_id: task.id,
+      status: task.status,
+      document_type: documentType,
+      message: 'Document generation queued.',
+    };
+  }
+
+  async getDocumentGenerationStatus(tenantId: string, jobId: string) {
+    await this.findOne(tenantId, jobId);
+    return this.documentGeneration.listTasks(tenantId, { jobId });
+  }
+
+  // ============================================================
   // PRE-ALERT (Ch.8)
   // ============================================================
 
   async sendPreAlert(tenantId: string, jobId: string, dto: SendPreAlertDto, actorId?: string) {
+    const job = await this.findOne(tenantId, jobId);
+
+    if (job.job_type !== 'AIR_EXPORT') {
+      throw new BadRequestException('Pre-alert is only supported for Air Export jobs.');
+    }
+
+    if (!dto.to_email) {
+      throw new BadRequestException('to_email is required to send a pre-alert.');
+    }
+
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const job = await this.getOrThrow(tx, tenantId, jobId);
-
-      if (job.job_type !== 'AIR_EXPORT') {
-        throw new BadRequestException('Pre-alert is only supported for Air Export jobs.');
-      }
-
       const milestone = await tx.jobMilestone.findFirst({
         where: { tenant_id: tenantId, job_id: jobId, milestone: 'PRE_ALERT_SENT', deleted_at: null },
       });
@@ -980,6 +1024,25 @@ export class JobsService {
       if (!milestone) {
         throw new NotFoundException('PRE_ALERT_SENT milestone not found on this job.');
       }
+
+      const airDetail = job.air_details;
+      const subject = `Pre-Alert — ${job.job_number}`;
+      const body =
+        dto.message ??
+        `<p>Pre-alert for job <strong>${job.job_number}</strong>.</p>` +
+          (airDetail?.hawb_number ? `<p>HAWB: ${airDetail.hawb_number}</p>` : '') +
+          (airDetail?.mawb_number ? `<p>MAWB: ${airDetail.mawb_number}</p>` : '') +
+          (job.commodity ? `<p>Commodity: ${job.commodity}</p>` : '');
+
+      const emailLog = await this.emailService.send({
+        tenantId,
+        eventType: 'PRE_ALERT',
+        to: dto.to_email,
+        subject,
+        body,
+        jobId,
+        createdBy: actorId,
+      });
 
       if (!milestone.actual_date) {
         await tx.jobMilestone.update({
@@ -994,8 +1057,9 @@ export class JobsService {
       }
 
       return {
-        success: true,
-        message: 'Pre-alert recorded. Email dispatch will be wired when the notification service is available.',
+        success: emailLog.status === 'SENT',
+        email_log_id: emailLog.id,
+        status: emailLog.status,
         job_id: jobId,
         to_email: dto.to_email,
         milestone: 'PRE_ALERT_SENT',
