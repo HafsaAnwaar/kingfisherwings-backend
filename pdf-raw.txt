@@ -1,0 +1,3323 @@
+REIGHT FORWARDING ERP
+Revised Complete Daily Plan | Week 0–28 | 29
+Matched Against: FreightSaaS_Fresa_Complet
+Developer 1: Backend & Infrastructure · Dev
+Stack: Node.js · Next.js · PostgreSQL · RLS Mul
+DEV 1 Backend & Infra DEV 2 Frontend & QA SATURDAY Review & Sync DELIVERABLE End of Week
+SPECIFICATION COVERAGE — ALL 28 CHAPTERS MAPPED TO WEEKS
+Every chapter of the Complete Feature Specification is explicitly assigned to a week below. No feature is deferred without
+documentation.
+Spec Chapter Plan Week Coverage Summary
+Ch.1 Platform Overview & Architecture Week 0 Multi-tenancy, RLS, tech stack, job type architecture
+Ch.2 General Settings & System Config Week 20 UI themes, number formats, doc formats, email config, approval workflows
+Ch.3 Access Control & Security Week 1–2 RBAC, login restrictions (IP/MAC/hours), financial visibility flags, audit trail
+Ch.4 Master Data Management Week 0–2 All 15 master data types seeded and UI built
+Ch.5 Search & Navigation Week 6 Global search (24 search params), advanced filters, party-wise history
+Ch.6 Sales & CRM Module Week 14 Leads, call logs, enquiries, follow-ups, email marketing, budgets, dashboard
+Ch.7 Quotation Module Week 3 Full quotation lifecycle, tariff management, online quote, GP calc, approvals
+Ch.8 Air Export Operations Week 4–6 Booking, house/master jobs, HAWB/MAWB, AWB stock, pre-alert, all docs
+Ch.9 Air Import Operations Week 15 Import job, CAN, customs deposit, part delivery, storage, all docs
+Ch.10 Sea FCL Export Operations Week 7–8 Booking, containers, BL variants, SI/VGM/CY cutoffs, all docs
+Ch.11 Sea FCL Import Operations Week 9 CAN, demurrage/detention, customs, DO, free days, all docs
+Ch.12 Sea LCL Export Operations Week 18 House/master consolidation, prorate cost, all LCL docs
+Ch.13 Sea LCL Import Operations Week 18 De-stuffing, CFS storage, per-consignment customs, all docs
+Ch.14 Land / Trucking Operations Week 19 Land job, trucker assignment, transport request, cross-border docs
+Ch.15 Courier Module Week 19 Courier booking, export/import jobs, barcode labels, delivery tracking
+Ch.16 Documentation & Document Generation Wk
+5–9,18–19
+All 35+ shipping + financial documents, pre-alert config, doc rights
+Ch.17 Accounting — GL & Vouchers Week 11 COA, 9 voucher types, GL management, budget vs actual, year-end
+Ch.18 Accounting — Invoicing & Credit Notes Week 10 25+ invoice formats, UAE VAT, credit/debit notes, purchase invoices, LPO
+Ch.19 Accounting — AR, AP & Banking Week
+11–12
+AR/AP aging, bank recon, PDC, cheques, voucher matching, portals
+Ch.20 Accounting — Financial Reports Week 12 Trial Balance, B/S, P&L;, Cash Flow, VAT reports, fixed assets
+Ch.21 HR Module Week 16 Employee master, doc expiry alerts, leave, payroll, loans, timesheets, evals
+Ch.22 WMS Week 17 GRN, GDO, FIFO/LIFO, stock mgmt, storage invoicing, all WMS reports
+Ch.23 MIS Reports & Dashboards Week 12 Management dashboard, 16 profitability reports, operational reports, My
+Reports
+Ch.24 Customer & Vendor Portals Week
+13–14
+Customer portal, Track & Trace widget, Vendor Payment Portal
+Ch.25 EDI, API & Integration Week 21 EDI formats, REST API, webhooks, xe.com, WhatsApp, Swagger docs
+Ch.26 Mobile App — Fresa Sales App Phase 4 Deferred — not in current build scope
+Ch.27 System Administration Week 21 Company admin, user admin, data import/export, system monitoring
+Ch.28 SaaS Implementation Guide Week 0 Multi-tenancy, RLS, Stripe billing, tech stack, DB tables, dev workflow
+NVOCC Module (Fresa Gold Sidebar) Wk 20–20B Vessel Voyage Master, Enquiry, Booking, Load List, NVOCC HBL (carrier
+role), Voyage P&L;, Space Utilization, Trade Lane Profitability — not in spec
+chapters but present in live system
+
+-- 1 of 36 --
+
+PROJECT PHASES
+Ph Name Weeks Key Modules Days
+0 Foundation Wks 0–2 Master Data (all 15 types), Auth+RBAC, Multi-tenancy/RLS, Customer Master, xe.com 18
+1 Core Operations Wks 3–12 Quotations, Air Export, Sea FCL Ex/Im, All Finance, MIS Dashboard 60
+2 Full Platform Wks 13–21 Portals, CRM, Air Import, HR, WMS, LCL, Land, Courier, NVOCC, EDI, Admin 54
+3 QA & Launch Wks 22–29 Performance, Security (OWASP), Integration Tests, UAT, Production Deploy 48
+TOTAL 29 weeks 2 Developers · 174 Working Days · UAE VAT v1 · All 8 Operation Modes 174
+Each week runs Mon–Sat. Mon–Fri = full task sets for both developers in parallel. Saturday = review, integration test, and sync. Weeks
+27–28 = QA and deploy only — no new features.
+
+-- 2 of 36 --
+
+PHASE 0 — FOUNDATION (Weeks 0–2) · Spec Chapters 1, 2, 3, 4, 28
+WEEK 0 · Infrastructure · Master Data Schema · RLS · Seed Data Ch.1, Ch.4, Ch.28
+Mon DEV 1 — BACKEND & INFRA
+• Kick-off: align on v1 MVP scope (Air Export + Sea FCL
+Export/Import for go-live)
+• Finalise tech stack per Ch.28: NestJS, PostgreSQL+RLS, Redis,
+Docker, GitHub Actions CI
+• Create repo; Gitflow branching (main / develop / feature/* / hotfix/*)
+• Ch.28 multi-tenancy decision: single DB, tenant_id UUID NOT NULL
+on every table, PostgreSQL RLS from day one — not
+application-level scoping added later
+DEV 2 — FRONTEND & QA
+• Kick-off meeting: align on scope, deliverables, v1 targets
+• Finalise frontend stack per Ch.28: Next.js 14 App Router,
+TailwindCSS + shadcn/ui, TanStack Query, Zustand, React Hook
+Form + Zod
+• Create Figma project; design system: colour tokens (green/blue/red
+theme support per Ch.2.1), typography, spacing
+• Scaffold Next.js 14 App Router project; folder structure (features,
+components, hooks, services)
+Tue DEV 1 — BACKEND & INFRA
+• Docker Compose: PostgreSQL + Redis + NestJS containers
+• Prisma ORM setup: connect PostgreSQL, first migration
+• Ch.4 Master Data schemas & migrations: ports, airports, airlines,
+shipping_lines, vessels, container_types, charge_codes,
+currencies, hs_codes, countries
+• Ch.4.9 Additional masters: vessel_master, trucker, cfs_port_agent,
+customs_broker, warehouse_master, products, departments,
+designations, branches, banks, tax_rates, holidays,
+units_of_measure
+DEV 2 — FRONTEND & QA
+• Storybook setup for component documentation
+• Tailwind config with Ch.2.1 theme tokens (green default, blue, red
+alternatives)
+• Wireframes: Login, Dashboard, all Master Data screens (15 master
+types)
+• Component library skeleton: Button, Input, Card, Badge, Table,
+Modal
+Wed DEV 1 — BACKEND & INFRA
+• Seed data: 500 world ports (UNLOCODE per Ch.4.4), 250 airports
+(IATA codes)
+• Seed data: top 30 airlines with IATA 2-letter + 3-digit prefix (Ch.4.3 +
+Ch.4.9)
+• Seed data: top 20 shipping lines with SCAC codes (Ch.4.3)
+• Seed data: container types
+20GP/40GP/40HC/45HC/20RF/40RF/flat rack/open top (Ch.4.8)
+• Seed data: ISO 4217 currencies (170+); xe.com API integration for
+live rates (Ch.4.6)
+DEV 2 — FRONTEND & QA
+• Wireframes: Quotation List, Job List, Customer Profile, Nav Shell
+• Wireframes: Document Library, Invoice List, Financial Dashboard,
+WMS Dashboard
+• Wireframes: HR Employee Profile, Leave Calendar, Management
+Dashboard
+• Review DB schema from Dev 1; add frontend data requirements
+Thu DEV 1 — BACKEND & INFRA
+• Ch.4.5 Charge Code Master: code, name, type, unit, revenue GL,
+cost GL, tax rate, mandatory flag, standard charges template link
+• Ch.4.7 HS Code Master: 6/8-digit code, description, chapter/section,
+import/export duty, DG class, prohibited/restricted flags
+• xe.com daily cron job: store in exchange_rates table with rate_date,
+expiry, manual override support (Ch.4.6)
+• CI pipeline skeleton (GitHub Actions): lint + test on push;
+.env.example with all variables
+DEV 2 — FRONTEND & QA
+• Finalise Figma design system: button variants, form elements,
+colour palette all three themes
+• Complete wireframe set for all major screens (25+ screens)
+• TanStack Query client setup, Zustand store skeleton, axios with
+JWT interceptors
+• API contract format agreed with Dev 1: REST patterns, auth
+headers, pagination envelope, error codes
+Fri DEV 1 — BACKEND & INFRA
+• Ch.28 job type architecture lock: single jobs table + job_type enum (
+AIR_EXPORT/AIR_IMPORT/SEA_FCL_EXPORT/SEA_FCL_IMP
+ORT/SEA_LCL_EXPORT/SEA_LCL_IMPORT/LAND/COURIER)
+• Child detail tables: air_job_details, sea_fcl_job_details,
+sea_lcl_job_details, land_job_details, courier_job_details
+• Shared child tables: job_charges, job_milestones, job_documents,
+job_notes (all job types use these)
+• Lock v1 DB schema with Dev 2; commit all migration files
+DEV 2 — FRONTEND & QA
+• Cross-review schema; flag missing fields for frontend forms
+• Next.js App Router route structure: /(auth)/login, /(app)/dashboard,
+/(app)/jobs, /(portal)/customer, etc.
+• Share wireframes with stakeholders for early feedback
+• Confirm both dev environments running end-to-end
+Sat DEV 1 — BACKEND & INFRA
+• Week 0 review: all migrations confirmed, seed data verified in DB
+• Write Week 1 tickets in Linear/Jira
+DEV 2 — FRONTEND & QA
+• Week 0 review: Figma design system and wireframes confirmed
+complete
+• Share wireframes with stakeholders
+WEEKLY DELIVERABLE Repo · Tech stack locked · All 15 master data types seeded · RLS multi-tenancy plan documented · xe.com
+live rates · Both environments running
+WEEK 1 · Authentication + RBAC + Login Security Ch.3
+
+-- 3 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• NestJS modules: auth, users, roles, permissions
+• Prisma tables: users, roles, permissions, user_roles,
+user_permissions, sessions, audit_logs
+• Ch.3.4 Financial visibility columns on users: can_see_sales,
+can_see_cost, can_see_gp, can_see_invoices,
+can_see_payments, can_see_bank_balances, can_see_ar_ap,
+can_see_mgmt_reports, can_see_job_pnl — all BOOLEAN
+first-class columns
+• Ch.3.1 User profile flags: is_salesperson, is_cs_rep, is_operations,
+is_finance, department_id, branch_id (single or multi-branch)
+DEV 2 — FRONTEND & QA
+• Login page UI: email/password form, validation, error states
+• Forgot Password and Reset Password pages
+• Zustand auth store: user state, token storage (access+refresh),
+login/logout actions
+• Ch.2.1 full-screen mode toggle in nav shell
+Tue DEV 1 — BACKEND & INFRA
+• bcrypt password hashing; AuthService: login, JWT access+refresh
+token generation
+• Endpoints: /auth/login, /auth/refresh, /auth/logout
+• Ch.3.2 Password policy: min length, complexity rules, expiry
+enforcement (configurable)
+• Ch.3.2 Failed login lockout: account locked after N failed attempts
+(configurable N)
+DEV 2 — FRONTEND & QA
+• axios interceptor: Bearer token on all requests; 401 auto-redirect to
+login
+• Ch.3.5 Document rights awareness in UI: view / preview / download
+/ email / edit / finalize / delete / reprint — each button rendered only
+if user has the right
+• Navigation shell with three-theme support (green/blue/red); user can
+switch theme from profile settings
+• 403 Forbidden page and 404 Not Found page
+Wed DEV 1 — BACKEND & INFRA
+• RBAC guard: JwtAuthGuard + RolesGuard; hasPermission(user,
+module, action) utility
+• Role seed: Super Admin, Admin, Operations Manager, Operations
+Staff, Finance, Sales, Viewer
+• Ch.3.3 Menu access control: every sidebar item independently
+enabled/disabled per user/role — stored in user_permissions table
+• Ch.3.2 Multi-login control: configurable allow/block simultaneous
+sessions per user
+DEV 2 — FRONTEND & QA
+• Role-based nav: sidebar items rendered only if user has menu
+permission
+• Ch.3.1 User-wise homepage assignment: per-user configurable
+homepage layout and widget set
+• Breadcrumb component; React Router / Next.js App Router
+protected route wrapper
+• User profile dropdown: avatar, name, role badge, financial visibility
+indicator, logout
+Thu DEV 1 — BACKEND & INFRA
+• Audit log service: all auth events (login, logout, failed attempt, token
+refresh) logged with IP address to audit_logs (Ch.3.6)
+• Rate limiting on /auth/login: 5 attempts/min/IP
+• Ch.3.2 Session timeout: auto-logout after configurable inactivity
+period (system-wide)
+• Ch.3.2 2FA: optional TOTP-based two-factor for high-security
+accounts
+DEV 2 — FRONTEND & QA
+• Ch.3.6 Audit trail UI: full audit log viewer for admins (creation, edits
+before/after, deletions, IP, user)
+• Loading states and skeleton screens for auth flow
+• Ch.2.1 User-wise homepage widgets toggle: GP widget, AR/AP
+widget, bookings count, etc.
+• Session management UI: list active sessions, revoke individual
+sessions
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: full auth flow login → JWT → protected route →
+refresh → logout
+• Ch.3.2 IP address restriction and office hours restriction:
+configurable per user, timezone-aware
+• Ch.3.2 MAC address restriction: configurable per user
+• Unit tests for AuthService: login, token gen, refresh, lockout, 2FA
+DEV 2 — FRONTEND & QA
+• Ch.3.2 Login security config UI (admin): set IP ranges, MAC
+addresses, office hours per user
+• End-to-end: connect Login UI to backend auth API; test all flows
+• Fix UI bugs; polish loading and error states
+• Write permission matrix spreadsheet: all modules × all roles ×
+CRUD actions
+Sat DEV 1 — BACKEND & INFRA
+• Document all /auth endpoints in Swagger; RLS policy plan
+document updated
+• Week 1 review and demo
+DEV 2 — FRONTEND & QA
+• Cross-browser test: Chrome, Firefox, Safari, Edge
+• Week 1 retrospective; update project board
+WEEKLY DELIVERABLE JWT auth · RBAC · IP/MAC/hours login restrictions · 2FA · Financial visibility flags · Audit trail · Theme
+switching · Session management
+WEEK 2 · User Admin · Customer/Party Master · All Remaining Master
+Data UI Ch.3, Ch.4, Ch.27
+Mon DEV 1 — BACKEND & INFRA
+• UserService CRUD: createUser, updateUser, deactivateUser,
+getUserById, listUsers (pagination + search)
+• Multi-tenant middleware: every query auto-scoped by tenant_id from
+JWT
+• /users endpoints: GET, POST, PATCH /:id, DELETE /:id
+• Ch.27.2 Admin: view user activity log, monitor active sessions, force
+logout of active sessions
+DEV 2 — FRONTEND & QA
+• User Management list: table with search, status filter, role filter,
+pagination
+• Columns: name, email, role badge, status, last login, actions
+(edit/deactivate)
+• Create/Edit User modal: all profile fields + all financial visibility
+toggles + document rights toggles
+• Role Management page: role list, permission matrix table
+(checkboxes per module/action)
+
+-- 4 of 36 --
+
+Tue DEV 1 — BACKEND & INFRA
+• OrganizationService + /organizations CRUD (Ch.27.1: company
+profile, logo, stamp, signature)
+• Ch.4.1 Organization master: IATA cargo agent code, customs
+code/license, tax registration per country, bank accounts, document
+numbering prefix per branch, financial year settings
+• RoleService: createRole, assignPermissions, getRolePermissions,
+listRoles
+• Invitation flow: signed token, email via Nodemailer, /auth/invite +
+/auth/accept-invite
+DEV 2 — FRONTEND & QA
+• Company Administration page: full Ch.4.1 fields,
+logo/stamp/signature upload
+• Branch Management: create/edit branches with independent
+address, bank accounts, numbering prefix, currency, financial year
+• User invitation UI: invite by email, role selector, send
+• Invitation acceptance: set password form with token validation
+Wed DEV 1 — BACKEND & INFRA
+• Ch.4.2 Party Master (single parties table covering customer, agent,
+supplier, airline, shipping line, trucker, consignee, shipper, notify):
+name, short_name, alias, type, all addresses, multiple contacts,
+credit_limit, credit_days, payment_terms, tax_type, VAT number,
+bank details, IATA code, SCAC code, tags, links, references,
+portal_access_flag
+• PartyService CRUD + /parties endpoints with full-text search
+• Ch.4.2 Party credit status: Active / On Hold / Blacklisted; credit limit
+check on invoice creation
+• Ch.4.2 Marketing subscription flag: include/exclude from email
+campaigns
+DEV 2 — FRONTEND & QA
+• Party list page: search, type filter (all 8 party types), status filter, tag
+filter
+• Party detail page: tabs — Overview, Contacts, Addresses,
+Financials, Documents, Transaction History (all quotes, jobs,
+invoices, payments for this party per Ch.5.3)
+• Create/Edit Party form: multi-step with all Ch.4.2 fields
+• Ch.5.3 Party-wise history tab: quotes, jobs, invoices, payments,
+AR/AP, credit notes, email log, follow-ups
+Thu DEV 1 — BACKEND & INFRA
+• Master data CRUD APIs for all remaining masters: Vessels (IMO,
+flag, type), Airlines (IATA prefix for AWB), Truckers, CFS/Port
+Agents, Customs Brokers, Warehouses, Products/Commodities,
+Departments, Designations, Banks, Tax Rates, Holidays, Units of
+Measure
+• Ch.4.9 Tariff Template CRUD: rate cards for LCL/FCL/Air/Land by
+trade lane (used in Quotation Week 3)
+• CSV bulk import for parties: validate, bulk insert, return error report
+(Ch.27.3)
+• Ch.27.3 Bulk upload: customers, charge codes, opening balances,
+currency rates
+DEV 2 — FRONTEND & QA
+• Master data pages (one per master type): Vessels, Airlines,
+Truckers, Warehouses, Products, Departments, Designations,
+Banks, Tax Rates, Holidays
+• CSV import UI: drag-and-drop, column mapping screen, preview
+table, import button, error display (Ch.27.3)
+• Export button with filter-aware CSV download for all list pages
+• Party activity timeline component showing all changes with
+before/after values (Ch.3.6)
+Fri DEV 1 — BACKEND & INFRA
+• Ch.2.2 Number format configuration service: per-document-type
+configurable prefix, year, branch code, sequence length for all 12
+document types listed in spec
+• Integration test: create party → add contacts → add addresses →
+CSV import → export
+• Integration test: invite user → accept → login → change role →
+deactivate → reactivate
+• Write integration tests for user management and party APIs
+DEV 2 — FRONTEND & QA
+• Ch.2.2 Number Format configuration UI: admin configures format for
+each of the 12 document types
+• Full UI test: all user management and party CRUD flows end-to-end
+• QA CSV import with valid and invalid files; verify error reporting
+• QA: role changes immediately affect route access without re-login
+Sat DEV 1 — BACKEND & INFRA
+• Document all /auth, /users, /parties, /masters endpoints in Swagger
+• Schema locked for quotation module; brief Dev 2
+DEV 2 — FRONTEND & QA
+• Week 2 retrospective; update project board
+• Cross-device QA of user management and party screens
+WEEKLY DELIVERABLE User CRUD · Role management · Invitations · Full Party Master (all 8 types) · All 15 master data types with
+UI · CSV import/export · Number format config
+
+-- 5 of 36 --
+
+PHASE 1 — CORE OPERATIONS (Weeks 3–12) · Spec Chapters 7–11, 16–20, 23
+WEEK 3 · Quotation Module — Full Lifecycle Ch.7
+Mon DEV 1 — BACKEND & INFRA
+• Tables: quotations, quotation_lines, quotation_status_history,
+quotation_approvals; migrations
+• QuoteService: createQuote, getQuote, listQuotes, updateQuote,
+duplicateQuote, convertToJob, archiveQuote
+• Ch.7.1 All quotation fields: date, number (auto per Ch.2.2 format),
+valid_until, customer/prospect, salesperson, service type (all 8
+modes), Incoterms (all 11), origin/destination port or airport,
+commodity, cargo description, weight, volume, chargeable weight,
+pieces, container type+count, carrier preference, transit time,
+routing, special requirements, remarks, internal notes, currency,
+exchange rate
+• Ch.7.6 Tariff template service: auto-populate charge lines from
+configured rate cards
+DEV 2 — FRONTEND & QA
+• Quote List page: quote#, customer, origin→dest, mode, amount,
+status, GP (can_see_gp gated), date
+• Status filter tabs: All / Draft / Submitted / Approved / Sent / Won /
+Lost / Expired
+• Date range, customer, salesperson, service type filters
+• Ch.7.7 Quotation list reports accessible from this page
+Tue DEV 1 — BACKEND & INFRA
+• Ch.7.2 Charge line engine: charge_code (from master),
+charge_name, unit (Per
+CBM/KG/Container/BL/Shipment/Lumpsum), quantity (auto-fill from
+cargo or manual), rate, currency, exchange_rate, amount (auto
+qty×rate), tax%, tax_amount, total, revenue/cost flag, supplier (cost
+lines)
+• GP calculation engine: sum(revenue lines) − sum(cost lines) = GP
+stored live on quote
+• Ch.7.3 Quote status workflow: DRAFT → SUBMITTED →
+APPROVED (manager) → SENT → WON/LOST; reject with
+reason; revise and resubmit
+• Ch.2.6 Quotation approval: up to 3 configurable levels; discount
+approval if discount exceeds threshold
+DEV 2 — FRONTEND & QA
+• Create Quote multi-step: Step 1 — customer/prospect selector +
+service type
+• Step 2 — origin/destination ports or airports (from master), transit
+time, Incoterms
+• Step 3 — cargo details: commodity, HS code, dimensions, weight,
+volume, pieces, container type+count, special requirements (DG,
+temp, oversized, fragile)
+• Step 4 — charge lines table: inline editable rows, live GP shown at
+bottom (role-gated)
+Wed DEV 1 — BACKEND & INFRA
+• Ch.7.5 Online quotation endpoint: public /api/online-quote —
+customer submits cargo details, system auto-calculates from tariff,
+records in system, notifies sales team, returns quote by email
+• Quote revision system: clone into new revision, link versions, track
+history
+• Quote expiry cron job: daily, auto-expire past validity, send
+notification to salesperson
+• Ch.7.6 Tariff CRUD: LCL tariff (CBM rate, W/M rate, min charge),
+FCL tariff (per container type), Air tariff (per KG, chargeable weight
+formula), Land tariff (zone-to-zone), Local charges tariff, Standard
+charges template
+DEV 2 — FRONTEND & QA
+• Step 5 — review and confirm summary; submit button with approval
+routing
+• Quote Detail page: header, cargo summary, charge lines, GP panel
+(can_see_gp), status history
+• Revision History tab: all versions with date, status, author, diff view
+• Ch.7.5 Online quote public page: embeddable on customer website,
+no login required
+Thu DEV 1 — BACKEND & INFRA
+• Ch.7.4 Quote PDF generation (Puppeteer): 8 format variants (Air
+Export, Air Import, Sea FCL Ex/Im, Sea LCL Ex/Im, Land,
+Multimodal, Combined charges)
+• Two PDF modes: customer-facing (revenue lines only) vs internal
+(with cost and GP)
+• Store PDF in S3; /quotes/:id/pdf endpoint
+• Quote email service: send PDF to customer with custom message;
+log email event; update status to SENT
+DEV 2 — FRONTEND & QA
+• Quote Detail action buttons: Send, Approve, Reject, Clone,
+Generate PDF, Convert to Booking, Convert to Job, Mark
+Won/Lost, Archive
+• Send Quote modal: To/CC, subject, body, attach PDF checkbox
+• PDF preview pane: embed PDF viewer in quote detail
+• Ch.7.6 Tariff Management UI: CRUD for all 6 tariff types
+Fri DEV 1 — BACKEND & INFRA
+• Ch.7.7 Quote analytics endpoints: conversion rate, quote value
+analysis, lost reason analysis, response time analysis — by
+customer, agent, salesperson, service type, month
+• Integration test: create quote → GP calc → approval → send →
+convert to job
+• Write unit tests for pricing engine: GP calculation, multi-currency,
+discount approval threshold
+DEV 2 — FRONTEND & QA
+• Quote Analytics page: monthly volume bar, win/loss donut, top
+customers horizontal bar, response time trend
+• Ch.7.7 Lost quotation analysis: reason code entry when marking
+lost, report by reason
+• End-to-end test: create quote from tariff template, GP visible for
+finance role, hidden for ops role
+Sat DEV 1 — BACKEND & INFRA
+• Swagger docs for all /quotes, /tariffs endpoints
+• Stakeholder demo
+DEV 2 — FRONTEND & QA
+• QA all quote flows across service types
+• Week 3 review
+WEEKLY DELIVERABLE Full quotation lifecycle · GP calc · Up to 3-level approvals · 8 PDF formats (customer vs internal) · Online
+quote widget · Tariff management · Analytics
+
+-- 6 of 36 --
+
+WEEK 4 · Air Export — Booking, House Job, Master Job, Milestones Ch.8
+Mon DEV 1 — BACKEND & INFRA
+• Jobs core table: job_number (format: KFW/AE/06/26/00136),
+tenant_id, job_type, customer_id, salesperson_id, department_id,
+branch_id, origin_port_id, destination_port_id, status,
+created_from_quote_id, tags, internal_notes, customer_remarks
+• air_job_details table: airline_id, mawb_number, hawb_number,
+flight_number, etd, eta, freight_type (Prepaid/Collect),
+other_charges_pp_cc, chargeable_weight, gross_weight,
+volume_cbm, conversion_factor (default 167), pieces,
+dimensions_json
+• Ch.8.1 All Air Export booking fields: AWB type
+(Direct/Back-to-Back/Consol), shipper, consignee, notify_party,
+cargo_description, hs_code, DG_flag (UN number, class, packing
+group, net qty), special_handling (temp/live
+animals/valuable/fragile), reference_numbers, attachments
+• job_charges, job_milestones, job_documents, job_notes child tables
+DEV 2 — FRONTEND & QA
+• Job List page: job#, customer, mode icon, origin→dest, ETD/ETA,
+status badge, GP (can_see_gp)
+• Advanced filter panel: status, job type, date range, customer,
+salesperson, department, branch
+• Saved filter presets (save and recall filter sets)
+• Kanban board view toggle: swimlane columns per status, cards
+draggable to update status
+Tue DEV 1 — BACKEND & INFRA
+• Ch.8.2 House Job features: all booking fields carried forward from
+booking, HAWB auto-generated, standard charges auto-population
+from tariff template, sub-jobs for packing/unpacking, CSV upload
+for sub-job dimensions, provisional cost entry, provisional sales
+entry, payment request entry, purchase invoice booking from job
+• Ch.8.3 Master Job: MAWB generation, MAWB stock linkage, house
+jobs linked under master, weight discrepancy reconciliation field,
+master job charges, airline billing entries, flight uplift confirmation
+• Ch.8.5 Air Export milestones: BOOKING_RECEIVED,
+BOOKING_CONFIRMED, SPACE_CONFIRMED,
+CARGO_RECEIVED_AT_WAREHOUSE,
+CARGO_ACCEPTED_BY_AIRLINE,
+DOCS_SUBMITTED_TO_AIRLINE,
+FLIGHT_UPLIFT_CONFIRMED, MAWB_ISSUED,
+CARGO_DEPARTED, CARGO_IN_TRANSIT,
+CARGO_ARRIVED_DESTINATION, PRE_ALERT_SENT,
+INVOICE_RAISED, PAYMENT_RECEIVED, JOB_CLOSED
+• JobService: createJob (from quote or manual), getJob, listJobs,
+updateJob, closeJob with Ch.2.6 job closing approval workflow
+DEV 2 — FRONTEND & QA
+• Air Export job creation form: all Ch.8.1 booking fields
+• Job Detail tabs: Overview, Charges, Milestones, Documents, Notes,
+Finance
+• Overview tab: route display, ETD/ETA, airline, flight, cargo
+summary, DG flag indicator
+• Milestones tab: checklist with actual date input and completion
+toggle per milestone
+Wed DEV 1 — BACKEND & INFRA
+• Charges tab backend: revenue lines (can_see_sales), cost lines
+(can_see_cost), GP summary (can_see_gp) — each independently
+enforced
+• Ch.8.2 Prorate master cost to house jobs: distribute MAWB freight
+cost proportionally by weight or volume
+• Ch.8.2 Job P&L; (provisional): revenue total, cost total, GP amount,
+GP% — updated live as charges entered
+• Convert quotation to job: all charge lines carried forward, customer
+pre-filled
+DEV 2 — FRONTEND & QA
+• Charges tab UI: revenue lines section + cost lines section + GP
+summary (role-gated with can_see_* flags)
+• Notes tab: @mention comment thread with avatar, timestamp,
+attachments
+• @mention autocomplete: type @ to search and tag users;
+notification bell in topbar
+• Finance tab: Job P&L; panel (can_see_job_pnl gated), payment
+request list
+Thu DEV 1 — BACKEND & INFRA
+• Ch.8.7 AWB Stock Management: awb_stock table (airline_id, prefix,
+range_from, range_to, allocated_to_job, status:
+available/allocated/used/voided); low stock alert cron; AWB
+reservation before booking; transfer between branches; AWB audit
+report endpoint
+• Job search: full-text on job#, customer, HAWB, MAWB, container#,
+bill_of_lading#, booking# (all 24 Ch.5.1 search parameters)
+• Ch.5.2 Advanced search: date range (ETD, ETA, job date), party
+filter, salesperson, department, job type, status, port (POL/POD),
+carrier, container type, currency, branch
+• Job number format engine: configurable
+prefix+year+branch+sequence per Ch.2.2
+DEV 2 — FRONTEND & QA
+• AWB Stock management page: receive stock from airline (enter
+range), view balance, allocate, void with reason
+• Ch.5.1 Global search box: prominently placed in topbar, real-time
+dropdown results for all 24 search parameter types
+• Ch.5.2 Advanced search panel in job list: all filter combinations
+• Job status badge colour coding consistent across list and detail
+views
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: create Air Export from quotation → milestones →
+charges → prorate to house → notes
+• Test job number format matches KFW/AE/06/26/00136 pattern
+exactly
+• Test GP visibility: finance role sees GP, operations role sees
+nothing financial
+• Write unit tests for job number generation and prorate calculation
+DEV 2 — FRONTEND & QA
+• Full UI flow: quote → Air Export job → milestone updates → charge
+visibility by role → kanban
+• QA: GP hidden for operations staff; prorate amounts correct across
+3 house jobs
+• QA global search: test all 24 parameter types return correct results
+• Fix UI bugs
+
+-- 7 of 36 --
+
+Sat DEV 1 — BACKEND & INFRA
+• Document /jobs, /awb-stock in Swagger
+• Milestone taxonomy document finalised
+DEV 2 — FRONTEND & QA
+• Job list QA across browsers
+• Week 4 review
+WEEKLY DELIVERABLE Air Export jobs with correct job numbering · House/Master job structure · Prorate cost · All 15 milestones ·
+Charges with financial visibility controls · AWB stock · Global search
+WEEK 5 · Air Export — All Document Generation (HAWB, MAWB,
+Manifests, Labels) Ch.8, Ch.16
+Mon DEV 1 — BACKEND & INFRA
+• Document generation service: Puppeteer server-side, BullMQ
+background queue, no synchronous PDF in request cycle
+• job_documents table: document_type, version, file_path (S3),
+generated_at, finalized_at, is_draft, is_original, generated_by,
+emailed_at, emailed_to
+• Document status workflow: DRAFT (editable) → ORIGINAL
+(finalized, locked)
+• Ch.3.5 Document rights enforcement: view / preview / download /
+email / edit-draft / finalize / delete / reprint — each checked
+server-side before action
+DEV 2 — FRONTEND & QA
+• Documents tab in job detail: list with type, version, draft/original
+badge, action buttons per right
+• Async loading state: spinner while Puppeteer generates, auto-show
+when ready
+• Finalize Document flow: confirmation dialog "This action is
+irreversible"
+• Document category badges: Shipping / Finance / Communication /
+Internal / Operations
+Tue DEV 1 — BACKEND & INFRA
+• Ch.8.4 / Ch.16.1 HAWB Draft Puppeteer template: all IATA-required
+fields — shipper, consignee, notify, airport of departure, airport of
+destination, carrier, flight, ETD/ETA, commodity, pieces, gross
+weight, chargeable weight, CBM, freight charges (prepaid/collect),
+other charges (PP/CC), declared value, handling info, barcode,
+signature area, conversion factor display
+• Ch.8.4 HAWB Original: same template + ORIGINAL
+watermark/stamp, finalize locks all fields
+• /jobs/:id/documents/hawb endpoint: generate from job data, upload
+to S3
+• Multiple IATA-compliant HAWB layouts (at least 2 format variants
+per Ch.16.1)
+DEV 2 — FRONTEND & QA
+• HAWB preview: full-screen PDF viewer (react-pdf) with page
+navigation, zoom
+• HAWB format selector: choose from available IATA layout variants
+• Draft/Original badge with colour coding; reprint button for finalized
+docs
+• HAWB field data validation: weight, chargeable weight, pieces must
+be > 0 before generation
+Wed DEV 1 — BACKEND & INFRA
+• Ch.8.3 / Ch.16.1 MAWB Draft + Original Puppeteer templates:
+airline 3-digit prefix + sequence (IATA format 123-45678901), all
+IATA AWB fields, consolidation totals, house count
+• Ch.8.3 E-AWB support: generate IATA XML format for electronic
+submission to airline e-AWB system (Ch.25.1)
+• /jobs/:id/documents/mawb and /jobs/:id/documents/e-awb endpoints
+• Ch.8.3 MAWB from AWB stock: auto-allocate next available AWB
+number from awb_stock for airline
+DEV 2 — FRONTEND & QA
+• MAWB preview with airline-specific format rendering
+• E-AWB submission button: sends XML to configured airline e-AWB
+endpoint
+• AWB number display: shows airline prefix + assigned number from
+stock
+• AWB number confirmation dialog before final MAWB generation
+Thu DEV 1 — BACKEND & INFRA
+• Ch.8.4 / Ch.16.1 Cargo Manifest (per consolidation): list all cargo
+pieces, weights, dimensions per consignment
+• Ch.8.4 Freight Manifest: charge summary per consignment on flight
+• Ch.8.4 Shipping Instruction: formatted instructions to airline for
+handling
+• Ch.8.4 Barcode Label: per-package barcode labels with consignee,
+job, airline info
+• Ch.8.4 Consignee Label List: batch labels for all packages in one
+print job
+• /jobs/:id/documents/ endpoints for all five document types
+DEV 2 — FRONTEND & QA
+• Cargo Manifest, Freight Manifest, Shipping Instruction document
+buttons in Documents tab
+• Barcode Label generation: specify label format (A4 sheet of 8/10/12
+labels)
+• Consignee Label List: batch print all labels in one PDF
+• Print-optimised CSS for label PDFs
+Fri DEV 1 — BACKEND & INFRA
+• Ch.8.4 Job Card Puppeteer template: internal job summary for
+operations team
+• Ch.8.4 Job P&L; Statement template: provisional revenue, cost, GP
+per job (role-gated on download)
+• Ch.8.4 Proforma Invoice template: advance invoice before final
+• Ch.8.4 Costing Sheet template: detailed revenue+cost breakdown
+with per-line margin
+• Ch.8.4 Shipping Advice template: advice to consignee that goods
+have shipped
+• Integration test: generate all Air Export document types; verify S3
+storage and pre-signed URL retrieval
+DEV 2 — FRONTEND & QA
+• Job Card, P&L; Statement, Proforma Invoice, Costing Sheet,
+Shipping Advice buttons in Documents tab
+• P&L; Statement download gated by can_see_job_pnl permission
+• Costing Sheet download gated by can_see_cost permission
+• Quality check: print all generated Air Export docs; compare against
+Fresa Gold format
+Sat DEV 1 — BACKEND & INFRA
+• All Air Export PDFs reviewed for field completeness against Ch.16.1
+checklist
+• Document generation endpoints in Swagger
+DEV 2 — FRONTEND & QA
+• Week 5 full regression on all doc types
+• Stakeholder demo of document generation
+
+-- 8 of 36 --
+
+WEEKLY DELIVERABLE All 14 Air Export documents generated (HAWB/MAWB/Manifests/Labels/Job Card/P&L;/Costing/Shipping
+Advice) · Draft-Original workflow · E-AWB XML · Document rights enforced
+WEEK 6 · Air Export — Pre-Alert, Status Emails, Search & Navigation Ch.8, Ch.5
+Mon DEV 1 — BACKEND & INFRA
+• Ch.8.6 / Ch.16.4 Pre-alert service: To/CC/BCC (pre-populated from
+destination agent on job), configurable subject line with job data
+merge fields ({job_no}, {hawb}, {mawb}, {flight}, {etd}, {eta}), rich
+text body with merge fields, selectable document attachments
+• pre_alerts table: job_id, sent_at, sent_by, to_addresses,
+cc_addresses, bcc_addresses, documents_attached,
+resent_count, scheduled_send_at
+• /jobs/:id/pre-alert/send endpoint; update PRE_ALERT_SENT
+milestone on send
+• Ch.16.4 Pre-alert report: all pre-alerts sent/pending for a period —
+by job, by agent, by date
+DEV 2 — FRONTEND & QA
+• Pre-Alert modal: To/CC/BCC (pre-filled from agent master,
+editable), subject (editable), body (rich text editor with merge field
+toolbar)
+• Document selection checkboxes: HAWB Original, MAWB, Cargo
+Manifest, Freight Manifest, Job Card, Shipping Instruction
+• Ch.16.4 Schedule send: date/time picker for deferred pre-alert
+• Pre-alert sent confirmation card on milestone (shows sent time,
+recipient count)
+Tue DEV 1 — BACKEND & INFRA
+• Ch.8.6 Status update email service: 7 email triggers per spec —
+booking confirmation, space confirmed, loading confirmation, uplift
+confirmation, pre-alert to agent, arrival notification (with CAN/DO),
+custom status email
+• Ch.2.5 Email template configuration: subject line templates, body
+templates per document/trigger type — all configurable by admin
+• Ch.2.5 CC and BCC default addresses per document type — admin
+configurable
+• BullMQ email queue: retry on SMTP failure (max 3), dead-letter
+queue, delivery log table
+DEV 2 — FRONTEND & QA
+• Send Status Email modal: template selector (7 trigger types),
+recipient fields, preview rendered email, send
+• Email log viewer in job Notes tab: all emails sent for this job —
+recipient, subject, timestamp, attachment list, delivery status
+• Resend capability with confirmation dialog
+• Ch.2.5 Email template admin page: configure subject, body,
+CC/BCC defaults, auto-send triggers per event
+Wed DEV 1 — BACKEND & INFRA
+• Ch.2.5 Auto-send on job status change: configurable triggers (e.g.,
+auto-send pre-alert when FLIGHT_UPLIFT_CONFIRMED
+milestone ticked)
+• Ch.2.5 WhatsApp Business API integration: send status updates via
+WhatsApp at configured milestone triggers (Ch.25.3)
+• Ch.5.1 Global search: full implementation of all 24 searchable
+parameter types across AWB#, BL#, master AWB, master BL,
+booking#, job#, quotation#, container#, bill of entry, shipping bill,
+voucher#, cheque#, invoice#, receipt#, ETD/ETA date, truck#,
+reference#, supplier ref, IGM#, GRN#, GDO#, party name,
+narration
+• Global search endpoint: /api/search?q= returns results grouped by
+type
+DEV 2 — FRONTEND & QA
+• WhatsApp notification config UI: enable/disable per customer, select
+milestone triggers
+• Global search UI: topbar search box, real-time results dropdown
+grouped by entity type (Jobs, Quotations, Invoices, Parties,
+Documents)
+• Ch.5.2 Advanced search panel in job list: all filter combinations
+including port, carrier, container type, currency, branch
+• Saved search presets: name and save filter combinations for quick
+reuse
+Thu DEV 1 — BACKEND & INFRA
+• Ch.5.3 Party-wise transaction history API: /parties/:id/history returns
+all quotes, jobs, invoices, payments, AR/AP, credit notes,
+communication log for that party
+• Communication history: all emails sent to this party from any job —
+stored in party_communication_log table
+• Full Air Export end-to-end test: booking → HAWB → MAWB →
+pre-alert with attachments → milestone completion
+• Performance test: document generation under 5 concurrent jobs
+DEV 2 — FRONTEND & QA
+• Ch.5.3 Party Transaction History tab in party detail: all quotes, jobs,
+invoices, payments, AR/AP, credit notes, email log, follow-up notes
+in chronological feed
+• Communication log viewer: all emails sent to this party with subject,
+date, attachments
+• QA pre-alert: docs attach correctly, To/CC populated from agent,
+email log records delivery
+• QA global search: test 10 of the 24 parameter types return correct
+records
+Fri DEV 1 — BACKEND & INFRA
+• Air Export module complete — sign off all Ch.8 features against
+spec checklist
+• Fix all bugs found in integration testing this week
+• Document email service, WhatsApp integration, search endpoints in
+Swagger
+DEV 2 — FRONTEND & QA
+• Full Air Export lifecycle UI regression test
+• QA: email templates render correctly with real job data for all 7
+trigger types
+• QA: WhatsApp notification fires on configured milestone
+• Week 6 full regression
+Sat DEV 1 — BACKEND & INFRA
+• Air Export module signed off
+• Swagger updated
+DEV 2 — FRONTEND & QA
+• Week 6 review; stakeholder demo of complete Air Export flow
+• Update project board
+WEEKLY DELIVERABLE Pre-alert with merge fields & schedule send · All 7 status email triggers · Auto-send on milestone ·
+WhatsApp · Global search (24 params) · Party transaction history
+WEEK 7 · Sea FCL Export — Core Job, Containers, Vessel, Milestones Ch.10
+
+-- 9 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• sea_fcl_job_details table: shipping_line_id, vessel_id,
+voyage_number, pol_id, pod_id, place_of_receipt,
+place_of_delivery, etd, eta, carrier_booking_ref, freight_terms
+(Prepaid/Collect/Third Party), incoterms, stuffing_location
+(CY/CFS/Shipper Premises), stuffing_date, si_cutoff_datetime,
+vgm_cutoff_datetime, cy_cutoff_datetime
+• containers table: job_id, container_type (20GP/40GP/40HC/45HC
+etc.), container_number, seal_number, tare_weight, max_payload,
+cubic_capacity, status enum
+(empty/stuffed/gated_in/loaded/in_transit/discharged/returned)
+• bills_of_lading table: job_id, bl_type enum, bl_number, shipper_id,
+consignee_id, notify_id, pol, pod, place_of_receipt,
+place_of_delivery, description_of_goods, marks_numbers,
+packages, gross_weight, measurement, freight_payable_at,
+number_of_originals, is_draft, is_original, is_surrendered,
+is_express_release
+• SeaFCLJobService CRUD + /jobs endpoints for FCL type
+DEV 2 — FRONTEND & QA
+• Sea FCL Export job creation form: shipping line selector,
+vessel+voyage selector, container type+count grid, all key dates,
+SI/VGM/CY cutoff fields
+• SI/VGM/CY cutoff date fields with approaching-deadline highlighting
+(amber at 24h, red at 0h)
+• Container Management sub-panel: add containers, type selector,
+container#, seal#, status
+• Container status board: visual list with current status badge and
+last-updated timestamp
+Tue DEV 1 — BACKEND & INFRA
+• Container fill indicator: assigned cargo weight vs max payload, CBM
+vs cubic capacity
+• Cargo model for FCL: commodity, HS code, description,
+marks_numbers, packages, gross_weight, measurement — linked
+to containers
+• /jobs/:id/containers CRUD; container-cargo assignment endpoints
+• Vessel schedule lookup: /vessels/:id/schedules with ETD/ETA date
+filtering
+DEV 2 — FRONTEND & QA
+• Container fill progress bar: weight %, CBM % per container
+• Cargo Details tab for FCL: editable commodity table, marks and
+numbers multi-line, per-container cargo assignment
+• Vessel autocomplete in job creation: search by vessel name, shows
+voyage list with ETD
+• Container gating-in confirmation: record actual gate-in date/time
+Wed DEV 1 — BACKEND & INFRA
+• Ch.10.3 FCL Export milestones: BOOKING_CREATED,
+SI_SUBMITTED, VGM_SUBMITTED, CONTAINER_GATED_IN,
+STUFFING_COMPLETED, VESSEL_LOADED, VESSEL_SAILED,
+DRAFT_BL_RECEIVED, DRAFT_BL_APPROVED_BY_SHIPPER,
+ORIGINAL_BL_ISSUED_OR_SURRENDERED,
+PRE_ALERT_SENT, CARGO_IN_TRANSIT,
+CARGO_ARRIVED_POD, INVOICE_RAISED,
+PAYMENT_RECEIVED, JOB_CLOSED
+• Stuffing record: stuffing supervisor name, stuffing date,
+warehouse/CY location, condition of goods
+• Ch.2.6 Booking approval workflow: optional per service type
+(configurable)
+• Job charges for FCL (same job_charges table): THC, OFT, DOC,
+BL fee, handling, customs — revenue and cost lines
+DEV 2 — FRONTEND & QA
+• FCL Export milestones tab: all 16 checkpoints with actual date input
+• Stuffing Report entry form: supervisor, date, location, condition
+notes
+• BL status tracker within Documents tab: Draft Received → Draft
+Approved → Original Issued/Surrendered
+• Cut-off status summary card on Overview tab: SI / VGM / CY
+cut-offs with traffic-light colours
+Thu DEV 1 — BACKEND & INFRA
+• VGM submission tracking: record VGM submission date/time,
+shipper method (SM1/SM2)
+• SI submission tracking: record SI sent date/time, version number
+• Container split functionality: one container with multiple consignees
+(for co-loading)
+• FCL job search and filter: all Ch.5.1 parameters applicable to FCL
+(container#, vessel, shipping line)
+DEV 2 — FRONTEND & QA
+• VGM submission UI: record VGM date and method
+• SI submission UI: record SI sent date and version
+• Container split UI: assign portions of container to different house
+consignees
+• FCL job filter: filter by container type, shipping line, vessel, voyage
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: create FCL Export job → assign containers → cargo
+→ stuffing → milestones → VGM → SI
+• Test container fill calculations and cut-off warnings
+• Fix all bugs from testing
+DEV 2 — FRONTEND & QA
+• Full FCL Export UI flow test
+• QA: SI/VGM/CY cut-off warnings trigger at correct thresholds
+• QA: container fill bars update correctly as cargo assigned
+• Fix UI bugs
+Sat DEV 1 — BACKEND & INFRA
+• FCL Export core schema signed off
+• Swagger updated
+DEV 2 — FRONTEND & QA
+• Week 7 review; update project board
+• QA FCL job list and detail across browsers
+WEEKLY DELIVERABLE Sea FCL Export fully operational · Container management (all types) · VGM/SI/CY cut-offs with warnings ·
+BL data model · All 16 milestones
+WEEK 8 · Sea FCL Export — All Document Generation (HBL, MBL, All
+BL Variants) Ch.10, Ch.16
+
+-- 10 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• Ch.10.2 / Ch.16.1 HBL Draft Puppeteer template: all BL fields —
+shipper, consignee, notify, POL/POD, place of receipt/delivery,
+vessel/voyage, ETD/ETA, description, marks/numbers, packages,
+gross weight, measurement, freight payable at, number of originals,
+BL conditions on reverse
+• Ch.10.2 HBL Original: same + ORIGINAL designation + signature
+area
+• Ch.16.1 Non-Negotiable HBL (Express Release / Telex Release):
+NON-NEGOTIABLE stamp + express release wording
+• /jobs/:id/documents/hbl, /jobs/:id/documents/hbl-express-release
+endpoints; at least 2 layout variants
+DEV 2 — FRONTEND & QA
+• HBL generation UI: BL type selector (Standard Negotiable /
+Non-Negotiable Express Release)
+• Number of originals selector (1, 2, 3) — appears on BL header
+• HBL preview with full field data rendered from job
+• Draft→Original finalize flow with confirmation dialog
+Tue DEV 1 — BACKEND & INFRA
+• Ch.10.2 / Ch.16.1 MBL/OBL Draft + Original Puppeteer templates:
+shipping line format (fields match actual shipping line BL)
+• Ch.16.1 FIATA BL (FBL): FIATA standard format with FBL-specific
+fields and FIATA logo placeholder
+• Ch.16.1 Rider / Addendum to BL: additional terms page attached to
+original BL
+• /jobs/:id/documents/mbl, /fiata-bl, /rider-bl endpoints
+DEV 2 — FRONTEND & QA
+• MBL and FIATA BL document buttons and previews
+• BL number management: enter/edit BL number, prefix
+auto-suggested from shipping line master
+• Rider/Addendum UI: enter additional terms text, attached to BL PDF
+as page 2
+• FIATA BL format review: confirm FIATA-specific fields present
+Wed DEV 1 — BACKEND & INFRA
+• Ch.16.1 Switch BL: replacement BL issued at destination —
+different consignee/notify from original
+• Ch.16.1 Proxy BL: BL on behalf of another forwarder — shows
+proxy forwarder as carrier agent
+• Ch.16.1 Back-to-Back BL: master-house BL pair — two documents
+generated together
+• /jobs/:id/documents/switch-bl, /proxy-bl, /back-to-back-bl endpoints
+DEV 2 — FRONTEND & QA
+• Switch BL UI: enter replacement consignee/notify, confirm original
+BL number to switch from
+• Proxy BL UI: enter proxy forwarder details
+• Back-to-Back BL UI: shows paired master+house BL together
+• All special BL variants listed in Documents tab with clear type labels
+Thu DEV 1 — BACKEND & INFRA
+• Ch.10.2 Surrender Notice Puppeteer template: authorization for
+original BL surrender with BL number, shipper, consignee, vessel,
+date
+• Ch.10.2 Shipping Instruction (SI) Puppeteer template: structured
+form for shipping line
+• Ch.10.2 Stuffing Report Puppeteer template: container contents,
+weights, marks
+• Ch.10.2 Sailing Confirmation Puppeteer template: vessel sailing
+confirmation letter
+• Ch.10.2 Transhipment Confirmation Puppeteer template:
+transshipment port confirmation
+• All endpoints: /surrender-notice, /si, /stuffing-report,
+/sailing-confirmation, /transhipment-confirmation
+DEV 2 — FRONTEND & QA
+• Surrender Notice, SI, Stuffing Report, Sailing Confirmation,
+Transhipment Confirmation document buttons
+• Sailing Confirmation auto-populates from vessel sailed milestone
+date/time
+• Stuffing Report: links to stuffing data entered in milestones tab
+• FCL pre-alert modal: attach HBL, MBL, Cargo Manifest, SI, Stuffing
+Report
+Fri DEV 1 — BACKEND & INFRA
+• Ch.10.2 Job Card, Job P&L; Statement, Proforma Invoice, Cargo
+Manifest, Freight Manifest for FCL
+• Integration test: FCL Export → generate all 15+ document types →
+finalize HBL → send pre-alert with attachments
+• Quality check: print all generated FCL PDFs; compare against Fresa
+Gold originals
+• Fix any Puppeteer rendering issues
+DEV 2 — FRONTEND & QA
+• Job Card, P&L;, Proforma Invoice, Manifests for FCL in Documents
+tab
+• Full UI test: generate all FCL document types; verify each renders
+correctly
+• QA: finalize flow locks HBL; reprint right required to print finalized
+docs
+• Test email attachment with all FCL documents attached to pre-alert
+Sat DEV 1 — BACKEND & INFRA
+• All FCL Export documents signed off against Ch.16.1 checklist
+• Swagger updated
+DEV 2 — FRONTEND & QA
+• Week 8 full regression
+• Stakeholder demo: complete Sea FCL Export
+WEEKLY DELIVERABLE All 15+ Sea FCL Export documents · HBL (Standard/Express Release) · MBL · FIATA BL ·
+Switch/Proxy/Back-to-Back BL · Surrender Notice · Stuffing Report · Pre-alert
+WEEK 9 · Sea FCL Import — CAN, Demurrage, Detention, Customs,
+Documents Ch.11
+
+-- 11 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• Ch.11.1 FCL Import fields added to sea_fcl_job_details:
+mbl_number_from_line, hbl_number_from_agent,
+customs_entry_number, customs_examination_details,
+customs_duty_amount, customs_tax_amount,
+customs_clearance_date, actual_eta
+• container_free_days table: container_id, free_days_allowed,
+last_free_day_date, demurrage_start_date, detention_start_date,
+demurrage_rate_per_day, detention_rate_per_day — per container
+• Demurrage + detention auto-calculation service: current date −
+last_free_day × rate; updates daily via cron
+• Ch.11.3 Container return confirmation: record actual return date,
+condition on return
+DEV 2 — FRONTEND & QA
+• Sea FCL Import job creation form: mirror of FCL Export +
+import-specific fields
+• Free days tracking panel: per-container countdown (days remaining
+to LFD), colour coded green→amber→red
+• Demurrage calculator display: running daily accrual per container,
+total demurrage to date
+• Detention calculator display: separate from demurrage,
+per-container
+Tue DEV 1 — BACKEND & INFRA
+• Ch.11.2 FCL Import milestones: BOOKING_CREATED,
+MBL_RECEIVED, ARRIVAL_VESSEL_CONFIRMED,
+CARGO_ARRIVED_AT_POD, CAN_SENT,
+CUSTOMS_ENTRY_FILED, CUSTOMS_CLEARED, DO_ISSUED,
+CONTAINER_PICKED_UP,
+CONTAINER_DELIVERED_TO_CONSIGNEE,
+CONTAINER_RETURNED_TO_SHIPPING_LINE,
+INVOICE_RAISED, PAYMENT_RECEIVED, JOB_CLOSED
+• Customs clearance workflow: PENDING → FILED → QUERY →
+CLEARED → RELEASED
+• Ch.11.3 Customs deposit tracking: deposit_amount,
+deposit_receipt_number, deposit_expiry_date, alert_cron_job
+before expiry
+• Ch.11.3 Port deposit tracking: separate from customs deposit, port
+authority deposit
+DEV 2 — FRONTEND & QA
+• FCL Import milestones tab: all 14 import-specific checkpoints
+• Customs Clearance tab: declaration details, broker assignment
+(from customs broker master), duty amounts, examination details,
+status timeline
+• Customs deposit panel: deposit amount, receipt#, expiry countdown
+(90/60/30/7 day alerts)
+• Port deposit panel: separate port authority deposit tracking
+Wed DEV 1 — BACKEND & INFRA
+• Ch.11.2 Pre-CAN Puppeteer template: pre-arrival notice with vessel
+ETA, BL details, instructions for customs preparation
+• Ch.11.2 CAN (Cargo Arrival Notice) Puppeteer template: official
+arrival notification with all cargo details
+• Ch.11.2 Exchange Letter Puppeteer template: letter to shipping line
+for BL exchange/endorsement
+• Ch.11.2 Undertake Letter Puppeteer template: customs undertaking
+for provisional release of cargo
+• /documents/pre-can, /can, /exchange-letter, /undertake-letter
+endpoints
+DEV 2 — FRONTEND & QA
+• Pre-CAN and CAN document generation + email send UI
+• CAN email modal: pre-filled consignee email, attach CAN + relevant
+docs, schedule send option
+• Exchange Letter and Undertake Letter document buttons
+• CAN sent confirmation on milestone; re-send capability
+Thu DEV 1 — BACKEND & INFRA
+• Ch.11.2 Delivery Order (DO) Puppeteer template: authorization for
+consignee to collect containers from port/terminal
+• Ch.11.2 Transport Request Puppeteer template: inland transport
+authorization to trucker
+• Ch.11.2 Proof of Delivery (POD): record actual_delivery_date,
+delivered_by, received_by, signature_image_path
+• Ch.11.2 Cargo Manifest + Freight Manifest for FCL Import
+• Ch.11.2 Shipping Advice: shipment details advice to consignee
+• Ch.11.2 Proforma Invoice + Job Card for FCL Import
+DEV 2 — FRONTEND & QA
+• Delivery Order generation and issue UI; DO email to consignee
+• Transport Request form (links to trucker from master) and document
+generation
+• POD recording: date, delivered by, received by, signature upload
+field
+• Ch.11.3 Part delivery: record multiple partial deliveries with quantity
+and date; remaining balance auto-calculated
+Fri DEV 1 — BACKEND & INFRA
+• Ch.11.3 Container split (multiple consignees): one FCL container
+assigned portions to different consignees, separate DOs per
+consignee
+• Ch.11.3 Transhipment job: import-to-export link (import job linked to
+outbound export job)
+• Ch.11.3 Storage calculation at CFS: days × rate for cargo held at
+Container Freight Station
+• Ch.11.3 Damage report recording: damage_description, photos,
+survey_report_number
+• Integration test: FCL Import → arrival → CAN → customs →
+demurrage calc → DO → delivery → POD → container return
+DEV 2 — FRONTEND & QA
+• Container split UI: assign portions to multiple consignees, generate
+separate DOs
+• Transhipment link UI: link FCL Import job to a new FCL Export job
+• CFS storage calculation panel: rate per day × days, generate
+storage invoice
+• Damage report form with photo upload
+• Full FCL Import UI flow test end-to-end
+Sat DEV 1 — BACKEND & INFRA
+• FCL Import module signed off; Swagger updated
+DEV 2 — FRONTEND & QA
+• Week 9 full regression; stakeholder demo
+• Update project board
+WEEKLY DELIVERABLE Sea FCL Import · Demurrage/detention auto-calc · Customs deposit with expiry alerts · All 11 import
+documents · Part delivery · Container split · Transhipment link · Damage report
+
+-- 12 of 36 --
+
+WEEK 10 · Invoicing — 25+ Formats, UAE VAT, Credit Notes,
+Purchase Invoices Ch.18
+Mon DEV 1 — BACKEND & INFRA
+• Tables: invoices, invoice_lines, credit_notes, credit_note_lines,
+debit_notes, debit_note_lines, purchase_invoices,
+purchase_invoice_lines; migrations
+• InvoiceService: generateInvoice from job charge lines (all revenue
+lines auto-populated), manual invoice creation
+• Invoice number auto-generation per Ch.2.2 format
+(prefix/year/branch/type/sequence)
+• Ch.18.1 Credit limit check on invoice creation: warn if customer over
+credit limit
+DEV 2 — FRONTEND & QA
+• Invoice List page: INV#, customer, shipment ref, currency, amount,
+tax, total, status, due date
+• Status filter tabs: All / Draft / Sent / Partially Paid / Paid / Overdue /
+Cancelled
+• Overdue amount alert banner at top of page (total overdue AR)
+• Invoice search: by INV#, customer, shipment ref, date range, status
+Tue DEV 1 — BACKEND & INFRA
+• UAE VAT 5% tax engine: applied per charge code configuration
+(Ch.4.5 tax_rate field), tax per line, sub-total, tax total, grand total
+• UAE FTA-compliant tax invoice: TRN (Tax Registration Number) on
+header, VAT amount itemised per line, QR code placeholder for
+UAE e-invoice (future KSA ZATCA use)
+• Multi-currency: invoice in any currency, exchange_rate stored at
+invoice date, base_currency_amount stored
+• Ch.18.1 Partial invoicing: invoice subset of job charges; remaining
+charges invoiced separately
+DEV 2 — FRONTEND & QA
+• Create Invoice form: customer selector, shipment ref, currency
+selector, exchange rate (auto from xe.com or manual)
+• Line items table: add/remove rows, description/qty/unit price, tax
+selector per row, auto-calculate subtotal, tax, total
+• Discount field: fixed amount or percentage; triggers Ch.2.6 discount
+approval workflow if above threshold
+• UAE VAT tax invoice preview: TRN, itemised VAT, Arabic/English
+dual language option
+Wed DEV 1 — BACKEND & INFRA
+• Ch.18.2 Invoice PDF Puppeteer — 25+ format variants: standard,
+UAE VAT tax invoice, proforma, credit note, debit note, agent
+invoice, agent credit note, combined charges, job-wise, multi-job
+group invoice, invoice with stamp, invoice without letterhead,
+invoice with exchange rate, invoice with tax summary, invoice with
+bank details highlighted, invoice with payment terms highlighted
+• Invoice status workflow: DRAFT → POSTED → SENT →
+PARTIALLY_PAID → PAID → OVERDUE → CANCELLED
+• Cancel invoice: create replacement with GL reversal
+• /invoices/:id/pdf endpoint; store in S3; at least 5 distinct PDF
+templates initially
+DEV 2 — FRONTEND & QA
+• Invoice Detail page: header with status badge and action buttons,
+line items table, tax breakdown panel, payment status panel
+• PDF format selector: choose from available format variants
+• PDF preview pane in invoice detail
+• Action buttons: Edit, Post, Send, Record Payment, Download PDF,
+Cancel, Mark Copy
+Thu DEV 1 — BACKEND & INFRA
+• Email invoice endpoint: attach PDF, send to customer, update
+status to SENT, log event to email_log
+• Ch.18.1 Proforma to invoice: convert proforma invoice to final
+invoice in one click
+• Ch.18.3 CreditNoteService: full or partial credit against posted
+invoice, mandatory reason code, Ch.2.6 approval above threshold
+• Ch.18.3 DebitNoteService: additional charges to customer,
+mandatory reason
+• Credit/Debit Note PDF: same format as invoice; GL automatically
+reverses on posting
+DEV 2 — FRONTEND & QA
+• Send Invoice modal: To/CC, message, attach PDF checkbox, CC
+finance team
+• Proforma → Invoice conversion button on proforma invoice detail
+• Credit Note form: select original invoice, enter credit lines (partial or
+full), reason code selector
+• Debit Note form: enter additional charges with reason
+• Credit Note detail view linked from invoice detail
+Fri DEV 1 — BACKEND & INFRA
+• Ch.18.4 Purchase Invoice (vendor bill): book supplier invoice from
+job cost lines, supplier ref#, purchase invoice date (supplier date),
+VAT on purchase (input tax), Ch.2.6 approval workflow, purchase
+credit note creation
+• Ch.18.4 LPO (Local Purchase Order): create LPO before receiving
+supplier invoice, match PI to LPO
+• Ch.18.5 Payment Request: create from job cost line, payee,
+amount, currency, bank account, due date, urgency flag, Ch.2.6
+multi-level approval, convert approved request to payment voucher
+in one click
+• Overdue detection cron: daily check due dates, mark OVERDUE,
+send reminder email
+DEV 2 — FRONTEND & QA
+• Purchase Invoice list and form (vendor bill)
+• LPO creation form and match-to-PI flow
+• Payment Request form, approval workflow UI, pending dashboard
+• Overdue invoice row highlighting and alert badge
+• QA: UAE VAT 5% applied correctly, TRN displayed, all 25+ format
+variants selectable
+Sat DEV 1 — BACKEND & INFRA
+• Swagger for /invoices, /credit-notes, /purchase-invoices,
+/payment-requests
+• Review with accountant
+DEV 2 — FRONTEND & QA
+• Week 10 invoice module full regression
+• Update project board
+WEEKLY DELIVERABLE Full invoicing: 25+ formats · UAE VAT 5% FTA-compliant · Credit/Debit notes · Vendor bills · LPO ·
+Payment requests with multi-level approval · Proforma conversion
+WEEK 11 · AR, AP, General Ledger, Vouchers, Banking Ch.17, Ch.19
+
+-- 13 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• Ch.17.1 Chart of Accounts: account_groups
+(Assets/Liabilities/Equity/Revenue/Expenses), account_types,
+account_sub_types (Bank/Cash/Trade Receivable/Trade
+Payable/etc.), individual accounts, account_code, multilingual
+names, opening_balance, sub-ledger
+(customer-wise/agent-wise/employee-wise), cost_center_id,
+asset_code, tax_account_type (VAT_OUTPUT/VAT_INPUT)
+• Ch.17.1 GL account mapping: each charge_code maps to
+revenue_gl_account_id and cost_gl_account_id — auto-posting
+when invoice raised
+• Ch.17.1 Group consolidation: group companies share COA
+structure for consolidated P&L; (multi-branch)
+• Tables: chart_of_accounts, journal_entries, journal_lines,
+cost_centers; migrations
+DEV 2 — FRONTEND & QA
+• Chart of Accounts page: hierarchical tree view (Groups → Types →
+Sub-Types → Accounts), create/edit accounts
+• Account code entry and validation (alphanumeric, unique per
+tenant)
+• GL account mapping UI: link each charge code to revenue and cost
+GL accounts
+• Cost Center management page
+Tue DEV 1 — BACKEND & INFRA
+• Ch.17.2 All 9 voucher types: Journal Voucher (JV), Bank Payment
+Voucher (BPV), Cash Payment Voucher (CPV), Bank Receipt
+Voucher (BRV), Cash Receipt Voucher (CRV), Contra Voucher
+(CV), Purchase Invoice Voucher, Purchase Credit Note Voucher,
+Recurring Voucher, Opening Balance Voucher
+• Ch.17.3 Voucher features: multi-line unlimited, multi-currency per
+line, cost center per line, asset code per line, auto-tax calculation,
+narration per line and per voucher, auto/manual ref#, draft→post
+workflow, approval before posting, duplication, reversal, recurring
+schedule, attachment
+• Auto-create GL entries on: invoice posted, payment received, credit
+note posted, vendor bill posted, vendor bill paid
+• Voucher number auto-generation per Ch.2.2 format (type
+prefix/year/sequence)
+DEV 2 — FRONTEND & QA
+• Voucher entry UI: all 9 voucher types selectable, multi-line grid with
+unlimited rows
+• Per-line fields: account selector, debit/credit amounts, currency, cost
+center, asset code, narration
+• Draft→Post workflow with approval routing (Ch.2.6)
+• Voucher reversal: creates offsetting entry, links original and reversal
+Wed DEV 1 — BACKEND & INFRA
+• Ch.17.4 GL management: GL Register view (all transactions per
+account per period), account-wise GL report (with opening/closing
+balance), multi-period GL comparison, drill-down from Balance
+Sheet to GL entries, GL budget entry per account per period,
+budget vs actual GL, year-end closing with carry-forward,
+inter-branch accounting (creates inter-company entries),
+inter-department billing, GL CSV import for opening balances
+• Ch.19.1 AR: aging 0-30/31-60/61-90/91-120/120+ buckets, aging
+with comments (collection notes per customer per bucket),
+outstanding report, outstanding statement (PDF), statement by
+email with invoice copies attached, advance receipt, advance
+adjustment, write-off with GL to bad debt, credit note offset
+• Payment service: record payment, allocate to one or multiple
+invoices (partial and split)
+• payments table + payment_allocations (many-to-many) tables
+DEV 2 — FRONTEND & QA
+• GL Register page: account selector, date range, all transactions with
+running balance, export to PDF/XLS
+• Ch.17.4 Multi-period GL comparison: side-by-side columns for
+multiple months
+• AR Aging Report: customer-wise buckets, collection notes editable
+inline, outstanding statement email button, attach PDF invoice
+copies checkbox
+• Record Payment modal: amount, method, reference, date,
+allocate-to-invoices with remaining balance display
+Thu DEV 1 — BACKEND & INFRA
+• Ch.19.2 AP: aging report (supplier-wise), outstanding report,
+supplier statement view, payment due date tracking, early payment
+discount tracking, advance payment to supplier, advance
+adjustment, AP reconciliation with supplier statement, AP write-off
+• Ch.19.3 Banking: multiple bank accounts per branch
+(multi-currency), bank position report, bank statement import
+(CSV/Excel), bank reconciliation (match system vs bank
+statement), cheque management
+(issued/presented/cleared/bounced), cheque printing in bank
+format, PDC management (record + maturity alerts cron),
+inter-bank transfer, bank charges recording
+• Ch.19.4 Voucher matching: 8 matching scenarios (single-to-single,
+single-to-multiple, multiple-to-single, receipt+advance, payment+PI,
+auto-match by ref, manual override, un-match and re-allocate)
+• Tables: bank_accounts, bank_reconciliations, cheques,
+post_dated_cheques
+DEV 2 — FRONTEND & QA
+• AP Aging Report page (same structure as AR)
+• Bank Management page: list bank accounts with current balance,
+multi-currency
+• Bank Reconciliation page: import statement CSV, match
+transactions (auto-suggest + manual), reconciled vs unreconciled
+view
+• PDC Register: list of PDCs with maturity dates, deposit status, alert
+indicator
+• Cheque management: list with status, cheque printing UI
+
+-- 14 of 36 --
+
+Fri DEV 1 — BACKEND & INFRA
+• Ch.17.4 Budget vs Actual GL: enter budget per GL account per
+period, compare against actual GL postings
+• Ch.19.5 Customer Credit Portal (CCP): customer logs in to see
+outstanding invoices, download invoice PDFs, view payment
+history, credit limit and available credit, download aging statement,
+request credit limit increase, raise invoice dispute, view credit notes
+applied
+• Ch.19.6 Vendor Payment Portal (VPP): vendor views outstanding
+PIs, payment history, download remittance advice, submit new
+invoice, view advance payments, view TDS deductions (India -
+Phase 3), download credit notes, payment schedule, raise dispute
+• Integration test: invoice → GL auto-post → payment → allocation →
+AR aging → Trial Balance → PDC maturity alert
+DEV 2 — FRONTEND & QA
+• GL Budget Entry page: enter budget amounts per account per
+period, compare against actuals
+• CCP preview (full portal Week 13 — this week: API and basic UI
+ready)
+• VPP preview (full portal Week 14 — this week: API and basic UI
+ready)
+• QA: GL entries created correctly for all financial events; double-entry
+always balances
+Sat DEV 1 — BACKEND & INFRA
+• Swagger for /gl, /vouchers, /payments, /bank-accounts, /pdcs
+• Review GL structure with accountant
+DEV 2 — FRONTEND & QA
+• Week 11 full finance regression
+• Update project board
+WEEKLY DELIVERABLE COA · All 9 voucher types · GL auto-posting · AR/AP aging · Bank reconciliation · Cheques · PDC
+management · Voucher matching (8 scenarios) · CCP/VPP APIs
+WEEK 12 · Financial Reports · MIS Dashboard · My Reports · Job P&L; Ch.17, Ch.20, Ch.23
+Mon DEV 1 — BACKEND & INFRA
+• Ch.20.1 Trial Balance: all account balances debit/credit for period,
+date range, branch filter, department filter, zero balance hide,
+export PDF/XLS
+• Ch.20.1 Balance Sheet: assets/liabilities/equity as at date,
+comparative period, drill-down to GL, grouped by account type,
+export
+• Ch.20.1 Profit & Loss Report: revenue vs expense for period,
+month-wise pivot, department-wise, salesperson-wise, branch-wise
+• Ch.20.1 Cash Flow Statement: operating/investing/financing for
+period, direct and indirect method, export
+DEV 2 — FRONTEND & QA
+• Trial Balance page: hierarchical account tree with debit/credit
+columns, exportable
+• Balance Sheet page: standard format with comparative column;
+click any figure to drill down to GL (Ch.17.4)
+• P&L; Report: month-wise pivot table with department and
+salesperson toggles
+• Cash Flow Statement page
+Tue DEV 1 — BACKEND & INFRA
+• Ch.20.1 Group P&L; (Multi-Company): combined P&L; across
+branches with inter-company elimination
+• Ch.20.1 Job P&L; Report: per-job revenue, cost, GP — by job type,
+date, customer, salesperson, provisional vs final
+• Ch.20.1 Sub-Job P&L; Report: per-consignment GP within a master
+job, prorate cost allocation view
+• Ch.20.2 VAT Return Report UAE: input VAT + output VAT summary
+for UAE FTA filing; VAT Return KSA (ZATCA format placeholder),
+Oman VAT, India GST (GSTR-1/3B placeholder), Malaysia SST
+placeholder; Tax Invoice Register, Input Tax Credit (ITC) Report
+DEV 2 — FRONTEND & QA
+• Group P&L; page: multi-branch consolidation view
+• Job P&L; panel in Finance tab of each job: revenue, cost, GP, GP%
+— can_see_job_pnl gated
+• Sub-Job P&L;: per-house-job GP within master job, prorate
+breakdown
+• UAE VAT Return Report: input/output VAT summary formatted for
+FTA filing, export to PDF/XLS
+Wed DEV 1 — BACKEND & INFRA
+• Ch.20.3 AR reports: AR aging (consolidated), AR aging by
+salesperson, AR aging by branch, customer-wise AR outstanding,
+overdue invoice report, credit note register
+• Ch.20.3 AP reports: AP aging (consolidated), AP aging by
+department, supplier-wise AP outstanding, overdue payable report,
+debit note register, AP reconciliation report
+• Ch.20.4 Banking reports: bank position (all accounts), bank
+reconciliation statement, cheque status report, PDC maturity report,
+cash book report, bank transaction register, inter-bank transfer
+report, bank charges report, cash flow forecast, daily collection
+report
+• Ch.20.5 Fixed Asset reports: asset register, asset by category, book
+value, depreciation schedule, accumulated depreciation,
+revaluation, transfer, fully depreciated list, disposal, location reports
+DEV 2 — FRONTEND & QA
+• AR Reports section: all 6 AR report types with filters and export
+• AP Reports section: all 6 AP report types with filters and export
+• Banking Reports section: all 10 report types
+• Fixed Asset Reports section (placeholder — full fixed asset module
+in Phase 3)
+
+-- 15 of 36 --
+
+Thu DEV 1 — BACKEND & INFRA
+• Ch.23.1 Management Dashboard: all 17 widgets — bookings count,
+jobs count by type, quotations count+conversion rate, sales vs cost
+with GP, budget vs actuals bar, AR total+aging summary, AP
+total+aging summary, turnover, provisional GP, tradeline
+profitability, weekly sales, monthly sales trend, top 10 customers by
+revenue, top 10 customers by GP, top 10 salesperson by revenue,
+top 10 salesperson by GP, department-wise dashboard
+• Ch.23.2 Profitability reports: all 16 types — agent
+profitability/volume, client profitability/volume, salesperson
+profitability/volume, airline profitability/tonnage, shipping line
+profitability/TEU, country-wise, department-wise, tradeline,
+product-wise, job type, service type analysis
+• Ch.23.3 Operational reports: job list, shipment status, pending
+delivery, pending invoice, pending pre-alert, pending cost entry,
+booking vs job conversion, container status (FCL), vessel schedule,
+AWB stock, loading plan, exception report, KPI report, SLA
+compliance, milestone completion
+• Report export: PDF, XLS, XLSX, CSV, print, pivot table, bar/line/pie
+chart for all reports
+DEV 2 — FRONTEND & QA
+• Management Dashboard single-page with all 17 widgets (charts via
+recharts)
+• Ch.2.1 User-wise homepage: each user selects which dashboard
+widgets appear on their homepage
+• Profitability Reports section: all 16 report types with date range,
+breakdown selectors, export
+• Operational Reports section: all 15 report types with filters and
+export
+Fri DEV 1 — BACKEND & INFRA
+• Ch.23.4 My Reports (Smart Report Tool): field selector from all
+modules, multiple simultaneous filters, sort order, group-by any
+field, save report template with name, run saved report anytime,
+export to PDF/XLS/XLSX, schedule by email, pivot table view, chart
+view (bar/line/pie)
+• Ch.23.5 Report export: all 5 formats + scheduled email reports
+• Banking reconciliation service: import CSV, match against system
+transactions, mark reconciled
+• Integration test: full financial cycle — job → invoice → payment →
+GL → Trial Balance → P&L; → MIS dashboard
+DEV 2 — FRONTEND & QA
+• My Reports page: field picker from module list, filter builder,
+sort/group controls, save template, output table with all export
+buttons
+• Scheduled report configuration: select report, frequency
+(daily/weekly/monthly), recipient emails
+• Bank Reconciliation page: import statement, auto-match
+suggestions, manual match, unreconciled report
+• QA management dashboard: all 17 widgets show correct data
+Sat DEV 1 — BACKEND & INFRA
+• PHASE 1 sign-off: Air Export + Sea FCL Ex/Im + Full Finance + MIS
+Dashboard confirmed working
+• Swagger for all report endpoints
+DEV 2 — FRONTEND & QA
+• Week 12 full regression test
+• PHASE 1 stakeholder demo: end-to-end from quote to payment to
+dashboard
+WEEKLY DELIVERABLE Trial Balance · B/S · P&L; · Cash Flow · UAE VAT Return · All AR/AP/Banking reports · 17-widget MIS
+Dashboard · 16 profitability reports · 15 operational reports · My Reports builder · PHASE 1 COMPLETE
+
+-- 16 of 36 --
+
+PHASE 2 — FULL PLATFORM (Weeks 13–21) · Spec Chapters 6, 9, 12–15, 21–22, 24–27
++ NVOCC Module
+WEEK 13 · Customer Portal · Track & Trace Widget · Notification
+System Ch.24
+Mon DEV 1 — BACKEND & INFRA
+• Ch.24.1 Customer Web Portal: separate auth flow (portal_sessions
+table, portal-scoped JWT), customer logs in with own credentials
+• Portal API: shipment list (own shipments only filtered by
+customer_id), shipment detail, milestone status, document list (per
+portal_permissions config)
+• Ch.24.1 Portal features: all their shipments with status/ETD/ETA,
+shipment detail click-through, document download (rights
+configured by forwarder), real-time milestone status updates
+• Portal invoice API: own invoices with amounts and due dates,
+invoice PDF download, payment history, outstanding balance,
+account statement PDF, credit notes view, quotations view
+DEV 2 — FRONTEND & QA
+• Customer Portal UI (separate route group /(portal)/customer): login,
+dashboard with shipment summary
+• Portal Shipment List: own shipments, status badges, ETD/ETA
+• Portal Shipment Detail: milestone timeline with icons (Track & Trace
+view), cargo summary
+• Portal Documents: list of available documents per job, download
+buttons (per permission)
+Tue DEV 1 — BACKEND & INFRA
+• Ch.24.1 Portal admin controls: forwarder configures which
+document types each customer can see/download
+(portal_permissions table: customer_id, document_type, can_view,
+can_download)
+• Ch.24.1 Contact Forwarder: customer sends message to forwarder
+from portal, stored in portal_messages table, notifies relevant staff
+• Ch.24.2 Track & Trace public endpoint: GET
+/track?ref={job#_or_bl#_or_awb#} — no auth, returns milestone
+timeline, current status, ETD/ETA, cargo summary (configurable
+visibility)
+• Embeddable widget: returns self-contained HTML/JS snippet with
+company branding, no Fresa branding on public widget
+DEV 2 — FRONTEND & QA
+• Portal Invoice view: all invoices with status, amount, due date,
+download PDF
+• Portal Outstanding Balance: current AR balance, aging breakdown,
+statement PDF download
+• Portal Contact Forwarder form: message, subject, attachments
+• Ch.24.2 Track & Trace public page: enter reference → see
+milestone timeline → cargo details
+Wed DEV 1 — BACKEND & INFRA
+• In-app notification system: notifications table (user_id, type, title,
+message, entity_type, entity_id, is_read, created_at)
+• /notifications endpoints: GET list (paginated, unread first), POST
+mark-read/:id, POST mark-all-read
+• Notification triggers: invoice overdue → finance staff, job milestone
+updated → assigned ops staff, quotation approved/rejected →
+salesperson, payment received → finance staff, PDC maturity
+approaching → finance staff, document expiry (HR) → HR staff,
+credit limit exceeded → finance staff
+• Portal admin document rights: portal_permissions table
+(customer_id, document_type, can_view, can_download) —
+forwarder configures per customer which doc types are visible
+DEV 2 — FRONTEND & QA
+• In-app notification bell in topbar: unread count badge, dropdown
+with latest 10 notifications
+• Notifications list page: full notification history, filter by type,
+mark-all-read button
+• Notification click-through: clicking any notification navigates to the
+relevant entity (job, invoice, quote)
+• Portal document rights admin UI: per-customer document access
+configuration table with toggle switches
+Thu DEV 1 — BACKEND & INFRA
+• Ch.24.1 Customer Credit Portal (CCP) — Ch.19.5 features:
+customer views outstanding invoices, payment history, credit limit
+and available credit, aging statement download, request credit limit
+increase, raise invoice dispute, view credit notes applied
+• CCP dispute endpoint: portal_disputes table; dispute notification
+routed to finance staff
+• Ch.24.1 Quotation view in portal: customer sees quotations sent to
+them with status, validity, amount
+• Portal session security: short-lived portal JWT (4h), refresh only
+from portal login, isolated from staff JWT scope
+DEV 2 — FRONTEND & QA
+• Portal Credit & Payments page: outstanding invoices list, payment
+history, credit limit gauge
+• Aging statement PDF download from portal
+• Credit limit increase request form in portal
+• Invoice dispute form: raise dispute with description, attach
+supporting document
+• Portal Quotations view: read-only list of quotations sent to this
+customer
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: customer portal login → own shipments only →
+document download rights enforced → invoice view → Track &
+Trace → outstanding statement → raise dispute
+• Security test: customer A cannot access customer B
+shipments/invoices/documents (RLS + portal_permissions
+verification)
+• Integration test: notification triggers fire correctly for all 7 notification
+types
+• Fix all bugs
+DEV 2 — FRONTEND & QA
+• Full portal UI test: login → shipments → Track & Trace → invoices
+→ aging statement → credit limit → raise dispute → quotations →
+contact forwarder
+• QA: document access respects portal_permissions config (test with
+3 different permission configurations)
+• QA: notification bell updates in real-time; click-through navigates to
+correct entity
+• QA: Track & Trace widget works with job#, BL#, and AWB#
+reference types
+
+-- 17 of 36 --
+
+Sat DEV 1 — BACKEND & INFRA
+• Customer portal + Track & Trace + Notification system signed off
+DEV 2 — FRONTEND & QA
+• Week 13 review; stakeholder demo of customer portal and Track &
+Trace
+• Update project board
+WEEKLY DELIVERABLE Customer Portal (all Ch.24.1 + Ch.19.5 features) · Track & Trace public widget · In-app notification system
+(7 trigger types) · Portal document rights per customer
+WEEK 14 · Vendor Portal · CRM / Sales Module Ch.24, Ch.6
+Mon DEV 1 — BACKEND & INFRA
+• Ch.24.3 Vendor Payment Portal (VPP): separate auth, vendor logs
+in with own credentials
+• VPP API: outstanding purchase invoices, payment status
+(paid/partially paid/overdue), remittance advice PDF download,
+new invoice submission via portal, advance payment view, credit
+note view, account statement download, dispute raising
+(portal_disputes table), TDS certificate download placeholder (India
+Phase 3)
+• vendor_portal_sessions table, vendor portal permissions
+• VPP payment schedule view: all upcoming payment due dates
+DEV 2 — FRONTEND & QA
+• Vendor Portal UI (/(portal)/vendor route group): login, outstanding
+invoice list, payment status badges
+• Remittance advice download per payment
+• Vendor invoice submission form with file upload (PDF of supplier
+invoice)
+• Dispute form: flag a payment dispute with description and
+supporting docs
+Tue DEV 1 — BACKEND & INFRA
+• Ch.6.2 Lead Management: leads table (company, contact,
+potential_volume, service_requirements, source:
+referral/cold_call/email/exhibition/website, status: New/In
+Progress/Qualified/Proposal Sent/Won/Lost/On Hold,
+assigned_salesperson_id, priority: High/Medium/Low, tags,
+conversion to customer)
+• Lead pipeline Kanban view endpoint: leads grouped by status stage
+• Lead import: bulk import from CSV/Excel
+• Lead history: full timeline of all interactions
+DEV 2 — FRONTEND & QA
+• CRM module sidebar: Leads, Enquiries, Call Log, Follow-ups, Email
+Campaigns, Budget
+• Lead List page: table with lead name, source badge, status, priority,
+assigned salesperson, potential value
+• Lead Detail: contact info, interaction timeline, follow-up scheduler,
+convert-to-customer button
+• Lead Kanban board: drag cards across stages
+Wed DEV 1 — BACKEND & INFRA
+• Ch.6.3 Call Sheet / Daily Call Log: call_logs table — date_time,
+customer_or_prospect_id, contact_person, call_type
+(Visit/Phone/Video/Email), purpose
+(Prospecting/Follow-up/Complaint/Renewal/Introduction),
+discussion_summary, outcome
+(Positive/Negative/Neutral/Quotation Requested/Complaint
+Resolved), next_action, next_followup_date, gps_latitude,
+gps_longitude (optional manual entry or browser geolocation),
+duration_minutes, attachments
+• Ch.6.4 Enquiry Management: enquiries table — service_type, origin,
+destination, cargo_details, incoterms, special_requirements, status
+(New/Quoted/Booked/Lost/Cancelled), link to quotation
+• Ch.6.5 Follow-up Management: follow_ups table with due_date,
+completion status, reminder emails, calendar view endpoint,
+overdue alerts cron
+• Follow-up list per salesperson, manager view of team follow-ups
+DEV 2 — FRONTEND & QA
+• Call Log entry form: all Ch.6.3 fields; web form with optional browser
+geolocation capture for visit GPS coordinates
+• Daily Call Sheet view: list of calls/visits for today per salesperson
+• Enquiry form: service type selector, origin/destination, cargo details,
+convert-to-quote button
+• Follow-up List: all pending follow-ups sorted by due date, overdue
+badge, reschedule option
+Thu DEV 1 — BACKEND & INFRA
+• Ch.6.6 Email Marketing: subscribers table, subscriber import CSV,
+unsubscribe management, campaign creation
+(subject/body/attachments), template library, send to all or filtered
+groups (by type/country/service), delivery reports
+(sent/delivered/opened counts), schedule campaigns for future date
+• Ch.6.7 Salesperson Budget: salesman_budgets table
+(monthly/quarterly/annual per salesperson per job type), budget vs
+actual query
+• Ch.6.8 Sales Dashboard data endpoints: all 14 report types —
+weekly sales, monthly sales, salesman-wise revenue+volume,
+customer-wise revenue, top 10 customers, top 10 salesman, trade
+lane analysis, service type analysis, win/loss analysis, call log
+summary, lead pipeline, budget vs actual
+DEV 2 — FRONTEND & QA
+• Email Campaign UI: create campaign, HTML body editor, select
+subscribers, schedule or send now, delivery report
+• Email Template Library: create/edit reusable templates (vessel
+schedules, rate sheets, newsletters)
+• Salesperson Budget Entry page: monthly targets per salesperson
+per job type
+• Ch.6.8 Sales Dashboard: all 14 KPIs with charts (bar, donut,
+horizontal bar, line trend)
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: lead → call log → follow-up → enquiry → quotation
+→ job (full CRM pipeline)
+• Integration test: vendor portal — vendor logs in, views invoices,
+submits new invoice, downloads remittance
+• Integration test: email campaign → send → delivery report
+• Fix all bugs from this week
+DEV 2 — FRONTEND & QA
+• Full CRM flow UI test: lead Kanban → call log → follow-up calendar
+→ enquiry → quote conversion
+• Full vendor portal UI test; QA vendor cannot see another vendor's
+data
+• QA email campaign: delivery report shows correct counts
+• Fix UI bugs
+
+-- 18 of 36 --
+
+Sat DEV 1 — BACKEND & INFRA
+• Vendor portal + full CRM signed off; Swagger updated
+DEV 2 — FRONTEND & QA
+• Week 14 review; stakeholder demo of CRM and vendor portal
+• Update project board
+WEEKLY DELIVERABLE Vendor Payment Portal (all Ch.24.3 features) · Full CRM: Leads/Call Logs/Enquiries/Follow-ups/Email
+Marketing/Budget · All 14 Sales Dashboard reports
+WEEK 15 · Air Import — All Features, Documents, Special Workflows Ch.9
+Mon DEV 1 — BACKEND & INFRA
+• Ch.9.1 Air Import job fields (additions to air_job_details):
+mawb_number_from_origin, hawb_number_from_origin_agent,
+arrival_flight_number, actual_eta, agent_at_origin_id,
+consignee_id, notify_id, delivery_address, final_destination,
+customs_value, dg_details, special_handling_notes
+• Ch.9.3 Air Import milestones: BOOKING_CREATED,
+MAWB_RECEIVED, CARGO_MANIFESTED,
+CARGO_ARRIVED_AT_DESTINATION_AIRPORT,
+CARGO_RELEASED_BY_AIRLINE, CUSTOMS_ENTRY_FILED,
+CUSTOMS_CLEARED, CARGO_RELEASED_FROM_CUSTOMS,
+CAN_SENT, DO_ISSUED, CARGO_OUT_FOR_DELIVERY,
+DELIVERED_TO_CONSIGNEE, POD_RECEIVED,
+INVOICE_RAISED, PAYMENT_RECEIVED, JOB_CLOSED
+• Ch.9.4 Customs deposit tracking: deposit_amount,
+deposit_receipt_number, deposit_expiry_date, alert_cron_job
+(30/60/90 day alerts)
+• Ch.9.4 Customs examination recording: examination date,
+examining officer, items examined, result
+DEV 2 — FRONTEND & QA
+• Air Import job creation form: all Ch.9.1 fields
+• Air Import milestones tab: all 16 import-specific checkpoints
+• Customs deposit panel: deposit amount, receipt#, expiry countdown
+(colour-coded urgency)
+• Customs examination entry form
+Tue DEV 1 — BACKEND & INFRA
+• Ch.9.2 Pre-CAN Puppeteer template: pre-arrival notice sent before
+flight lands
+• Ch.9.2 CAN Puppeteer template: official cargo arrival notice with all
+import job details
+• Ch.9.2 Freight Manifest template for Air Import
+• Ch.9.2 Freight Certificate template: certificate confirming freight
+charges paid
+• /documents/pre-can, /can, /freight-manifest, /freight-certificate
+endpoints for Air Import jobs
+DEV 2 — FRONTEND & QA
+• Pre-CAN and CAN generation + email send UI for Air Import
+• CAN email modal: consignee email pre-filled, schedule send option,
+document attachments
+• Freight Certificate document button
+• CAN sent indicator on milestone card
+Wed DEV 1 — BACKEND & INFRA
+• Ch.9.2 Proforma Invoice, Job Card, Job P&L; Statement, Shipping
+Advice for Air Import
+• Ch.9.2 Delivery Order: authorization for consignee to collect cargo
+from airline terminal/warehouse
+• Ch.9.2 Proof of Delivery: actual_delivery_date, delivered_by,
+received_by_name, signature_image
+• Ch.9.4 Part delivery: multiple partial releases — record
+qty_released, remaining_qty auto-calculated
+DEV 2 — FRONTEND & QA
+• All Air Import documents in Documents tab: Pre-CAN, CAN, Freight
+Manifest, Freight Certificate, Proforma, Job Card, P&L;, Shipping
+Advice, DO, POD
+• DO generation and email to consignee
+• POD recording form with signature image upload
+• Part delivery log: table of partial releases with date, qty, balance
+remaining
+Thu DEV 1 — BACKEND & INFRA
+• Ch.9.4 Storage calculation on import: days in airline
+warehouse/CFS × rate per KG or CBM,
+storage_invoice_generation
+• Ch.9.4 Storage charges invoice: auto-generate from storage
+calculation, link to job
+• Ch.9.4 Transhipment handling: import-to-export job link (arrived as
+import, re-exported as Air Export or Sea FCL Export)
+• Ch.9.4 Damage / short-landing report: damage_type, quantity_short,
+damage_photos, survey_report_number, notify_to list
+• Ch.9.4 Inter-office import from branches: job originated at another
+branch of same tenant
+• Ch.9.4 Transport request for delivery: link to transport_requests
+table (shared across all job types)
+DEV 2 — FRONTEND & QA
+• Storage calculator panel: rate config, days elapsed since cargo
+arrived, amount due, generate storage invoice button
+• Transhipment link UI: link Air Import job to outbound Air Export or
+Sea FCL Export job
+• Damage/short-landing report form with photo upload and notify list
+• Inter-office import indicator: shows originating branch details
+• Transport request creation from Air Import job detail
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: Air Import job → MAWB received → cargo arrived
+→ customs → CAN → DO → delivery → POD
+• Test customs deposit expiry alert fires at correct thresholds
+(30/60/90 days)
+• Test part delivery balance calculation
+• Test storage invoice generation from storage calculator
+• Fix all bugs
+DEV 2 — FRONTEND & QA
+• Full Air Import UI flow test end-to-end
+• QA: all 10 Air Import document types generate correctly
+• QA: part delivery — verify qty remaining decrements correctly
+across multiple releases
+• Fix UI bugs
+
+-- 19 of 36 --
+
+Sat DEV 1 — BACKEND & INFRA
+• Air Import module signed off; Swagger updated
+DEV 2 — FRONTEND & QA
+• Week 15 review; stakeholder demo of Air Import
+• Update project board
+WEEKLY DELIVERABLE Air Import fully operational · All 16 milestones · CAN/DO/POD · Freight Certificate · Customs deposit alerts
+· Part delivery · Storage invoicing · Transhipment · Damage report
+WEEK 16 · HR Module — All Features (Employee, Leave, Payroll,
+Loans, Timesheets, Evaluations) Ch.21
+Mon DEV 1 — BACKEND & INFRA
+• Ch.21.1 Employee Master tables: employees,
+employee_documents, employee_dependents; all fields —
+personal info (name, DOB, nationality, gender, marital status,
+photo), contact (mobile, email, emergency contact), employment
+(employee_id, joining_date, department_id, designation_id,
+branch_id, employment_type), designation hierarchy
+(reporting_manager_id, department_head_id, skip_level_id), salary
+(basic, housing, transport, mobile, overtime components,
+bank_account for payroll)
+• Ch.21.1 Identity documents on employee: passport, national_id,
+visa, labor_card, emirates_id — with expiry_dates
+• Ch.21.1 Dependent details: spouse and children with their own
+document expiry fields
+• Ch.21.1 Skills, qualifications, employment history, contract details
+(limited/unlimited, start/end), notice period, probation period, staff
+grade, performance_evaluation_score
+DEV 2 — FRONTEND & QA
+• Employee Directory: card grid + table toggle, search, filter by
+department/designation/status/branch
+• Employee Profile page: personal, contact, employment, salary,
+identity documents, dependents, skills, employment history,
+contract details — all in tabbed sections
+• Department Management: create/edit departments with head
+assignment
+• Designation Management: hierarchy with reporting structure
+Tue DEV 1 — BACKEND & INFRA
+• Ch.21.2 Document expiry alert service: cron runs daily; alerts at
+90/60/30/7 days before expiry for passport (employee), passport
+(dependents), visa (employee), visa (family), labor card, medical
+insurance, emirates ID, driving license, professional certification,
+contract — all configurable alert periods; bulk expiry report endpoint
+• Tables: leave_policies, leave_requests, leave_entitlements,
+leave_balances
+• Ch.21.3 Leave types: Annual Leave, Sick Leave, Unpaid Leave,
+Maternity/Paternity, Emergency Leave, Hajj Leave — configurable
+entitlement days per leave type per staff grade
+• Leave request workflow: employee submits → manager
+approves/rejects/returns with comments; leave_calendar endpoint
+for team overlap detection; public holiday integration (excludes
+public holidays from leave count)
+DEV 2 — FRONTEND & QA
+• HR Dashboard: document expiry alerts panel (colour-coded by
+urgency), expiry calendar
+• Bulk expiry report: all employees with expiring documents in next
+30/60/90 days
+• Leave Application form: type selector, date range picker
+(auto-excludes weekends+public holidays), reason, attachment
+• Leave Approvals inbox for managers: pending requests with
+approve/reject/return buttons
+Wed DEV 1 — BACKEND & INFRA
+• Leave balance service: used/remaining per employee per leave
+type, real-time
+• Leave carry-forward config: max days carried to next year, per leave
+type
+• Leave encashment calculation: balance payout on resignation/end
+of service
+• Ch.21.3 Leave Calendar: team view endpoint showing all approved
+leaves by month; absent report (absent without approved leave)
+• Attendance log: manual clock-in/clock-out entry; attendance log per
+employee per day
+DEV 2 — FRONTEND & QA
+• Leave Balance widget on employee profile: used/remaining per
+type, visual progress bars
+• Leave Calendar: monthly team view, colour-coded by employee,
+who-is-on-leave-today widget
+• Attendance Log page: daily attendance per employee, filter by
+month, absent report
+• Leave encashment calculator on employee profile
+Thu DEV 1 — BACKEND & INFRA
+• Ch.21.4 Payroll: salary_components config (Basic, Housing,
+Transport, Mobile, Overtime, other allowances), monthly
+salary_sheets generation for all employees, bonus calculation
+(based on Ch.21.7 evaluation score), overtime calculation (hours
+above standard × rate), deductions (loan installments, advances,
+social security)
+• Ch.21.4 WPS compliance UAE: WPS file generation in Wages
+Protection System format for UAE Ministry of Labour
+• Ch.21.4 End of service / gratuity calculation per UAE Labour Law
+(21 days per year for first 5 years, 30 days per year after)
+• Ch.21.4 Payslip PDF generation per employee; payslip email to
+employee
+• Ch.21.4 Payroll GL posting: payroll costs auto-posted to relevant GL
+accounts
+DEV 2 — FRONTEND & QA
+• Payroll Generation page: list all employees with salary components,
+editable overrides, generate monthly sheet button
+• WPS file download: bank transfer file in UAE WPS format
+• Gratuity/End of Service calculator with breakeven and entitlement
+display
+• Payslip preview and email send per employee
+• Payroll summary: total payroll cost per department
+
+-- 20 of 36 --
+
+Fri DEV 1 — BACKEND & INFRA
+• Ch.21.5 Loans & Advances: loan_applications, loan_approval
+workflow, EMI calculation, repayment schedule, auto-deduction
+from monthly salary, advance recording, advance adjustment from
+salary; outstanding loan report, loan history per employee
+• Ch.21.6 Timesheets: daily timesheet entry, project/job time
+allocation, overtime hours, manager approval, billable vs
+non-billable, timesheet export to payroll, missing timesheet alert
+cron
+• Ch.21.7 Performance Evaluation: KPI-based templates,
+self-assessment, manager assessment, 360-degree option, annual
+cycle, score calculation, score linked to bonus, promotion
+recommendation
+• Ch.21.8 HR Letters (Puppeteer templates): appointment,
+confirmation, salary revision, warning, experience certificate,
+employment certificate, NOC letter, resignation acceptance, end of
+service letter, reference letter
+DEV 2 — FRONTEND & QA
+• Loan application and approval UI; repayment schedule display
+• Timesheet entry UI: daily grid, project/job selector, billable flag
+• Performance Evaluation form: KPIs, self-assessment, manager
+assessment
+• HR Letters generation: select letter type, employee auto-populates,
+generate PDF
+• Integration test: employee → leave → payroll → loan deduction →
+evaluation → HR letter
+Sat DEV 1 — BACKEND & INFRA
+• HR module signed off; all Ch.21 features confirmed; Swagger
+updated
+DEV 2 — FRONTEND & QA
+• Week 16 full HR regression
+• Stakeholder demo of HR module
+WEEKLY DELIVERABLE Full HR: Employee master · Doc expiry alerts (10 doc types) · 6 leave types · WPS payroll · UAE gratuity ·
+Loans/advances · Timesheets · KPI evaluations · 10 HR letter templates
+WEEK 17 · Warehouse Management System — GRN, GDO, Stock,
+Storage Invoicing Ch.22
+Mon DEV 1 — BACKEND & INFRA
+• Ch.22 Tables: warehouses, warehouse_zones,
+warehouse_locations (aisle/row/level/bin), products (from master),
+grn, grn_lines, gdo, gdo_lines, stock_ledger, stock_adjustments;
+migrations
+• WarehouseService: create warehouse, define zones
+(Inbound/Storage/Outbound/Returns), location management (bin
+identifiers, max weight/volume per location)
+• Ch.22.2 GRN: date, GRN number (Ch.2.2 format), customer/party,
+job_reference, arrival_reference (BL/AWB), product (from master),
+HS code, quantity, UoM, gross_weight, volume_cbm,
+warehouse_location, batch/lot_number, serial_number, condition
+(Good/Damaged/Short), damage_note, ASN_link, putaway_sheet,
+storage_start_date (auto=GRN date), free_days_allowed
+• GRN documents: Draft GRN, Original GRN, Putaway Sheet (all
+Puppeteer)
+DEV 2 — FRONTEND & QA
+• Warehouse Dashboard: warehouse selector, zone map with
+occupancy % colour-coding, total locations/used/empty KPI cards
+• GRN entry screen: select job ref, add received items (product, qty,
+condition), assign to bin location with location picker (shows
+available locations with capacity)
+• GRN confirmation screen: summary of received goods with putaway
+assignments
+• GRN document generation buttons: Draft GRN, Original GRN,
+Putaway Sheet
+Tue DEV 1 — BACKEND & INFRA
+• Ch.22.3 GDO: date, GDO number (Ch.2.2 format), customer
+authorization, partial release flag, product selection, FIFO picking
+(oldest lot released first), LIFO picking option, delivery instructions
+(consignee, address, contact), transport request link, storage
+calculation (auto on GDO: days × rate), storage invoice generation
+• Ch.22.3 GDO documents: Draft Release Order, Cargo Release
+Order, Packing List, Commercial Invoice (Puppeteer)
+• Ch.22.3 Storage invoice: auto-generated on GDO, links to job,
+emailable to customer
+• Ch.22.3 Proof of Delivery recording on GDO
+DEV 2 — FRONTEND & QA
+• GDO release screen: select products/lots to release, FIFO
+auto-suggests oldest lots, partial release option
+• Storage calculation panel: shows days elapsed since GRN, rate per
+CBM/KG/day, total charge before confirming release
+• Storage Invoice preview and email send on GDO release
+• GDO document generation: Release Order, Packing List
+Wed DEV 1 — BACKEND & INFRA
+• Ch.22.4 Stock Management: real-time stock view, multi-warehouse,
+stock adjustment (physical count discrepancy with reason + user
+audit), stock transfer (location-to-location), inter-warehouse
+transfer, product ageing view, serial number scanning
+(barcode/QR), BOE-wise stock view, batch/lot-wise stock,
+location-wise stock, product-wise stock, stock valuation at cost
+price
+• stock_ledger table: all movement entries
+(RECEIVE/PICK/TRANSFER/DISPATCH/RETURN) as immutable
+audit trail
+• Inventory balance: sum of all stock_ledger movements per product
+per location (never delete — always reverse)
+• QR code generation for inventory items and bin locations
+DEV 2 — FRONTEND & QA
+• Stock Position page: real-time stock by product, by location, by
+customer, by warehouse
+• Stock Transfer UI: from-location, to-location, product, quantity
+• Stock Adjustment UI: reason code selector, quantity delta, approval
+required
+• QR code display for bin locations and product items; mobile scan
+integration
+
+-- 21 of 36 --
+
+Thu DEV 1 — BACKEND & INFRA
+• Ch.22.5 WMS Reports: Stock by Cargo Release, Stock by Location
+List, Stock by Product (detailed), Stock by Product (summary),
+Stock by Receipt Note, Stock Ageing (days in stock with brackets),
+Stock Movement (in/out per product per period), Storage Invoice
+Report, Free Days Expiry Report (products where free days about
+to expire), Pending GRN Report, Pending GDO Report, Stock
+Adjustment Log
+• Ch.22.6 Storage settings: free storage days config, rate per
+CBM/day, rate per KG/day, minimum storage charge,
+auto-calculate on GDO, storage invoice PDF, email, storage
+charges by job/customer report
+• Low-stock threshold alert: notify when item quantity below
+configured threshold
+• ASN (Advance Shipment Notice): pre-register expected goods
+before physical arrival
+DEV 2 — FRONTEND & QA
+• WMS Reports page: all 12 report types with filters and export
+• Storage Ageing panel: products with free days expiring soon,
+highlighted
+• Low-stock alert panel: items below threshold with reorder indicator
+• ASN creation form: expected goods details, link to incoming
+shipment job
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: GRN → assign location → FIFO GDO → storage
+calculation → storage invoice → payment receipt
+• Test FIFO picking: verify oldest lot always picked first
+• Test stock valuation accuracy across multiple movements and
+adjustments
+• Fix all bugs
+DEV 2 — FRONTEND & QA
+• Full WMS UI flow test: GRN → stock → GDO → storage invoice
+• QA FIFO: deliberately enter multiple lots and verify correct picking
+order
+• QA storage calculation: various rate configurations, partial releases,
+minimum charge
+• Fix UI bugs
+Sat DEV 1 — BACKEND & INFRA
+• WMS signed off; all Ch.22 features confirmed; Swagger updated
+DEV 2 — FRONTEND & QA
+• Week 17 full WMS regression
+• Stakeholder demo of WMS
+WEEKLY DELIVERABLE Full WMS: GRN · GDO · FIFO/LIFO picking · Stock management (all types) · Storage invoicing ·
+BOE/Lot/Serial tracking · All 12 WMS reports · ASN · Low-stock alerts
+WEEK 18 · Sea LCL Export + Sea LCL Import — Full Consolidation
+Workflows Ch.12, Ch.13
+Mon DEV 1 — BACKEND & INFRA
+• Ch.12.1 LCL Export House Job: uses same jobs table,
+parent_job_id FK points to master job; all booking fields per house,
+hawb/hbl_number per house (auto-generated),
+weight+volume+pieces+dimensions per consignment, charges per
+consignment (revenue+cost), sub-jobs for packing/unpacking, CSV
+upload for sub-job dimensions, provisional P&L; per house job
+• Ch.12.2 LCL Master Job: uses same jobs table with parent_job_id =
+NULL, mbl/obl_number (auto from Ch.2.2), all house jobs
+consolidated, total weight/volume/piece count aggregated, shipping
+line booking ref, container#/seal# at master level
+• Prorate master cost to house jobs: distribute master OFT/other
+costs proportionally by CBM or weight
+• Standard charges auto-population on LCL house jobs from tariff
+template
+DEV 2 — FRONTEND & QA
+• LCL House Job creation form: cargo details per consignment, HBL#,
+charge lines
+• LCL Master Job view: create master, then add house jobs under it
+• Consolidation view: master job with all house jobs as child rows;
+subtotals per house, grand total at master
+• Prorate cost display: shows each house job's allocated portion of
+master cost
+Tue DEV 1 — BACKEND & INFRA
+• Ch.12.3 LCL Export document set (Puppeteer): Job Card (per
+house), Job P&L; per house, Cargo Manifest (House) per
+consignment, Freight Manifest (House) per consignment, Cargo
+Manifest (Master) — all consignments combined, Freight Manifest
+(Master) — combined, Proforma Invoice (per house), Pre-Alert
+(with all house documents attached), Surrender Notice, Shipping
+Instruction (for shipping line), Draft HBL (per house), Original HBL
+(per house), Rider BL/Addendum, FIATA BL (LCL format)
+• All LCL document endpoints: /jobs/:id/documents/ for each of 14
+document types
+• Pre-alert for LCL Export: send to destination agent with ALL house
+job documents attached in one email
+DEV 2 — FRONTEND & QA
+• LCL Export Documents tab: house-level docs and master-level docs
+clearly separated
+• House documents panel: per-consignment HAWB/HBL, manifests,
+proforma
+• Master documents panel: combined manifest, MBL, shipping
+instruction
+• Pre-alert modal for LCL: attach all house documents in one send
+
+-- 22 of 36 --
+
+Wed DEV 1 — BACKEND & INFRA
+• LCL Export milestones (house level): BOOKING_CREATED,
+SI_SUBMITTED, STUFFING_COMPLETED, VESSEL_SAILED,
+PRE_ALERT_SENT, CARGO_ARRIVED, INVOICE_RAISED,
+PAYMENT_RECEIVED, JOB_CLOSED
+• LCL Export milestones (master level):
+BOOKING_CONFIRMED_WITH_SHIPPING_LINE,
+CONTAINER_ASSIGNED, VESSEL_LOADED, VESSEL_SAILED,
+SAILING_CONFIRMATION_SENT
+• Status update emails for LCL Export: booking confirmation, sailing
+confirmation (to all house job customers), pre-alert to all destination
+agents
+• Ch.13.1 LCL Import Job: mirror of LCL Export fields +
+mbl_from_origin, hbl_from_agent, arrival_vessel,
+destuffing/stripping_date, cfs_location, customs_entry per
+consignment, part_delivery support, storage_calculation at CFS,
+storage_charge_invoice
+DEV 2 — FRONTEND & QA
+• LCL Export milestones: dual tabs — house milestones and master
+milestones
+• Sailing Confirmation auto-send to all house job customers when
+VESSEL_SAILED ticked
+• LCL Import job creation form + milestones tab
+• CFS location field: links to CFS/Port Agent from master data
+Thu DEV 1 — BACKEND & INFRA
+• Ch.13.2 LCL Import document set (Puppeteer): Job Card, Job P&L;,
+Pre-CAN, CAN, Cargo Manifest, Freight Manifest, Freight
+Certificate, Proforma Invoice, Shipping Advice, Delivery Order,
+POD
+• Per-consignment customs tracking: each house BL can have
+separate customs entry, duty amount, clearance date
+• CFS storage per consignment: days × rate, invoice per
+consignee/consignment
+• Part delivery for LCL Import: partial releases per consignment within
+one HBL
+DEV 2 — FRONTEND & QA
+• LCL Import documents tab: all 11 document types
+• Per-consignment customs panel: shows customs status per HBL
+• CFS storage calculator: per-consignment days and charges
+• Part delivery log per consignment
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: LCL Export house job → master job →
+consolidation → prorate cost → all documents → pre-alert to all
+agents
+• Integration test: LCL Import → de-stuffing → per-consignment
+customs → CAN → DO → delivery → POD
+• Verify prorate accuracy across 5 house jobs with different weights
+• Fix all bugs
+DEV 2 — FRONTEND & QA
+• Full LCL Export UI flow test
+• Full LCL Import UI flow test
+• QA: FIATA BL renders with FIATA-specific fields
+• Fix UI bugs
+Sat DEV 1 — BACKEND & INFRA
+• LCL Export + Import signed off; Swagger updated
+DEV 2 — FRONTEND & QA
+• Week 18 review; stakeholder demo of LCL
+• Update project board
+WEEKLY DELIVERABLE Sea LCL Export (house/master structure, prorate cost, 14 documents) · Sea LCL Import (de-stuffing, CFS
+storage per consignment, 11 documents) · FIATA BL
+WEEK 19 · Land/Trucking + Courier — All 8 Operation Types
+Complete Ch.14, Ch.15
+Mon DEV 1 — BACKEND & INFRA
+• Ch.14.1 Land Job: land_job_details table — trucker_id (from trucker
+master), vehicle_type (truck/trailer/van), vehicle_number,
+driver_name, driver_license, origin_city_country,
+destination_city_country, etd, eta, incoterms, freight_terms
+(Prepaid/Collect), cargo_description, weight, volume,
+pieces/pallets, consignee_id, cross_border_docs_required flag
+• Ch.14.3 Transport Request Management: transport_requests table
+(shared across ALL job types) — job_id, request_type
+(Pickup/Delivery), pickup_address, delivery_address,
+scheduled_pickup_datetime, assigned_trucker_id,
+actual_pickup_datetime, actual_delivery_datetime, cargo_details,
+status tracking, driver/vehicle assignment,
+transport_cost_recorded, mileage/distance
+• Transport request status: CREATED → ASSIGNED →
+PICKUP_CONFIRMED → IN_TRANSIT → DELIVERED
+• Land Job milestones: BOOKING_CREATED,
+PICKUP_SCHEDULED, CARGO_PICKED_UP, IN_TRANSIT,
+AT_BORDER, CUSTOMS_CLEARED_BORDER, DELIVERED,
+POD_RECEIVED, INVOICE_RAISED, PAYMENT_RECEIVED,
+JOB_CLOSED
+DEV 2 — FRONTEND & QA
+• Land Job creation form: all Ch.14.1 fields, trucker selector from
+master
+• Land Job detail tabs: Overview, Cargo, Milestones, Documents,
+Notes, Finance
+• Transport Request form: pickup/delivery addresses, scheduled date,
+trucker assignment
+• Transport request status tracker on Land job overview
+
+-- 23 of 36 --
+
+Tue DEV 1 — BACKEND & INFRA
+• Ch.14.2 Land documents (Puppeteer): Job Card, Job P&L;
+Statement, Transport Request/Waybill, Delivery Order, Proof of
+Delivery, Cargo Manifest, Customer Invoice (proforma), Customs
+Transit Documents, Cross-Border Declaration
+• Cross-border declaration template: origin country, destination
+country, commodity, HS code, value, declaration number
+• Ch.15 Courier Module: courier_jobs table — booking
+(shipper/consignee details master creation), export courier job,
+import courier job, link export to import booking, invoice generation,
+multiple courier vendors support
+• Courier Job milestones: BOOKING_CREATED, PICKED_UP,
+IN_TRANSIT, AT_DESTINATION_FACILITY,
+OUT_FOR_DELIVERY, DELIVERED, POD_RECEIVED
+DEV 2 — FRONTEND & QA
+• Land document generation buttons (all 9 document types)
+• Cross-Border Declaration form: enter border crossing details
+• Courier booking form: shipper, consignee, weight, dimensions,
+service type (express/standard)
+• Courier Job list and detail pages
+Wed DEV 1 — BACKEND & INFRA
+• Ch.15.2 Courier documents (Puppeteer): Courier Job Card, Booking
+Confirmation, Barcode Label, Delivery Note, Invoice (customer),
+Proof of Delivery, Customs Declaration (for cross-border couriers),
+Courier Report
+• Barcode label: package barcode, tracking number, consignee
+address, weight, dimensions, service type
+• Courier delivery tracking: scan barcode to update delivery status at
+each checkpoint
+• Multiple courier vendor support: FedEx, DHL, UPS, local carriers —
+selectable on job
+• Track and trace widget for courier: same as Ch.24.2 but with courier
+tracking checkpoints
+DEV 2 — FRONTEND & QA
+• Courier document generation buttons (all 8 document types)
+• Barcode label format selector: A4 sheet (4/6/8 labels), thermal label
+size
+• Courier delivery tracking screen: scan or manually update
+checkpoint
+• Courier vendor selector in job creation
+Thu DEV 1 — BACKEND & INFRA
+• ALL 8 OPERATION TYPES NOW COMPLETE — cross-module
+verification: all 8 job types appear in job list with correct mode
+icons, all appear in MIS reports, all charges flow correctly to
+invoices, all documents generate
+• Cross-module test: search for records across all job types using
+global search (Ch.5.1)
+• Cross-module test: management dashboard shows correct counts
+and GP across all 8 job types
+• Cross-module test: AR aging includes invoices from all job types
+DEV 2 — FRONTEND & QA
+• Job list: all 8 job types with correct mode icons, correct status flows,
+correct filter behaviour
+• MIS dashboard: shipment counts by type show all 8 modes
+• Global search: test AWB, BL, job#, truck# all return correct job types
+• QA: invoices from Land and Courier jobs appear in AR aging
+correctly
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: Land job → transport request → cross-border docs
+→ delivery → POD
+• Integration test: Courier job → barcode labels → delivery
+checkpoints → POD
+• Fix all Land and Courier bugs
+• Verify all 8 operation modes complete and working end-to-end
+DEV 2 — FRONTEND & QA
+• Full Land + Courier UI regression test
+• QA barcode labels: verify barcodes scan correctly with a physical
+barcode scanner
+• Stakeholder demo: all 8 operation modes live
+• Fix UI bugs
+Sat DEV 1 — BACKEND & INFRA
+• ALL OPERATION MODES SIGNED OFF — major milestone
+• Swagger updated for Land + Courier
+DEV 2 — FRONTEND & QA
+• Week 19 review; update project board
+• Celebrate: full operational coverage complete
+WEEKLY DELIVERABLE Land/Trucking (transport requests, cross-border docs) · Courier (barcode labels, delivery tracking) · ALL
+8 OPERATION MODES COMPLETE AND VERIFIED
+NVOCC MODULE — Non-Vessel Operating Common Carrier
+WEEK 20 · NVOCC — Vessel Voyage Master · Enquiries · Bookings ·
+Load List · Jobs NVOCC Module
+
+-- 24 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• Add NVOCC to job_type enum on jobs table; create nvocc_voyages
+table: voyage_number, vessel_id, shipping_line_id, pol_id, pod_id,
+transshipment_port_id, etd, eta, si_cutoff, vgm_cutoff, cy_cutoff,
+cargo_cutoff, slot_allocation_containers, lcl_capacity_cbm (total
+CBM available for LCL), lcl_booked_cbm (running booked total —
+auto-updated), voyage_status enum
+(Open/Full/Sailed/Completed/Cancelled), mbl_number (issued by
+shipping line TO NVOCC), nvocc_freight_rate, carrier_cost,
+agent_pol_id, agent_pod_id; run migration
+• Create nvocc_enquiries table: enquiry_number (auto per Ch.2.2),
+enquiry_date, customer_id, voyage_id, cargo_type (FCL/LCL),
+container_type, container_count, cbm, gross_weight, pieces,
+commodity, hs_code, incoterms, freight_terms, rate_quoted,
+rate_validity, enquiry_status (New/Rate
+Sent/Accepted/Converted/Lost/Cancelled), loss_reason,
+salesperson_id, follow_up_date; run migration
+• Create nvocc_bookings table: booking_number (auto per Ch.2.2),
+booking_date, voyage_id, enquiry_id (nullable), shipper_id,
+consignee_id, notify_id, agent_pol_id, agent_pod_id, cargo_type,
+container_type, container_count, cbm_allocated, gross_weight,
+pieces, commodity, hs_code, dg_flag (UN number/class/packing
+group), marks_numbers, incoterms, freight_terms,
+other_charges_terms, nvocc_hbl_number (auto-generated, KFW
+issues as CARRIER), shipper_ref, booking_status; run migration
+• Create nvocc_load_list table: voyage_id, booking_id,
+container_number, seal_number, container_type, pieces,
+gross_weight_kg, cbm, commodity, marks_numbers, hbl_number,
+agent_pol_id, freight_terms, cargo_status (Pending/Received at
+CFS/Stuffed/Loaded/Manifested), cargo_received_date,
+stuffing_date, vessel_loaded_date; create nvocc_job_details table:
+job_id (FK jobs), voyage_id, booking_id, hbl_number,
+hbl_issued_date, hbl_status (draft/original/surrendered/released),
+mbl_number, mbl_received_date, carrier_booking_ref,
+stuffing_report_ref, pre_alert_sent_at, can_sent_at, do_issued_at,
+pod_received_at
+DEV 2 — FRONTEND & QA
+• NVOCC sidebar section: 5 items matching Fresa Gold screenshot
+— Vessel Voyage Master List, Enquiry List, Booking List, Load List,
+All Jobs
+• Vessel Voyage Master List page: table with voyage#, vessel name,
+shipping line, POL→POD, ETD, ETA, LCL CBM bar (booked/total,
+amber at 80%, red at 95%), slot utilization, status badge
+• Create Voyage form: vessel selector (from vessel master), shipping
+line selector, POL/POD port selectors (UNLOCODE), optional
+transshipment port, ETD/ETA date pickers, SI/VGM/CY/cargo
+cut-off datetime fields, slot allocation (containers), LCL capacity
+(CBM), NVOCC freight rate (rate KFW charges shippers), carrier
+cost (what KFW pays shipping line)
+• Voyage detail page: tabs — Overview (key dates, space bar, MBL
+number), Bookings (all bookings on this voyage), Load List (cargo
+status per booking), Documents, Finance (voyage P&L; — revenue
+vs cost)
+Tue DEV 1 — BACKEND & INFRA
+• VoyageService CRUD: createVoyage, getVoyage, listVoyages,
+updateVoyage, publishVoyage (makes visible to agents),
+closeVoyage (no more bookings), markSailed (record actual
+departure), copyVoyage (next sailing); /nvocc/voyages endpoints
+• Voyage space management: on booking confirmation →
+lcl_booked_cbm += cbm_allocated; on booking cancellation →
+lcl_booked_cbm -= cbm_allocated; check remaining before
+confirming new booking
+• EnquiryService CRUD: createEnquiry, getEnquiry, listEnquiries,
+updateEnquiry, convertToBooking (one click — all enquiry fields
+pre-fill booking), markLost (with reason code); /nvocc/enquiries
+endpoints
+• Enquiry rate email: /nvocc/enquiries/:id/send-rate — sends rate
+quotation email to enquiring party with NVOCC rate details, voyage
+ETD/ETA, validity; logs email event; updates status to RATE_SENT
+DEV 2 — FRONTEND & QA
+• Enquiry List page: status filter tabs (New / Rate Sent / Accepted /
+Converted / Lost), filter by voyage, customer/agent, salesperson,
+date range
+• Create Enquiry form: voyage selector (dropdown shows ETD,
+POL→POD, available CBM remaining), customer selector, cargo
+type radio (FCL/LCL), container type+count (FCL) or
+CBM+weight+pieces (LCL), commodity, HS code, incoterms, rate
+quoted field, rate validity date
+• Enquiry detail: all fields editable, rate email modal
+(To/CC/subject/body/attach rate sheet), convert-to-booking button
+(pre-fills all booking fields), mark-lost with reason dropdown
+(Competitor Rate / No Space / Cargo Type / No Longer Required /
+Booked Elsewhere / Price Too High)
+• Enquiry win/loss analysis widget: conversion rate donut chart, loss
+reasons bar chart — on Enquiry List page header
+Wed DEV 1 — BACKEND & INFRA
+• BookingService CRUD: createBooking (from enquiry or manual),
+confirmBooking, cancelBooking (with space release),
+convertToJob; /nvocc/bookings endpoints
+• NVOCC HBL number auto-generation: format configurable per
+Ch.2.2 (e.g., KFW/NVOCC/HBL/2024/00001); assigned at booking
+confirmation stage
+• Space validation: before confirming FCL booking check container
+slots available; before confirming LCL booking check
+cbm_allocated does not exceed remaining lcl_capacity_cbm; return
+clear error if over capacity
+• Cut-off reminder cron: configurable days before each cut-off
+(SI/VGM/CY) send reminder email to shipper;
+/nvocc/bookings/:id/send-cutoff-reminder endpoint
+DEV 2 — FRONTEND & QA
+• Booking List page: table with booking#, voyage (ETD), shipper,
+cargo type badge (FCL/LCL), CBM or container count, HBL#,
+status badge; filter by voyage, shipper, cargo type, status, date
+• Create Booking form: voyage selector (shows ETD, POL, POD,
+available CBM), shipper/consignee/notify party selectors, cargo
+type (FCL/LCL toggle), container type+count or
+CBM+weight+pieces, commodity, HS code, DG flag (reveals UN
+number/class/packing group fields), marks and numbers,
+incoterms, freight terms (Prepaid/Collect), other charges terms
+• Booking detail: all fields, cut-off countdown indicators
+(green→amber→red), charge lines tab, convert-to-job button,
+cancel booking button, booking confirmation PDF
+preview/download/email
+• Booking confirmation PDF (Puppeteer): KFW letterhead as NVOCC
+carrier, booking#, voyage vessel/ETD/ETA, POL/POD, all cut-off
+dates, shipper/consignee/notify, cargo details, HBL#, freight terms,
+KFW NVOCC stamp and signature
+
+-- 25 of 36 --
+
+Thu DEV 1 — BACKEND & INFRA
+• LoadListService: /nvocc/voyages/:id/load-list — returns all confirmed
+bookings for a voyage as consolidated load list sorted by container
+then shipper; update cargo_status per booking line
+• Load list cargo status transitions: PENDING →
+RECEIVED_AT_CFS → STUFFED → LOADED_ON_VESSEL →
+MANIFESTED; each transition records actual date and updated_by
+user
+• Container assignment in load list: assign container_number and
+seal_number to each booking/LCL portion on the load list; validate
+total weight per container does not exceed max payload from
+container_types master
+• NVOCC job creation: /nvocc/bookings/:id/convert-to-job — creates
+job with job_type=NVOCC, links nvocc_job_details, pre-fills all
+charges from booking; NVOCC milestones: ENQUIRY_RECEIVED,
+BOOKING_CONFIRMED, SI_SUBMITTED, VGM_SUBMITTED,
+CY_CUTOFF_PASSED, CARGO_RECEIVED_AT_CFS,
+CARGO_STUFFED, VESSEL_LOADED, VESSEL_SAILED,
+HBL_ISSUED, MBL_RECEIVED, PRE_ALERT_SENT,
+CARGO_IN_TRANSIT, CARGO_ARRIVED_POD, CAN_SENT,
+CUSTOMS_CLEARED, DO_ISSUED, CARGO_DELIVERED,
+POD_RECEIVED, INVOICE_RAISED, PAYMENT_RECEIVED,
+JOB_CLOSED
+DEV 2 — FRONTEND & QA
+• Load List page: voyage selector → shows all bookings consolidated;
+per-row: container# (editable), seal# (editable), shipper, HBL#,
+pieces, KG, CBM, commodity, cargo_status badge with update
+button
+• Load List container weight check: visual progress bar per container
+(total weight vs max payload), turns amber at 90%, red if
+over-weight
+• Load List CBM check: visual bar of total CBM stuffed vs container
+cubic capacity
+• Load List PDF download (Puppeteer): voyage header (vessel, ETD,
+POL→POD), table of all bookings (container#, seal#, shipper,
+HBL#, pieces, KG, CBM, commodity, freight terms, status), grand
+totals row; email to shipping line / port agent
+Fri DEV 1 — BACKEND & INFRA
+• NVOCC Tariff management: nvocc_tariffs table — trade_lane
+(pol_region/port → pod_region/port), commodity_type
+(General/DG/Reefer/OOG), container_type, lcl_rate_cbm,
+lcl_rate_wm (weight-or-measure), lcl_minimum_charge, fcl_rate,
+origin_thc, dest_thc, bl_fee, baf_surcharge, caf_surcharge,
+pss_surcharge, gri_surcharge, rate_valid_from, rate_valid_to,
+customer_id (NULL = applies to all), currency, status; /nvocc/tariffs
+CRUD endpoints
+• Tariff auto-populate: when creating NVOCC booking or quotation,
+query matching tariff by POL→POD + cargo type + container type +
+validity date; auto-fill charge lines (OFT, THC, BL fee, surcharges)
+on booking charge lines; show "Tariff found" confirmation with
+matched trade lane
+• NVOCC job charge lines (same job_charges table): revenue lines to
+shippers (OFT per tariff, origin THC, BL fee, handling/CFS charge,
+seal fee, BAF/CAF/PSS surcharges, any ad-hoc charges) + cost
+lines (shipping line OFT cost, origin agent cost, CFS/stuffing cost,
+destination agent cost, other vendor costs); GP = revenue − cost
+(can_see_gp gated)
+• Integration test: NVOCC enquiry → rate email → booking confirmed
+→ space deducted from voyage CBM → load list cargo status →
+NVOCC job created with charge lines pre-filled from tariff
+DEV 2 — FRONTEND & QA
+• NVOCC Tariff page: trade lane table — add/edit/delete tariff
+records; validity date range; customer-specific rate override toggle;
+surcharge fields (BAF/CAF/PSS/GRI) as separate rows
+• Tariff lookup indicator in booking form: green badge "Tariff found:
+UAE→India, 20GP, valid to 31-Dec" when matching tariff exists;
+auto-fills rate fields
+• NVOCC All Jobs page: job list filtered by job_type=NVOCC; filter by
+voyage, shipper, HBL#, trade lane, status, salesperson; GP column
+visible only to can_see_gp users
+• NVOCC job detail page: same tab structure as other job types
+(Overview, Charges, Milestones, Documents, Notes, Finance) with
+NVOCC-specific fields in Overview (voyage, booking#, HBL#,
+MBL#, cargo type, space allocation)
+Sat DEV 1 — BACKEND & INFRA
+• NVOCC core (voyages/enquiries/bookings/load list/tariffs/jobs)
+signed off
+• Write NVOCC document generation tickets for Week 20B
+DEV 2 — FRONTEND & QA
+• Week 20 Part A regression test
+• Update project board
+WEEKLY DELIVERABLE NVOCC Vessel Voyage Master (CBM tracking) · Enquiry with rate email · Booking with HBL numbering +
+space validation · Load List with cargo status · Tariff auto-populate · NVOCC Job type
+WEEK 20B · NVOCC — All Documents · Voyage P&L; · Reporting ·
+Module Complete NVOCC Docs & Reports
+
+-- 26 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• NVOCC HBL Draft Puppeteer template: KFW appears as CARRIER
+(not agent) — legally critical distinction; all standard BL fields +
+NVOCC-specific layout: KFW NVOCC name and licence number in
+carrier field, shipper, consignee, notify party, vessel/voyage
+number, POL/POD, ETD/ETA, container/seal number (FCL) or
+CBM/pieces (LCL), commodity description, marks and numbers,
+gross weight, measurement, freight payable at (Prepaid/Collect),
+declared value, handling instructions, HBL number, BL conditions
+text on reverse
+• NVOCC HBL Original: same template + ORIGINAL header
+designation; finalize action locks all fields; document_status =
+ORIGINAL
+• NVOCC HBL Non-Negotiable (Express Release / Telex Release):
+NON-NEGOTIABLE stamp + express release clause; no originals
+issued
+• /nvocc/jobs/:id/documents/hbl-draft, /hbl-original,
+/hbl-express-release endpoints; all store in S3 with draft/original
+workflow
+DEV 2 — FRONTEND & QA
+• NVOCC HBL generation UI in job Documents tab: type selector
+(Negotiable 3 Originals / Negotiable 2 Originals / Non-Negotiable
+Express Release)
+• Number of originals displayed on HBL: "3/3 ORIGINALS" or "2/2
+ORIGINALS" in BL header
+• KFW shown as CARRIER on HBL (important visual distinction from
+standard forwarding HBL where KFW is agent)
+• Draft → Original finalize flow with confirmation dialog; reprint right
+enforced for finalized originals
+Tue DEV 1 — BACKEND & INFRA
+• NVOCC Surrender Notice Puppeteer template: KFW (as carrier)
+issues surrender notice, references HBL#, shipper, consignee,
+vessel, voyage, authorization for express release
+• NVOCC Stuffing Report Puppeteer template: container#, seal#,
+voyage, all cargo loaded (per booking: shipper, pieces, KG, CBM,
+marks), stuffing date, stuffing location, supervisor name, condition
+of goods
+• NVOCC Shipping Instruction (SI) Puppeteer template: KFW submits
+to shipping line with full cargo details for MBL generation; formatted
+per shipping line requirements
+• NVOCC Exchange Letter Puppeteer template: KFW requests MBL
+amendment or BL switch from shipping line
+• All endpoints: /nvocc/jobs/:id/documents/surrender-notice,
+/stuffing-report, /si, /exchange-letter
+DEV 2 — FRONTEND & QA
+• Surrender Notice, Stuffing Report, SI, Exchange Letter document
+buttons in NVOCC job Documents tab
+• Stuffing Report: links to load list cargo data (auto-populates from
+load list on generation)
+• SI preparation screen: pre-fills from booking data, editable before
+submission, mark as submitted updates milestone
+• Exchange Letter: enter specific MBL amendment request, generate
+and email to shipping line
+Wed DEV 1 — BACKEND & INFRA
+• NVOCC CAN (Cargo Arrival Notice) Puppeteer template: KFW as
+NVOCC carrier advises consignee of arrival; includes vessel,
+voyage, arrival date, cargo description, HBL#, charges due before
+delivery (destination THC, DO fee, any other local charges)
+• NVOCC Delivery Order (DO) Puppeteer template: KFW (as
+NVOCC/carrier) authorizes consignee to collect cargo from
+terminal/CFS at destination; includes HBL#, cargo description,
+container/seal number, authorised collecting party
+• NVOCC Pre-Alert email: to destination agent with NVOCC HBL
+(draft), extract from load list (shipper portion), SI copy, any special
+instructions; same BullMQ email queue and pre_alerts table used
+by other job types
+• NVOCC Proforma Invoice, Job Card, Cargo Manifest (House),
+Freight Manifest (House) Puppeteer templates for NVOCC jobs
+• All endpoints: /nvocc/jobs/:id/documents/can, /do, /pre-alert/send,
+/proforma, /job-card, /cargo-manifest, /freight-manifest
+DEV 2 — FRONTEND & QA
+• CAN generation and email send UI (pre-fills consignee email from
+party master, attach CAN + any charges outstanding)
+• DO generation and email send UI (pre-fills consignee, attach DO,
+optional destination agent CC)
+• Pre-Alert modal for NVOCC: attach HBL draft, cargo manifest
+extract, SI; To/CC from destination agent on booking
+• Proforma Invoice, Job Card, Cargo Manifest buttons in NVOCC job
+Documents tab
+Thu DEV 1 — BACKEND & INFRA
+• Voyage P&L; report: /nvocc/voyages/:id/pnl — aggregate all booking
+job charges: sum(revenue lines across all NVOCC jobs on this
+voyage) vs sum(cost lines) = voyage gross profit, GP%; breakdown
+by shipper showing each one's revenue contribution
+• Space utilization report: /nvocc/voyages/utilization — per voyage
+CBM booked vs LCL capacity, container slots used vs allocated,
+revenue per CBM, GP per CBM
+• Trade lane profitability report: aggregate GP across all voyages
+grouped by POL→POD trade lane; month-over-month trend; filter
+by date range
+• Booking conversion report: enquiries received vs bookings
+confirmed vs jobs closed per period per salesperson; win/loss
+breakdown by reason
+DEV 2 — FRONTEND & QA
+• Voyage P&L; panel in voyage detail Finance tab: voyage revenue
+total (all shippers), voyage cost total (shipping line + agents +
+CFS), voyage GP amount, GP%; breakdown table showing each
+shipper's revenue contribution to voyage
+• Space Utilization page: bar chart per voyage (CBM booked vs
+capacity, % full); filter by trade lane, date range; export to XLS
+• NVOCC Trade Lane Profitability page: table grouped by POL→POD
+with total revenue, cost, GP, GP%, volume (CBM/TEU); trend vs
+prior period
+• NVOCC Reports section in MIS: all NVOCC-specific reports
+accessible from MIS sidebar alongside standard reports
+
+-- 27 of 36 --
+
+Fri DEV 1 — BACKEND & INFRA
+• Outstanding HBL report: all HBLs issued (status = original) but not
+yet surrendered/released — with shipper, voyage, HBL issued date,
+days outstanding; alert flag at 7+ days (amber) and 14+ days (red)
+• Pending pre-alert report: NVOCC bookings/voyages where
+pre_alert_sent_at IS NULL and vessel_sailed date within last 2
+days — action required
+• NVOCC invoice aging: NVOCC customer invoices outstanding
+filtered by job_type=NVOCC with aging buckets (same AR aging
+infrastructure)
+• Full NVOCC integration test: enquiry → rate email → booking →
+space deduction → load list cargo status updates → NVOCC job →
+HBL draft → HBL original → pre-alert sent → CAN → DO → invoice
+→ GL auto-post → voyage P&L; accurate
+DEV 2 — FRONTEND & QA
+• Outstanding HBL list: days-outstanding badge (green <7 days,
+amber 7–14, red 14+); quick action "Send surrender notice
+reminder" per row
+• Pending pre-alert dashboard for NVOCC voyages: sailings where
+pre-alert not yet sent
+• NVOCC module added to integration test checklist for Weeks 24–25
+QA
+• Full NVOCC module regression test; all 5 sections of the module
+verified against Fresa Gold screenshot
+Sat DEV 1 — BACKEND & INFRA
+• NVOCC MODULE FULLY COMPLETE — all voyages, enquiries,
+bookings, load lists, jobs, documents, reports, voyage P&L; signed
+off
+• Swagger updated for all /nvocc/* endpoints
+DEV 2 — FRONTEND & QA
+• Week 20B full regression
+• PHASE 2 now includes NVOCC — stakeholder demo of complete
+NVOCC module
+WEEKLY DELIVERABLE
+NVOCC HBL (Draft/Original/Express Release) as CARRIER · Surrender Notice · CAN · DO · Pre-Alert ·
+Voyage P&L; · Space Utilization · Trade Lane Profitability · Outstanding HBL tracking · NVOCC
+COMPLETE
+WEEK 21 · System Admin · General Settings · EDI · Public API ·
+Webhooks Ch.2, Ch.25, Ch.27
+Mon DEV 1 — BACKEND & INFRA
+• Ch.25.1 EDI Interface: agent ERP integration (CSV/JSON/XML
+send/receive job data), customer ERP integration (receive booking
+instructions), carrier API integration (shipping line/airline booking
+systems), status update EDI (automated status to customer ERP),
+invoice EDI, AWB data to E-AWB system (IATA XML), customs EDI
+(country-specific placeholder), container tracking (3rd party REST
+API)
+• Ch.25.2 Public REST API with API key authentication (api_keys
+table): job creation, booking creation, shipment status, document
+download, invoice data, track and trace (public, no auth), customer
+data sync, rate query
+• Ch.25.2 API security: API key or OAuth, rate limiting,
+Swagger/OpenAPI docs
+• Ch.25.2 Webhook support: webhook_endpoints table, push
+notifications on shipment status change
+DEV 2 — FRONTEND & QA
+• API Key management UI: create, revoke, view usage logs, set
+permissions per key
+• Webhook endpoint config: URL, subscribed events, test webhook
+button, delivery log
+• EDI configuration UI: configure agent EDI endpoints and field
+mappings
+• API documentation page (embed Swagger UI in admin panel)
+Tue DEV 1 — BACKEND & INFRA
+• Ch.25.3 Third-party integrations: xe.com (live rates — already done
+Week 0), container tracking providers (real-time vessel/container
+status), IATA e-AWB systems (already done Week 5), India GST
+e-invoice portal (IRN — Phase 3 placeholder), ZATCA KSA (Phase
+3 placeholder), WhatsApp Business API (already done Week 6),
+Google Maps (GPS for sales app — already done Week 13), email
+servers SMTP (already done), payment gateways (online payment
+links for customer invoices — optional), WPS UAE (already done
+Week 16)
+• Container tracking integration: connect to third-party tracking API
+(e.g., SeaRates, project44), auto-update container status
+milestones when tracking data changes
+• Ch.28 SaaS: Stripe billing integration — subscriptions table,
+billing_plans, Stripe webhook for payment events, tenant
+subscription management
+DEV 2 — FRONTEND & QA
+• Container tracking status auto-update indicator on FCL job detail
+• Stripe subscription management UI: admin sees billing plan, usage,
+renewal date
+• Payment gateway link generation: one-click link for customer invoice
+online payment (Ch.25.3)
+• Integration status dashboard: shows live/down status of all
+third-party connections
+
+-- 28 of 36 --
+
+Wed DEV 1 — BACKEND & INFRA
+• Ch.2.1 Full system settings: theme configuration (green/blue/red,
+user-configurable), full-screen mode, user-wise homepage widget
+configuration
+• Ch.2.2 Number format configuration API: admin sets format for all
+12 document types (job#, house BL, master BL, HAWB, MAWB,
+quotation, invoice, voucher, booking, GRN, GDO, purchase
+invoice)
+• Ch.2.3 Document format configuration: BL format selection, HAWB
+format selection, invoice format selection (25+ variants), packing
+list template, delivery order format, pre-alert email template, cargo
+manifest format, freight manifest format, job card format, quotation
+format per mode, company letterhead config, stamp/signature
+upload
+• Ch.2.4 Language: Google Translate integration on all pages, date
+format config (DD/MM/YYYY etc.), decimal places config
+DEV 2 — FRONTEND & QA
+• General Settings page: Theme (with live preview), Full-screen mode
+toggle
+• Number Format Settings: admin configures format for each of 12
+document types with live preview of example format
+• Document Format Settings: select format variant for each document
+type
+• Language Settings: date format selector, decimal places selector,
+Google Translate toggle
+Thu DEV 1 — BACKEND & INFRA
+• Ch.2.5 Email configuration: SMTP server per company/branch, from
+email, CC/BCC defaults per document type, subject line templates,
+body templates, auto-send triggers, pre-alert auto-send, invoice
+email with PDF, outstanding statement scheduled email, WhatsApp
+integration toggle (Ch.2.5), attachment config per document type
+• Ch.2.6 Workflow/Approval configuration UI: configure approval
+levels and thresholds for quotation approval (up to 3 levels),
+payment request approval (by amount bracket), credit note
+approval, purchase invoice approval, job closing approval, booking
+approval, discount approval, refund approval
+• Ch.27.1 Company admin: create/edit company profile, add
+branches, configure financial year, set base currency, configure
+notification email addresses
+• Ch.27.3 Data management: bulk upload customers/charge
+codes/opening balances, import historical job data, import currency
+rates, data export all modules, archive old jobs, delete test data
+DEV 2 — FRONTEND & QA
+• Email Configuration page: SMTP settings, From email,
+per-document CC/BCC defaults, subject/body template editor per
+trigger type, auto-send toggles
+• Approval Workflow configuration: per transaction type — set number
+of levels, amount thresholds, approver roles
+• Ch.27.4 System Monitoring page (admin only): active user count,
+pending job alerts, pending document alerts, pending payment
+alerts, exception monitor, error log, email delivery log, API access
+log, system performance metrics
+• Data Management: import/export tools for all data types
+Fri DEV 1 — BACKEND & INFRA
+• Integration test: API key → job status query via public API →
+webhook fires on milestone update → Stripe billing event →
+container tracking auto-update
+• Integration test: all Ch.2.5 auto-send triggers fire correctly on
+milestone changes
+• Integration test: approval workflow routes correctly for all 8 approval
+types
+• Fix all bugs from this week
+DEV 2 — FRONTEND & QA
+• Full Phase 2 regression: portals, CRM, Air Import, HR, WMS, LCL,
+Land, Courier, EDI, settings
+• QA: number format changes apply to newly generated documents
+• QA: email template edits reflected in next triggered email
+• Fix UI bugs
+Sat DEV 1 — BACKEND & INFRA
+• NVOCC + System Admin + EDI all signed off; PHASE 2
+COMPLETE
+• Swagger documentation complete for all endpoints
+DEV 2 — FRONTEND & QA
+• Week 21 full regression
+• PHASE 2 stakeholder demo: all 28 spec chapters + NVOCC module
+covered
+WEEKLY DELIVERABLE System Admin · All Ch.2 settings · EDI · REST API · Webhooks · Stripe billing · Container tracking · PHASE
+2 COMPLETE — ALL 28 SPEC CHAPTERS + NVOCC MODULE COVERED
+
+-- 29 of 36 --
+
+PHASE 3 — QA & LAUNCH (Weeks 22–29) · Non-Functional + Deploy
+WEEK 22 · Performance Optimisation — DB, Redis, Background Jobs,
+Frontend Non-Functional
+Mon DEV 1 — BACKEND & INFRA
+• PostgreSQL EXPLAIN ANALYZE on all heavy queries: MIS report
+aggregations, job list with filters, AR aging query, search queries,
+GL register
+• Add composite indexes: (tenant_id, job_type, etd), (tenant_id,
+customer_id, status), (tenant_id, invoice_id, status), (tenant_id,
+party_id, document_type), (tenant_id, etd, job_type)
+• Add partial indexes for common filtered queries: WHERE status =
+'OPEN', WHERE is_overdue = true, WHERE is_draft = true
+• PostgreSQL connection pooling: PgBouncer or NestJS built-in pool;
+configure max connections per tenant tier
+DEV 2 — FRONTEND & QA
+• Frontend bundle audit: vite-bundle-analyzer, identify all
+dependencies > 50KB
+• Route-level code splitting: React.lazy + Suspense for every module
+page
+• Lazy-load heavy components: react-pdf viewer, recharts, rich text
+editors, date pickers
+• Prefetch on navigation hover: preload next route data before click
+Tue DEV 1 — BACKEND & INFRA
+• Redis caching: user permissions cache (TTL 5 min, invalidate on
+role change), exchange rates (TTL 1 hour, fallback to DB if Redis
+down), port/airline/carrier lookups (TTL 24h), MIS report results
+(TTL 15 min, invalidate on data change events)
+• Move all PDF generation to BullMQ background queue: no
+synchronous Puppeteer in request cycle; return job_id immediately,
+client polls /jobs/:id/status
+• Move all email sending to BullMQ: retry on SMTP failure (max 3),
+dead-letter queue for failed emails, delivery log update
+• Move CSV import processing to BullMQ: return import_job_id, poll
+for completion, stream error report
+DEV 2 — FRONTEND & QA
+• Async PDF loading UX: spinner while Puppeteer generates,
+auto-refresh when PDF ready
+• Background job status indicator: show queue position and estimated
+wait
+• Optimistic UI for status updates: update UI immediately, rollback on
+API error
+• Skeleton loaders: all list pages and detail pages show skeleton while
+data loading
+Wed DEV 1 — BACKEND & INFRA
+• API rate limiting: per-user and per-IP limits on all endpoints; stricter
+limits on PDF generation, report generation, AI/OCR, email send
+endpoints
+• Request throttling: queue report generation requests if more than N
+simultaneous per tenant
+• BullMQ monitoring endpoint: queue depth, processing time, failed
+job count per queue
+• Database query timeout: set per-query timeout; long-running report
+queries run async with BullMQ
+DEV 2 — FRONTEND & QA
+• System Health page (admin only): BullMQ queue status per queue,
+API response time chart, DB query time chart, error rate gauge
+• Rate limit exceeded UX: friendly error message with retry-after
+countdown
+• Performance improvement: instant navigation transitions, zero
+layout shift on page load
+• Cross-browser QA pass: all modules in Chrome, Firefox, Safari,
+Edge
+Thu DEV 1 — BACKEND & INFRA
+• Helmet.js security headers: Content-Security-Policy,
+X-Frame-Options, HSTS, X-XSS-Protection, Referrer-Policy,
+Permissions-Policy
+• Set up Sentry backend: error tracking with breadcrumbs, user
+context (tenant_id, user_id), release tagging, performance traces
+• Set up Sentry frontend: JS error capture with session replay context,
+release tagging
+• Uptime monitoring setup: UptimeRobot on health endpoint, frontend
+CDN, auth endpoint
+DEV 2 — FRONTEND & QA
+• Integrate Sentry frontend SDK: capture all unhandled errors with
+user context
+• Error boundary components: wrap all major page sections to
+prevent full-page crashes
+• Accessibility: ARIA labels on all icon-only buttons, form fields, status
+badges, modal dialogs
+• Colour contrast: all text/background combinations ≥ 4.5:1 (WCAG
+AA)
+Fri DEV 1 — BACKEND & INFRA
+• Load test with k6: 100 concurrent users across all major flows (login,
+job list, job create, document generate, MIS dashboard, invoice)
+• Identify and fix top 5 performance bottlenecks from load test
+• Verify all background jobs process correctly under concurrent load;
+no deadlocks
+• Performance baseline documented: p50/p95/p99 response times for
+key endpoints
+DEV 2 — FRONTEND & QA
+• Full UI regression test after all performance changes
+• Mobile responsiveness audit: verify all pages render correctly at
+375px, 768px, 1024px, 1440px viewport widths (responsive web —
+no native app)
+• Fix all layout issues found in mobile audit
+• Final cross-browser confirmation: all 4 browsers passing on desktop
+and tablet viewports
+Sat DEV 1 — BACKEND & INFRA
+• Performance baseline documented; Sentry live in staging
+• Week 22 review
+DEV 2 — FRONTEND & QA
+• Week 22 full regression complete
+• Update project board
+WEEKLY DELIVERABLE Redis caching · BullMQ background queues (PDF/email/CSV) · DB indexes · 100 concurrent user load test
+· Sentry monitoring · Helmet.js headers · WCAG AA accessibility
+WEEK 23 · Security Hardening — OWASP, Pen Test, Login Controls Security
+
+-- 30 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• OWASP A01 Broken Access Control: review all API endpoints —
+every endpoint must have JwtAuthGuard + RolesGuard; every
+query must include tenant_id scoping; RLS policy audit on all
+PostgreSQL tables
+• OWASP A02 Cryptographic Failures: verify all passwords hashed
+with bcrypt (cost factor ≥ 12); all tokens signed with strong secret;
+all files in S3 encrypted at rest; all data in transit over TLS 1.2+
+• OWASP A03 Injection: review all raw SQL queries; verify all inputs
+parameterized via Prisma; verify file upload filenames sanitized;
+verify search queries escaped
+• OWASP A04 Insecure Design: review all financial approval bypass
+scenarios; verify credit limit check cannot be bypassed; verify GP
+visibility cannot be circumvented via API
+DEV 2 — FRONTEND & QA
+• Frontend security review: no sensitive data (API keys, JWT tokens,
+GP amounts) in browser console, local storage, or network
+payloads for unauthorised roles
+• Ensure all financial figures (GP, cost, bank balances) return null
+from API for users without the corresponding can_see_* flag — not
+just hidden in UI
+• All error messages: no stack traces, internal paths, or DB details
+leaked to client responses
+• CORS configuration: only allow requests from app domain(s); no
+wildcard origins in production
+Tue DEV 1 — BACKEND & INFRA
+• OWASP A05 Security Misconfiguration: verify all .env variables in
+secrets manager, not in code; verify DEBUG mode off in
+production; verify all default credentials changed; verify unused
+ports/services disabled
+• OWASP A06 Vulnerable Components: npm audit; update all
+packages with known CVEs; verify Puppeteer and Node.js versions
+current
+• OWASP A07 Auth Failures: verify session timeout working; verify
+token revocation on logout; verify concurrent session control
+(Ch.3.2); verify failed login lockout
+• OWASP A08 Software Integrity: verify package-lock.json committed;
+verify Docker images from trusted registries; verify no eval() or
+dynamic code execution
+DEV 2 — FRONTEND & QA
+• OWASP A09 Logging Failures: verify all security events logged
+(Ch.3.6); verify audit log cannot be tampered by non-admin users;
+verify PII in logs is masked (email → e***@***.com)
+• OWASP A10 SSRF: verify all outbound HTTP calls (xe.com,
+WhatsApp, webhook delivery) use allowlisted domains only; reject
+user-supplied URLs that point to internal network
+• Rotate all production secrets: JWT secret, S3 keys, email API keys,
+xe.com key, Stripe key, WhatsApp key — store all in AWS Secrets
+Manager
+• Verify no secrets in Git history: git log --all --grep for known key
+patterns
+Wed DEV 1 — BACKEND & INFRA
+• Penetration testing: attempt SQL injection via search params, quote
+fields, CSV import
+• Attempt IDOR: access another tenant's job records via direct ID
+manipulation — verify RLS blocks
+• Attempt privilege escalation: operations user tries to access GP via
+direct API call — verify blocked by RBAC + API field filtering
+• Attempt XSS: inject script tags via text fields (job notes, customer
+names) — verify sanitized
+DEV 2 — FRONTEND & QA
+• Frontend pen test: attempt CSRF via cross-origin form submission
+• Attempt clickjacking: verify X-Frame-Options blocks embedding in
+iframe
+• Verify CSP blocks inline script execution (except nonce-tagged
+scripts)
+• Privacy audit: customer portal user cannot see any other customer's
+data (RLS + test)
+Thu DEV 1 — BACKEND & INFRA
+• Ch.3.2 IP address restriction enforcement: verify users restricted to
+configured IP ranges cannot login from other IPs
+• Ch.3.2 MAC address restriction: verify blocked when MAC not on
+allowlist (where applicable)
+• Ch.3.2 Office hours restriction: verify login blocked outside
+configured hours per timezone
+• Ch.3.2 Multi-login control: verify simultaneous session blocking
+when configured
+• Production log aggregation: CloudWatch Logs or Papertrail; 90-day
+retention for app logs, 1-year for audit logs
+DEV 2 — FRONTEND & QA
+• Login restriction QA: test IP block, office hours block, multi-login
+block
+• Session management QA: revoked session immediately invalidated
+across all tabs
+• 2FA QA: TOTP setup, login with TOTP, recovery codes
+• Audit trail QA: all CRUD actions appear in audit log with correct
+before/after values (Ch.3.6)
+Fri DEV 1 — BACKEND & INFRA
+• Fix all OWASP and pen test findings
+• Final security report: all findings documented with severity and
+resolution
+• Verify all rotated secrets work in staging environment after rotation
+• Write security posture document for stakeholders
+DEV 2 — FRONTEND & QA
+• Full security regression test after all hardening changes
+• Final accessibility pass: keyboard navigation through all pages (Tab,
+Enter, Escape)
+• QA all login restriction types work correctly
+• Final cross-device check: desktop, tablet (iPad), mobile browser
+(web responsive — no native app)
+Sat DEV 1 — BACKEND & INFRA
+• Security hardening complete; security posture document ready
+• Week 23 review
+DEV 2 — FRONTEND & QA
+• Week 23 full accessibility and security QA complete; prepare UAT
+environment and test data for Week 24–25
+• Update project board
+WEEKLY DELIVERABLE OWASP Top 10 cleared · All secrets in Secrets Manager · Pen test passed · IP/MAC/hours restrictions ·
+2FA · Audit trail · CORS/CSP/Helmet · WCAG AA
+WEEK 24–25 · Full Integration Testing + Document Quality Review Integration QA
+
+-- 31 of 36 --
+
+Mon DEV 1 — BACKEND & INFRA
+• Run full API regression test suite across all 28 spec chapters;
+document all failures in bug tracker
+• Fix all Critical severity bugs: system crashes, data corruption, auth
+bypass, financial miscalculation
+• Cross-module integration test: quote → job → operations →
+documents → invoice → payment → GL → report → MIS
+dashboard
+• Verify RLS: run test with 3 different tenants simultaneously; confirm
+zero data leakage across tenants
+DEV 2 — FRONTEND & QA
+• Execute full manual QA pass: Auth → Masters → Quotation → Air
+Export → Sea FCL Export → Sea FCL Import → Finance → MIS
+• Log every bug: module, steps to reproduce, expected vs actual,
+severity (Critical/High/Medium/Low), screenshot
+• Fix all Critical and High UI bugs immediately
+• Verify all 17 management dashboard widgets show accurate data
+Tue DEV 1 — BACKEND & INFRA
+• Document generation quality review: print all 35+ document types
+and compare field-by-field against Fresa Gold originals
+• HAWB: verify all IATA fields present, barcode scannable,
+chargeable weight calculation correct
+• HBL/MBL: verify all BL fields, number of originals correct, conditions
+on reverse
+• FIATA BL, Switch BL, Proxy BL, Back-to-Back BL: each verified
+against type-specific requirements
+DEV 2 — FRONTEND & QA
+• Visual QA of all generated PDFs: layout, fonts, alignment, field
+positioning, logo/stamp placement
+• UAE VAT invoice: verify TRN, VAT per line, subtotal, VAT total,
+grand total, QR code placeholder
+• Barcode Labels: verify barcodes scan correctly with a physical
+barcode scanner or scanning app
+• Pre-alert emails: verify documents correctly attached in all
+combinations
+Wed DEV 1 — BACKEND & INFRA
+• Financial accuracy audit: manually verify 20 test scenarios — GL
+double-entry always balances, UAE VAT 5% correct on all charge
+types, multi-currency rounding correct (to 2 decimal places in
+invoice currency, 4 in base), AP aging days count correct, AR
+outstanding matches sum of unpaid invoices
+• Job P&L; accuracy: verify GP = revenue charges − cost charges for
+10 test jobs across 4 operation types
+• Trial Balance: verify all debits equal all credits for test period
+• MIS reports: verify profitability reports match sum of individual job
+P&Ls;
+DEV 2 — FRONTEND & QA
+• AR Aging: manually verify bucket assignment for invoices with
+various due dates
+• AP Aging: same for vendor bills
+• Voucher matching: verify 8 matching scenarios all produce correct
+outstanding balances
+• Bank reconciliation: import test CSV and verify correct auto-match
+rate
+Thu DEV 1 — BACKEND & INFRA
+• Phase 2 module integration tests: customer portal data isolation,
+vendor portal payment accuracy, CRM call-to-quote pipeline, Air
+Import customs deposit alerts, HR payroll WPS file format, WMS
+FIFO picking, LCL prorate cost accuracy, Land cross-border docs,
+Courier barcode scan, NVOCC voyage/booking/load list/HBL flow,
+EDI data exchange, public API auth and rate limiting, webhook
+delivery confirmation
+• Performance regression check: load test results still within p95 < 2s
+for all endpoints after all bug fixes
+DEV 2 — FRONTEND & QA
+• Customer portal: verify all Ch.24.1 features working, data isolation
+confirmed
+• Mobile app: deferred to Phase 4 — no mobile testing in this phase
+• WMS FIFO: verify oldest lot always picked first across 5 test
+scenarios
+• All operational reports: verify data accuracy vs raw job records
+Fri DEV 1 — BACKEND & INFRA
+• Fix all High severity bugs from integration testing
+• Re-run full API regression suite: target zero Critical, zero High
+failures
+• Prepare UAT environment: staging identical to production, realistic
+test data seeded
+• Data migration dry-run: test import of any existing Kingfisher Wings
+data
+DEV 2 — FRONTEND & QA
+• Fix all High severity UI bugs
+• Cross-browser final confirmation: Chrome, Firefox, Safari, Edge all
+passing
+• Browser mobile QA: verify web app renders correctly in iOS Safari
+and Android Chrome (responsive web — no native app in this
+phase)
+• Prepare UAT test scenarios: one per major workflow (15+
+scenarios)
+Sat DEV 1 — BACKEND & INFRA
+• Integration testing signed off; bug log reviewed
+• Week 23–24 review
+DEV 2 — FRONTEND & QA
+• Full regression complete; UAT environment ready
+• Update project board
+WEEKLY DELIVERABLE All 35+ documents quality-reviewed · Financial accuracy verified (GL, VAT, aging, P&L;) · Zero
+Critical/High bugs · Cross-browser/mobile passing · UAT environment ready
+WEEK 26–29 · UAT · Production Infrastructure · Deployment UAT & Deploy
+Mon DEV 1 — BACKEND & INFRA
+• UAT Session 1 with Kingfisher Wings team: Auth, User
+Management, Master Data, Number Formats
+• UAT Session 2: Quotation module (create quote, approve, PDF,
+send, convert to job)
+• UAT Session 3: Air Export full lifecycle (booking → HAWB/MAWB →
+pre-alert → invoice)
+• Fix all Critical UAT-blocking issues immediately; document all
+feedback
+DEV 2 — FRONTEND & QA
+• UAT Session 4: Sea FCL Export + Import (containers, BL
+generation, demurrage, DO)
+• UAT Session 5: Finance (invoice UAE VAT, payments, AR aging,
+Trial Balance)
+• UAT Session 6: Customer Portal + Track & Trace widget (web)
+• UAT Session 7: CRM + HR + WMS + LCL + Land + Courier
+
+-- 32 of 36 --
+
+Tue DEV 1 — BACKEND & INFRA
+• Fix all High severity backend bugs from UAT sessions
+• Provision production infrastructure: cloud VPC, subnets, security
+groups, ECS instances or equivalent
+• Set up managed PostgreSQL (RDS) with automated daily backups,
+point-in-time recovery enabled
+• Set up Redis managed instance; configure connection pooling
+DEV 2 — FRONTEND & QA
+• Fix all High severity UI bugs from UAT
+• Set up frontend production deployment: Vercel or AWS
+S3+CloudFront for production domain
+• Configure production environment variables and feature flags
+• Deploy frontend to production CDN; verify all static assets loading
+Wed DEV 1 — BACKEND & INFRA
+• Build production Docker images; push to container registry (ECR)
+• Deploy backend to production: containers, load balancer, health
+check endpoints
+• Run database migrations on production DB; verify schema matches
+staging exactly
+• Set up CI/CD: GitHub Actions → test → build Docker → push →
+deploy on merge to main; rolling deployment strategy
+DEV 2 — FRONTEND & QA
+• Configure SSL certificates; enforce HTTPS with HTTP redirect
+• Set up DNS records for API subdomain and frontend domain
+• Verify CDN caching headers; cache invalidation working
+• Set up uptime monitoring: UptimeRobot on all key URLs;
+Slack/email alerts for downtime
+Thu DEV 1 — BACKEND & INFRA
+• EXECUTE GO-LIVE: run data migration scripts on production; seed
+reference data (currencies from xe.com, 500 ports, 250 airports, 30
+airlines, 20 shipping lines, container types)
+• Production smoke test — backend: health endpoint, DB
+connectivity, Redis, S3, email queue, BullMQ, xe.com rates,
+WhatsApp
+• Monitor Sentry for production errors in first hours after go-live
+• Verify automated daily DB backup and point-in-time recovery
+configured
+DEV 2 — FRONTEND & QA
+• Production smoke test — frontend: login → customer → quote → Air
+Export job → HAWB → invoice → payment → MIS dashboard
+• Verify all 35+ document types generate and download correctly in
+production
+• Monitor browser console for any production JS errors
+• Verify Track & Trace public widget accessible and returns correct
+milestone data
+Fri DEV 1 — BACKEND & INFRA
+• Hypercare Day 1: monitor all systems, respond to incidents
+immediately
+• Review production logs: unusual errors, slow queries, BullMQ job
+failures
+• Verify email notifications and WhatsApp notifications working in
+production
+• Collect first-day user feedback; log to Phase 4 backlog (Mobile
+Sales App, India IRN, KSA ZATCA, fixed assets module)
+DEV 2 — FRONTEND & QA
+• Hypercare Day 1: support Kingfisher Wings team with any go-live
+issues
+• Build user onboarding guide: in-app tooltip tour for first-time users
+(all major web workflows)
+• Write end-user quick-start PDF manual: create quote, create Air
+Export job, generate HAWB, send pre-alert, raise invoice, record
+payment
+• Hypercare Day 2: final monitoring; confirm system stable after 48
+hours
+Sat DEV 1 — BACKEND & INFRA
+• Hypercare Day 2 complete; handover: Swagger API docs, DB
+schema diagram, infra architecture doc, runbook, access
+credentials (password manager)
+• Phase 4 backlog documented: India IRN, KSA ZATCA, fixed asset
+module, biometric attendance, advanced AI features
+DEV 2 — FRONTEND & QA
+• Final handover: user manual PDF, onboarding guide, Phase 4
+backlog
+• Project retrospective: what went well, improvements, lessons
+learned
+• SYSTEM DELIVERED
+WEEKLY DELIVERABLE UAT complete (7 sessions) · All bugs resolved · Production live · CI/CD active · Monitoring running ·
+48-hour hypercare · Full documentation handed over · PROJECT DELIVERED
+
+-- 33 of 36 --
+
+APPENDIX A — COMPLETE DOCUMENT GENERATION CHECKLIST (Chapter 16)
+Every document listed in Ch.16 of the spec is assigned to a specific week below. Use this as the QA checklist for Weeks 23–24.
+Document Name Job Type Week Built Notes
+HAWB Draft + Original Air Export/Import Week 5 2 IATA-compliant layout variants
+MAWB Draft + Original Air Export Week 5 Airline-specific IATA format (prefix + sequence)
+E-AWB (Electronic AWB) Air Export Week 5 IATA XML for e-AWB system submission
+HBL Draft + Original Sea FCL/LCL Ex/Im Week 8 Multiple layout options
+Non-Negotiable HBL (Express Release) Sea Export Week 8 Telex release format
+MBL/OBL Draft + Original Sea FCL/LCL Export Week 8 Shipping line format
+FIATA BL (FBL) Sea Export Week 8 FIATA standard format
+Rider / Addendum to BL Sea Export Week 8 Additional terms page
+Switch BL Sea Export Week 8 Replacement BL at destination
+Proxy BL Sea Export Week 8 On behalf of another forwarder
+Back-to-Back BL Sea Export Week 8 Master-House BL pair
+Cargo Manifest (House) All Sea/Air Wk 5,8,18 Per consignment listing
+Cargo Manifest (Master) All Sea/Air Wk 5,8,18 Combined all-consignment listing
+Freight Manifest (House) All Sea/Air Wk 5,8,18 Per consignment freight charges
+Freight Manifest (Master) All Sea/Air Wk 5,8,18 Combined freight charges
+Shipping Instruction (SI) Sea FCL Export Week 8 Instructions to shipping line
+Stuffing Report Sea FCL Export Week 8 Container loading record
+Surrender Notice Sea Export Week 8 BL surrender authorization
+Sailing Confirmation Sea Export Week 8 Vessel sailing confirmation
+Transhipment Confirmation Sea Export Week 8 Transshipment port confirmation
+Pre-CAN All Import Wk
+6,9,15,18
+Advance arrival notification
+CAN (Cargo Arrival Notice) All Import Wk
+6,9,15,18
+Official arrival notification
+Exchange Letter Sea Import Week 9 BL exchange/endorsement letter
+Undertake Letter Sea FCL Import Week 9 Customs provisional release undertaking
+Delivery Order (DO) All Import Wk 9,15,18 Cargo collection authorization
+Transport Request All Import Wk 9,15,19 Inland transport authorization
+Proof of Delivery (POD) All Wk
+9,15,18,19
+Signed delivery confirmation
+Barcode Label Air Export Week 5 Package barcode labels
+Consignee Label List Air Export Week 5 Batch labels for all packages
+Shipping Advice All Import Multiple
+weeks
+Shipment advice to consignee
+Freight Certificate LCL Import Week 18 Freight payment certificate
+Job Card All job types Multiple
+weeks
+Internal operational summary
+Job P&L; Statement All Multiple
+weeks
+Provisional/final P&L; (rights-gated)
+Costing Sheet All Week 5+ Detailed revenue+cost breakdown (rights-gated)
+Proforma Invoice All Multiple
+weeks
+Advance invoice
+Customer Invoice (25+ formats) All Week 10 UAE VAT compliant + 24 other formats
+Credit Note / Debit Note All Week 10 Against posted invoice
+Receipt Voucher / Payment Voucher Finance Week 11 Payment confirmations
+
+-- 34 of 36 --
+
+Cheque Printing Finance Week 11 Bank-format cheque
+Outstanding Statement / Aging Statement Finance Week 11 AR statement for customer
+LPO (Local Purchase Order) Finance Week 10 Purchase order for supplier
+Courier Documents (8 types) Courier Week 19 Job Card, Booking Confirm, Barcode, Delivery Note,
+Invoice, POD, Customs Declaration, Report
+Land Documents (9 types) Land Week 19 Job Card, Waybill, DO, POD, Manifest, Invoice, Proforma,
+Transit Docs, Cross-Border Declaration
+WMS Documents (GRN, GDO, Putaway) WMS Week 17 GRN/GDO draft and original
+HR Letters (10 types) HR Week 16 Appointment, Confirmation, Salary Revision, Warning,
+Experience, Employment Cert, NOC, Resignation Accept,
+EOS, Reference
+Quotation PDFs (8 formats) Sales Week 3 Per service type, customer vs internal
+APPENDIX B — DECISIONS LOCKED BEFORE DEVELOPMENT
+v1 MVP Scope: Air Export + Sea FCL Export + Sea FCL Import. These 3 cover 70–80% of revenue. Air Import added Week 15. All
+other modes Phase 2. UAE VAT only for v1 finance compliance.
+Multi-Tenancy Architecture: Single PostgreSQL database. Every table has tenant_id UUID NOT NULL FK to tenants table.
+Row-Level Security (RLS) policies enforced at database level from Week 0 — not application-level scoping added later. Prisma + SET
+app.current_tenant_id approach.
+Job Type Architecture: Single jobs table with job_type enum. Shared child tables (job_charges, job_milestones, job_documents,
+job_notes) for all types. Mode-specific detail tables (air_job_details, sea_fcl_job_details, etc.) as FK-linked extensions. No separate
+table per operation type.
+Document Generation: Puppeteer server-side rendering via BullMQ background queue. No synchronous PDF in request cycle. Draft
+→ Original finalize workflow. Document rights (view/preview/download/email/edit/finalize/delete/reprint) enforced server-side. All PDFs
+stored in S3 with pre-signed URL delivery.
+Financial Visibility: Six can_see_* boolean columns on users table (can_see_sales, can_see_cost, can_see_gp, can_see_invoices,
+can_see_payments, can_see_bank_balances, can_see_ar_ap, can_see_mgmt_reports, can_see_job_pnl). Enforced at API level —
+financial fields return null for users without permission. UI hides corresponding elements.
+v1 Finance Compliance: UAE VAT 5% only. KSA ZATCA (requires Saudi authority certification) and India IRN e-invoicing (requires
+GSTN registration) deferred to Phase 4. UAE TRN on all tax invoices. WPS payroll file for UAE.
+Team Ownership: Dev 1 owns all backend (NestJS), database (PostgreSQL + RLS), infrastructure, PDF generation (Puppeteer),
+queue (BullMQ), and all API endpoints. Dev 2 owns all frontend (Next.js), UI components (TailwindCSS + shadcn/ui), React Hook
+Form + Zod validation, TanStack Query, and QA. No context-switching mid-week.
+APPENDIX C — PHASE 4 BACKLOG (Post-Launch)
+• Mobile Sales App (Ch.26) — deferred by decision: React Native / Expo app with customer list, call logs, follow-ups, GPS visit capture,
+shipment status, push notifications, offline mode
+• India GST IRN e-invoicing integration (Ch.18.1, Ch.25.3): requires GSTN registration
+• KSA ZATCA e-invoice compliance (Ch.18.1, Ch.18.2, Ch.25.3): requires Saudi authority certification
+• Oman VAT return (Ch.20.2) and Malaysia SST (Ch.20.2)
+• TDS calculations and certificates for India (Ch.19.2, Ch.21.4)
+• Fixed Asset module: asset register, depreciation schedule, revaluation, disposal (Ch.20.5)
+• Biometric attendance integration for HR timesheets (Ch.21.6)
+• Advanced AI features: document OCR extraction, smart quote suggestions, invoice anomaly detection
+• NVOCC module: BUILT in Week 20–21 (Phase 2) — NOT deferred
+• Advanced MIS: custom KPI builder, SLA breach alerts, client profitability forecasting
+• Multi-language UI (Ch.2.4): Arabic, Urdu, Hindi — requires full i18n implementation
+• Payment gateway integration: Stripe/Telr for customer invoice online payment (Ch.25.3)
+• Advanced EDI: real-time container tracking API integration with project44 or similar
+• MAC address restriction enforcement (Ch.3.2): requires device fingerprinting implementation
+
+-- 35 of 36 --
+
+DELIVERY SUMMARY
+Phase Weeks Days Key Deliverable
+Phase 0 — Foundation Wks 0–2 18 days All 15 master data types · Auth+RBAC+2FA · RLS active · xe.com rates
+Phase 1 — Core Operations Wks 3–12 60 days Quotations · Air Export · Sea FCL Ex/Im · Full Finance (UAE VAT) · MIS
+Dashboard
+Phase 2 — Full Platform Wks 13–21 54 days Portals · CRM · Air Import · HR · WMS · LCL · Land · Courier · NVOCC ·
+EDI · Admin
+Phase 3 — QA & Launch Wks 22–29 48 days Performance · Security (OWASP) · Integration QA · UAT · Production
+Deploy
+TOTAL 30 weeks 180 days 2 Developers · All 28 Spec Chapters + NVOCC Module · All 8 Op Types +
+NVOCC · 47+ Documents · Mobile App Phase 4
+This document supersedes all previous plan versions. It is matched 1:1 against the
+FreightSaaS_Fresa_Complete_Feature_Specification.pdf. Every chapter, every feature, every document type, and every setting is
+assigned to a specific week. Use Appendix A as the QA checklist for document generation. Use Appendix B for architecture decisions
+before writing any code. Use Appendix C for post-launch roadmap.
+
+-- 36 of 36 --
+

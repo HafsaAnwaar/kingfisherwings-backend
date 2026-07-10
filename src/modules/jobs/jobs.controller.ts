@@ -25,6 +25,7 @@ import { CreateJobNoteDto, UpdateJobNoteDto } from './dto/job-note.dto';
 import { CreateJobDocumentDto, UpdateJobDocumentDto, FinalizeJobDocumentDto } from './dto/job-document.dto';
 import { CreateJobContainerDto, UpdateJobContainerDto } from './dto/job-container.dto';
 import { SendPreAlertDto } from './dto/pre-alert.dto';
+import { GenerateJobDocumentDto } from './dto/generate-job-document.dto';
 import { JobQueryDto } from './dto/job-query.dto';
 
 import { RolesGuard } from '../users/guards/roles.guard';
@@ -341,6 +342,61 @@ export class JobsController {
     @Param('documentId', ParseUUIDPipe) documentId: string,
   ) {
     await this.service.removeDocument(tenantId, id, documentId, actorId);
+  }
+
+  @Get(':id/documents/generation-status')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List async document generation tasks for a job' })
+  getDocumentGenerationStatus(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getDocumentGenerationStatus(tenantId, id);
+  }
+
+  @Post(':id/documents/hawb')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue HAWB PDF generation (Puppeteer + BullMQ)' })
+  generateHawb(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'HAWB', dto, actorId);
+  }
+
+  @Post(':id/documents/mawb')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue MAWB PDF generation (Puppeteer + BullMQ)' })
+  generateMawb(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'MAWB', dto, actorId);
+  }
+
+  @Post(':id/documents/pre-alert')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue pre-alert document PDF generation' })
+  generatePreAlertDoc(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'PRE_ALERT', dto, actorId);
+  }
+
+  @Post(':id/documents/cargo-manifest')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue cargo manifest PDF generation' })
+  generateCargoManifest(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'CARGO_MANIFEST', dto, actorId);
   }
 
   @Post(':id/pre-alert/send')
