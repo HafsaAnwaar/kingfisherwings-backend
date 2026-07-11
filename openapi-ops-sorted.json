@@ -1,0 +1,2011 @@
+[
+  {
+    "method": "POST",
+    "path": "/auth/change-password",
+    "summary": "Change the authenticated user password",
+    "tag": "Auth",
+    "opId": "AuthController_changePassword"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "summary": "Staff login: tenant slug + email + password",
+    "tag": "Auth",
+    "opId": "AuthController_login"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/logout",
+    "summary": "Revoke the current session",
+    "tag": "Auth",
+    "opId": "AuthController_logout"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/logout-all",
+    "summary": "Log out of every device (revokes all active sessions)",
+    "tag": "Auth",
+    "opId": "AuthController_logoutAll"
+  },
+  {
+    "method": "GET",
+    "path": "/auth/me",
+    "summary": "Get the authenticated principal (user, tenant owner, or super admin)",
+    "tag": "Auth",
+    "opId": "AuthController_me"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/refresh",
+    "summary": "Exchange a refresh token for a new token pair",
+    "tag": "Auth",
+    "opId": "AuthController_refresh"
+  },
+  {
+    "method": "GET",
+    "path": "/auth/sessions",
+    "summary": "List the authenticated user's own active sessions",
+    "tag": "Auth",
+    "opId": "AuthController_listSessions"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/sessions/{sessionId}/revoke",
+    "summary": "Revoke one of the authenticated user's own sessions",
+    "tag": "Auth",
+    "opId": "AuthController_revokeSession"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/super-admin/login",
+    "summary": "Platform super admin login",
+    "tag": "Auth",
+    "opId": "AuthController_superAdminLogin"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/super-admin/signup",
+    "summary": "Platform super admin self-registration",
+    "tag": "Auth",
+    "opId": "AuthController_superAdminSignup"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/tenant-login",
+    "summary": "Tenant admin login: tenant slug + the tenant's own password",
+    "tag": "Auth",
+    "opId": "AuthController_tenantLogin"
+  },
+  {
+    "method": "POST",
+    "path": "/auth/tenant/change-password",
+    "summary": "Change the tenant's own login password (POST /auth/tenant-login credential). Tenant admins only.",
+    "tag": "Auth",
+    "opId": "AuthController_changeTenantPassword"
+  },
+  {
+    "method": "GET",
+    "path": "/awb-stock/allocations",
+    "summary": "List AWB allocations",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_listAllocations"
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/allocations/{id}/mark-used",
+    "summary": "Mark an allocated AWB as used (flown/printed)",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_markUsed"
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/allocations/{id}/void",
+    "summary": "Void an allocated (unused) AWB number",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_voidAllocation"
+  },
+  {
+    "method": "GET",
+    "path": "/awb-stock/batches",
+    "summary": "List AWB stock batches",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_listBatches"
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/batches",
+    "summary": "Register a new AWB number range for an airline",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_createBatch"
+  },
+  {
+    "method": "DELETE",
+    "path": "/awb-stock/batches/{id}",
+    "summary": "Soft-delete an empty AWB stock batch",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_removeBatch"
+  },
+  {
+    "method": "GET",
+    "path": "/awb-stock/batches/{id}",
+    "summary": "Get an AWB stock batch with recent allocations",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_getBatch"
+  },
+  {
+    "method": "PATCH",
+    "path": "/awb-stock/batches/{id}",
+    "summary": "Update batch metadata (threshold, notes)",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_updateBatch"
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/batches/{id}/allocate",
+    "summary": "Allocate the next AWB number from a batch to a job",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_allocate"
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/batches/{id}/transfer-branch",
+    "summary": "Transfer batch ownership to another branch",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_transferBranch"
+  },
+  {
+    "method": "GET",
+    "path": "/awb-stock/reports/low-stock",
+    "summary": "Batches at or below their low-stock threshold",
+    "tag": "AWB Stock",
+    "opId": "AwbStockController_getLowStockReport"
+  },
+  {
+    "method": "GET",
+    "path": "/companies",
+    "summary": "List this tenant's companies (usually just the one default, more for multi-entity groups)",
+    "tag": "Companies",
+    "opId": "CompaniesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/companies",
+    "summary": "Register an additional company under this tenant (multi-entity groups)",
+    "tag": "Companies",
+    "opId": "CompaniesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/companies/{id}",
+    "summary": "Soft-delete a company (blocked if it is the only one, or currently default)",
+    "tag": "Companies",
+    "opId": "CompaniesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/companies/{id}",
+    "summary": "Get a company by id",
+    "tag": "Companies",
+    "opId": "CompaniesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/companies/{id}",
+    "summary": "Update a company",
+    "tag": "Companies",
+    "opId": "CompaniesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/credit-notes",
+    "summary": "List credit notes",
+    "tag": "Credit Notes",
+    "opId": "CreditNotesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/credit-notes",
+    "summary": "Create a credit note against a posted customer invoice",
+    "tag": "Credit Notes",
+    "opId": "CreditNotesController_create"
+  },
+  {
+    "method": "GET",
+    "path": "/credit-notes/{id}",
+    "summary": "Get a credit note",
+    "tag": "Credit Notes",
+    "opId": "CreditNotesController_findOne"
+  },
+  {
+    "method": "POST",
+    "path": "/credit-notes/{id}/post",
+    "summary": "Post a draft credit note",
+    "tag": "Credit Notes",
+    "opId": "CreditNotesController_post"
+  },
+  {
+    "method": "GET",
+    "path": "/files/{tenantId}/{filename}",
+    "summary": "Download a locally stored file (PDFs generated by the system)",
+    "tag": "Files",
+    "opId": "FilesController_download"
+  },
+  {
+    "method": "GET",
+    "path": "/invoices",
+    "summary": "List customer invoices (Ch.18)",
+    "tag": "Invoices",
+    "opId": "InvoicesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/invoices",
+    "summary": "Create a draft customer invoice",
+    "tag": "Invoices",
+    "opId": "InvoicesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/invoices/{id}",
+    "summary": "Soft-delete a draft invoice",
+    "tag": "Invoices",
+    "opId": "InvoicesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/invoices/{id}",
+    "summary": "Get invoice with lines",
+    "tag": "Invoices",
+    "opId": "InvoicesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/invoices/{id}",
+    "summary": "Update a draft invoice header",
+    "tag": "Invoices",
+    "opId": "InvoicesController_update"
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/cancel",
+    "summary": "Cancel an invoice",
+    "tag": "Invoices",
+    "opId": "InvoicesController_cancel"
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/lines",
+    "summary": "Add a line to a draft invoice",
+    "tag": "Invoices",
+    "opId": "InvoicesController_addLine"
+  },
+  {
+    "method": "DELETE",
+    "path": "/invoices/{id}/lines/{lineId}",
+    "summary": "Remove an invoice line",
+    "tag": "Invoices",
+    "opId": "InvoicesController_removeLine"
+  },
+  {
+    "method": "PATCH",
+    "path": "/invoices/{id}/lines/{lineId}",
+    "summary": "Update an invoice line",
+    "tag": "Invoices",
+    "opId": "InvoicesController_updateLine"
+  },
+  {
+    "method": "GET",
+    "path": "/invoices/{id}/pdf",
+    "summary": "Get invoice PDF metadata",
+    "tag": "Invoices",
+    "opId": "InvoicesController_getPdfInfo"
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/pdf",
+    "summary": "Generate invoice PDF",
+    "tag": "Invoices",
+    "opId": "InvoicesController_generatePdf"
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/post",
+    "summary": "Post a draft invoice (DRAFT -> POSTED)",
+    "tag": "Invoices",
+    "opId": "InvoicesController_post"
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/send",
+    "summary": "Email invoice PDF to customer",
+    "tag": "Invoices",
+    "opId": "InvoicesController_send"
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/from-job/{jobId}",
+    "summary": "Create draft invoice from uninvoiced billable job charges",
+    "tag": "Invoices",
+    "opId": "InvoicesController_createFromJob"
+  },
+  {
+    "method": "GET",
+    "path": "/invoices/reports/overdue",
+    "summary": "Overdue customer invoices past due_date with outstanding balance",
+    "tag": "Invoices",
+    "opId": "InvoicesController_getOverdue"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs",
+    "summary": "List jobs",
+    "tag": "Jobs",
+    "opId": "JobsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs",
+    "summary": "Create a job (booking). AIR_EXPORT jobs auto-get their detail row + the full 15-milestone taxonomy. Set parent_job_id to create a HOUSE job under an existing master.",
+    "tag": "Jobs",
+    "opId": "JobsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}",
+    "summary": "Soft-delete a completed or cancelled job",
+    "tag": "Jobs",
+    "opId": "JobsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}",
+    "summary": "Get a job with air details, charges, milestones, and its house jobs (if a master)",
+    "tag": "Jobs",
+    "opId": "JobsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}",
+    "summary": "Update a job (not allowed once COMPLETED or CANCELLED)",
+    "tag": "Jobs",
+    "opId": "JobsController_update"
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/air-details",
+    "summary": "Update Air Export-specific booking fields (airline, HAWB/MAWB, flight, AWB type, freight type)",
+    "tag": "Jobs",
+    "opId": "JobsController_updateAirDetails"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/cancel",
+    "summary": "Cancel a job (status -> CANCELLED)",
+    "tag": "Jobs",
+    "opId": "JobsController_cancelJob"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/charges",
+    "summary": "Add a charge line — Job P&L recalculates automatically",
+    "tag": "Jobs",
+    "opId": "JobsController_addCharge"
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}/charges/{chargeId}",
+    "summary": "Remove a charge line",
+    "tag": "Jobs",
+    "opId": "JobsController_removeCharge"
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/charges/{chargeId}",
+    "summary": "Update a charge line",
+    "tag": "Jobs",
+    "opId": "JobsController_updateCharge"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/close",
+    "summary": "Close a job (status -> COMPLETED)",
+    "tag": "Jobs",
+    "opId": "JobsController_closeJob"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/containers",
+    "summary": "List containers on a Sea FCL job",
+    "tag": "Jobs",
+    "opId": "JobsController_listContainers"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/containers",
+    "summary": "Add a container to a Sea FCL job",
+    "tag": "Jobs",
+    "opId": "JobsController_addContainer"
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}/containers/{containerId}",
+    "summary": "Remove a container from a Sea FCL job",
+    "tag": "Jobs",
+    "opId": "JobsController_removeContainer"
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/containers/{containerId}",
+    "summary": "Update a container on a Sea FCL job",
+    "tag": "Jobs",
+    "opId": "JobsController_updateContainer"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/documents",
+    "summary": "List documents attached to a job",
+    "tag": "Jobs",
+    "opId": "JobsController_listDocuments"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents",
+    "summary": "Register a document on a job (metadata + file URL)",
+    "tag": "Jobs",
+    "opId": "JobsController_addDocument"
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}/documents/{documentId}",
+    "summary": "Remove a draft document",
+    "tag": "Jobs",
+    "opId": "JobsController_removeDocument"
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/documents/{documentId}",
+    "summary": "Update a draft document metadata",
+    "tag": "Jobs",
+    "opId": "JobsController_updateDocument"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/{documentId}/finalize",
+    "summary": "Finalize a document (DRAFT -> ORIGINAL, locked)",
+    "tag": "Jobs",
+    "opId": "JobsController_finalizeDocument"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/cargo-manifest",
+    "summary": "Queue cargo manifest PDF generation",
+    "tag": "Jobs",
+    "opId": "JobsController_generateCargoManifest"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/documents/generation-status",
+    "summary": "List async document generation tasks for a job",
+    "tag": "Jobs",
+    "opId": "JobsController_getDocumentGenerationStatus"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/hawb",
+    "summary": "Queue HAWB PDF generation (Puppeteer + BullMQ)",
+    "tag": "Jobs",
+    "opId": "JobsController_generateHawb"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/mawb",
+    "summary": "Queue MAWB PDF generation (Puppeteer + BullMQ)",
+    "tag": "Jobs",
+    "opId": "JobsController_generateMawb"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/pre-alert",
+    "summary": "Queue pre-alert document PDF generation",
+    "tag": "Jobs",
+    "opId": "JobsController_generatePreAlertDoc"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/house-jobs",
+    "summary": "List the house jobs consolidated under this master job",
+    "tag": "Jobs",
+    "opId": "JobsController_getHouseJobs"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/milestones",
+    "summary": "List all milestones for a job",
+    "tag": "Jobs",
+    "opId": "JobsController_getMilestones"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/milestones",
+    "summary": "Add a custom milestone outside the standard taxonomy",
+    "tag": "Jobs",
+    "opId": "JobsController_addCustomMilestone"
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/milestones/{milestoneId}",
+    "summary": "Update a milestone — set actual_date to mark it complete",
+    "tag": "Jobs",
+    "opId": "JobsController_completeMilestone"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/notes",
+    "summary": "List notes on a job",
+    "tag": "Jobs",
+    "opId": "JobsController_listNotes"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/notes",
+    "summary": "Add a note to a job",
+    "tag": "Jobs",
+    "opId": "JobsController_addNote"
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}/notes/{noteId}",
+    "summary": "Remove a job note",
+    "tag": "Jobs",
+    "opId": "JobsController_removeNote"
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/notes/{noteId}",
+    "summary": "Update a job note",
+    "tag": "Jobs",
+    "opId": "JobsController_updateNote"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/pnl",
+    "summary": "Job P&L breakdown — revenue lines, cost lines, GP summary (Ch.8.2)",
+    "tag": "Jobs",
+    "opId": "JobsController_getPnl"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/pre-alert/send",
+    "summary": "Send pre-alert and mark PRE_ALERT_SENT milestone complete",
+    "tag": "Jobs",
+    "opId": "JobsController_sendPreAlert"
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/prorate-cost/{chargeCodeId}",
+    "summary": "Distribute a master job's cost line to its house jobs, proportionally by chargeable weight",
+    "tag": "Jobs",
+    "opId": "JobsController_prorateMasterCost"
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/sea-fcl-details",
+    "summary": "Update Sea FCL-specific booking fields (shipping line, BL numbers, cutoffs)",
+    "tag": "Jobs",
+    "opId": "JobsController_updateSeaFclDetails"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/airlines",
+    "summary": "list airlines",
+    "tag": "Masters — Airlines",
+    "opId": "AirlinesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/airlines",
+    "summary": "Create a record",
+    "tag": "Masters — Airlines",
+    "opId": "AirlinesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/airlines/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Airlines",
+    "opId": "AirlinesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/airlines/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Airlines",
+    "opId": "AirlinesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/airlines/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Airlines",
+    "opId": "AirlinesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/airports",
+    "summary": "List airports",
+    "tag": "Masters — Airports",
+    "opId": "AirportsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/airports",
+    "summary": "Create an airport",
+    "tag": "Masters — Airports",
+    "opId": "AirportsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/airports/{id}",
+    "summary": "Soft-delete an airport",
+    "tag": "Masters — Airports",
+    "opId": "AirportsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/airports/{id}",
+    "summary": "Get an airport by id",
+    "tag": "Masters — Airports",
+    "opId": "AirportsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/airports/{id}",
+    "summary": "Update an airport",
+    "tag": "Masters — Airports",
+    "opId": "AirportsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/banks",
+    "summary": "list banks",
+    "tag": "Masters — Banks",
+    "opId": "BanksController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/banks",
+    "summary": "Create a record",
+    "tag": "Masters — Banks",
+    "opId": "BanksController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/banks/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Banks",
+    "opId": "BanksController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/banks/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Banks",
+    "opId": "BanksController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/banks/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Banks",
+    "opId": "BanksController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/branches",
+    "summary": "list branches",
+    "tag": "Masters — Branches",
+    "opId": "BranchesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/branches",
+    "summary": "Create a record",
+    "tag": "Masters — Branches",
+    "opId": "BranchesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/branches/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Branches",
+    "opId": "BranchesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/branches/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Branches",
+    "opId": "BranchesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/branches/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Branches",
+    "opId": "BranchesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/charge-codes",
+    "summary": "list chargecodes",
+    "tag": "Masters — ChargeCodes",
+    "opId": "ChargeCodesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/charge-codes",
+    "summary": "Create a record",
+    "tag": "Masters — ChargeCodes",
+    "opId": "ChargeCodesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/charge-codes/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — ChargeCodes",
+    "opId": "ChargeCodesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/charge-codes/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — ChargeCodes",
+    "opId": "ChargeCodesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/charge-codes/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — ChargeCodes",
+    "opId": "ChargeCodesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/container-types",
+    "summary": "List container types",
+    "tag": "Masters — ContainerTypes",
+    "opId": "ContainerTypesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/container-types",
+    "summary": "Create a container type",
+    "tag": "Masters — ContainerTypes",
+    "opId": "ContainerTypesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/container-types/{id}",
+    "summary": "Soft-delete a container type",
+    "tag": "Masters — ContainerTypes",
+    "opId": "ContainerTypesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/container-types/{id}",
+    "summary": "Get a container type by id",
+    "tag": "Masters — ContainerTypes",
+    "opId": "ContainerTypesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/container-types/{id}",
+    "summary": "Update a container type",
+    "tag": "Masters — ContainerTypes",
+    "opId": "ContainerTypesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/countries",
+    "summary": "List countries",
+    "tag": "Masters — Countries",
+    "opId": "CountriesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/countries",
+    "summary": "Create a country",
+    "tag": "Masters — Countries",
+    "opId": "CountriesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/countries/{id}",
+    "summary": "Soft-delete a country",
+    "tag": "Masters — Countries",
+    "opId": "CountriesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/countries/{id}",
+    "summary": "Get a country by id",
+    "tag": "Masters — Countries",
+    "opId": "CountriesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/countries/{id}",
+    "summary": "Update a country",
+    "tag": "Masters — Countries",
+    "opId": "CountriesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/currencies",
+    "summary": "List currencies",
+    "tag": "Masters — Currencies",
+    "opId": "CurrenciesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/currencies",
+    "summary": "Create a currency",
+    "tag": "Masters — Currencies",
+    "opId": "CurrenciesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/currencies/{id}",
+    "summary": "Soft-delete a currency",
+    "tag": "Masters — Currencies",
+    "opId": "CurrenciesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/currencies/{id}",
+    "summary": "Get a currency by id",
+    "tag": "Masters — Currencies",
+    "opId": "CurrenciesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/currencies/{id}",
+    "summary": "Update a currency",
+    "tag": "Masters — Currencies",
+    "opId": "CurrenciesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/departments",
+    "summary": "list departments",
+    "tag": "Masters — Departments",
+    "opId": "DepartmentsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/departments",
+    "summary": "Create a record",
+    "tag": "Masters — Departments",
+    "opId": "DepartmentsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/departments/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Departments",
+    "opId": "DepartmentsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/departments/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Departments",
+    "opId": "DepartmentsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/departments/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Departments",
+    "opId": "DepartmentsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/designations",
+    "summary": "list designations",
+    "tag": "Masters — Designations",
+    "opId": "DesignationsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/designations",
+    "summary": "Create a record",
+    "tag": "Masters — Designations",
+    "opId": "DesignationsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/designations/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Designations",
+    "opId": "DesignationsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/designations/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Designations",
+    "opId": "DesignationsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/designations/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Designations",
+    "opId": "DesignationsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/exchange-rates",
+    "summary": "List exchange rates, optionally filtered by currency",
+    "tag": "Masters — Exchange Rates",
+    "opId": "ExchangeRatesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/exchange-rates",
+    "summary": "Record (or correct) an exchange rate for a date — upserts by currency + date",
+    "tag": "Masters — Exchange Rates",
+    "opId": "ExchangeRatesController_create"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/exchange-rates/latest/{currencyId}",
+    "summary": "Most recent rate on file for a currency",
+    "tag": "Masters — Exchange Rates",
+    "opId": "ExchangeRatesController_latest"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/holidays",
+    "summary": "list holidays",
+    "tag": "Masters — Holidays",
+    "opId": "HolidaysController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/holidays",
+    "summary": "Create a record",
+    "tag": "Masters — Holidays",
+    "opId": "HolidaysController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/holidays/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Holidays",
+    "opId": "HolidaysController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/holidays/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Holidays",
+    "opId": "HolidaysController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/holidays/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Holidays",
+    "opId": "HolidaysController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/hs-codes",
+    "summary": "List HS codes",
+    "tag": "Masters — HsCodes",
+    "opId": "HsCodesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/hs-codes",
+    "summary": "Create an HS code",
+    "tag": "Masters — HsCodes",
+    "opId": "HsCodesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/hs-codes/{id}",
+    "summary": "Soft-delete an HS code",
+    "tag": "Masters — HsCodes",
+    "opId": "HsCodesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/hs-codes/{id}",
+    "summary": "Get an HS code by id",
+    "tag": "Masters — HsCodes",
+    "opId": "HsCodesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/hs-codes/{id}",
+    "summary": "Update an HS code",
+    "tag": "Masters — HsCodes",
+    "opId": "HsCodesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/ports",
+    "summary": "List ports",
+    "tag": "Masters — Ports",
+    "opId": "PortsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/ports",
+    "summary": "Create a port",
+    "tag": "Masters — Ports",
+    "opId": "PortsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/ports/{id}",
+    "summary": "Soft-delete a port",
+    "tag": "Masters — Ports",
+    "opId": "PortsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/ports/{id}",
+    "summary": "Get a port record by id",
+    "tag": "Masters — Ports",
+    "opId": "PortsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/ports/{id}",
+    "summary": "Update a port",
+    "tag": "Masters — Ports",
+    "opId": "PortsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/shipping-lines",
+    "summary": "list shippinglines",
+    "tag": "Masters — ShippingLines",
+    "opId": "ShippingLinesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/shipping-lines",
+    "summary": "Create a record",
+    "tag": "Masters — ShippingLines",
+    "opId": "ShippingLinesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/shipping-lines/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — ShippingLines",
+    "opId": "ShippingLinesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/shipping-lines/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — ShippingLines",
+    "opId": "ShippingLinesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/shipping-lines/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — ShippingLines",
+    "opId": "ShippingLinesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/tax-rates",
+    "summary": "list taxrates",
+    "tag": "Masters — TaxRates",
+    "opId": "TaxRatesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/tax-rates",
+    "summary": "Create a record",
+    "tag": "Masters — TaxRates",
+    "opId": "TaxRatesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/tax-rates/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — TaxRates",
+    "opId": "TaxRatesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/tax-rates/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — TaxRates",
+    "opId": "TaxRatesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/tax-rates/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — TaxRates",
+    "opId": "TaxRatesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/truckers",
+    "summary": "list truckers",
+    "tag": "Masters — Truckers",
+    "opId": "TruckersController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/truckers",
+    "summary": "Create a record",
+    "tag": "Masters — Truckers",
+    "opId": "TruckersController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/truckers/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Truckers",
+    "opId": "TruckersController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/truckers/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Truckers",
+    "opId": "TruckersController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/truckers/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Truckers",
+    "opId": "TruckersController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/units-of-measure",
+    "summary": "list unitsofmeasure",
+    "tag": "Masters — UnitsOfMeasure",
+    "opId": "UnitsOfMeasureController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/units-of-measure",
+    "summary": "Create a record",
+    "tag": "Masters — UnitsOfMeasure",
+    "opId": "UnitsOfMeasureController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/units-of-measure/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — UnitsOfMeasure",
+    "opId": "UnitsOfMeasureController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/units-of-measure/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — UnitsOfMeasure",
+    "opId": "UnitsOfMeasureController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/units-of-measure/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — UnitsOfMeasure",
+    "opId": "UnitsOfMeasureController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/vessels",
+    "summary": "list vessels",
+    "tag": "Masters — Vessels",
+    "opId": "VesselsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/vessels",
+    "summary": "Create a record",
+    "tag": "Masters — Vessels",
+    "opId": "VesselsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/vessels/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Vessels",
+    "opId": "VesselsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/vessels/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Vessels",
+    "opId": "VesselsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/vessels/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Vessels",
+    "opId": "VesselsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/warehouses",
+    "summary": "list warehouses",
+    "tag": "Masters — Warehouses",
+    "opId": "WarehousesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/masters/warehouses",
+    "summary": "Create a record",
+    "tag": "Masters — Warehouses",
+    "opId": "WarehousesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/warehouses/{id}",
+    "summary": "Soft-delete a record",
+    "tag": "Masters — Warehouses",
+    "opId": "WarehousesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/masters/warehouses/{id}",
+    "summary": "Get a record by id",
+    "tag": "Masters — Warehouses",
+    "opId": "WarehousesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/warehouses/{id}",
+    "summary": "Update a record",
+    "tag": "Masters — Warehouses",
+    "opId": "WarehousesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/organization/bank-accounts",
+    "summary": "List this tenant's own bank accounts",
+    "tag": "Organization — Bank Accounts",
+    "opId": "BankAccountsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/organization/bank-accounts",
+    "summary": "Add a bank account",
+    "tag": "Organization — Bank Accounts",
+    "opId": "BankAccountsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/organization/bank-accounts/{id}",
+    "summary": "Soft-delete a bank account",
+    "tag": "Organization — Bank Accounts",
+    "opId": "BankAccountsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/organization/bank-accounts/{id}",
+    "summary": "Get a bank account by id",
+    "tag": "Organization — Bank Accounts",
+    "opId": "BankAccountsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/organization/bank-accounts/{id}",
+    "summary": "Update a bank account",
+    "tag": "Organization — Bank Accounts",
+    "opId": "BankAccountsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/organization/number-formats",
+    "summary": "List all configured document number formats (Ch.2.2)",
+    "tag": "Organization — Number Formats",
+    "opId": "NumberFormatsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/organization/number-formats",
+    "summary": "Configure the number format for a document type",
+    "tag": "Organization — Number Formats",
+    "opId": "NumberFormatsController_create"
+  },
+  {
+    "method": "GET",
+    "path": "/organization/number-formats/{documentType}",
+    "summary": "Get the number format for one document type",
+    "tag": "Organization — Number Formats",
+    "opId": "NumberFormatsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/organization/number-formats/{documentType}",
+    "summary": "Update the number format for a document type",
+    "tag": "Organization — Number Formats",
+    "opId": "NumberFormatsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/organization/number-formats/{documentType}/preview",
+    "summary": "Preview the next number for this format without consuming a sequence value",
+    "tag": "Organization — Number Formats",
+    "opId": "NumberFormatsController_preview"
+  },
+  {
+    "method": "GET",
+    "path": "/organization/profile",
+    "summary": "Get this tenant's own organization profile",
+    "tag": "Organization Profile",
+    "opId": "OrganizationController_getProfile"
+  },
+  {
+    "method": "PATCH",
+    "path": "/organization/profile",
+    "summary": "Update this tenant's own organization profile (Ch.27.1)",
+    "tag": "Organization Profile",
+    "opId": "OrganizationController_updateProfile"
+  },
+  {
+    "method": "GET",
+    "path": "/parties",
+    "summary": "List parties (customers, agents, suppliers, carriers, etc.)",
+    "tag": "Parties",
+    "opId": "PartiesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/parties",
+    "summary": "Create a party",
+    "tag": "Parties",
+    "opId": "PartiesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/parties/{id}",
+    "summary": "Soft-delete a party",
+    "tag": "Parties",
+    "opId": "PartiesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/parties/{id}",
+    "summary": "Get a party with its contacts and addresses",
+    "tag": "Parties",
+    "opId": "PartiesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/parties/{id}",
+    "summary": "Update a party",
+    "tag": "Parties",
+    "opId": "PartiesController_update"
+  },
+  {
+    "method": "POST",
+    "path": "/parties/{id}/addresses",
+    "summary": "Add an address to a party",
+    "tag": "Parties",
+    "opId": "PartiesController_addAddress"
+  },
+  {
+    "method": "DELETE",
+    "path": "/parties/{id}/addresses/{addressId}",
+    "summary": "Remove a party's address",
+    "tag": "Parties",
+    "opId": "PartiesController_removeAddress"
+  },
+  {
+    "method": "PATCH",
+    "path": "/parties/{id}/addresses/{addressId}",
+    "summary": "Update a party's address",
+    "tag": "Parties",
+    "opId": "PartiesController_updateAddress"
+  },
+  {
+    "method": "POST",
+    "path": "/parties/{id}/contacts",
+    "summary": "Add a contact to a party",
+    "tag": "Parties",
+    "opId": "PartiesController_addContact"
+  },
+  {
+    "method": "DELETE",
+    "path": "/parties/{id}/contacts/{contactId}",
+    "summary": "Remove a party's contact",
+    "tag": "Parties",
+    "opId": "PartiesController_removeContact"
+  },
+  {
+    "method": "PATCH",
+    "path": "/parties/{id}/contacts/{contactId}",
+    "summary": "Update a party's contact",
+    "tag": "Parties",
+    "opId": "PartiesController_updateContact"
+  },
+  {
+    "method": "PATCH",
+    "path": "/parties/{id}/credit-status",
+    "summary": "Change credit status (Active / On Hold / Blacklisted)",
+    "tag": "Parties",
+    "opId": "PartiesController_updateCreditStatus"
+  },
+  {
+    "method": "POST",
+    "path": "/parties/import",
+    "summary": "Bulk-import parties from CSV. Columns match the party fields (party_type, code, name, ...); use \"|\" to separate multiple tags within a cell. Best-effort: bad rows are reported, good rows still import.",
+    "tag": "Parties",
+    "opId": "PartiesController_bulkImport"
+  },
+  {
+    "method": "GET",
+    "path": "/payment-requests",
+    "summary": "List payment requests",
+    "tag": "Payment Requests",
+    "opId": "PaymentRequestsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/payment-requests",
+    "summary": "Create a payment request",
+    "tag": "Payment Requests",
+    "opId": "PaymentRequestsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/payment-requests/{id}",
+    "summary": "Soft-delete a pending payment request",
+    "tag": "Payment Requests",
+    "opId": "PaymentRequestsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/payment-requests/{id}",
+    "summary": "Get a payment request",
+    "tag": "Payment Requests",
+    "opId": "PaymentRequestsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/payment-requests/{id}",
+    "summary": "Update a pending payment request",
+    "tag": "Payment Requests",
+    "opId": "PaymentRequestsController_update"
+  },
+  {
+    "method": "POST",
+    "path": "/payment-requests/{id}/approve",
+    "summary": "Approve a payment request",
+    "tag": "Payment Requests",
+    "opId": "PaymentRequestsController_approve"
+  },
+  {
+    "method": "POST",
+    "path": "/payment-requests/{id}/mark-paid",
+    "summary": "Mark an approved payment request as paid",
+    "tag": "Payment Requests",
+    "opId": "PaymentRequestsController_markPaid"
+  },
+  {
+    "method": "POST",
+    "path": "/payment-requests/{id}/reject",
+    "summary": "Reject a payment request",
+    "tag": "Payment Requests",
+    "opId": "PaymentRequestsController_reject"
+  },
+  {
+    "method": "GET",
+    "path": "/purchase-invoices",
+    "summary": "List purchase invoices (vendor bills)",
+    "tag": "Purchase Invoices",
+    "opId": "PurchaseInvoicesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/purchase-invoices",
+    "summary": "Create a draft purchase invoice",
+    "tag": "Purchase Invoices",
+    "opId": "PurchaseInvoicesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/purchase-invoices/{id}",
+    "summary": "Soft-delete a draft purchase invoice",
+    "tag": "Purchase Invoices",
+    "opId": "PurchaseInvoicesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/purchase-invoices/{id}",
+    "summary": "Get a purchase invoice",
+    "tag": "Purchase Invoices",
+    "opId": "PurchaseInvoicesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/purchase-invoices/{id}",
+    "summary": "Update a draft purchase invoice",
+    "tag": "Purchase Invoices",
+    "opId": "PurchaseInvoicesController_update"
+  },
+  {
+    "method": "POST",
+    "path": "/purchase-invoices/{id}/post",
+    "summary": "Post a draft purchase invoice",
+    "tag": "Purchase Invoices",
+    "opId": "PurchaseInvoicesController_post"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations",
+    "summary": "List quotations",
+    "tag": "Quotations",
+    "opId": "QuotationsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations",
+    "summary": "Create a quotation (DRAFT)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/quotations/{id}",
+    "summary": "Soft-delete a quotation (DRAFT only)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/{id}",
+    "summary": "Get a quotation with its lines, status history, and approvals",
+    "tag": "Quotations",
+    "opId": "QuotationsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/quotations/{id}",
+    "summary": "Update a quotation header (DRAFT or REJECTED only)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_update"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/apply-tariff",
+    "summary": "Auto-add a charge line from the best-matching Online Tariff Master rate for this quotation's lane",
+    "tag": "Quotations",
+    "opId": "QuotationsController_applyTariff"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/approve",
+    "summary": "SUBMITTED -> APPROVED",
+    "tag": "Quotations",
+    "opId": "QuotationsController_approve"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/archive",
+    "summary": "Archive a closed quotation (soft-delete)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_archive"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/convert-to-job",
+    "summary": "WON -> CONVERTED. Creates a minimal Job + carries charge lines over. Full job management (milestones, documents) is a separate module.",
+    "tag": "Quotations",
+    "opId": "QuotationsController_convertToJob"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/duplicate",
+    "summary": "Clone into a new revision (new DRAFT, version+1, linked to the same parent)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_duplicate"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/expire",
+    "summary": "Manually expire a quotation past its valid_until date",
+    "tag": "Quotations",
+    "opId": "QuotationsController_expire"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/lines",
+    "summary": "Add a charge line — GP recalculates automatically",
+    "tag": "Quotations",
+    "opId": "QuotationsController_addLine"
+  },
+  {
+    "method": "DELETE",
+    "path": "/quotations/{id}/lines/{lineId}",
+    "summary": "Remove a charge line",
+    "tag": "Quotations",
+    "opId": "QuotationsController_removeLine"
+  },
+  {
+    "method": "PATCH",
+    "path": "/quotations/{id}/lines/{lineId}",
+    "summary": "Update a charge line",
+    "tag": "Quotations",
+    "opId": "QuotationsController_updateLine"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/mark-lost",
+    "summary": "SENT -> LOST, with a reason code",
+    "tag": "Quotations",
+    "opId": "QuotationsController_markLost"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/mark-won",
+    "summary": "SENT -> WON",
+    "tag": "Quotations",
+    "opId": "QuotationsController_markWon"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/{id}/pdf",
+    "summary": "Get quotation PDF URLs and recent generation tasks",
+    "tag": "Quotations",
+    "opId": "QuotationsController_getPdfInfo"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/pdf",
+    "summary": "Queue PDF generation for a quotation (customer or internal mode)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_generatePdf"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/{id}/pdf/status",
+    "summary": "List PDF generation task status for a quotation",
+    "tag": "Quotations",
+    "opId": "QuotationsController_getPdfStatus"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/reject",
+    "summary": "SUBMITTED -> REJECTED (editable again, can be resubmitted)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_reject"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/{id}/revisions",
+    "summary": "List all revisions in this quotation version chain",
+    "tag": "Quotations",
+    "opId": "QuotationsController_getRevisions"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/send",
+    "summary": "APPROVED -> SENT",
+    "tag": "Quotations",
+    "opId": "QuotationsController_send"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/send-email",
+    "summary": "Email quotation PDF to customer (generates PDF if not yet available)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_sendEmail"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/submit",
+    "summary": "DRAFT/REJECTED -> SUBMITTED, opens the approval cycle",
+    "tag": "Quotations",
+    "opId": "QuotationsController_submit"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/expire-due",
+    "summary": "Batch-expire all quotations past valid_until (intended for daily cron)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_expireDue"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/online-quote",
+    "summary": "Public online quote widget — customer submits cargo details, system auto-calculates from tariff (Ch.7.5)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_createOnlineQuote"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/analytics",
+    "summary": "Quotation analytics summary — volume, conversion, GP totals (Ch.7.7)",
+    "tag": "Quotations",
+    "opId": "QuotationsController_getAnalytics"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/analytics/conversion",
+    "summary": "Win/loss and quote-to-job conversion rates",
+    "tag": "Quotations",
+    "opId": "QuotationsController_getConversionAnalytics"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/analytics/lost-reasons",
+    "summary": "Lost quotation breakdown by reason code",
+    "tag": "Quotations",
+    "opId": "QuotationsController_getLostReasonAnalytics"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/analytics/response-time",
+    "summary": "Average hours from creation to submit/send",
+    "tag": "Quotations",
+    "opId": "QuotationsController_getResponseTimeAnalytics"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/chargewise",
+    "summary": "\"All Quotations Chargewise\" report — same filters as the list, with each charge line included",
+    "tag": "Quotations",
+    "opId": "QuotationsController_findAllChargewise"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/tariffs",
+    "summary": "List tariff rate cards",
+    "tag": "Quotations — Online Tariff Master",
+    "opId": "TariffsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/tariffs",
+    "summary": "Create a tariff rate card (sale rate + cost rate per lane/service/container type)",
+    "tag": "Quotations — Online Tariff Master",
+    "opId": "TariffsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/quotations/tariffs/{id}",
+    "summary": "Soft-delete a tariff",
+    "tag": "Quotations — Online Tariff Master",
+    "opId": "TariffsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/tariffs/{id}",
+    "summary": "Get a tariff by id",
+    "tag": "Quotations — Online Tariff Master",
+    "opId": "TariffsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/quotations/tariffs/{id}",
+    "summary": "Update a tariff",
+    "tag": "Quotations — Online Tariff Master",
+    "opId": "TariffsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/zip-distances",
+    "summary": "List zip-to-zip distances",
+    "tag": "Quotations — Zip Distance Master",
+    "opId": "ZipDistancesController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/zip-distances",
+    "summary": "Record a distance between two zip/location codes",
+    "tag": "Quotations — Zip Distance Master",
+    "opId": "ZipDistancesController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/quotations/zip-distances/{id}",
+    "summary": "Soft-delete a zip distance record",
+    "tag": "Quotations — Zip Distance Master",
+    "opId": "ZipDistancesController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/zip-distances/{id}",
+    "summary": "Get a zip distance record by id",
+    "tag": "Quotations — Zip Distance Master",
+    "opId": "ZipDistancesController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/quotations/zip-distances/{id}",
+    "summary": "Update a zip distance record",
+    "tag": "Quotations — Zip Distance Master",
+    "opId": "ZipDistancesController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/search",
+    "summary": "Global search across jobs, quotations, and parties",
+    "tag": "Search",
+    "opId": "SearchController_search"
+  },
+  {
+    "method": "GET",
+    "path": "/tenants",
+    "summary": "Get all tenants",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/tenants",
+    "summary": "Create a new tenant (also provisions its TENANT_ADMIN owner user)",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/tenants/{id}",
+    "summary": "Soft delete tenant",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/tenants/{id}",
+    "summary": "Get tenant by ID",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/tenants/{id}",
+    "summary": "Update tenant",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_update"
+  },
+  {
+    "method": "PATCH",
+    "path": "/tenants/{id}/activate",
+    "summary": "Activate tenant",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_activate"
+  },
+  {
+    "method": "PATCH",
+    "path": "/tenants/{id}/deactivate",
+    "summary": "Deactivate tenant",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_deactivate"
+  },
+  {
+    "method": "PATCH",
+    "path": "/tenants/{id}/restore",
+    "summary": "Restore tenant",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_restore"
+  },
+  {
+    "method": "POST",
+    "path": "/tenants/{id}/sync-permissions",
+    "summary": "Reconcile one tenant against the current permission/role catalog",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_syncPermissions"
+  },
+  {
+    "method": "GET",
+    "path": "/tenants/statistics",
+    "summary": "Tenant statistics",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_statistics"
+  },
+  {
+    "method": "POST",
+    "path": "/tenants/sync-permissions",
+    "summary": "Reconcile ALL tenants against the current permission/role catalog — for tenants created before a later module added new permissions.",
+    "tag": "Tenants (Super Admin)",
+    "opId": "TenantsController_syncPermissionsForAllTenants"
+  },
+  {
+    "method": "GET",
+    "path": "/health",
+    "summary": "",
+    "tag": "Untagged",
+    "opId": "HealthController_health"
+  },
+  {
+    "method": "GET",
+    "path": "/users",
+    "summary": "List users for the current tenant (paginated, filterable).",
+    "tag": "Users",
+    "opId": "UsersController_findAll"
+  },
+  {
+    "method": "POST",
+    "path": "/users",
+    "summary": "Create a user. Returns a system-generated temporary password.",
+    "tag": "Users",
+    "opId": "UsersController_create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/users/{id}",
+    "summary": "Soft-delete a user.",
+    "tag": "Users",
+    "opId": "UsersController_remove"
+  },
+  {
+    "method": "GET",
+    "path": "/users/{id}",
+    "summary": "Get a single user by id.",
+    "tag": "Users",
+    "opId": "UsersController_findOne"
+  },
+  {
+    "method": "PATCH",
+    "path": "/users/{id}",
+    "summary": "Update a user.",
+    "tag": "Users",
+    "opId": "UsersController_update"
+  },
+  {
+    "method": "POST",
+    "path": "/users/{id}/admin-reset-password",
+    "summary": "Admin resets a target user's password to a new temporary password.",
+    "tag": "Users",
+    "opId": "UsersController_adminResetPassword"
+  },
+  {
+    "method": "POST",
+    "path": "/users/{id}/force-logout",
+    "summary": "Force-logout: revoke a target user's active sessions on all devices.",
+    "tag": "Users",
+    "opId": "UsersController_forceLogout"
+  },
+  {
+    "method": "POST",
+    "path": "/users/{id}/restore",
+    "summary": "Restore a soft-deleted user.",
+    "tag": "Users",
+    "opId": "UsersController_restore"
+  },
+  {
+    "method": "PATCH",
+    "path": "/users/{id}/status",
+    "summary": "Change a user's status (activate, suspend, etc).",
+    "tag": "Users",
+    "opId": "UsersController_updateStatus"
+  },
+  {
+    "method": "POST",
+    "path": "/users/bulk",
+    "summary": "Apply an action (activate/deactivate/suspend/delete/restore) to multiple users.",
+    "tag": "Users",
+    "opId": "UsersController_bulkAction"
+  },
+  {
+    "method": "POST",
+    "path": "/users/me/change-password",
+    "summary": "Authenticated user changes their own password.",
+    "tag": "Users",
+    "opId": "UsersController_changeOwnPassword"
+  }
+]
