@@ -1,0 +1,2011 @@
+[
+  {
+    "method": "GET",
+    "path": "/health",
+    "summary": "",
+    "tags": "",
+    "security": false
+  },
+  {
+    "method": "POST",
+    "path": "/tenants",
+    "summary": "Create a new tenant (also provisions its TENANT_ADMIN owner user)",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/tenants",
+    "summary": "Get all tenants",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/tenants/statistics",
+    "summary": "Tenant statistics",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/tenants/sync-permissions",
+    "summary": "Reconcile ALL tenants against the current permission/role catalog — for tenants created before a later module added new permissions.",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/tenants/{id}/sync-permissions",
+    "summary": "Reconcile one tenant against the current permission/role catalog",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/tenants/{id}",
+    "summary": "Get tenant by ID",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/tenants/{id}",
+    "summary": "Update tenant",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/tenants/{id}",
+    "summary": "Soft delete tenant",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/tenants/{id}/restore",
+    "summary": "Restore tenant",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/tenants/{id}/activate",
+    "summary": "Activate tenant",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/tenants/{id}/deactivate",
+    "summary": "Deactivate tenant",
+    "tags": "Tenants (Super Admin)",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/companies",
+    "summary": "List this tenant's companies (usually just the one default, more for multi-entity groups)",
+    "tags": "Companies",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/companies",
+    "summary": "Register an additional company under this tenant (multi-entity groups)",
+    "tags": "Companies",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/companies/{id}",
+    "summary": "Get a company by id",
+    "tags": "Companies",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/companies/{id}",
+    "summary": "Update a company",
+    "tags": "Companies",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/companies/{id}",
+    "summary": "Soft-delete a company (blocked if it is the only one, or currently default)",
+    "tags": "Companies",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/users",
+    "summary": "List users for the current tenant (paginated, filterable).",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/users",
+    "summary": "Create a user. Returns a system-generated temporary password.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/users/{id}",
+    "summary": "Get a single user by id.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/users/{id}",
+    "summary": "Update a user.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/users/{id}",
+    "summary": "Soft-delete a user.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/users/{id}/status",
+    "summary": "Change a user's status (activate, suspend, etc).",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/users/bulk",
+    "summary": "Apply an action (activate/deactivate/suspend/delete/restore) to multiple users.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/users/{id}/restore",
+    "summary": "Restore a soft-deleted user.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/users/me/change-password",
+    "summary": "Authenticated user changes their own password.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/users/{id}/admin-reset-password",
+    "summary": "Admin resets a target user's password to a new temporary password.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/users/{id}/force-logout",
+    "summary": "Force-logout: revoke a target user's active sessions on all devices.",
+    "tags": "Users",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "summary": "Staff login: tenant slug + email + password",
+    "tags": "Auth",
+    "security": false
+  },
+  {
+    "method": "POST",
+    "path": "/auth/tenant-login",
+    "summary": "Tenant admin login: tenant slug + the tenant's own password",
+    "tags": "Auth",
+    "security": false
+  },
+  {
+    "method": "POST",
+    "path": "/auth/super-admin/signup",
+    "summary": "Platform super admin self-registration",
+    "tags": "Auth",
+    "security": false
+  },
+  {
+    "method": "POST",
+    "path": "/auth/super-admin/login",
+    "summary": "Platform super admin login",
+    "tags": "Auth",
+    "security": false
+  },
+  {
+    "method": "POST",
+    "path": "/auth/refresh",
+    "summary": "Exchange a refresh token for a new token pair",
+    "tags": "Auth",
+    "security": false
+  },
+  {
+    "method": "POST",
+    "path": "/auth/logout",
+    "summary": "Revoke the current session",
+    "tags": "Auth",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/auth/sessions",
+    "summary": "List the authenticated user's own active sessions",
+    "tags": "Auth",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/auth/sessions/{sessionId}/revoke",
+    "summary": "Revoke one of the authenticated user's own sessions",
+    "tags": "Auth",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/auth/logout-all",
+    "summary": "Log out of every device (revokes all active sessions)",
+    "tags": "Auth",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/auth/me",
+    "summary": "Get the authenticated principal (user, tenant owner, or super admin)",
+    "tags": "Auth",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/auth/change-password",
+    "summary": "Change the authenticated user password",
+    "tags": "Auth",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/auth/tenant/change-password",
+    "summary": "Change the tenant's own login password (POST /auth/tenant-login credential). Tenant admins only.",
+    "tags": "Auth",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/countries",
+    "summary": "List countries",
+    "tags": "Masters — Countries",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/countries",
+    "summary": "Create a country",
+    "tags": "Masters — Countries",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/countries/{id}",
+    "summary": "Get a country by id",
+    "tags": "Masters — Countries",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/countries/{id}",
+    "summary": "Update a country",
+    "tags": "Masters — Countries",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/countries/{id}",
+    "summary": "Soft-delete a country",
+    "tags": "Masters — Countries",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/currencies",
+    "summary": "List currencies",
+    "tags": "Masters — Currencies",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/currencies",
+    "summary": "Create a currency",
+    "tags": "Masters — Currencies",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/currencies/{id}",
+    "summary": "Get a currency by id",
+    "tags": "Masters — Currencies",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/currencies/{id}",
+    "summary": "Update a currency",
+    "tags": "Masters — Currencies",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/currencies/{id}",
+    "summary": "Soft-delete a currency",
+    "tags": "Masters — Currencies",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/exchange-rates",
+    "summary": "List exchange rates, optionally filtered by currency",
+    "tags": "Masters — Exchange Rates",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/exchange-rates",
+    "summary": "Record (or correct) an exchange rate for a date — upserts by currency + date",
+    "tags": "Masters — Exchange Rates",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/exchange-rates/latest/{currencyId}",
+    "summary": "Most recent rate on file for a currency",
+    "tags": "Masters — Exchange Rates",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/ports",
+    "summary": "List ports",
+    "tags": "Masters — Ports",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/ports",
+    "summary": "Create a port",
+    "tags": "Masters — Ports",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/ports/{id}",
+    "summary": "Get a port record by id",
+    "tags": "Masters — Ports",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/ports/{id}",
+    "summary": "Update a port",
+    "tags": "Masters — Ports",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/ports/{id}",
+    "summary": "Soft-delete a port",
+    "tags": "Masters — Ports",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/airports",
+    "summary": "List airports",
+    "tags": "Masters — Airports",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/airports",
+    "summary": "Create an airport",
+    "tags": "Masters — Airports",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/airports/{id}",
+    "summary": "Get an airport by id",
+    "tags": "Masters — Airports",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/airports/{id}",
+    "summary": "Update an airport",
+    "tags": "Masters — Airports",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/airports/{id}",
+    "summary": "Soft-delete an airport",
+    "tags": "Masters — Airports",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/container-types",
+    "summary": "List container types",
+    "tags": "Masters — ContainerTypes",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/container-types",
+    "summary": "Create a container type",
+    "tags": "Masters — ContainerTypes",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/container-types/{id}",
+    "summary": "Get a container type by id",
+    "tags": "Masters — ContainerTypes",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/container-types/{id}",
+    "summary": "Update a container type",
+    "tags": "Masters — ContainerTypes",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/container-types/{id}",
+    "summary": "Soft-delete a container type",
+    "tags": "Masters — ContainerTypes",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/hs-codes",
+    "summary": "List HS codes",
+    "tags": "Masters — HsCodes",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/hs-codes",
+    "summary": "Create an HS code",
+    "tags": "Masters — HsCodes",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/hs-codes/{id}",
+    "summary": "Get an HS code by id",
+    "tags": "Masters — HsCodes",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/hs-codes/{id}",
+    "summary": "Update an HS code",
+    "tags": "Masters — HsCodes",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/hs-codes/{id}",
+    "summary": "Soft-delete an HS code",
+    "tags": "Masters — HsCodes",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/airlines",
+    "summary": "list airlines",
+    "tags": "Masters — Airlines",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/airlines",
+    "summary": "Create a record",
+    "tags": "Masters — Airlines",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/airlines/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Airlines",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/airlines/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Airlines",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/airlines/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Airlines",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/shipping-lines",
+    "summary": "list shippinglines",
+    "tags": "Masters — ShippingLines",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/shipping-lines",
+    "summary": "Create a record",
+    "tags": "Masters — ShippingLines",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/shipping-lines/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — ShippingLines",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/shipping-lines/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — ShippingLines",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/shipping-lines/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — ShippingLines",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/vessels",
+    "summary": "list vessels",
+    "tags": "Masters — Vessels",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/vessels",
+    "summary": "Create a record",
+    "tags": "Masters — Vessels",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/vessels/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Vessels",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/vessels/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Vessels",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/vessels/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Vessels",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/truckers",
+    "summary": "list truckers",
+    "tags": "Masters — Truckers",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/truckers",
+    "summary": "Create a record",
+    "tags": "Masters — Truckers",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/truckers/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Truckers",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/truckers/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Truckers",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/truckers/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Truckers",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/warehouses",
+    "summary": "list warehouses",
+    "tags": "Masters — Warehouses",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/warehouses",
+    "summary": "Create a record",
+    "tags": "Masters — Warehouses",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/warehouses/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Warehouses",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/warehouses/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Warehouses",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/warehouses/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Warehouses",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/charge-codes",
+    "summary": "list chargecodes",
+    "tags": "Masters — ChargeCodes",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/charge-codes",
+    "summary": "Create a record",
+    "tags": "Masters — ChargeCodes",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/charge-codes/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — ChargeCodes",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/charge-codes/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — ChargeCodes",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/charge-codes/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — ChargeCodes",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/banks",
+    "summary": "list banks",
+    "tags": "Masters — Banks",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/banks",
+    "summary": "Create a record",
+    "tags": "Masters — Banks",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/banks/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Banks",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/banks/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Banks",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/banks/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Banks",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/holidays",
+    "summary": "list holidays",
+    "tags": "Masters — Holidays",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/holidays",
+    "summary": "Create a record",
+    "tags": "Masters — Holidays",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/holidays/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Holidays",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/holidays/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Holidays",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/holidays/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Holidays",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/units-of-measure",
+    "summary": "list unitsofmeasure",
+    "tags": "Masters — UnitsOfMeasure",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/units-of-measure",
+    "summary": "Create a record",
+    "tags": "Masters — UnitsOfMeasure",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/units-of-measure/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — UnitsOfMeasure",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/units-of-measure/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — UnitsOfMeasure",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/units-of-measure/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — UnitsOfMeasure",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/tax-rates",
+    "summary": "list taxrates",
+    "tags": "Masters — TaxRates",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/tax-rates",
+    "summary": "Create a record",
+    "tags": "Masters — TaxRates",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/tax-rates/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — TaxRates",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/tax-rates/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — TaxRates",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/tax-rates/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — TaxRates",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/branches",
+    "summary": "list branches",
+    "tags": "Masters — Branches",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/branches",
+    "summary": "Create a record",
+    "tags": "Masters — Branches",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/branches/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Branches",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/branches/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Branches",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/branches/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Branches",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/departments",
+    "summary": "list departments",
+    "tags": "Masters — Departments",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/departments",
+    "summary": "Create a record",
+    "tags": "Masters — Departments",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/departments/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Departments",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/departments/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Departments",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/departments/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Departments",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/designations",
+    "summary": "list designations",
+    "tags": "Masters — Designations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/masters/designations",
+    "summary": "Create a record",
+    "tags": "Masters — Designations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/masters/designations/{id}",
+    "summary": "Get a record by id",
+    "tags": "Masters — Designations",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/masters/designations/{id}",
+    "summary": "Update a record",
+    "tags": "Masters — Designations",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/masters/designations/{id}",
+    "summary": "Soft-delete a record",
+    "tags": "Masters — Designations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/parties",
+    "summary": "List parties (customers, agents, suppliers, carriers, etc.)",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/parties",
+    "summary": "Create a party",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/parties/{id}",
+    "summary": "Get a party with its contacts and addresses",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/parties/{id}",
+    "summary": "Update a party",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/parties/{id}",
+    "summary": "Soft-delete a party",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/parties/import",
+    "summary": "Bulk-import parties from CSV. Columns match the party fields (party_type, code, name, ...); use \"|\" to separate multiple tags within a cell. Best-effort: bad rows are reported, good rows still import.",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/parties/{id}/credit-status",
+    "summary": "Change credit status (Active / On Hold / Blacklisted)",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/parties/{id}/contacts",
+    "summary": "Add a contact to a party",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/parties/{id}/contacts/{contactId}",
+    "summary": "Update a party's contact",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/parties/{id}/contacts/{contactId}",
+    "summary": "Remove a party's contact",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/parties/{id}/addresses",
+    "summary": "Add an address to a party",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/parties/{id}/addresses/{addressId}",
+    "summary": "Update a party's address",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/parties/{id}/addresses/{addressId}",
+    "summary": "Remove a party's address",
+    "tags": "Parties",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/organization/profile",
+    "summary": "Get this tenant's own organization profile",
+    "tags": "Organization Profile",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/organization/profile",
+    "summary": "Update this tenant's own organization profile (Ch.27.1)",
+    "tags": "Organization Profile",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/organization/bank-accounts",
+    "summary": "List this tenant's own bank accounts",
+    "tags": "Organization — Bank Accounts",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/organization/bank-accounts",
+    "summary": "Add a bank account",
+    "tags": "Organization — Bank Accounts",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/organization/bank-accounts/{id}",
+    "summary": "Get a bank account by id",
+    "tags": "Organization — Bank Accounts",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/organization/bank-accounts/{id}",
+    "summary": "Update a bank account",
+    "tags": "Organization — Bank Accounts",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/organization/bank-accounts/{id}",
+    "summary": "Soft-delete a bank account",
+    "tags": "Organization — Bank Accounts",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/organization/number-formats",
+    "summary": "List all configured document number formats (Ch.2.2)",
+    "tags": "Organization — Number Formats",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/organization/number-formats",
+    "summary": "Configure the number format for a document type",
+    "tags": "Organization — Number Formats",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/organization/number-formats/{documentType}",
+    "summary": "Get the number format for one document type",
+    "tags": "Organization — Number Formats",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/organization/number-formats/{documentType}",
+    "summary": "Update the number format for a document type",
+    "tags": "Organization — Number Formats",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/organization/number-formats/{documentType}/preview",
+    "summary": "Preview the next number for this format without consuming a sequence value",
+    "tags": "Organization — Number Formats",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations",
+    "summary": "List quotations",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations",
+    "summary": "Create a quotation (DRAFT)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/chargewise",
+    "summary": "\"All Quotations Chargewise\" report — same filters as the list, with each charge line included",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/analytics",
+    "summary": "Quotation analytics summary — volume, conversion, GP totals (Ch.7.7)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/analytics/conversion",
+    "summary": "Win/loss and quote-to-job conversion rates",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/analytics/lost-reasons",
+    "summary": "Lost quotation breakdown by reason code",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/reports/analytics/response-time",
+    "summary": "Average hours from creation to submit/send",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/online-quote",
+    "summary": "Public online quote widget — customer submits cargo details, system auto-calculates from tariff (Ch.7.5)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/expire-due",
+    "summary": "Batch-expire all quotations past valid_until (intended for daily cron)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/{id}",
+    "summary": "Get a quotation with its lines, status history, and approvals",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/quotations/{id}",
+    "summary": "Update a quotation header (DRAFT or REJECTED only)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/quotations/{id}",
+    "summary": "Soft-delete a quotation (DRAFT only)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/{id}/revisions",
+    "summary": "List all revisions in this quotation version chain",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/lines",
+    "summary": "Add a charge line — GP recalculates automatically",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/apply-tariff",
+    "summary": "Auto-add a charge line from the best-matching Online Tariff Master rate for this quotation's lane",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/quotations/{id}/lines/{lineId}",
+    "summary": "Update a charge line",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/quotations/{id}/lines/{lineId}",
+    "summary": "Remove a charge line",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/submit",
+    "summary": "DRAFT/REJECTED -> SUBMITTED, opens the approval cycle",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/approve",
+    "summary": "SUBMITTED -> APPROVED",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/reject",
+    "summary": "SUBMITTED -> REJECTED (editable again, can be resubmitted)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/send",
+    "summary": "APPROVED -> SENT",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/mark-won",
+    "summary": "SENT -> WON",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/mark-lost",
+    "summary": "SENT -> LOST, with a reason code",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/duplicate",
+    "summary": "Clone into a new revision (new DRAFT, version+1, linked to the same parent)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/convert-to-job",
+    "summary": "WON -> CONVERTED. Creates a minimal Job + carries charge lines over. Full job management (milestones, documents) is a separate module.",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/archive",
+    "summary": "Archive a closed quotation (soft-delete)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/expire",
+    "summary": "Manually expire a quotation past its valid_until date",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/pdf",
+    "summary": "Queue PDF generation for a quotation (customer or internal mode)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/{id}/pdf",
+    "summary": "Get quotation PDF URLs and recent generation tasks",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/{id}/pdf/status",
+    "summary": "List PDF generation task status for a quotation",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/{id}/send-email",
+    "summary": "Email quotation PDF to customer (generates PDF if not yet available)",
+    "tags": "Quotations",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/tariffs",
+    "summary": "List tariff rate cards",
+    "tags": "Quotations — Online Tariff Master",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/tariffs",
+    "summary": "Create a tariff rate card (sale rate + cost rate per lane/service/container type)",
+    "tags": "Quotations — Online Tariff Master",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/tariffs/{id}",
+    "summary": "Get a tariff by id",
+    "tags": "Quotations — Online Tariff Master",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/quotations/tariffs/{id}",
+    "summary": "Update a tariff",
+    "tags": "Quotations — Online Tariff Master",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/quotations/tariffs/{id}",
+    "summary": "Soft-delete a tariff",
+    "tags": "Quotations — Online Tariff Master",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/zip-distances",
+    "summary": "List zip-to-zip distances",
+    "tags": "Quotations — Zip Distance Master",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/quotations/zip-distances",
+    "summary": "Record a distance between two zip/location codes",
+    "tags": "Quotations — Zip Distance Master",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/quotations/zip-distances/{id}",
+    "summary": "Get a zip distance record by id",
+    "tags": "Quotations — Zip Distance Master",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/quotations/zip-distances/{id}",
+    "summary": "Update a zip distance record",
+    "tags": "Quotations — Zip Distance Master",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/quotations/zip-distances/{id}",
+    "summary": "Soft-delete a zip distance record",
+    "tags": "Quotations — Zip Distance Master",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs",
+    "summary": "List jobs",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs",
+    "summary": "Create a job (booking). AIR_EXPORT jobs auto-get their detail row + the full 15-milestone taxonomy. Set parent_job_id to create a HOUSE job under an existing master.",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}",
+    "summary": "Get a job with air details, charges, milestones, and its house jobs (if a master)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}",
+    "summary": "Update a job (not allowed once COMPLETED or CANCELLED)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}",
+    "summary": "Soft-delete a completed or cancelled job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/house-jobs",
+    "summary": "List the house jobs consolidated under this master job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/milestones",
+    "summary": "List all milestones for a job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/milestones",
+    "summary": "Add a custom milestone outside the standard taxonomy",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/pnl",
+    "summary": "Job P&L breakdown — revenue lines, cost lines, GP summary (Ch.8.2)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/notes",
+    "summary": "List notes on a job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/notes",
+    "summary": "Add a note to a job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/documents",
+    "summary": "List documents attached to a job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents",
+    "summary": "Register a document on a job (metadata + file URL)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/containers",
+    "summary": "List containers on a Sea FCL job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/containers",
+    "summary": "Add a container to a Sea FCL job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/close",
+    "summary": "Close a job (status -> COMPLETED)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/cancel",
+    "summary": "Cancel a job (status -> CANCELLED)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/air-details",
+    "summary": "Update Air Export-specific booking fields (airline, HAWB/MAWB, flight, AWB type, freight type)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/sea-fcl-details",
+    "summary": "Update Sea FCL-specific booking fields (shipping line, BL numbers, cutoffs)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/milestones/{milestoneId}",
+    "summary": "Update a milestone — set actual_date to mark it complete",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/charges",
+    "summary": "Add a charge line — Job P&L recalculates automatically",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/charges/{chargeId}",
+    "summary": "Update a charge line",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}/charges/{chargeId}",
+    "summary": "Remove a charge line",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/prorate-cost/{chargeCodeId}",
+    "summary": "Distribute a master job's cost line to its house jobs, proportionally by chargeable weight",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/notes/{noteId}",
+    "summary": "Update a job note",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}/notes/{noteId}",
+    "summary": "Remove a job note",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/documents/{documentId}",
+    "summary": "Update a draft document metadata",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}/documents/{documentId}",
+    "summary": "Remove a draft document",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/{documentId}/finalize",
+    "summary": "Finalize a document (DRAFT -> ORIGINAL, locked)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}/documents/generation-status",
+    "summary": "List async document generation tasks for a job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/hawb",
+    "summary": "Queue HAWB PDF generation (Puppeteer + BullMQ)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/mawb",
+    "summary": "Queue MAWB PDF generation (Puppeteer + BullMQ)",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/pre-alert",
+    "summary": "Queue pre-alert document PDF generation",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/documents/cargo-manifest",
+    "summary": "Queue cargo manifest PDF generation",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/jobs/{id}/pre-alert/send",
+    "summary": "Send pre-alert and mark PRE_ALERT_SENT milestone complete",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/jobs/{id}/containers/{containerId}",
+    "summary": "Update a container on a Sea FCL job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/jobs/{id}/containers/{containerId}",
+    "summary": "Remove a container from a Sea FCL job",
+    "tags": "Jobs",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/awb-stock/batches",
+    "summary": "List AWB stock batches",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/batches",
+    "summary": "Register a new AWB number range for an airline",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/awb-stock/reports/low-stock",
+    "summary": "Batches at or below their low-stock threshold",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/awb-stock/allocations",
+    "summary": "List AWB allocations",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/awb-stock/batches/{id}",
+    "summary": "Get an AWB stock batch with recent allocations",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/awb-stock/batches/{id}",
+    "summary": "Update batch metadata (threshold, notes)",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/awb-stock/batches/{id}",
+    "summary": "Soft-delete an empty AWB stock batch",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/batches/{id}/allocate",
+    "summary": "Allocate the next AWB number from a batch to a job",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/batches/{id}/transfer-branch",
+    "summary": "Transfer batch ownership to another branch",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/allocations/{id}/void",
+    "summary": "Void an allocated (unused) AWB number",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/awb-stock/allocations/{id}/mark-used",
+    "summary": "Mark an allocated AWB as used (flown/printed)",
+    "tags": "AWB Stock",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/search",
+    "summary": "Global search across jobs, quotations, and parties",
+    "tags": "Search",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/files/{tenantId}/{filename}",
+    "summary": "Download a locally stored file (PDFs generated by the system)",
+    "tags": "Files",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/invoices",
+    "summary": "List customer invoices (Ch.18)",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/invoices",
+    "summary": "Create a draft customer invoice",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/invoices/reports/overdue",
+    "summary": "Overdue customer invoices past due_date with outstanding balance",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/invoices/{id}",
+    "summary": "Get invoice with lines",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/invoices/{id}",
+    "summary": "Update a draft invoice header",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/invoices/{id}",
+    "summary": "Soft-delete a draft invoice",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/from-job/{jobId}",
+    "summary": "Create draft invoice from uninvoiced billable job charges",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/lines",
+    "summary": "Add a line to a draft invoice",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/invoices/{id}/lines/{lineId}",
+    "summary": "Update an invoice line",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/invoices/{id}/lines/{lineId}",
+    "summary": "Remove an invoice line",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/post",
+    "summary": "Post a draft invoice (DRAFT -> POSTED)",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/send",
+    "summary": "Email invoice PDF to customer",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/pdf",
+    "summary": "Generate invoice PDF",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/invoices/{id}/pdf",
+    "summary": "Get invoice PDF metadata",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/invoices/{id}/cancel",
+    "summary": "Cancel an invoice",
+    "tags": "Invoices",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/credit-notes",
+    "summary": "List credit notes",
+    "tags": "Credit Notes",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/credit-notes",
+    "summary": "Create a credit note against a posted customer invoice",
+    "tags": "Credit Notes",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/credit-notes/{id}",
+    "summary": "Get a credit note",
+    "tags": "Credit Notes",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/credit-notes/{id}/post",
+    "summary": "Post a draft credit note",
+    "tags": "Credit Notes",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/purchase-invoices",
+    "summary": "List purchase invoices (vendor bills)",
+    "tags": "Purchase Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/purchase-invoices",
+    "summary": "Create a draft purchase invoice",
+    "tags": "Purchase Invoices",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/purchase-invoices/{id}",
+    "summary": "Get a purchase invoice",
+    "tags": "Purchase Invoices",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/purchase-invoices/{id}",
+    "summary": "Update a draft purchase invoice",
+    "tags": "Purchase Invoices",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/purchase-invoices/{id}",
+    "summary": "Soft-delete a draft purchase invoice",
+    "tags": "Purchase Invoices",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/purchase-invoices/{id}/post",
+    "summary": "Post a draft purchase invoice",
+    "tags": "Purchase Invoices",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/payment-requests",
+    "summary": "List payment requests",
+    "tags": "Payment Requests",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/payment-requests",
+    "summary": "Create a payment request",
+    "tags": "Payment Requests",
+    "security": true
+  },
+  {
+    "method": "GET",
+    "path": "/payment-requests/{id}",
+    "summary": "Get a payment request",
+    "tags": "Payment Requests",
+    "security": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/payment-requests/{id}",
+    "summary": "Update a pending payment request",
+    "tags": "Payment Requests",
+    "security": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/payment-requests/{id}",
+    "summary": "Soft-delete a pending payment request",
+    "tags": "Payment Requests",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/payment-requests/{id}/approve",
+    "summary": "Approve a payment request",
+    "tags": "Payment Requests",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/payment-requests/{id}/reject",
+    "summary": "Reject a payment request",
+    "tags": "Payment Requests",
+    "security": true
+  },
+  {
+    "method": "POST",
+    "path": "/payment-requests/{id}/mark-paid",
+    "summary": "Mark an approved payment request as paid",
+    "tags": "Payment Requests",
+    "security": true
+  }
+]

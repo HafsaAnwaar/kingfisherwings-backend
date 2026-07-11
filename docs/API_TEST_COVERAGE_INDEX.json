@@ -1,0 +1,2880 @@
+{
+  "generatedAt": "2026-07-11T06:33:56.031Z",
+  "baseUrl": "https://kingfisherwings.onrender.com",
+  "totalOperations": 287,
+  "passCases": 287,
+  "failCases": 287,
+  "missing": 0,
+  "operations": [
+    {
+      "index": 1,
+      "method": "POST",
+      "path": "/auth/change-password",
+      "tag": "Auth",
+      "passId": "PASS-001",
+      "failId": "FAIL-001",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 2,
+      "method": "POST",
+      "path": "/auth/login",
+      "tag": "Auth",
+      "passId": "PASS-002",
+      "failId": "FAIL-002",
+      "isPublic": true,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 3,
+      "method": "POST",
+      "path": "/auth/logout",
+      "tag": "Auth",
+      "passId": "PASS-003",
+      "failId": "FAIL-003",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 4,
+      "method": "POST",
+      "path": "/auth/logout-all",
+      "tag": "Auth",
+      "passId": "PASS-004",
+      "failId": "FAIL-004",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 5,
+      "method": "GET",
+      "path": "/auth/me",
+      "tag": "Auth",
+      "passId": "PASS-005",
+      "failId": "FAIL-005",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 6,
+      "method": "POST",
+      "path": "/auth/refresh",
+      "tag": "Auth",
+      "passId": "PASS-006",
+      "failId": "FAIL-006",
+      "isPublic": true,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 7,
+      "method": "GET",
+      "path": "/auth/sessions",
+      "tag": "Auth",
+      "passId": "PASS-007",
+      "failId": "FAIL-007",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 8,
+      "method": "POST",
+      "path": "/auth/sessions/{sessionId}/revoke",
+      "tag": "Auth",
+      "passId": "PASS-008",
+      "failId": "FAIL-008",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 9,
+      "method": "POST",
+      "path": "/auth/super-admin/login",
+      "tag": "Auth",
+      "passId": "PASS-009",
+      "failId": "FAIL-009",
+      "isPublic": true,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 10,
+      "method": "POST",
+      "path": "/auth/super-admin/signup",
+      "tag": "Auth",
+      "passId": "PASS-010",
+      "failId": "FAIL-010",
+      "isPublic": true,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 11,
+      "method": "POST",
+      "path": "/auth/tenant-login",
+      "tag": "Auth",
+      "passId": "PASS-011",
+      "failId": "FAIL-011",
+      "isPublic": true,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 12,
+      "method": "POST",
+      "path": "/auth/tenant/change-password",
+      "tag": "Auth",
+      "passId": "PASS-012",
+      "failId": "FAIL-012",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 13,
+      "method": "GET",
+      "path": "/awb-stock/allocations",
+      "tag": "AWB Stock",
+      "passId": "PASS-013",
+      "failId": "FAIL-013",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 14,
+      "method": "POST",
+      "path": "/awb-stock/allocations/{id}/mark-used",
+      "tag": "AWB Stock",
+      "passId": "PASS-014",
+      "failId": "FAIL-014",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 15,
+      "method": "POST",
+      "path": "/awb-stock/allocations/{id}/void",
+      "tag": "AWB Stock",
+      "passId": "PASS-015",
+      "failId": "FAIL-015",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 16,
+      "method": "GET",
+      "path": "/awb-stock/batches",
+      "tag": "AWB Stock",
+      "passId": "PASS-016",
+      "failId": "FAIL-016",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 17,
+      "method": "POST",
+      "path": "/awb-stock/batches",
+      "tag": "AWB Stock",
+      "passId": "PASS-017",
+      "failId": "FAIL-017",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 18,
+      "method": "DELETE",
+      "path": "/awb-stock/batches/{id}",
+      "tag": "AWB Stock",
+      "passId": "PASS-018",
+      "failId": "FAIL-018",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 19,
+      "method": "GET",
+      "path": "/awb-stock/batches/{id}",
+      "tag": "AWB Stock",
+      "passId": "PASS-019",
+      "failId": "FAIL-019",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 20,
+      "method": "PATCH",
+      "path": "/awb-stock/batches/{id}",
+      "tag": "AWB Stock",
+      "passId": "PASS-020",
+      "failId": "FAIL-020",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 21,
+      "method": "POST",
+      "path": "/awb-stock/batches/{id}/allocate",
+      "tag": "AWB Stock",
+      "passId": "PASS-021",
+      "failId": "FAIL-021",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 22,
+      "method": "POST",
+      "path": "/awb-stock/batches/{id}/transfer-branch",
+      "tag": "AWB Stock",
+      "passId": "PASS-022",
+      "failId": "FAIL-022",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 23,
+      "method": "GET",
+      "path": "/awb-stock/reports/low-stock",
+      "tag": "AWB Stock",
+      "passId": "PASS-023",
+      "failId": "FAIL-023",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 24,
+      "method": "GET",
+      "path": "/companies",
+      "tag": "Companies",
+      "passId": "PASS-024",
+      "failId": "FAIL-024",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 25,
+      "method": "POST",
+      "path": "/companies",
+      "tag": "Companies",
+      "passId": "PASS-025",
+      "failId": "FAIL-025",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 26,
+      "method": "DELETE",
+      "path": "/companies/{id}",
+      "tag": "Companies",
+      "passId": "PASS-026",
+      "failId": "FAIL-026",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 27,
+      "method": "GET",
+      "path": "/companies/{id}",
+      "tag": "Companies",
+      "passId": "PASS-027",
+      "failId": "FAIL-027",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 28,
+      "method": "PATCH",
+      "path": "/companies/{id}",
+      "tag": "Companies",
+      "passId": "PASS-028",
+      "failId": "FAIL-028",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 29,
+      "method": "GET",
+      "path": "/credit-notes",
+      "tag": "Credit Notes",
+      "passId": "PASS-029",
+      "failId": "FAIL-029",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 30,
+      "method": "POST",
+      "path": "/credit-notes",
+      "tag": "Credit Notes",
+      "passId": "PASS-030",
+      "failId": "FAIL-030",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 31,
+      "method": "GET",
+      "path": "/credit-notes/{id}",
+      "tag": "Credit Notes",
+      "passId": "PASS-031",
+      "failId": "FAIL-031",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 32,
+      "method": "POST",
+      "path": "/credit-notes/{id}/post",
+      "tag": "Credit Notes",
+      "passId": "PASS-032",
+      "failId": "FAIL-032",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 33,
+      "method": "GET",
+      "path": "/files/{tenantId}/{filename}",
+      "tag": "Files",
+      "passId": "PASS-033",
+      "failId": "FAIL-033",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 34,
+      "method": "GET",
+      "path": "/invoices",
+      "tag": "Invoices",
+      "passId": "PASS-034",
+      "failId": "FAIL-034",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 35,
+      "method": "POST",
+      "path": "/invoices",
+      "tag": "Invoices",
+      "passId": "PASS-035",
+      "failId": "FAIL-035",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 36,
+      "method": "DELETE",
+      "path": "/invoices/{id}",
+      "tag": "Invoices",
+      "passId": "PASS-036",
+      "failId": "FAIL-036",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 37,
+      "method": "GET",
+      "path": "/invoices/{id}",
+      "tag": "Invoices",
+      "passId": "PASS-037",
+      "failId": "FAIL-037",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 38,
+      "method": "PATCH",
+      "path": "/invoices/{id}",
+      "tag": "Invoices",
+      "passId": "PASS-038",
+      "failId": "FAIL-038",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 39,
+      "method": "POST",
+      "path": "/invoices/{id}/cancel",
+      "tag": "Invoices",
+      "passId": "PASS-039",
+      "failId": "FAIL-039",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 40,
+      "method": "POST",
+      "path": "/invoices/{id}/lines",
+      "tag": "Invoices",
+      "passId": "PASS-040",
+      "failId": "FAIL-040",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 41,
+      "method": "DELETE",
+      "path": "/invoices/{id}/lines/{lineId}",
+      "tag": "Invoices",
+      "passId": "PASS-041",
+      "failId": "FAIL-041",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 42,
+      "method": "PATCH",
+      "path": "/invoices/{id}/lines/{lineId}",
+      "tag": "Invoices",
+      "passId": "PASS-042",
+      "failId": "FAIL-042",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 43,
+      "method": "GET",
+      "path": "/invoices/{id}/pdf",
+      "tag": "Invoices",
+      "passId": "PASS-043",
+      "failId": "FAIL-043",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 44,
+      "method": "POST",
+      "path": "/invoices/{id}/pdf",
+      "tag": "Invoices",
+      "passId": "PASS-044",
+      "failId": "FAIL-044",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 45,
+      "method": "POST",
+      "path": "/invoices/{id}/post",
+      "tag": "Invoices",
+      "passId": "PASS-045",
+      "failId": "FAIL-045",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 46,
+      "method": "POST",
+      "path": "/invoices/{id}/send",
+      "tag": "Invoices",
+      "passId": "PASS-046",
+      "failId": "FAIL-046",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 47,
+      "method": "POST",
+      "path": "/invoices/from-job/{jobId}",
+      "tag": "Invoices",
+      "passId": "PASS-047",
+      "failId": "FAIL-047",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 48,
+      "method": "GET",
+      "path": "/invoices/reports/overdue",
+      "tag": "Invoices",
+      "passId": "PASS-048",
+      "failId": "FAIL-048",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 49,
+      "method": "GET",
+      "path": "/jobs",
+      "tag": "Jobs",
+      "passId": "PASS-049",
+      "failId": "FAIL-049",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 50,
+      "method": "POST",
+      "path": "/jobs",
+      "tag": "Jobs",
+      "passId": "PASS-050",
+      "failId": "FAIL-050",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 51,
+      "method": "DELETE",
+      "path": "/jobs/{id}",
+      "tag": "Jobs",
+      "passId": "PASS-051",
+      "failId": "FAIL-051",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 52,
+      "method": "GET",
+      "path": "/jobs/{id}",
+      "tag": "Jobs",
+      "passId": "PASS-052",
+      "failId": "FAIL-052",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 53,
+      "method": "PATCH",
+      "path": "/jobs/{id}",
+      "tag": "Jobs",
+      "passId": "PASS-053",
+      "failId": "FAIL-053",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 54,
+      "method": "PATCH",
+      "path": "/jobs/{id}/air-details",
+      "tag": "Jobs",
+      "passId": "PASS-054",
+      "failId": "FAIL-054",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 55,
+      "method": "POST",
+      "path": "/jobs/{id}/cancel",
+      "tag": "Jobs",
+      "passId": "PASS-055",
+      "failId": "FAIL-055",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 56,
+      "method": "POST",
+      "path": "/jobs/{id}/charges",
+      "tag": "Jobs",
+      "passId": "PASS-056",
+      "failId": "FAIL-056",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 57,
+      "method": "DELETE",
+      "path": "/jobs/{id}/charges/{chargeId}",
+      "tag": "Jobs",
+      "passId": "PASS-057",
+      "failId": "FAIL-057",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 58,
+      "method": "PATCH",
+      "path": "/jobs/{id}/charges/{chargeId}",
+      "tag": "Jobs",
+      "passId": "PASS-058",
+      "failId": "FAIL-058",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 59,
+      "method": "POST",
+      "path": "/jobs/{id}/close",
+      "tag": "Jobs",
+      "passId": "PASS-059",
+      "failId": "FAIL-059",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 60,
+      "method": "GET",
+      "path": "/jobs/{id}/containers",
+      "tag": "Jobs",
+      "passId": "PASS-060",
+      "failId": "FAIL-060",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 61,
+      "method": "POST",
+      "path": "/jobs/{id}/containers",
+      "tag": "Jobs",
+      "passId": "PASS-061",
+      "failId": "FAIL-061",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 62,
+      "method": "DELETE",
+      "path": "/jobs/{id}/containers/{containerId}",
+      "tag": "Jobs",
+      "passId": "PASS-062",
+      "failId": "FAIL-062",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 63,
+      "method": "PATCH",
+      "path": "/jobs/{id}/containers/{containerId}",
+      "tag": "Jobs",
+      "passId": "PASS-063",
+      "failId": "FAIL-063",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 64,
+      "method": "GET",
+      "path": "/jobs/{id}/documents",
+      "tag": "Jobs",
+      "passId": "PASS-064",
+      "failId": "FAIL-064",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 65,
+      "method": "POST",
+      "path": "/jobs/{id}/documents",
+      "tag": "Jobs",
+      "passId": "PASS-065",
+      "failId": "FAIL-065",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 66,
+      "method": "DELETE",
+      "path": "/jobs/{id}/documents/{documentId}",
+      "tag": "Jobs",
+      "passId": "PASS-066",
+      "failId": "FAIL-066",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 67,
+      "method": "PATCH",
+      "path": "/jobs/{id}/documents/{documentId}",
+      "tag": "Jobs",
+      "passId": "PASS-067",
+      "failId": "FAIL-067",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 68,
+      "method": "POST",
+      "path": "/jobs/{id}/documents/{documentId}/finalize",
+      "tag": "Jobs",
+      "passId": "PASS-068",
+      "failId": "FAIL-068",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 69,
+      "method": "POST",
+      "path": "/jobs/{id}/documents/cargo-manifest",
+      "tag": "Jobs",
+      "passId": "PASS-069",
+      "failId": "FAIL-069",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 70,
+      "method": "GET",
+      "path": "/jobs/{id}/documents/generation-status",
+      "tag": "Jobs",
+      "passId": "PASS-070",
+      "failId": "FAIL-070",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 71,
+      "method": "POST",
+      "path": "/jobs/{id}/documents/hawb",
+      "tag": "Jobs",
+      "passId": "PASS-071",
+      "failId": "FAIL-071",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 72,
+      "method": "POST",
+      "path": "/jobs/{id}/documents/mawb",
+      "tag": "Jobs",
+      "passId": "PASS-072",
+      "failId": "FAIL-072",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 73,
+      "method": "POST",
+      "path": "/jobs/{id}/documents/pre-alert",
+      "tag": "Jobs",
+      "passId": "PASS-073",
+      "failId": "FAIL-073",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 74,
+      "method": "GET",
+      "path": "/jobs/{id}/house-jobs",
+      "tag": "Jobs",
+      "passId": "PASS-074",
+      "failId": "FAIL-074",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 75,
+      "method": "GET",
+      "path": "/jobs/{id}/milestones",
+      "tag": "Jobs",
+      "passId": "PASS-075",
+      "failId": "FAIL-075",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 76,
+      "method": "POST",
+      "path": "/jobs/{id}/milestones",
+      "tag": "Jobs",
+      "passId": "PASS-076",
+      "failId": "FAIL-076",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 77,
+      "method": "PATCH",
+      "path": "/jobs/{id}/milestones/{milestoneId}",
+      "tag": "Jobs",
+      "passId": "PASS-077",
+      "failId": "FAIL-077",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 78,
+      "method": "GET",
+      "path": "/jobs/{id}/notes",
+      "tag": "Jobs",
+      "passId": "PASS-078",
+      "failId": "FAIL-078",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 79,
+      "method": "POST",
+      "path": "/jobs/{id}/notes",
+      "tag": "Jobs",
+      "passId": "PASS-079",
+      "failId": "FAIL-079",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 80,
+      "method": "DELETE",
+      "path": "/jobs/{id}/notes/{noteId}",
+      "tag": "Jobs",
+      "passId": "PASS-080",
+      "failId": "FAIL-080",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 81,
+      "method": "PATCH",
+      "path": "/jobs/{id}/notes/{noteId}",
+      "tag": "Jobs",
+      "passId": "PASS-081",
+      "failId": "FAIL-081",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 82,
+      "method": "GET",
+      "path": "/jobs/{id}/pnl",
+      "tag": "Jobs",
+      "passId": "PASS-082",
+      "failId": "FAIL-082",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 83,
+      "method": "POST",
+      "path": "/jobs/{id}/pre-alert/send",
+      "tag": "Jobs",
+      "passId": "PASS-083",
+      "failId": "FAIL-083",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 84,
+      "method": "POST",
+      "path": "/jobs/{id}/prorate-cost/{chargeCodeId}",
+      "tag": "Jobs",
+      "passId": "PASS-084",
+      "failId": "FAIL-084",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 85,
+      "method": "PATCH",
+      "path": "/jobs/{id}/sea-fcl-details",
+      "tag": "Jobs",
+      "passId": "PASS-085",
+      "failId": "FAIL-085",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 86,
+      "method": "GET",
+      "path": "/masters/airlines",
+      "tag": "Masters — Airlines",
+      "passId": "PASS-086",
+      "failId": "FAIL-086",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 87,
+      "method": "POST",
+      "path": "/masters/airlines",
+      "tag": "Masters — Airlines",
+      "passId": "PASS-087",
+      "failId": "FAIL-087",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 88,
+      "method": "DELETE",
+      "path": "/masters/airlines/{id}",
+      "tag": "Masters — Airlines",
+      "passId": "PASS-088",
+      "failId": "FAIL-088",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 89,
+      "method": "GET",
+      "path": "/masters/airlines/{id}",
+      "tag": "Masters — Airlines",
+      "passId": "PASS-089",
+      "failId": "FAIL-089",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 90,
+      "method": "PATCH",
+      "path": "/masters/airlines/{id}",
+      "tag": "Masters — Airlines",
+      "passId": "PASS-090",
+      "failId": "FAIL-090",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 91,
+      "method": "GET",
+      "path": "/masters/airports",
+      "tag": "Masters — Airports",
+      "passId": "PASS-091",
+      "failId": "FAIL-091",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 92,
+      "method": "POST",
+      "path": "/masters/airports",
+      "tag": "Masters — Airports",
+      "passId": "PASS-092",
+      "failId": "FAIL-092",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 93,
+      "method": "DELETE",
+      "path": "/masters/airports/{id}",
+      "tag": "Masters — Airports",
+      "passId": "PASS-093",
+      "failId": "FAIL-093",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 94,
+      "method": "GET",
+      "path": "/masters/airports/{id}",
+      "tag": "Masters — Airports",
+      "passId": "PASS-094",
+      "failId": "FAIL-094",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 95,
+      "method": "PATCH",
+      "path": "/masters/airports/{id}",
+      "tag": "Masters — Airports",
+      "passId": "PASS-095",
+      "failId": "FAIL-095",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 96,
+      "method": "GET",
+      "path": "/masters/banks",
+      "tag": "Masters — Banks",
+      "passId": "PASS-096",
+      "failId": "FAIL-096",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 97,
+      "method": "POST",
+      "path": "/masters/banks",
+      "tag": "Masters — Banks",
+      "passId": "PASS-097",
+      "failId": "FAIL-097",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 98,
+      "method": "DELETE",
+      "path": "/masters/banks/{id}",
+      "tag": "Masters — Banks",
+      "passId": "PASS-098",
+      "failId": "FAIL-098",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 99,
+      "method": "GET",
+      "path": "/masters/banks/{id}",
+      "tag": "Masters — Banks",
+      "passId": "PASS-099",
+      "failId": "FAIL-099",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 100,
+      "method": "PATCH",
+      "path": "/masters/banks/{id}",
+      "tag": "Masters — Banks",
+      "passId": "PASS-100",
+      "failId": "FAIL-100",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 101,
+      "method": "GET",
+      "path": "/masters/branches",
+      "tag": "Masters — Branches",
+      "passId": "PASS-101",
+      "failId": "FAIL-101",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 102,
+      "method": "POST",
+      "path": "/masters/branches",
+      "tag": "Masters — Branches",
+      "passId": "PASS-102",
+      "failId": "FAIL-102",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 103,
+      "method": "DELETE",
+      "path": "/masters/branches/{id}",
+      "tag": "Masters — Branches",
+      "passId": "PASS-103",
+      "failId": "FAIL-103",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 104,
+      "method": "GET",
+      "path": "/masters/branches/{id}",
+      "tag": "Masters — Branches",
+      "passId": "PASS-104",
+      "failId": "FAIL-104",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 105,
+      "method": "PATCH",
+      "path": "/masters/branches/{id}",
+      "tag": "Masters — Branches",
+      "passId": "PASS-105",
+      "failId": "FAIL-105",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 106,
+      "method": "GET",
+      "path": "/masters/charge-codes",
+      "tag": "Masters — ChargeCodes",
+      "passId": "PASS-106",
+      "failId": "FAIL-106",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 107,
+      "method": "POST",
+      "path": "/masters/charge-codes",
+      "tag": "Masters — ChargeCodes",
+      "passId": "PASS-107",
+      "failId": "FAIL-107",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 108,
+      "method": "DELETE",
+      "path": "/masters/charge-codes/{id}",
+      "tag": "Masters — ChargeCodes",
+      "passId": "PASS-108",
+      "failId": "FAIL-108",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 109,
+      "method": "GET",
+      "path": "/masters/charge-codes/{id}",
+      "tag": "Masters — ChargeCodes",
+      "passId": "PASS-109",
+      "failId": "FAIL-109",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 110,
+      "method": "PATCH",
+      "path": "/masters/charge-codes/{id}",
+      "tag": "Masters — ChargeCodes",
+      "passId": "PASS-110",
+      "failId": "FAIL-110",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 111,
+      "method": "GET",
+      "path": "/masters/container-types",
+      "tag": "Masters — ContainerTypes",
+      "passId": "PASS-111",
+      "failId": "FAIL-111",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 112,
+      "method": "POST",
+      "path": "/masters/container-types",
+      "tag": "Masters — ContainerTypes",
+      "passId": "PASS-112",
+      "failId": "FAIL-112",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 113,
+      "method": "DELETE",
+      "path": "/masters/container-types/{id}",
+      "tag": "Masters — ContainerTypes",
+      "passId": "PASS-113",
+      "failId": "FAIL-113",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 114,
+      "method": "GET",
+      "path": "/masters/container-types/{id}",
+      "tag": "Masters — ContainerTypes",
+      "passId": "PASS-114",
+      "failId": "FAIL-114",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 115,
+      "method": "PATCH",
+      "path": "/masters/container-types/{id}",
+      "tag": "Masters — ContainerTypes",
+      "passId": "PASS-115",
+      "failId": "FAIL-115",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 116,
+      "method": "GET",
+      "path": "/masters/countries",
+      "tag": "Masters — Countries",
+      "passId": "PASS-116",
+      "failId": "FAIL-116",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 117,
+      "method": "POST",
+      "path": "/masters/countries",
+      "tag": "Masters — Countries",
+      "passId": "PASS-117",
+      "failId": "FAIL-117",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 118,
+      "method": "DELETE",
+      "path": "/masters/countries/{id}",
+      "tag": "Masters — Countries",
+      "passId": "PASS-118",
+      "failId": "FAIL-118",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 119,
+      "method": "GET",
+      "path": "/masters/countries/{id}",
+      "tag": "Masters — Countries",
+      "passId": "PASS-119",
+      "failId": "FAIL-119",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 120,
+      "method": "PATCH",
+      "path": "/masters/countries/{id}",
+      "tag": "Masters — Countries",
+      "passId": "PASS-120",
+      "failId": "FAIL-120",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 121,
+      "method": "GET",
+      "path": "/masters/currencies",
+      "tag": "Masters — Currencies",
+      "passId": "PASS-121",
+      "failId": "FAIL-121",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 122,
+      "method": "POST",
+      "path": "/masters/currencies",
+      "tag": "Masters — Currencies",
+      "passId": "PASS-122",
+      "failId": "FAIL-122",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 123,
+      "method": "DELETE",
+      "path": "/masters/currencies/{id}",
+      "tag": "Masters — Currencies",
+      "passId": "PASS-123",
+      "failId": "FAIL-123",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 124,
+      "method": "GET",
+      "path": "/masters/currencies/{id}",
+      "tag": "Masters — Currencies",
+      "passId": "PASS-124",
+      "failId": "FAIL-124",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 125,
+      "method": "PATCH",
+      "path": "/masters/currencies/{id}",
+      "tag": "Masters — Currencies",
+      "passId": "PASS-125",
+      "failId": "FAIL-125",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 126,
+      "method": "GET",
+      "path": "/masters/departments",
+      "tag": "Masters — Departments",
+      "passId": "PASS-126",
+      "failId": "FAIL-126",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 127,
+      "method": "POST",
+      "path": "/masters/departments",
+      "tag": "Masters — Departments",
+      "passId": "PASS-127",
+      "failId": "FAIL-127",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 128,
+      "method": "DELETE",
+      "path": "/masters/departments/{id}",
+      "tag": "Masters — Departments",
+      "passId": "PASS-128",
+      "failId": "FAIL-128",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 129,
+      "method": "GET",
+      "path": "/masters/departments/{id}",
+      "tag": "Masters — Departments",
+      "passId": "PASS-129",
+      "failId": "FAIL-129",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 130,
+      "method": "PATCH",
+      "path": "/masters/departments/{id}",
+      "tag": "Masters — Departments",
+      "passId": "PASS-130",
+      "failId": "FAIL-130",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 131,
+      "method": "GET",
+      "path": "/masters/designations",
+      "tag": "Masters — Designations",
+      "passId": "PASS-131",
+      "failId": "FAIL-131",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 132,
+      "method": "POST",
+      "path": "/masters/designations",
+      "tag": "Masters — Designations",
+      "passId": "PASS-132",
+      "failId": "FAIL-132",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 133,
+      "method": "DELETE",
+      "path": "/masters/designations/{id}",
+      "tag": "Masters — Designations",
+      "passId": "PASS-133",
+      "failId": "FAIL-133",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 134,
+      "method": "GET",
+      "path": "/masters/designations/{id}",
+      "tag": "Masters — Designations",
+      "passId": "PASS-134",
+      "failId": "FAIL-134",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 135,
+      "method": "PATCH",
+      "path": "/masters/designations/{id}",
+      "tag": "Masters — Designations",
+      "passId": "PASS-135",
+      "failId": "FAIL-135",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 136,
+      "method": "GET",
+      "path": "/masters/exchange-rates",
+      "tag": "Masters — Exchange Rates",
+      "passId": "PASS-136",
+      "failId": "FAIL-136",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 137,
+      "method": "POST",
+      "path": "/masters/exchange-rates",
+      "tag": "Masters — Exchange Rates",
+      "passId": "PASS-137",
+      "failId": "FAIL-137",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 138,
+      "method": "GET",
+      "path": "/masters/exchange-rates/latest/{currencyId}",
+      "tag": "Masters — Exchange Rates",
+      "passId": "PASS-138",
+      "failId": "FAIL-138",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 139,
+      "method": "GET",
+      "path": "/masters/holidays",
+      "tag": "Masters — Holidays",
+      "passId": "PASS-139",
+      "failId": "FAIL-139",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 140,
+      "method": "POST",
+      "path": "/masters/holidays",
+      "tag": "Masters — Holidays",
+      "passId": "PASS-140",
+      "failId": "FAIL-140",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 141,
+      "method": "DELETE",
+      "path": "/masters/holidays/{id}",
+      "tag": "Masters — Holidays",
+      "passId": "PASS-141",
+      "failId": "FAIL-141",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 142,
+      "method": "GET",
+      "path": "/masters/holidays/{id}",
+      "tag": "Masters — Holidays",
+      "passId": "PASS-142",
+      "failId": "FAIL-142",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 143,
+      "method": "PATCH",
+      "path": "/masters/holidays/{id}",
+      "tag": "Masters — Holidays",
+      "passId": "PASS-143",
+      "failId": "FAIL-143",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 144,
+      "method": "GET",
+      "path": "/masters/hs-codes",
+      "tag": "Masters — HsCodes",
+      "passId": "PASS-144",
+      "failId": "FAIL-144",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 145,
+      "method": "POST",
+      "path": "/masters/hs-codes",
+      "tag": "Masters — HsCodes",
+      "passId": "PASS-145",
+      "failId": "FAIL-145",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 146,
+      "method": "DELETE",
+      "path": "/masters/hs-codes/{id}",
+      "tag": "Masters — HsCodes",
+      "passId": "PASS-146",
+      "failId": "FAIL-146",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 147,
+      "method": "GET",
+      "path": "/masters/hs-codes/{id}",
+      "tag": "Masters — HsCodes",
+      "passId": "PASS-147",
+      "failId": "FAIL-147",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 148,
+      "method": "PATCH",
+      "path": "/masters/hs-codes/{id}",
+      "tag": "Masters — HsCodes",
+      "passId": "PASS-148",
+      "failId": "FAIL-148",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 149,
+      "method": "GET",
+      "path": "/masters/ports",
+      "tag": "Masters — Ports",
+      "passId": "PASS-149",
+      "failId": "FAIL-149",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 150,
+      "method": "POST",
+      "path": "/masters/ports",
+      "tag": "Masters — Ports",
+      "passId": "PASS-150",
+      "failId": "FAIL-150",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 151,
+      "method": "DELETE",
+      "path": "/masters/ports/{id}",
+      "tag": "Masters — Ports",
+      "passId": "PASS-151",
+      "failId": "FAIL-151",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 152,
+      "method": "GET",
+      "path": "/masters/ports/{id}",
+      "tag": "Masters — Ports",
+      "passId": "PASS-152",
+      "failId": "FAIL-152",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 153,
+      "method": "PATCH",
+      "path": "/masters/ports/{id}",
+      "tag": "Masters — Ports",
+      "passId": "PASS-153",
+      "failId": "FAIL-153",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 154,
+      "method": "GET",
+      "path": "/masters/shipping-lines",
+      "tag": "Masters — ShippingLines",
+      "passId": "PASS-154",
+      "failId": "FAIL-154",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 155,
+      "method": "POST",
+      "path": "/masters/shipping-lines",
+      "tag": "Masters — ShippingLines",
+      "passId": "PASS-155",
+      "failId": "FAIL-155",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 156,
+      "method": "DELETE",
+      "path": "/masters/shipping-lines/{id}",
+      "tag": "Masters — ShippingLines",
+      "passId": "PASS-156",
+      "failId": "FAIL-156",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 157,
+      "method": "GET",
+      "path": "/masters/shipping-lines/{id}",
+      "tag": "Masters — ShippingLines",
+      "passId": "PASS-157",
+      "failId": "FAIL-157",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 158,
+      "method": "PATCH",
+      "path": "/masters/shipping-lines/{id}",
+      "tag": "Masters — ShippingLines",
+      "passId": "PASS-158",
+      "failId": "FAIL-158",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 159,
+      "method": "GET",
+      "path": "/masters/tax-rates",
+      "tag": "Masters — TaxRates",
+      "passId": "PASS-159",
+      "failId": "FAIL-159",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 160,
+      "method": "POST",
+      "path": "/masters/tax-rates",
+      "tag": "Masters — TaxRates",
+      "passId": "PASS-160",
+      "failId": "FAIL-160",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 161,
+      "method": "DELETE",
+      "path": "/masters/tax-rates/{id}",
+      "tag": "Masters — TaxRates",
+      "passId": "PASS-161",
+      "failId": "FAIL-161",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 162,
+      "method": "GET",
+      "path": "/masters/tax-rates/{id}",
+      "tag": "Masters — TaxRates",
+      "passId": "PASS-162",
+      "failId": "FAIL-162",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 163,
+      "method": "PATCH",
+      "path": "/masters/tax-rates/{id}",
+      "tag": "Masters — TaxRates",
+      "passId": "PASS-163",
+      "failId": "FAIL-163",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 164,
+      "method": "GET",
+      "path": "/masters/truckers",
+      "tag": "Masters — Truckers",
+      "passId": "PASS-164",
+      "failId": "FAIL-164",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 165,
+      "method": "POST",
+      "path": "/masters/truckers",
+      "tag": "Masters — Truckers",
+      "passId": "PASS-165",
+      "failId": "FAIL-165",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 166,
+      "method": "DELETE",
+      "path": "/masters/truckers/{id}",
+      "tag": "Masters — Truckers",
+      "passId": "PASS-166",
+      "failId": "FAIL-166",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 167,
+      "method": "GET",
+      "path": "/masters/truckers/{id}",
+      "tag": "Masters — Truckers",
+      "passId": "PASS-167",
+      "failId": "FAIL-167",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 168,
+      "method": "PATCH",
+      "path": "/masters/truckers/{id}",
+      "tag": "Masters — Truckers",
+      "passId": "PASS-168",
+      "failId": "FAIL-168",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 169,
+      "method": "GET",
+      "path": "/masters/units-of-measure",
+      "tag": "Masters — UnitsOfMeasure",
+      "passId": "PASS-169",
+      "failId": "FAIL-169",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 170,
+      "method": "POST",
+      "path": "/masters/units-of-measure",
+      "tag": "Masters — UnitsOfMeasure",
+      "passId": "PASS-170",
+      "failId": "FAIL-170",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 171,
+      "method": "DELETE",
+      "path": "/masters/units-of-measure/{id}",
+      "tag": "Masters — UnitsOfMeasure",
+      "passId": "PASS-171",
+      "failId": "FAIL-171",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 172,
+      "method": "GET",
+      "path": "/masters/units-of-measure/{id}",
+      "tag": "Masters — UnitsOfMeasure",
+      "passId": "PASS-172",
+      "failId": "FAIL-172",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 173,
+      "method": "PATCH",
+      "path": "/masters/units-of-measure/{id}",
+      "tag": "Masters — UnitsOfMeasure",
+      "passId": "PASS-173",
+      "failId": "FAIL-173",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 174,
+      "method": "GET",
+      "path": "/masters/vessels",
+      "tag": "Masters — Vessels",
+      "passId": "PASS-174",
+      "failId": "FAIL-174",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 175,
+      "method": "POST",
+      "path": "/masters/vessels",
+      "tag": "Masters — Vessels",
+      "passId": "PASS-175",
+      "failId": "FAIL-175",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 176,
+      "method": "DELETE",
+      "path": "/masters/vessels/{id}",
+      "tag": "Masters — Vessels",
+      "passId": "PASS-176",
+      "failId": "FAIL-176",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 177,
+      "method": "GET",
+      "path": "/masters/vessels/{id}",
+      "tag": "Masters — Vessels",
+      "passId": "PASS-177",
+      "failId": "FAIL-177",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 178,
+      "method": "PATCH",
+      "path": "/masters/vessels/{id}",
+      "tag": "Masters — Vessels",
+      "passId": "PASS-178",
+      "failId": "FAIL-178",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 179,
+      "method": "GET",
+      "path": "/masters/warehouses",
+      "tag": "Masters — Warehouses",
+      "passId": "PASS-179",
+      "failId": "FAIL-179",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 180,
+      "method": "POST",
+      "path": "/masters/warehouses",
+      "tag": "Masters — Warehouses",
+      "passId": "PASS-180",
+      "failId": "FAIL-180",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 181,
+      "method": "DELETE",
+      "path": "/masters/warehouses/{id}",
+      "tag": "Masters — Warehouses",
+      "passId": "PASS-181",
+      "failId": "FAIL-181",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 182,
+      "method": "GET",
+      "path": "/masters/warehouses/{id}",
+      "tag": "Masters — Warehouses",
+      "passId": "PASS-182",
+      "failId": "FAIL-182",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 183,
+      "method": "PATCH",
+      "path": "/masters/warehouses/{id}",
+      "tag": "Masters — Warehouses",
+      "passId": "PASS-183",
+      "failId": "FAIL-183",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 184,
+      "method": "GET",
+      "path": "/organization/bank-accounts",
+      "tag": "Organization — Bank Accounts",
+      "passId": "PASS-184",
+      "failId": "FAIL-184",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 185,
+      "method": "POST",
+      "path": "/organization/bank-accounts",
+      "tag": "Organization — Bank Accounts",
+      "passId": "PASS-185",
+      "failId": "FAIL-185",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 186,
+      "method": "DELETE",
+      "path": "/organization/bank-accounts/{id}",
+      "tag": "Organization — Bank Accounts",
+      "passId": "PASS-186",
+      "failId": "FAIL-186",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 187,
+      "method": "GET",
+      "path": "/organization/bank-accounts/{id}",
+      "tag": "Organization — Bank Accounts",
+      "passId": "PASS-187",
+      "failId": "FAIL-187",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 188,
+      "method": "PATCH",
+      "path": "/organization/bank-accounts/{id}",
+      "tag": "Organization — Bank Accounts",
+      "passId": "PASS-188",
+      "failId": "FAIL-188",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 189,
+      "method": "GET",
+      "path": "/organization/number-formats",
+      "tag": "Organization — Number Formats",
+      "passId": "PASS-189",
+      "failId": "FAIL-189",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 190,
+      "method": "POST",
+      "path": "/organization/number-formats",
+      "tag": "Organization — Number Formats",
+      "passId": "PASS-190",
+      "failId": "FAIL-190",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 191,
+      "method": "GET",
+      "path": "/organization/number-formats/{documentType}",
+      "tag": "Organization — Number Formats",
+      "passId": "PASS-191",
+      "failId": "FAIL-191",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 192,
+      "method": "PATCH",
+      "path": "/organization/number-formats/{documentType}",
+      "tag": "Organization — Number Formats",
+      "passId": "PASS-192",
+      "failId": "FAIL-192",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 193,
+      "method": "GET",
+      "path": "/organization/number-formats/{documentType}/preview",
+      "tag": "Organization — Number Formats",
+      "passId": "PASS-193",
+      "failId": "FAIL-193",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 194,
+      "method": "GET",
+      "path": "/organization/profile",
+      "tag": "Organization Profile",
+      "passId": "PASS-194",
+      "failId": "FAIL-194",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 195,
+      "method": "PATCH",
+      "path": "/organization/profile",
+      "tag": "Organization Profile",
+      "passId": "PASS-195",
+      "failId": "FAIL-195",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 196,
+      "method": "GET",
+      "path": "/parties",
+      "tag": "Parties",
+      "passId": "PASS-196",
+      "failId": "FAIL-196",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 197,
+      "method": "POST",
+      "path": "/parties",
+      "tag": "Parties",
+      "passId": "PASS-197",
+      "failId": "FAIL-197",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 198,
+      "method": "DELETE",
+      "path": "/parties/{id}",
+      "tag": "Parties",
+      "passId": "PASS-198",
+      "failId": "FAIL-198",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 199,
+      "method": "GET",
+      "path": "/parties/{id}",
+      "tag": "Parties",
+      "passId": "PASS-199",
+      "failId": "FAIL-199",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 200,
+      "method": "PATCH",
+      "path": "/parties/{id}",
+      "tag": "Parties",
+      "passId": "PASS-200",
+      "failId": "FAIL-200",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 201,
+      "method": "POST",
+      "path": "/parties/{id}/addresses",
+      "tag": "Parties",
+      "passId": "PASS-201",
+      "failId": "FAIL-201",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 202,
+      "method": "DELETE",
+      "path": "/parties/{id}/addresses/{addressId}",
+      "tag": "Parties",
+      "passId": "PASS-202",
+      "failId": "FAIL-202",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 203,
+      "method": "PATCH",
+      "path": "/parties/{id}/addresses/{addressId}",
+      "tag": "Parties",
+      "passId": "PASS-203",
+      "failId": "FAIL-203",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 204,
+      "method": "POST",
+      "path": "/parties/{id}/contacts",
+      "tag": "Parties",
+      "passId": "PASS-204",
+      "failId": "FAIL-204",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 205,
+      "method": "DELETE",
+      "path": "/parties/{id}/contacts/{contactId}",
+      "tag": "Parties",
+      "passId": "PASS-205",
+      "failId": "FAIL-205",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 206,
+      "method": "PATCH",
+      "path": "/parties/{id}/contacts/{contactId}",
+      "tag": "Parties",
+      "passId": "PASS-206",
+      "failId": "FAIL-206",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 207,
+      "method": "PATCH",
+      "path": "/parties/{id}/credit-status",
+      "tag": "Parties",
+      "passId": "PASS-207",
+      "failId": "FAIL-207",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 208,
+      "method": "POST",
+      "path": "/parties/import",
+      "tag": "Parties",
+      "passId": "PASS-208",
+      "failId": "FAIL-208",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 209,
+      "method": "GET",
+      "path": "/payment-requests",
+      "tag": "Payment Requests",
+      "passId": "PASS-209",
+      "failId": "FAIL-209",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 210,
+      "method": "POST",
+      "path": "/payment-requests",
+      "tag": "Payment Requests",
+      "passId": "PASS-210",
+      "failId": "FAIL-210",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 211,
+      "method": "DELETE",
+      "path": "/payment-requests/{id}",
+      "tag": "Payment Requests",
+      "passId": "PASS-211",
+      "failId": "FAIL-211",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 212,
+      "method": "GET",
+      "path": "/payment-requests/{id}",
+      "tag": "Payment Requests",
+      "passId": "PASS-212",
+      "failId": "FAIL-212",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 213,
+      "method": "PATCH",
+      "path": "/payment-requests/{id}",
+      "tag": "Payment Requests",
+      "passId": "PASS-213",
+      "failId": "FAIL-213",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 214,
+      "method": "POST",
+      "path": "/payment-requests/{id}/approve",
+      "tag": "Payment Requests",
+      "passId": "PASS-214",
+      "failId": "FAIL-214",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 215,
+      "method": "POST",
+      "path": "/payment-requests/{id}/mark-paid",
+      "tag": "Payment Requests",
+      "passId": "PASS-215",
+      "failId": "FAIL-215",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 216,
+      "method": "POST",
+      "path": "/payment-requests/{id}/reject",
+      "tag": "Payment Requests",
+      "passId": "PASS-216",
+      "failId": "FAIL-216",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 217,
+      "method": "GET",
+      "path": "/purchase-invoices",
+      "tag": "Purchase Invoices",
+      "passId": "PASS-217",
+      "failId": "FAIL-217",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 218,
+      "method": "POST",
+      "path": "/purchase-invoices",
+      "tag": "Purchase Invoices",
+      "passId": "PASS-218",
+      "failId": "FAIL-218",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 219,
+      "method": "DELETE",
+      "path": "/purchase-invoices/{id}",
+      "tag": "Purchase Invoices",
+      "passId": "PASS-219",
+      "failId": "FAIL-219",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 220,
+      "method": "GET",
+      "path": "/purchase-invoices/{id}",
+      "tag": "Purchase Invoices",
+      "passId": "PASS-220",
+      "failId": "FAIL-220",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 221,
+      "method": "PATCH",
+      "path": "/purchase-invoices/{id}",
+      "tag": "Purchase Invoices",
+      "passId": "PASS-221",
+      "failId": "FAIL-221",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 222,
+      "method": "POST",
+      "path": "/purchase-invoices/{id}/post",
+      "tag": "Purchase Invoices",
+      "passId": "PASS-222",
+      "failId": "FAIL-222",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 223,
+      "method": "GET",
+      "path": "/quotations",
+      "tag": "Quotations",
+      "passId": "PASS-223",
+      "failId": "FAIL-223",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 224,
+      "method": "POST",
+      "path": "/quotations",
+      "tag": "Quotations",
+      "passId": "PASS-224",
+      "failId": "FAIL-224",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 225,
+      "method": "DELETE",
+      "path": "/quotations/{id}",
+      "tag": "Quotations",
+      "passId": "PASS-225",
+      "failId": "FAIL-225",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 226,
+      "method": "GET",
+      "path": "/quotations/{id}",
+      "tag": "Quotations",
+      "passId": "PASS-226",
+      "failId": "FAIL-226",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 227,
+      "method": "PATCH",
+      "path": "/quotations/{id}",
+      "tag": "Quotations",
+      "passId": "PASS-227",
+      "failId": "FAIL-227",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 228,
+      "method": "POST",
+      "path": "/quotations/{id}/apply-tariff",
+      "tag": "Quotations",
+      "passId": "PASS-228",
+      "failId": "FAIL-228",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 229,
+      "method": "POST",
+      "path": "/quotations/{id}/approve",
+      "tag": "Quotations",
+      "passId": "PASS-229",
+      "failId": "FAIL-229",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 230,
+      "method": "POST",
+      "path": "/quotations/{id}/archive",
+      "tag": "Quotations",
+      "passId": "PASS-230",
+      "failId": "FAIL-230",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 231,
+      "method": "POST",
+      "path": "/quotations/{id}/convert-to-job",
+      "tag": "Quotations",
+      "passId": "PASS-231",
+      "failId": "FAIL-231",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 232,
+      "method": "POST",
+      "path": "/quotations/{id}/duplicate",
+      "tag": "Quotations",
+      "passId": "PASS-232",
+      "failId": "FAIL-232",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 233,
+      "method": "POST",
+      "path": "/quotations/{id}/expire",
+      "tag": "Quotations",
+      "passId": "PASS-233",
+      "failId": "FAIL-233",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 234,
+      "method": "POST",
+      "path": "/quotations/{id}/lines",
+      "tag": "Quotations",
+      "passId": "PASS-234",
+      "failId": "FAIL-234",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 235,
+      "method": "DELETE",
+      "path": "/quotations/{id}/lines/{lineId}",
+      "tag": "Quotations",
+      "passId": "PASS-235",
+      "failId": "FAIL-235",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 236,
+      "method": "PATCH",
+      "path": "/quotations/{id}/lines/{lineId}",
+      "tag": "Quotations",
+      "passId": "PASS-236",
+      "failId": "FAIL-236",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 237,
+      "method": "POST",
+      "path": "/quotations/{id}/mark-lost",
+      "tag": "Quotations",
+      "passId": "PASS-237",
+      "failId": "FAIL-237",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 238,
+      "method": "POST",
+      "path": "/quotations/{id}/mark-won",
+      "tag": "Quotations",
+      "passId": "PASS-238",
+      "failId": "FAIL-238",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 239,
+      "method": "GET",
+      "path": "/quotations/{id}/pdf",
+      "tag": "Quotations",
+      "passId": "PASS-239",
+      "failId": "FAIL-239",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 240,
+      "method": "POST",
+      "path": "/quotations/{id}/pdf",
+      "tag": "Quotations",
+      "passId": "PASS-240",
+      "failId": "FAIL-240",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 241,
+      "method": "GET",
+      "path": "/quotations/{id}/pdf/status",
+      "tag": "Quotations",
+      "passId": "PASS-241",
+      "failId": "FAIL-241",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 242,
+      "method": "POST",
+      "path": "/quotations/{id}/reject",
+      "tag": "Quotations",
+      "passId": "PASS-242",
+      "failId": "FAIL-242",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 243,
+      "method": "GET",
+      "path": "/quotations/{id}/revisions",
+      "tag": "Quotations",
+      "passId": "PASS-243",
+      "failId": "FAIL-243",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 244,
+      "method": "POST",
+      "path": "/quotations/{id}/send",
+      "tag": "Quotations",
+      "passId": "PASS-244",
+      "failId": "FAIL-244",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 245,
+      "method": "POST",
+      "path": "/quotations/{id}/send-email",
+      "tag": "Quotations",
+      "passId": "PASS-245",
+      "failId": "FAIL-245",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 246,
+      "method": "POST",
+      "path": "/quotations/{id}/submit",
+      "tag": "Quotations",
+      "passId": "PASS-246",
+      "failId": "FAIL-246",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 247,
+      "method": "POST",
+      "path": "/quotations/expire-due",
+      "tag": "Quotations",
+      "passId": "PASS-247",
+      "failId": "FAIL-247",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 248,
+      "method": "POST",
+      "path": "/quotations/online-quote",
+      "tag": "Quotations",
+      "passId": "PASS-248",
+      "failId": "FAIL-248",
+      "isPublic": true,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 249,
+      "method": "GET",
+      "path": "/quotations/reports/analytics",
+      "tag": "Quotations",
+      "passId": "PASS-249",
+      "failId": "FAIL-249",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 250,
+      "method": "GET",
+      "path": "/quotations/reports/analytics/conversion",
+      "tag": "Quotations",
+      "passId": "PASS-250",
+      "failId": "FAIL-250",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 251,
+      "method": "GET",
+      "path": "/quotations/reports/analytics/lost-reasons",
+      "tag": "Quotations",
+      "passId": "PASS-251",
+      "failId": "FAIL-251",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 252,
+      "method": "GET",
+      "path": "/quotations/reports/analytics/response-time",
+      "tag": "Quotations",
+      "passId": "PASS-252",
+      "failId": "FAIL-252",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 253,
+      "method": "GET",
+      "path": "/quotations/reports/chargewise",
+      "tag": "Quotations",
+      "passId": "PASS-253",
+      "failId": "FAIL-253",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 254,
+      "method": "GET",
+      "path": "/quotations/tariffs",
+      "tag": "Quotations — Online Tariff Master",
+      "passId": "PASS-254",
+      "failId": "FAIL-254",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 255,
+      "method": "POST",
+      "path": "/quotations/tariffs",
+      "tag": "Quotations — Online Tariff Master",
+      "passId": "PASS-255",
+      "failId": "FAIL-255",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 256,
+      "method": "DELETE",
+      "path": "/quotations/tariffs/{id}",
+      "tag": "Quotations — Online Tariff Master",
+      "passId": "PASS-256",
+      "failId": "FAIL-256",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 257,
+      "method": "GET",
+      "path": "/quotations/tariffs/{id}",
+      "tag": "Quotations — Online Tariff Master",
+      "passId": "PASS-257",
+      "failId": "FAIL-257",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 258,
+      "method": "PATCH",
+      "path": "/quotations/tariffs/{id}",
+      "tag": "Quotations — Online Tariff Master",
+      "passId": "PASS-258",
+      "failId": "FAIL-258",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 259,
+      "method": "GET",
+      "path": "/quotations/zip-distances",
+      "tag": "Quotations — Zip Distance Master",
+      "passId": "PASS-259",
+      "failId": "FAIL-259",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 260,
+      "method": "POST",
+      "path": "/quotations/zip-distances",
+      "tag": "Quotations — Zip Distance Master",
+      "passId": "PASS-260",
+      "failId": "FAIL-260",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 261,
+      "method": "DELETE",
+      "path": "/quotations/zip-distances/{id}",
+      "tag": "Quotations — Zip Distance Master",
+      "passId": "PASS-261",
+      "failId": "FAIL-261",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 262,
+      "method": "GET",
+      "path": "/quotations/zip-distances/{id}",
+      "tag": "Quotations — Zip Distance Master",
+      "passId": "PASS-262",
+      "failId": "FAIL-262",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 263,
+      "method": "PATCH",
+      "path": "/quotations/zip-distances/{id}",
+      "tag": "Quotations — Zip Distance Master",
+      "passId": "PASS-263",
+      "failId": "FAIL-263",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 264,
+      "method": "GET",
+      "path": "/search",
+      "tag": "Search",
+      "passId": "PASS-264",
+      "failId": "FAIL-264",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 265,
+      "method": "GET",
+      "path": "/tenants",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-265",
+      "failId": "FAIL-265",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 266,
+      "method": "POST",
+      "path": "/tenants",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-266",
+      "failId": "FAIL-266",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 267,
+      "method": "DELETE",
+      "path": "/tenants/{id}",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-267",
+      "failId": "FAIL-267",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 268,
+      "method": "GET",
+      "path": "/tenants/{id}",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-268",
+      "failId": "FAIL-268",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 269,
+      "method": "PATCH",
+      "path": "/tenants/{id}",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-269",
+      "failId": "FAIL-269",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 270,
+      "method": "PATCH",
+      "path": "/tenants/{id}/activate",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-270",
+      "failId": "FAIL-270",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 271,
+      "method": "PATCH",
+      "path": "/tenants/{id}/deactivate",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-271",
+      "failId": "FAIL-271",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 272,
+      "method": "PATCH",
+      "path": "/tenants/{id}/restore",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-272",
+      "failId": "FAIL-272",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 273,
+      "method": "POST",
+      "path": "/tenants/{id}/sync-permissions",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-273",
+      "failId": "FAIL-273",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 274,
+      "method": "GET",
+      "path": "/tenants/statistics",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-274",
+      "failId": "FAIL-274",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 275,
+      "method": "POST",
+      "path": "/tenants/sync-permissions",
+      "tag": "Tenants (Super Admin)",
+      "passId": "PASS-275",
+      "failId": "FAIL-275",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 276,
+      "method": "GET",
+      "path": "/health",
+      "tag": "Untagged",
+      "passId": "PASS-276",
+      "failId": "FAIL-276",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 277,
+      "method": "GET",
+      "path": "/users",
+      "tag": "Users",
+      "passId": "PASS-277",
+      "failId": "FAIL-277",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 278,
+      "method": "POST",
+      "path": "/users",
+      "tag": "Users",
+      "passId": "PASS-278",
+      "failId": "FAIL-278",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 279,
+      "method": "DELETE",
+      "path": "/users/{id}",
+      "tag": "Users",
+      "passId": "PASS-279",
+      "failId": "FAIL-279",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    },
+    {
+      "index": 280,
+      "method": "GET",
+      "path": "/users/{id}",
+      "tag": "Users",
+      "passId": "PASS-280",
+      "failId": "FAIL-280",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 281,
+      "method": "PATCH",
+      "path": "/users/{id}",
+      "tag": "Users",
+      "passId": "PASS-281",
+      "failId": "FAIL-281",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 282,
+      "method": "POST",
+      "path": "/users/{id}/admin-reset-password",
+      "tag": "Users",
+      "passId": "PASS-282",
+      "failId": "FAIL-282",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 283,
+      "method": "POST",
+      "path": "/users/{id}/force-logout",
+      "tag": "Users",
+      "passId": "PASS-283",
+      "failId": "FAIL-283",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 284,
+      "method": "POST",
+      "path": "/users/{id}/restore",
+      "tag": "Users",
+      "passId": "PASS-284",
+      "failId": "FAIL-284",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 285,
+      "method": "PATCH",
+      "path": "/users/{id}/status",
+      "tag": "Users",
+      "passId": "PASS-285",
+      "failId": "FAIL-285",
+      "isPublic": false,
+      "expectedPassStatus": 200
+    },
+    {
+      "index": 286,
+      "method": "POST",
+      "path": "/users/bulk",
+      "tag": "Users",
+      "passId": "PASS-286",
+      "failId": "FAIL-286",
+      "isPublic": false,
+      "expectedPassStatus": 201
+    },
+    {
+      "index": 287,
+      "method": "POST",
+      "path": "/users/me/change-password",
+      "tag": "Users",
+      "passId": "PASS-287",
+      "failId": "FAIL-287",
+      "isPublic": false,
+      "expectedPassStatus": 204
+    }
+  ]
+}
