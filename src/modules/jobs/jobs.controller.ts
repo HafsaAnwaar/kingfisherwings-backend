@@ -18,12 +18,20 @@ import { JobsService } from './jobs.service';
 
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { UpdateAirJobDetailDto } from './dto/air-job-detail.dto';
-import { UpdateSeaFclJobDetailDto } from './dto/sea-fcl-job-detail.dto';
+import { UpdateSeaFclJobDetailDto, SubmitSiDto, SubmitVgmDto } from './dto/sea-fcl-job-detail.dto';
 import { CreateJobChargeDto, UpdateJobChargeDto } from './dto/job-charge.dto';
 import { UpdateJobMilestoneDto, CreateCustomMilestoneDto } from './dto/job-milestone.dto';
 import { CreateJobNoteDto, UpdateJobNoteDto } from './dto/job-note.dto';
 import { CreateJobDocumentDto, UpdateJobDocumentDto, FinalizeJobDocumentDto } from './dto/job-document.dto';
 import { CreateJobContainerDto, UpdateJobContainerDto } from './dto/job-container.dto';
+import {
+  AssignCargoToContainerDto,
+  CreateJobCargoDto,
+  SplitContainerDto,
+  UpdateJobCargoDto,
+} from './dto/job-cargo.dto';
+import { CreateBillOfLadingDto, UpdateBillOfLadingDto } from './dto/bill-of-lading.dto';
+import { CreateStuffingRecordDto, UpdateStuffingRecordDto } from './dto/stuffing-record.dto';
 import { SendPreAlertDto } from './dto/pre-alert.dto';
 import { GenerateJobDocumentDto } from './dto/generate-job-document.dto';
 import { JobQueryDto } from './dto/job-query.dto';
@@ -97,11 +105,57 @@ export class JobsController {
     return this.service.listContainers(tenantId, id);
   }
 
+  @Get(':id/containers/fill')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Container fill indicators — weight % and CBM % for all containers' })
+  getContainersFill(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getContainerFill(tenantId, id);
+  }
+
+  @Get(':id/containers/:containerId/fill')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Container fill indicator for one container' })
+  getContainerFill(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('containerId', ParseUUIDPipe) containerId: string,
+  ) {
+    return this.service.getContainerFill(tenantId, id, containerId);
+  }
+
+  @Get(':id/cutoffs')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'SI / VGM / CY cutoff traffic-light status (green / amber ≤24h / red past)' })
+  getCutoffStatus(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getCutoffStatus(tenantId, id);
+  }
+
+  @Get(':id/cargo')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List FCL cargo lines on a job' })
+  listCargo(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.listCargo(tenantId, id);
+  }
+
+  @Get(':id/bills-of-lading')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List bills of lading on a Sea FCL job' })
+  listBillsOfLading(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.listBillsOfLading(tenantId, id);
+  }
+
+  @Get(':id/stuffing-records')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List stuffing records on a Sea FCL job' })
+  listStuffingRecords(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.listStuffingRecords(tenantId, id);
+  }
+
   @Post()
   @RequirePermissions(JOBS_PERMISSIONS.CREATE)
   @ApiOperation({
     summary:
-      'Create a job (booking). AIR_EXPORT jobs auto-get their detail row + the full 15-milestone taxonomy. Set parent_job_id to create a HOUSE job under an existing master.',
+      'Create a job (booking). AIR_EXPORT auto-seeds 15 milestones; SEA_FCL_EXPORT auto-seeds 16 FCL milestones + sea_fcl_details. Set parent_job_id for a HOUSE job.',
   })
   create(
     @CurrentUser('tenantId') tenantId: string,
@@ -171,7 +225,7 @@ export class JobsController {
 
   @Patch(':id/sea-fcl-details')
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: 'Update Sea FCL-specific booking fields (shipping line, BL numbers, cutoffs)' })
+  @ApiOperation({ summary: 'Update Sea FCL-specific booking fields (shipping line, BL numbers, cutoffs, VGM/SI)' })
   updateSeaFclDetails(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('id') actorId: string,
@@ -179,6 +233,30 @@ export class JobsController {
     @Body() dto: UpdateSeaFclJobDetailDto,
   ) {
     return this.service.updateSeaFclDetails(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/sea-fcl-details/si-submission')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record SI submission (date + version) and mark SI_SUBMITTED milestone' })
+  submitSi(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SubmitSiDto,
+  ) {
+    return this.service.submitSi(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/sea-fcl-details/vgm-submission')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record VGM submission (date + SM1/SM2) and mark VGM_SUBMITTED milestone' })
+  submitVgm(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SubmitVgmDto,
+  ) {
+    return this.service.submitVgm(tenantId, id, dto, actorId);
   }
 
   @Patch(':id/milestones/:milestoneId')
@@ -399,6 +477,212 @@ export class JobsController {
     return this.service.generateDocument(tenantId, id, 'CARGO_MANIFEST', dto, actorId);
   }
 
+  // ── Week 8 — Sea FCL Export documents (Ch.10 / Ch.16) ──────────────────────
+
+  @Post(':id/documents/hbl')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue HBL draft/original PDF (layout_variant: STANDARD | LAYOUT_A | LAYOUT_B)' })
+  generateHbl(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'HBL', dto, actorId);
+  }
+
+  @Post(':id/documents/hbl-express-release')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Non-Negotiable HBL Express/Telex Release PDF' })
+  generateHblExpressRelease(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'HBL_EXPRESS_RELEASE', dto, actorId);
+  }
+
+  @Post(':id/documents/mbl')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Master BL / OBL PDF' })
+  generateMbl(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'MBL', dto, actorId);
+  }
+
+  @Post(':id/documents/fiata-bl')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue FIATA FBL PDF' })
+  generateFiataBl(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'FIATA_BL', dto, actorId);
+  }
+
+  @Post(':id/documents/rider-bl')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Rider/Addendum to BL PDF (pass rider_terms)' })
+  generateRiderBl(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'RIDER_BL', dto, actorId);
+  }
+
+  @Post(':id/documents/switch-bl')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Switch BL PDF (switched_from_bl_number + switch consignee/notify)' })
+  generateSwitchBl(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'SWITCH_BL', dto, actorId);
+  }
+
+  @Post(':id/documents/proxy-bl')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Proxy BL PDF (proxy_forwarder_name / address)' })
+  generateProxyBl(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'PROXY_BL', dto, actorId);
+  }
+
+  @Post(':id/documents/back-to-back-bl')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Back-to-Back BL PDF (master + house pair)' })
+  generateBackToBackBl(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'BACK_TO_BACK_BL', dto, actorId);
+  }
+
+  @Post(':id/documents/surrender-notice')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue BL Surrender Notice PDF' })
+  generateSurrenderNotice(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'SURRENDER_NOTICE', dto, actorId);
+  }
+
+  @Post(':id/documents/si')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Shipping Instruction (SI) PDF' })
+  generateShippingInstruction(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'SHIPPING_INSTRUCTION', dto, actorId);
+  }
+
+  @Post(':id/documents/stuffing-report')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Stuffing Report PDF from stuffing records + containers' })
+  generateStuffingReport(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'STUFFING_REPORT', dto, actorId);
+  }
+
+  @Post(':id/documents/sailing-confirmation')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Sailing Confirmation PDF (uses sailed_at / vessel sailed milestone)' })
+  generateSailingConfirmation(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'SAILING_CONFIRMATION', dto, actorId);
+  }
+
+  @Post(':id/documents/transhipment-confirmation')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Transhipment Confirmation PDF' })
+  generateTranshipmentConfirmation(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'TRANSHIPMENT_CONFIRMATION', dto, actorId);
+  }
+
+  @Post(':id/documents/freight-manifest')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Freight Manifest PDF (FCL)' })
+  generateFreightManifest(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'FREIGHT_MANIFEST', dto, actorId);
+  }
+
+  @Post(':id/documents/job-card')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Job Card PDF' })
+  generateJobCard(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'JOB_CARD', dto, actorId);
+  }
+
+  @Post(':id/documents/job-pnl')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
+  @ApiOperation({ summary: 'Queue Job P&L Statement PDF' })
+  generateJobPnl(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'JOB_PNL', dto, actorId);
+  }
+
+  @Post(':id/documents/proforma-invoice')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Proforma Invoice PDF for the job' })
+  generateProformaInvoice(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'PROFORMA_INVOICE', dto, actorId);
+  }
+
   @Post(':id/pre-alert/send')
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({ summary: 'Send pre-alert and mark PRE_ALERT_SENT milestone complete' })
@@ -447,5 +731,145 @@ export class JobsController {
     @Param('containerId', ParseUUIDPipe) containerId: string,
   ) {
     await this.service.removeContainer(tenantId, id, containerId, actorId);
+  }
+
+  @Post(':id/containers/:containerId/cargo')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Assign an existing cargo line to a container' })
+  assignCargoToContainer(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('containerId', ParseUUIDPipe) containerId: string,
+    @Body() dto: AssignCargoToContainerDto,
+  ) {
+    return this.service.assignCargoToContainer(tenantId, id, containerId, dto, actorId);
+  }
+
+  @Post(':id/containers/:containerId/split')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Split one container across multiple house consignees (co-loading)' })
+  splitContainer(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('containerId', ParseUUIDPipe) containerId: string,
+    @Body() dto: SplitContainerDto,
+  ) {
+    return this.service.splitContainer(tenantId, id, containerId, dto, actorId);
+  }
+
+  @Post(':id/cargo')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Add an FCL cargo line (optionally assigned to a container)' })
+  addCargo(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateJobCargoDto,
+  ) {
+    return this.service.addCargo(tenantId, id, dto, actorId);
+  }
+
+  @Patch(':id/cargo/:cargoId')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Update an FCL cargo line' })
+  updateCargo(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('cargoId', ParseUUIDPipe) cargoId: string,
+    @Body() dto: UpdateJobCargoDto,
+  ) {
+    return this.service.updateCargo(tenantId, id, cargoId, dto, actorId);
+  }
+
+  @Delete(':id/cargo/:cargoId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Remove an FCL cargo line' })
+  async removeCargo(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('cargoId', ParseUUIDPipe) cargoId: string,
+  ) {
+    await this.service.removeCargo(tenantId, id, cargoId, actorId);
+  }
+
+  @Post(':id/bills-of-lading')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Create a bill of lading data record (PDF variants are Week 8)' })
+  createBillOfLading(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateBillOfLadingDto,
+  ) {
+    return this.service.createBillOfLading(tenantId, id, dto, actorId);
+  }
+
+  @Patch(':id/bills-of-lading/:blId')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Update a bill of lading (draft → original / surrendered flags)' })
+  updateBillOfLading(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('blId', ParseUUIDPipe) blId: string,
+    @Body() dto: UpdateBillOfLadingDto,
+  ) {
+    return this.service.updateBillOfLading(tenantId, id, blId, dto, actorId);
+  }
+
+  @Delete(':id/bills-of-lading/:blId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Soft-delete a bill of lading' })
+  async removeBillOfLading(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('blId', ParseUUIDPipe) blId: string,
+  ) {
+    await this.service.removeBillOfLading(tenantId, id, blId, actorId);
+  }
+
+  @Post(':id/stuffing-records')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Create a stuffing record and mark STUFFING_COMPLETED' })
+  createStuffingRecord(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateStuffingRecordDto,
+  ) {
+    return this.service.createStuffingRecord(tenantId, id, dto, actorId);
+  }
+
+  @Patch(':id/stuffing-records/:recordId')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Update a stuffing record' })
+  updateStuffingRecord(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('recordId', ParseUUIDPipe) recordId: string,
+    @Body() dto: UpdateStuffingRecordDto,
+  ) {
+    return this.service.updateStuffingRecord(tenantId, id, recordId, dto, actorId);
+  }
+
+  @Delete(':id/stuffing-records/:recordId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Soft-delete a stuffing record' })
+  async removeStuffingRecord(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('recordId', ParseUUIDPipe) recordId: string,
+  ) {
+    await this.service.removeStuffingRecord(tenantId, id, recordId, actorId);
   }
 }

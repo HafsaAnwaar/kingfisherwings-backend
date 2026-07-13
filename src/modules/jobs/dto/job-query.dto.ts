@@ -87,4 +87,30 @@ export class JobQueryDto {
   @IsOptional()
   @IsIn(['asc', 'desc'])
   order: 'asc' | 'desc' = 'desc';
+
+  /** Sea FCL filters (Week 7 / Ch.5.1) */
+  @ApiPropertyOptional({ description: 'Filter FCL jobs by container number' })
+  @IsOptional()
+  @IsString()
+  container_number?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Filter FCL jobs by vessel' })
+  @IsOptional()
+  @IsUUID()
+  vessel_id?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Filter FCL jobs by shipping line' })
+  @IsOptional()
+  @IsUUID()
+  shipping_line_id?: string;
+
+  @ApiPropertyOptional({ description: 'Filter FCL jobs by voyage number' })
+  @IsOptional()
+  @IsString()
+  voyage_number?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Filter FCL jobs by container type on assigned containers' })
+  @IsOptional()
+  @IsUUID()
+  container_type_id?: string;
 }

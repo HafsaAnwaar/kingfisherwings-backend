@@ -1,8 +1,7 @@
 /**
  * Auto-seeded onto every AIR_EXPORT job at creation, in this order.
  * Matches spec Ch.8.5 exactly — 15 checkpoints from booking through
- * close-out. Other job types (Sea FCL, etc.) get their own taxonomy
- * when those modules are built; this constant is Air Export-specific.
+ * close-out. Sea FCL Export uses SEA_FCL_EXPORT_MILESTONES (Ch.10.3).
  */
 export const AIR_EXPORT_MILESTONES: string[] = [
   'BOOKING_RECEIVED',

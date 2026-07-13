@@ -30,6 +30,8 @@ import { ShippingLinesService } from './shipping-lines/shipping-lines.service';
 
 import { VesselsController } from './vessels/vessels.controller';
 import { VesselsService } from './vessels/vessels.service';
+import { VesselSchedulesController } from './vessels/vessel-schedules.controller';
+import { VesselSchedulesService } from './vessels/vessel-schedules.service';
 
 import { TruckersController } from './truckers/truckers.controller';
 import { TruckersService } from './truckers/truckers.service';
@@ -72,6 +74,7 @@ const CONTROLLERS = [
   AirlinesController,
   ShippingLinesController,
   VesselsController,
+  VesselSchedulesController,
   TruckersController,
   WarehousesController,
   ChargeCodesController,
@@ -95,6 +98,7 @@ const SERVICES = [
   AirlinesService,
   ShippingLinesService,
   VesselsService,
+  VesselSchedulesService,
   TruckersService,
   WarehousesService,
   ChargeCodesService,
