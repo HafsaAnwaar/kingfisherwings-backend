@@ -1,19 +1,28 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { DocumentType, Job, JobType, Prisma } from '@prisma/client';
+import { ContainerStatus, DocumentType, Job, JobType, Prisma, StuffingLocationType, VgmMethod } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
 import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
 import { EmailService } from '../../shared/email/email.service';
 import { AIR_EXPORT_MILESTONES } from './constants/air-export-milestones';
+import { SEA_FCL_EXPORT_MILESTONES } from './constants/sea-fcl-export-milestones';
 
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { UpdateAirJobDetailDto } from './dto/air-job-detail.dto';
-import { UpdateSeaFclJobDetailDto } from './dto/sea-fcl-job-detail.dto';
+import { SubmitSiDto, SubmitVgmDto, UpdateSeaFclJobDetailDto } from './dto/sea-fcl-job-detail.dto';
 import { CreateJobChargeDto, UpdateJobChargeDto } from './dto/job-charge.dto';
 import { UpdateJobMilestoneDto, CreateCustomMilestoneDto } from './dto/job-milestone.dto';
 import { CreateJobNoteDto, UpdateJobNoteDto } from './dto/job-note.dto';
 import { CreateJobDocumentDto, UpdateJobDocumentDto, FinalizeJobDocumentDto } from './dto/job-document.dto';
 import { CreateJobContainerDto, UpdateJobContainerDto } from './dto/job-container.dto';
+import {
+  AssignCargoToContainerDto,
+  CreateJobCargoDto,
+  SplitContainerDto,
+  UpdateJobCargoDto,
+} from './dto/job-cargo.dto';
+import { CreateBillOfLadingDto, UpdateBillOfLadingDto } from './dto/bill-of-lading.dto';
+import { CreateStuffingRecordDto, UpdateStuffingRecordDto } from './dto/stuffing-record.dto';
 import { SendPreAlertDto } from './dto/pre-alert.dto';
 import { GenerateJobDocumentDto } from './dto/generate-job-document.dto';
 import { JobQueryDto } from './dto/job-query.dto';
@@ -125,9 +134,7 @@ export class JobsService {
       });
 
       // Air Export gets its detail row + the full 15-milestone taxonomy
-      // seeded immediately — matches spec Ch.8.5 exactly. Other job
-      // types get their own taxonomy + detail table when those
-      // modules are built; this is deliberately Air Export-specific.
+      // seeded immediately — matches spec Ch.8.5 exactly.
       if (dto.job_type === 'AIR_EXPORT') {
         await tx.airJobDetail.create({
           data: { tenant_id: tenantId, job_id: job.id, created_by: actorId, updated_by: actorId },
@@ -147,6 +154,19 @@ export class JobsService {
       if (dto.job_type === 'SEA_FCL_EXPORT' || dto.job_type === 'SEA_FCL_IMPORT') {
         await tx.seaFclJobDetail.create({
           data: { tenant_id: tenantId, job_id: job.id, created_by: actorId, updated_by: actorId },
+        });
+      }
+
+      // Sea FCL Export gets the Ch.10.3 16-milestone taxonomy at create.
+      if (dto.job_type === 'SEA_FCL_EXPORT') {
+        await tx.jobMilestone.createMany({
+          data: SEA_FCL_EXPORT_MILESTONES.map((milestone) => ({
+            tenant_id: tenantId,
+            job_id: job.id,
+            milestone,
+            created_by: actorId,
+            updated_by: actorId,
+          })),
         });
       }
 
@@ -187,6 +207,36 @@ export class JobsService {
         ];
       }
 
+      if (
+        query.container_number ||
+        query.vessel_id ||
+        query.shipping_line_id ||
+        query.voyage_number ||
+        query.container_type_id
+      ) {
+        where.sea_fcl_details = {
+          deleted_at: null,
+          ...(query.vessel_id ? { vessel_id: query.vessel_id } : {}),
+          ...(query.shipping_line_id ? { shipping_line_id: query.shipping_line_id } : {}),
+          ...(query.voyage_number
+            ? { voyage_number: { contains: query.voyage_number, mode: 'insensitive' } }
+            : {}),
+          ...((query.container_number || query.container_type_id)
+            ? {
+                containers: {
+                  some: {
+                    deleted_at: null,
+                    ...(query.container_number
+                      ? { container_number: { contains: query.container_number, mode: 'insensitive' } }
+                      : {}),
+                    ...(query.container_type_id ? { container_type_id: query.container_type_id } : {}),
+                  },
+                },
+              }
+            : {}),
+        };
+      }
+
       const [data, total] = await Promise.all([
         tx.job.findMany({
           where,
@@ -210,11 +260,21 @@ export class JobsService {
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
           air_details: true,
-          sea_fcl_details: { include: { containers: { where: { deleted_at: null } } } },
+          sea_fcl_details: {
+            include: {
+              containers: {
+                where: { deleted_at: null },
+                include: { cargo_lines: { where: { deleted_at: null } } },
+              },
+            },
+          },
           charges: { orderBy: { created_at: 'asc' } },
           milestones: { orderBy: { created_at: 'asc' } },
           notes_list: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
           documents: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
+          bills_of_lading: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
+          cargo_lines: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } },
+          stuffing_records: { where: { deleted_at: null }, orderBy: { stuffing_date: 'desc' } },
           house_jobs: {
             where: { deleted_at: null },
             select: { id: true, job_number: true, status: true, shipper_id: true },
@@ -438,18 +498,106 @@ export class JobsService {
         throw new NotFoundException('Sea FCL details not found for this job.');
       }
 
-      const { si_cutoff, vgm_cutoff, cy_cutoff, ...rest } = dto;
+      const {
+        si_cutoff,
+        vgm_cutoff,
+        cy_cutoff,
+        etd,
+        eta,
+        stuffing_date,
+        si_submitted_at,
+        vgm_submitted_at,
+        stuffing_location,
+        vgm_method,
+        sailed_at,
+        ...rest
+      } = dto;
 
       return tx.seaFclJobDetail.update({
         where: { job_id: jobId },
         data: {
           ...rest,
+          ...(stuffing_location !== undefined
+            ? { stuffing_location: stuffing_location as StuffingLocationType }
+            : {}),
+          ...(vgm_method !== undefined ? { vgm_method: vgm_method as VgmMethod } : {}),
           ...(si_cutoff ? { si_cutoff: new Date(si_cutoff) } : {}),
           ...(vgm_cutoff ? { vgm_cutoff: new Date(vgm_cutoff) } : {}),
           ...(cy_cutoff ? { cy_cutoff: new Date(cy_cutoff) } : {}),
+          ...(etd ? { etd: new Date(etd) } : {}),
+          ...(eta ? { eta: new Date(eta) } : {}),
+          ...(stuffing_date ? { stuffing_date: new Date(stuffing_date) } : {}),
+          ...(si_submitted_at ? { si_submitted_at: new Date(si_submitted_at) } : {}),
+          ...(vgm_submitted_at ? { vgm_submitted_at: new Date(vgm_submitted_at) } : {}),
+          ...(sailed_at ? { sailed_at: new Date(sailed_at) } : {}),
           updated_by: actorId,
         },
       });
+    });
+  }
+
+  async getCutoffStatus(tenantId: string, jobId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const now = Date.now();
+
+      const trafficLight = (cutoff: Date | null) => {
+        if (!cutoff) return { cutoff: null, hours_remaining: null, status: 'NONE' as const };
+        const hours = (cutoff.getTime() - now) / (1000 * 60 * 60);
+        let status: 'GREEN' | 'AMBER' | 'RED' = 'GREEN';
+        if (hours <= 0) status = 'RED';
+        else if (hours <= 24) status = 'AMBER';
+        return { cutoff: cutoff.toISOString(), hours_remaining: Math.round(hours * 10) / 10, status };
+      };
+
+      return {
+        job_id: jobId,
+        si: trafficLight(detail.si_cutoff),
+        vgm: trafficLight(detail.vgm_cutoff),
+        cy: trafficLight(detail.cy_cutoff),
+        si_submitted_at: detail.si_submitted_at,
+        si_version: detail.si_version,
+        vgm_submitted_at: detail.vgm_submitted_at,
+        vgm_method: detail.vgm_method,
+      };
+    });
+  }
+
+  async submitSi(tenantId: string, jobId: string, dto: SubmitSiDto, actorId?: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const submittedAt = dto.si_submitted_at ? new Date(dto.si_submitted_at) : new Date();
+
+      const detail = await tx.seaFclJobDetail.update({
+        where: { job_id: jobId },
+        data: {
+          si_submitted_at: submittedAt,
+          si_version: dto.si_version ?? 1,
+          updated_by: actorId,
+        },
+      });
+
+      await this.markMilestoneIfPresent(tx, tenantId, jobId, 'SI_SUBMITTED', submittedAt, actorId);
+      return detail;
+    });
+  }
+
+  async submitVgm(tenantId: string, jobId: string, dto: SubmitVgmDto, actorId?: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const submittedAt = dto.vgm_submitted_at ? new Date(dto.vgm_submitted_at) : new Date();
+
+      const detail = await tx.seaFclJobDetail.update({
+        where: { job_id: jobId },
+        data: {
+          vgm_submitted_at: submittedAt,
+          vgm_method: (dto.vgm_method as VgmMethod) ?? VgmMethod.SM1,
+          updated_by: actorId,
+        },
+      });
+
+      await this.markMilestoneIfPresent(tx, tenantId, jobId, 'VGM_SUBMITTED', submittedAt, actorId);
+      return detail;
     });
   }
 
@@ -459,29 +607,92 @@ export class JobsService {
 
       return tx.jobContainer.findMany({
         where: { tenant_id: tenantId, sea_fcl_detail_id: detail.id, deleted_at: null },
+        include: { cargo_lines: { where: { deleted_at: null } } },
         orderBy: { created_at: 'asc' },
       });
+    });
+  }
+
+  async getContainerFill(tenantId: string, jobId: string, containerId?: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const containers = await tx.jobContainer.findMany({
+        where: {
+          tenant_id: tenantId,
+          sea_fcl_detail_id: detail.id,
+          deleted_at: null,
+          ...(containerId ? { id: containerId } : {}),
+        },
+        include: { cargo_lines: { where: { deleted_at: null } } },
+        orderBy: { created_at: 'asc' },
+      });
+
+      if (containerId && containers.length === 0) {
+        throw new NotFoundException('Container not found.');
+      }
+
+      const fills = await Promise.all(
+        containers.map(async (container) => {
+          const type = await tx.containerType.findFirst({
+            where: { id: container.container_type_id, tenant_id: tenantId, deleted_at: null },
+          });
+
+          const cargoWeight = container.cargo_lines.reduce(
+            (sum, line) => sum + Number(line.gross_weight ?? 0),
+            0,
+          );
+          const cargoCbm = container.cargo_lines.reduce(
+            (sum, line) => sum + Number(line.measurement ?? 0),
+            0,
+          );
+
+          const maxPayload = Number(container.max_payload ?? type?.max_payload ?? 0);
+          const cubicCapacity = Number(container.cubic_capacity ?? type?.volume_cbm ?? 0);
+          const assignedWeight = cargoWeight || Number(container.gross_weight ?? 0);
+          const assignedCbm = cargoCbm || Number(container.cbm ?? 0);
+
+          return {
+            container_id: container.id,
+            container_number: container.container_number,
+            status: container.status,
+            assigned_weight: assignedWeight,
+            max_payload: maxPayload || null,
+            weight_percent: maxPayload > 0 ? Math.round((assignedWeight / maxPayload) * 1000) / 10 : null,
+            assigned_cbm: assignedCbm,
+            cubic_capacity: cubicCapacity || null,
+            cbm_percent: cubicCapacity > 0 ? Math.round((assignedCbm / cubicCapacity) * 1000) / 10 : null,
+            cargo_line_count: container.cargo_lines.length,
+          };
+        }),
+      );
+
+      return containerId ? fills[0] : fills;
     });
   }
 
   async addContainer(tenantId: string, jobId: string, dto: CreateJobContainerDto, actorId?: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const type = await this.assertContainerTypeExists(tx, tenantId, dto.container_type_id);
 
-      await this.assertContainerTypeExists(tx, tenantId, dto.container_type_id);
+      const { gate_in_at, status, max_payload, cubic_capacity, ...rest } = dto;
 
       return tx.jobContainer.create({
         data: {
           tenant_id: tenantId,
           sea_fcl_detail_id: detail.id,
-          container_type_id: dto.container_type_id,
-          container_number: dto.container_number,
-          seal_number: dto.seal_number,
-          tare_weight: dto.tare_weight,
-          gross_weight: dto.gross_weight,
-          vgm_weight: dto.vgm_weight,
-          cbm: dto.cbm,
-          is_soc: dto.is_soc ?? false,
+          container_type_id: rest.container_type_id,
+          container_number: rest.container_number,
+          seal_number: rest.seal_number,
+          tare_weight: rest.tare_weight,
+          gross_weight: rest.gross_weight,
+          vgm_weight: rest.vgm_weight,
+          cbm: rest.cbm,
+          is_soc: rest.is_soc ?? false,
+          max_payload: max_payload ?? (type.max_payload != null ? Number(type.max_payload) : undefined),
+          cubic_capacity: cubic_capacity ?? (type.volume_cbm != null ? Number(type.volume_cbm) : undefined),
+          status: (status as ContainerStatus) ?? ContainerStatus.EMPTY,
+          gate_in_at: gate_in_at ? new Date(gate_in_at) : undefined,
           created_by: actorId,
           updated_by: actorId,
         },
@@ -511,10 +722,36 @@ export class JobsService {
         await this.assertContainerTypeExists(tx, tenantId, dto.container_type_id);
       }
 
-      return tx.jobContainer.update({
+      const { gate_in_at, status, ...rest } = dto;
+      const nextGateIn = gate_in_at ? new Date(gate_in_at) : undefined;
+      const nextStatus = status as ContainerStatus | undefined;
+
+      const updated = await tx.jobContainer.update({
         where: { id: containerId },
-        data: { ...dto, updated_by: actorId },
+        data: {
+          ...rest,
+          ...(nextStatus ? { status: nextStatus } : {}),
+          ...(nextGateIn ? { gate_in_at: nextGateIn } : {}),
+          updated_by: actorId,
+        },
       });
+
+      if (nextStatus === ContainerStatus.GATED_IN || nextGateIn) {
+        await this.markMilestoneIfPresent(
+          tx,
+          tenantId,
+          jobId,
+          'CONTAINER_GATED_IN',
+          nextGateIn ?? new Date(),
+          actorId,
+        );
+      }
+
+      if (nextStatus === ContainerStatus.STUFFED) {
+        await this.markMilestoneIfPresent(tx, tenantId, jobId, 'STUFFING_COMPLETED', new Date(), actorId);
+      }
+
+      return updated;
     });
   }
 
@@ -532,6 +769,399 @@ export class JobsService {
 
       await tx.jobContainer.update({
         where: { id: containerId },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      });
+    });
+  }
+
+  // ============================================================
+  // CARGO
+  // ============================================================
+
+  async listCargo(tenantId: string, jobId: string) {
+    await this.getSeaFclDetailOrThrowInTenant(tenantId, jobId);
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobCargo.findMany({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        orderBy: { created_at: 'asc' },
+      }),
+    );
+  }
+
+  async addCargo(tenantId: string, jobId: string, dto: CreateJobCargoDto, actorId?: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+
+      if (dto.container_id) {
+        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      }
+
+      return tx.jobCargo.create({
+        data: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          container_id: dto.container_id,
+          consignee_id: dto.consignee_id,
+          commodity: dto.commodity,
+          hs_code: dto.hs_code,
+          description: dto.description,
+          marks_numbers: dto.marks_numbers,
+          packages: dto.packages,
+          gross_weight: dto.gross_weight,
+          measurement: dto.measurement,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+    });
+  }
+
+  async updateCargo(
+    tenantId: string,
+    jobId: string,
+    cargoId: string,
+    dto: UpdateJobCargoDto,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const cargo = await tx.jobCargo.findFirst({
+        where: { id: cargoId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+
+      if (!cargo) {
+        throw new NotFoundException('Cargo line not found.');
+      }
+
+      if (dto.container_id) {
+        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      }
+
+      return tx.jobCargo.update({
+        where: { id: cargoId },
+        data: { ...dto, updated_by: actorId },
+      });
+    });
+  }
+
+  async removeCargo(tenantId: string, jobId: string, cargoId: string, actorId?: string): Promise<void> {
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const cargo = await tx.jobCargo.findFirst({
+        where: { id: cargoId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+
+      if (!cargo) {
+        throw new NotFoundException('Cargo line not found.');
+      }
+
+      await tx.jobCargo.update({
+        where: { id: cargoId },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      });
+    });
+  }
+
+  async assignCargoToContainer(
+    tenantId: string,
+    jobId: string,
+    containerId: string,
+    dto: AssignCargoToContainerDto,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      await this.assertContainerOnDetail(tx, tenantId, detail.id, containerId);
+
+      const cargo = await tx.jobCargo.findFirst({
+        where: { id: dto.cargo_id, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+
+      if (!cargo) {
+        throw new NotFoundException('Cargo line not found.');
+      }
+
+      return tx.jobCargo.update({
+        where: { id: cargo.id },
+        data: { container_id: containerId, updated_by: actorId },
+      });
+    });
+  }
+
+  async splitContainer(
+    tenantId: string,
+    jobId: string,
+    containerId: string,
+    dto: SplitContainerDto,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      await this.assertContainerOnDetail(tx, tenantId, detail.id, containerId);
+
+      const created = [];
+      for (const portion of dto.portions) {
+        created.push(
+          await tx.jobCargo.create({
+            data: {
+              tenant_id: tenantId,
+              job_id: jobId,
+              container_id: containerId,
+              consignee_id: portion.consignee_id,
+              commodity: portion.commodity,
+              marks_numbers: portion.marks_numbers,
+              packages: portion.packages,
+              gross_weight: portion.gross_weight,
+              measurement: portion.measurement,
+              created_by: actorId,
+              updated_by: actorId,
+            },
+          }),
+        );
+      }
+
+      return created;
+    });
+  }
+
+  // ============================================================
+  // BILLS OF LADING
+  // ============================================================
+
+  async listBillsOfLading(tenantId: string, jobId: string) {
+    await this.getSeaFclDetailOrThrowInTenant(tenantId, jobId);
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.billOfLading.findMany({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        orderBy: { created_at: 'desc' },
+      }),
+    );
+  }
+
+  async createBillOfLading(tenantId: string, jobId: string, dto: CreateBillOfLadingDto, actorId?: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+
+      return tx.billOfLading.create({
+        data: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          bl_type: dto.bl_type,
+          bl_number: dto.bl_number,
+          shipper_id: dto.shipper_id,
+          consignee_id: dto.consignee_id,
+          notify_id: dto.notify_id,
+          pol: dto.pol,
+          pod: dto.pod,
+          place_of_receipt: dto.place_of_receipt,
+          place_of_delivery: dto.place_of_delivery,
+          vessel_name: dto.vessel_name,
+          voyage_number: dto.voyage_number,
+          etd: dto.etd ? new Date(dto.etd) : undefined,
+          eta: dto.eta ? new Date(dto.eta) : undefined,
+          description_of_goods: dto.description_of_goods,
+          marks_numbers: dto.marks_numbers,
+          packages: dto.packages,
+          gross_weight: dto.gross_weight,
+          measurement: dto.measurement,
+          freight_payable_at: dto.freight_payable_at,
+          freight_terms: dto.freight_terms,
+          number_of_originals: dto.number_of_originals ?? 3,
+          bl_conditions: dto.bl_conditions,
+          rider_terms: dto.rider_terms,
+          switched_from_bl_number: dto.switched_from_bl_number,
+          switch_consignee_id: dto.switch_consignee_id,
+          switch_notify_id: dto.switch_notify_id,
+          proxy_forwarder_name: dto.proxy_forwarder_name,
+          proxy_forwarder_address: dto.proxy_forwarder_address,
+          paired_bl_id: dto.paired_bl_id,
+          is_draft: dto.is_draft ?? true,
+          is_original: dto.is_original ?? false,
+          is_surrendered: dto.is_surrendered ?? false,
+          is_express_release: dto.is_express_release ?? false,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+    });
+  }
+
+  async updateBillOfLading(
+    tenantId: string,
+    jobId: string,
+    blId: string,
+    dto: UpdateBillOfLadingDto,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const bl = await tx.billOfLading.findFirst({
+        where: { id: blId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+
+      if (!bl) {
+        throw new NotFoundException('Bill of lading not found.');
+      }
+
+      const { etd, eta, ...rest } = dto;
+
+      const updated = await tx.billOfLading.update({
+        where: { id: blId },
+        data: {
+          ...rest,
+          ...(etd ? { etd: new Date(etd) } : {}),
+          ...(eta ? { eta: new Date(eta) } : {}),
+          updated_by: actorId,
+        },
+      });
+
+      if (dto.is_draft === false || dto.is_original === true) {
+        await this.markMilestoneIfPresent(
+          tx,
+          tenantId,
+          jobId,
+          'ORIGINAL_BL_ISSUED_OR_SURRENDERED',
+          new Date(),
+          actorId,
+        );
+      }
+
+      return updated;
+    });
+  }
+
+  async removeBillOfLading(tenantId: string, jobId: string, blId: string, actorId?: string): Promise<void> {
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const bl = await tx.billOfLading.findFirst({
+        where: { id: blId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+
+      if (!bl) {
+        throw new NotFoundException('Bill of lading not found.');
+      }
+
+      await tx.billOfLading.update({
+        where: { id: blId },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      });
+    });
+  }
+
+  // ============================================================
+  // STUFFING RECORDS
+  // ============================================================
+
+  async listStuffingRecords(tenantId: string, jobId: string) {
+    await this.getSeaFclDetailOrThrowInTenant(tenantId, jobId);
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.stuffingRecord.findMany({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        orderBy: { stuffing_date: 'desc' },
+      }),
+    );
+  }
+
+  async createStuffingRecord(
+    tenantId: string,
+    jobId: string,
+    dto: CreateStuffingRecordDto,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+
+      if (dto.container_id) {
+        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      }
+
+      const record = await tx.stuffingRecord.create({
+        data: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          container_id: dto.container_id,
+          supervisor_name: dto.supervisor_name,
+          stuffing_date: new Date(dto.stuffing_date),
+          location: dto.location,
+          goods_condition: dto.goods_condition,
+          notes: dto.notes,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+
+      if (dto.container_id) {
+        await tx.jobContainer.update({
+          where: { id: dto.container_id },
+          data: { status: ContainerStatus.STUFFED, updated_by: actorId },
+        });
+      }
+
+      await this.markMilestoneIfPresent(
+        tx,
+        tenantId,
+        jobId,
+        'STUFFING_COMPLETED',
+        new Date(dto.stuffing_date),
+        actorId,
+      );
+
+      return record;
+    });
+  }
+
+  async updateStuffingRecord(
+    tenantId: string,
+    jobId: string,
+    recordId: string,
+    dto: UpdateStuffingRecordDto,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const record = await tx.stuffingRecord.findFirst({
+        where: { id: recordId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+
+      if (!record) {
+        throw new NotFoundException('Stuffing record not found.');
+      }
+
+      if (dto.container_id) {
+        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      }
+
+      const { stuffing_date, ...rest } = dto;
+
+      return tx.stuffingRecord.update({
+        where: { id: recordId },
+        data: {
+          ...rest,
+          ...(stuffing_date ? { stuffing_date: new Date(stuffing_date) } : {}),
+          updated_by: actorId,
+        },
+      });
+    });
+  }
+
+  async removeStuffingRecord(
+    tenantId: string,
+    jobId: string,
+    recordId: string,
+    actorId?: string,
+  ): Promise<void> {
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const record = await tx.stuffingRecord.findFirst({
+        where: { id: recordId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+
+      if (!record) {
+        throw new NotFoundException('Stuffing record not found.');
+      }
+
+      await tx.stuffingRecord.update({
+        where: { id: recordId },
         data: { deleted_at: new Date(), updated_by: actorId },
       });
     });
@@ -931,15 +1561,52 @@ export class JobsService {
 
       const finalize = dto.is_finalized ?? true;
 
-      return tx.jobDocument.update({
+      const updated = await tx.jobDocument.update({
         where: { id: documentId },
         data: {
           is_finalized: finalize,
+          is_original: finalize ? true : document.is_original,
           finalized_at: finalize ? new Date() : null,
           finalized_by: finalize ? actorId : null,
           updated_by: actorId,
         },
       });
+
+      if (finalize && ['HBL', 'HBL_EXPRESS_RELEASE', 'MBL', 'FIATA_BL'].includes(document.document_type)) {
+        await tx.billOfLading.updateMany({
+          where: {
+            tenant_id: tenantId,
+            job_id: jobId,
+            deleted_at: null,
+            is_draft: true,
+          },
+          data: {
+            is_draft: false,
+            is_original: true,
+            is_express_release: document.document_type === 'HBL_EXPRESS_RELEASE',
+            finalized_at: new Date(),
+            updated_by: actorId,
+          },
+        });
+
+        await this.markMilestoneIfPresent(
+          tx,
+          tenantId,
+          jobId,
+          'ORIGINAL_BL_ISSUED_OR_SURRENDERED',
+          new Date(),
+          actorId,
+        );
+      }
+
+      if (finalize && document.document_type === 'SURRENDER_NOTICE') {
+        await tx.billOfLading.updateMany({
+          where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+          data: { is_surrendered: true, updated_by: actorId },
+        });
+      }
+
+      return updated;
     });
   }
 
@@ -979,6 +1646,19 @@ export class JobsService {
   ) {
     await this.findOne(tenantId, jobId);
 
+    const options = {
+      bl_id: dto.bl_id,
+      number_of_originals: dto.number_of_originals,
+      rider_terms: dto.rider_terms,
+      switched_from_bl_number: dto.switched_from_bl_number,
+      switch_consignee_id: dto.switch_consignee_id,
+      switch_notify_id: dto.switch_notify_id,
+      proxy_forwarder_name: dto.proxy_forwarder_name,
+      proxy_forwarder_address: dto.proxy_forwarder_address,
+      transhipment_port: dto.transhipment_port,
+      is_express_release: documentType === 'HBL_EXPRESS_RELEASE',
+    };
+
     const task = await this.documentGeneration.enqueueJobDocument(
       tenantId,
       jobId,
@@ -986,6 +1666,7 @@ export class JobsService {
       actorId,
       dto.layout_variant,
       dto.is_original ?? false,
+      options,
     );
 
     return {
@@ -1008,8 +1689,8 @@ export class JobsService {
   async sendPreAlert(tenantId: string, jobId: string, dto: SendPreAlertDto, actorId?: string) {
     const job = await this.findOne(tenantId, jobId);
 
-    if (job.job_type !== 'AIR_EXPORT') {
-      throw new BadRequestException('Pre-alert is only supported for Air Export jobs.');
+    if (job.job_type !== 'AIR_EXPORT' && job.job_type !== 'SEA_FCL_EXPORT') {
+      throw new BadRequestException('Pre-alert is only supported for Air Export and Sea FCL Export jobs.');
     }
 
     if (!dto.to_email) {
@@ -1026,12 +1707,16 @@ export class JobsService {
       }
 
       const airDetail = job.air_details;
+      const seaDetail = job.sea_fcl_details;
       const subject = `Pre-Alert — ${job.job_number}`;
       const body =
         dto.message ??
         `<p>Pre-alert for job <strong>${job.job_number}</strong>.</p>` +
           (airDetail?.hawb_number ? `<p>HAWB: ${airDetail.hawb_number}</p>` : '') +
           (airDetail?.mawb_number ? `<p>MAWB: ${airDetail.mawb_number}</p>` : '') +
+          (seaDetail?.hbl_number ? `<p>HBL: ${seaDetail.hbl_number}</p>` : '') +
+          (seaDetail?.mbl_number ? `<p>MBL: ${seaDetail.mbl_number}</p>` : '') +
+          (seaDetail?.voyage_number ? `<p>Voyage: ${seaDetail.voyage_number}</p>` : '') +
           (job.commodity ? `<p>Commodity: ${job.commodity}</p>` : '');
 
       const emailLog = await this.emailService.send({
@@ -1081,6 +1766,10 @@ export class JobsService {
     return job;
   }
 
+  private async getSeaFclDetailOrThrowInTenant(tenantId: string, jobId: string) {
+    return this.prisma.runWithTenant(tenantId, (tx) => this.getSeaFclDetailOrThrow(tx, tenantId, jobId));
+  }
+
   private async getSeaFclDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
     const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
 
@@ -1101,11 +1790,65 @@ export class JobsService {
     return detail;
   }
 
+  private async assertContainerOnDetail(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    seaFclDetailId: string,
+    containerId: string,
+  ) {
+    const container = await tx.jobContainer.findFirst({
+      where: {
+        id: containerId,
+        sea_fcl_detail_id: seaFclDetailId,
+        tenant_id: tenantId,
+        deleted_at: null,
+      },
+    });
+
+    if (!container) {
+      throw new NotFoundException('Container not found.');
+    }
+
+    return container;
+  }
+
+  private async markMilestoneIfPresent(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+    milestoneName: string,
+    actualDate: Date,
+    actorId?: string,
+  ) {
+    const milestone = await tx.jobMilestone.findFirst({
+      where: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        milestone: milestoneName,
+        deleted_at: null,
+        actual_date: null,
+      },
+    });
+
+    if (!milestone) {
+      return;
+    }
+
+    await tx.jobMilestone.update({
+      where: { id: milestone.id },
+      data: {
+        actual_date: actualDate,
+        completed_by: actorId,
+        updated_by: actorId,
+      },
+    });
+  }
+
   private async assertContainerTypeExists(
     tx: Prisma.TransactionClient,
     tenantId: string,
     containerTypeId: string,
-  ): Promise<void> {
+  ) {
     const exists = await tx.containerType.findFirst({
       where: { id: containerTypeId, tenant_id: tenantId, deleted_at: null },
     });
@@ -1113,6 +1856,8 @@ export class JobsService {
     if (!exists) {
       throw new NotFoundException('Container type not found.');
     }
+
+    return exists;
   }
 
   private async recalculateTotals(tx: Prisma.TransactionClient, tenantId: string, jobId: string): Promise<void> {

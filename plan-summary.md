@@ -56,18 +56,15 @@ Backend repo state assessed against implemented modules (`src/app.module.ts`, co
 | **4** | 8 | **Mostly done** | `jobs` CRUD, air details, charges, milestones, notes, house-jobs, prorate, `awb-stock`, P&L. Gaps: sub-jobs, provisional cost/sales, payment request from job |
 | **5** | 8, 16 | **In progress** | PDF/queue/storage/email infra added (uncommitted); `hawb`, `mawb`, `cargo-manifest` endpoints. Gaps: `e-awb`, freight manifest, shipping instruction, barcode/consignee labels, job card/P&L/costing/proforma/shipping advice PDFs |
 | **6** | 8, 5 | **In progress** | `pre-alert/send`, `search` module, email service. Gaps: 7 status email triggers + templates, auto-send on milestone, WhatsApp, `/parties/:id/history`, pre-alert schedule send, full 24-param search |
-| **7** | 10 | **Partial** | `sea-fcl-details`, `containers` CRUD in jobs. Gaps: bills_of_lading table, 16 FCL milestones, VGM/SI/CY tracking, stuffing records, `/vessels/:id/schedules` |
-| **8** | 10, 16 | **Not started** | No HBL/MBL/FIATA/switch/proxy BL document endpoints |
+| **7** | 10 | **Done** | `sea-fcl-details`, containers, cargo, BL data model, stuffing records, 16 FCL milestones, VGM/SI submission, cutoffs, fill indicators, `/vessels/:id/schedules` |
+| **8** | 10, 16 | **Done** | HBL/MBL/FIATA + Switch/Proxy/Back-to-Back/Rider BL PDFs; surrender notice, SI, stuffing/sailing/transhipment; job card/P&L/proforma/manifests; finalize locks BL |
 | **9** | 11 | **Not started** | No FCL import fields, demurrage/detention, customs deposit, import documents |
-| **10** | 18 | **Not started** | No `invoices` module in app |
+| **10** | 18 | **Done** | `invoices`, credit notes, purchase invoices, payment requests |
 
-### What's next after Jobs (Ch.8)
+### What's next after Week 8 (Sea FCL Export documents)
 
-Per the plan sequence, immediate priorities are:
-
-1. **Finish Week 5–6 (Air Export completion)** — remaining document types (`e-awb`, freight manifest, labels, job card, costing sheet, etc.); status email triggers; party history API; WhatsApp config.
-2. **Week 7–9 (Sea FCL Ex/Im)** — core FCL job + containers (partially started), then all BL document generation, then FCL import (CAN, demurrage, customs).
-3. **Week 10 (Invoicing)** — first finance module; unblocks Weeks 11–12 (GL, AR/AP, MIS).
+1. **Week 9 — Sea FCL Import** — CAN, demurrage/detention, customs, import milestones/docs.
+2. Optional polish on Weeks 5–6 Air Export remaining document types / status emails.
 
 **Phase 1 MVP target (per PDF):** Air Export + Sea FCL Export/Import + Full Finance + MIS Dashboard (through Week 12).
 
