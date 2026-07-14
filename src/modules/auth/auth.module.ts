@@ -8,6 +8,7 @@ import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from '../../prisma/prisma.module';
 import { UsersModule } from '../users';
+import { EmailModule } from '../../shared/email/email.module';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -19,6 +20,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
   imports: [
     PrismaModule,
     UsersModule,
+    EmailModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

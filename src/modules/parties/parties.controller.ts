@@ -52,6 +52,22 @@ export class PartiesController {
     return this.service.findAll(tenantId, query);
   }
 
+  @Get('export')
+  @RequirePermissions(PARTIES_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Export parties as CSV' })
+  exportCsv(@CurrentUser('tenantId') tenantId: string, @Query() query: PartyQueryDto) {
+    return this.service.exportCsv(tenantId, query);
+  }
+
+  @Get(':id/history')
+  @RequirePermissions(PARTIES_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: 'Party transaction history — jobs, quotations, invoices, payment requests, audit trail',
+  })
+  history(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getHistory(tenantId, id);
+  }
+
   @Get(':id')
   @RequirePermissions(PARTIES_PERMISSIONS.VIEW)
   @ApiOperation({ summary: 'Get a party with its contacts and addresses' })

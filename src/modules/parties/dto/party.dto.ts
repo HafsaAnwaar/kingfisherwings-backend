@@ -3,12 +3,10 @@ import {
   ArrayUnique,
   IsArray,
   IsBoolean,
-  IsEmail,
   IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
-  IsPhoneNumber,
   IsString,
   IsUUID,
   Length,
@@ -16,6 +14,14 @@ import {
   Min,
 } from 'class-validator';
 import { PartyType } from '@prisma/client';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import {
+  CountryCodeField,
+  IsKnownCurrencyCode,
+  IsPhoneForCountry,
+  IsTaxIdForCountry,
+  NormalizeCurrencyCode,
+} from '../../../common/validators/country-aware.validators';
 
 export class CreatePartyDto {
   @ApiPropertyOptional({ format: 'uuid' })
@@ -44,7 +50,7 @@ export class CreatePartyDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsTaxIdForCountry()
   vat_number?: string;
 
   @ApiPropertyOptional()
@@ -54,8 +60,7 @@ export class CreatePartyDto {
 
   @ApiPropertyOptional({ example: 'AE' })
   @IsOptional()
-  @IsString()
-  @Length(2, 2)
+  @CountryCodeField()
   country_code?: string;
 
   @ApiPropertyOptional({ example: 'Dubai' })
@@ -70,12 +75,12 @@ export class CreatePartyDto {
 
   @ApiPropertyOptional({ example: '+971501234567' })
   @IsOptional()
-  @IsPhoneNumber()
+  @IsPhoneForCountry()
   phone?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   email?: string;
 
   @ApiPropertyOptional({ example: 50000 })
@@ -93,8 +98,8 @@ export class CreatePartyDto {
 
   @ApiPropertyOptional({ example: 'AED' })
   @IsOptional()
-  @IsString()
-  @Length(3, 3)
+  @NormalizeCurrencyCode()
+  @IsKnownCurrencyCode()
   currency_code?: string;
 
   @ApiPropertyOptional({ format: 'uuid', description: 'User this party is assigned to.' })

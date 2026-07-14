@@ -1,6 +1,6 @@
 import { DocumentType } from '@prisma/client';
 
-/** All Sea FCL Export document types introduced/covered in Week 8 (Ch.10 / Ch.16). */
+/** Sea FCL document types covered in Weeks 8–9 (export + import). */
 export const SEA_FCL_DOCUMENT_TYPES: DocumentType[] = [
   'HBL',
   'HBL_EXPRESS_RELEASE',
@@ -22,6 +22,15 @@ export const SEA_FCL_DOCUMENT_TYPES: DocumentType[] = [
   'PROFORMA_INVOICE',
   'PRE_ALERT',
   'VGM',
+  'PRE_CAN',
+  'CAN',
+  'EXCHANGE_LETTER',
+  'UNDERTAKE_LETTER',
+  'DELIVERY_ORDER',
+  'TRANSPORT_REQUEST',
+  'PROOF_OF_DELIVERY',
+  'SHIPPING_ADVICE',
+  'ARRIVAL_NOTICE',
 ];
 
 export function isSeaFclDocumentType(documentType: DocumentType): boolean {

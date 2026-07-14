@@ -3,7 +3,6 @@
 import {
   IsString,
   IsOptional,
-  IsEmail,
   IsUrl,
   IsBoolean,
   IsInt,
@@ -13,10 +12,21 @@ import {
   Matches,
   Min,
   Max,
+  ValidateIf,
 } from 'class-validator';
 
 import { SubscriptionPlan, TenantStatus } from '@prisma/client';
 import { IsStrongPassword } from '../../users/validators/password.validator';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import {
+  CountryCodeField,
+  IsCountryDefaultCurrency,
+  IsKnownCurrencyCode,
+  IsPhoneForCountry,
+  IsTaxIdForCountry,
+  IsTimezoneForCountry,
+  NormalizeCurrencyCode,
+} from '../../../common/validators/country-aware.validators';
 
 export class CreateTenantDto {
 
@@ -91,15 +101,18 @@ export class CreateTenantDto {
   language?: string;
 
   @IsOptional()
-  @IsString()
+  @NormalizeCurrencyCode()
+  @IsKnownCurrencyCode()
+  @IsCountryDefaultCurrency({ mustMatchCountryDefault: false })
   base_currency?: string;
 
   @IsOptional()
-  @IsString()
+  @IsTimezoneForCountry()
   timezone?: string;
 
   @IsOptional()
-  @IsString()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @CountryCodeField()
   country_code?: string;
 
   @IsOptional()
@@ -113,7 +126,7 @@ export class CreateTenantDto {
   // ==========================
 
   @IsOptional()
-  @IsString()
+  @IsTaxIdForCountry()
   vat_number?: string;
 
   @IsOptional()
@@ -133,10 +146,10 @@ export class CreateTenantDto {
   city?: string;
 
   @IsOptional()
-  @IsString()
+  @IsPhoneForCountry()
   phone?: string;
 
-  @IsEmail()
+  @IsStrictEmail()
   email!: string;
 
   // ==========================

@@ -43,28 +43,30 @@ Extracted from `Fresa_Gold_Complete_28Week_Plan.pdf` (36 pages). Plan spans **We
 
 ---
 
-## Weeks 1–10: Done vs Next (after Jobs / Ch.8)
+## Weeks 1–10: Done vs Next
 
 Backend repo state assessed against implemented modules (`src/app.module.ts`, controllers).
 
 | Week | Ch. | Status | Evidence / gaps |
 |------|-----|--------|-----------------|
 | **0** | 1, 4, 28 | **Done** | Prisma schema, masters module (15 types), RLS/tenant_id, exchange rates, job architecture |
-| **1** | 3 | **Mostly done** | `auth`, `users`, RBAC guards, sessions, password policy. Gaps: `/auth/invite` + `/auth/accept-invite` controllers, IP/MAC/hours restriction enforcement, 2FA TOTP |
-| **2** | 3, 4, 27 | **Mostly done** | `users`, `parties`, `organization`, all masters, `number-formats`. Gaps: user invitation API endpoints, `/parties/:id/history`, CSV bulk import for parties |
+| **1** | 3 | **Done** | `auth`, `users`, RBAC, sessions, password policy; `/auth/invite` + `/auth/accept-invite`; login IP/MAC/office-hours enforcement; 2FA TOTP setup/enable/disable + login verify |
+| **2** | 3, 4, 27 | **Done** | `users`, `parties`, `organization`, masters, `number-formats`; party CSV import/export; `/parties/:id/history` |
 | **3** | 7 | **Done** | Full `quotations` + `tariffs`; GP, approvals, PDF, analytics, `online-quote`, convert-to-job |
-| **4** | 8 | **Mostly done** | `jobs` CRUD, air details, charges, milestones, notes, house-jobs, prorate, `awb-stock`, P&L. Gaps: sub-jobs, provisional cost/sales, payment request from job |
-| **5** | 8, 16 | **In progress** | PDF/queue/storage/email infra added (uncommitted); `hawb`, `mawb`, `cargo-manifest` endpoints. Gaps: `e-awb`, freight manifest, shipping instruction, barcode/consignee labels, job card/P&L/costing/proforma/shipping advice PDFs |
-| **6** | 8, 5 | **In progress** | `pre-alert/send`, `search` module, email service. Gaps: 7 status email triggers + templates, auto-send on milestone, WhatsApp, `/parties/:id/history`, pre-alert schedule send, full 24-param search |
+| **4** | 8 | **Done** | Jobs CRUD, air details, charges, milestones, house/sub-jobs, provisional charges + P&L split, prorate, `awb-stock`, payment request from job |
+| **5** | 8, 16 | **Done** | PDF/queue/storage; HAWB/MAWB/E-AWB, freight/cargo manifests, barcode/consignee labels, job card/P&L/costing, freight certificate |
+| **6** | 8, 5 | **Done** | Pre-alert send + schedule (cron); milestone status emails; WhatsApp stub; enriched search filters; `/parties/:id/history` |
 | **7** | 10 | **Done** | `sea-fcl-details`, containers, cargo, BL data model, stuffing records, 16 FCL milestones, VGM/SI submission, cutoffs, fill indicators, `/vessels/:id/schedules` |
 | **8** | 10, 16 | **Done** | HBL/MBL/FIATA + Switch/Proxy/Back-to-Back/Rider BL PDFs; surrender notice, SI, stuffing/sailing/transhipment; job card/P&L/proforma/manifests; finalize locks BL |
-| **9** | 11 | **Not started** | No FCL import fields, demurrage/detention, customs deposit, import documents |
+| **9** | 11 | **Done** | FCL import fields on `sea_fcl_job_details`; free days + demurrage/detention; deposits; customs status; POD/part delivery/damage; transhipment link; CFS storage; 14 import milestones; 8 import document PDFs; daily demurrage cron |
 | **10** | 18 | **Done** | `invoices`, credit notes, purchase invoices, payment requests |
+| **11** | 17, 19 | **In progress** | Chart of Accounts + vouchers (draft/post/reverse), account ledger, trial balance; charge-code → GL account FKs. Still open: full AR/AP aging, bank recon, cheques/PDC, CCP/VPP, auto-post from invoices |
 
-### What's next after Week 8 (Sea FCL Export documents)
+### What's next
 
-1. **Week 9 — Sea FCL Import** — CAN, demurrage/detention, customs, import milestones/docs.
-2. Optional polish on Weeks 5–6 Air Export remaining document types / status emails.
+1. Finish **Week 11** — AR/AP aging, bank reconciliation, payment/receipt voucher matching, invoice→GL auto-post.
+2. Apply migrations locally including `20260714160000_gl_chart_of_accounts_vouchers`.
+3. After deploy: `POST /tenants/:id/sync-permissions` (or equivalent) so existing tenants get `gl.*` permissions.
 
 **Phase 1 MVP target (per PDF):** Air Export + Sea FCL Export/Import + Full Finance + MIS Dashboard (through Week 12).
 

@@ -71,7 +71,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: session.tenant_id },
-      select: { is_active: true, status: true, deleted_at: true },
+      select: {
+        is_active: true,
+        status: true,
+        deleted_at: true,
+        country_code: true,
+        base_currency: true,
+        timezone: true,
+      },
     });
 
     const activeTenantStatuses = ['ACTIVE', 'TRIAL'];
@@ -83,6 +90,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     return {
       id: payload.sub,
       tenantId: payload.tenantId,
+      countryCode: tenant.country_code,
+      preferredCountryCode: session.user.preferred_country_code,
+      baseCurrency: tenant.base_currency,
+      timezone: tenant.timezone,
       branchId: payload.branchId,
       roleId: payload.roleId,
       role: payload.role,

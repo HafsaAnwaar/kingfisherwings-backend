@@ -1,18 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsNumber, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsKnownCurrencyCode, NormalizeCurrencyCode } from '../../../common/validators/country-aware.validators';
 
 export class CreateExchangeRateDto {
   @ApiProperty({ format: 'uuid', description: 'Currency being rated against the base currency.' })
   @IsUUID()
   currency_id!: string;
 
-  @ApiProperty({ example: 'USD' })
-  @IsString()
-  @Length(3, 3)
+  @ApiProperty({
+    example: 'AED',
+    description: 'Should match the tenant base currency (from country defaults). Any ISO 4217 accepted; multi-currency freights rate against this base.',
+  })
+  @NormalizeCurrencyCode()
+  @IsKnownCurrencyCode()
   base_currency!: string;
 
   @ApiProperty({ example: 3.6725 })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 8 })
   @Min(0)
   rate!: number;
 

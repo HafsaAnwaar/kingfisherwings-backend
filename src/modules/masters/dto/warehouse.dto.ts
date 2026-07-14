@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { IsCountryCode } from '../../../common/validators/input-format.validators';
 
 export class CreateWarehouseDto {
   @ApiProperty({ example: 'Jebel Ali Warehouse 3' })
@@ -20,17 +21,17 @@ export class CreateWarehouseDto {
   @ApiPropertyOptional({ example: 'Dubai' })
   @IsOptional()
   @IsString()
+  @Length(1, 100)
   city?: string;
 
   @ApiPropertyOptional({ example: 'AE' })
   @IsOptional()
-  @IsString()
-  @Length(2, 2)
+  @IsCountryCode()
   country_code?: string;
 
   @ApiPropertyOptional({ description: 'Square meters' })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   capacity_sqm?: number;
 

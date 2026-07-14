@@ -19,19 +19,19 @@ export class CreateContainerTypeDto {
 
   @ApiPropertyOptional({ default: 1, description: 'Twenty-foot equivalent units' })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   teu?: number;
 
   @ApiPropertyOptional({ description: 'Max payload in kg' })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
   max_payload?: number;
 
   @ApiPropertyOptional({ description: 'Internal volume in CBM' })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
   volume_cbm?: number;
 

@@ -6,6 +6,7 @@ import { JOBS_PERMISSIONS } from '../../modules/jobs/constants/jobs-permission.c
 import { AWB_STOCK_PERMISSIONS } from '../../modules/awb-stock/constants/awb-stock-permission.constants';
 import { SEARCH_PERMISSIONS } from '../../modules/search/constants/search-permission.constants';
 import { INVOICES_PERMISSIONS } from '../../modules/invoices/constants/invoices-permission.constants';
+import { GL_PERMISSIONS } from '../../modules/gl/constants/gl-permission.constants';
 
 export interface RoleCatalogEntry {
   /** Matches a UserRole enum value — kept 1:1 so User.role and the Role row it's assigned agree. */
@@ -40,6 +41,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(AWB_STOCK_PERMISSIONS),
       ...Object.values(SEARCH_PERMISSIONS),
       ...Object.values(INVOICES_PERMISSIONS),
+      ...Object.values(GL_PERMISSIONS),
     ],
   },
   {
@@ -118,6 +120,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PARTIES_PERMISSIONS.MANAGE_CREDIT,
       QUOTATIONS_PERMISSIONS.VIEW,
       ...Object.values(INVOICES_PERMISSIONS),
+      ...Object.values(GL_PERMISSIONS),
       JOBS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.VIEW_GP,
       SEARCH_PERMISSIONS.VIEW,

@@ -18,13 +18,14 @@ import { SearchModule } from './modules/search/search.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { FilesModule } from './files/files.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { GlModule } from './modules/gl/gl.module';
 
 import redisConfig from './config/redis.config';
 import smtpConfig from './config/smtp.config';
 import storageConfig from './config/storage.config';
 
-import { TenantContextStorage } from './common/context/tenant-context.storage';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
+import { LocaleModule } from './common/locale/locale.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
       isGlobal: true,
       load: [redisConfig, smtpConfig, storageConfig],
     }),
+    LocaleModule,
     PrismaModule,
     HealthModule,
     TenantsModule,
@@ -48,14 +50,13 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     SchedulerModule,
     FilesModule,
     InvoicesModule,
+    GlModule,
   ],
   providers: [
-    TenantContextStorage,
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantContextInterceptor,
     },
   ],
-  exports: [TenantContextStorage],
 })
 export class AppModule {}

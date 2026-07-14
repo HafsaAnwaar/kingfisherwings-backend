@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
+import { IsCountryCode, IsImoNumber } from '../../../common/validators/input-format.validators';
 
 export class CreateVesselDto {
   @ApiProperty({ example: 'MSC GULSUN' })
@@ -9,13 +10,12 @@ export class CreateVesselDto {
 
   @ApiPropertyOptional({ example: '9839430' })
   @IsOptional()
-  @IsString()
+  @IsImoNumber()
   imo_number?: string;
 
   @ApiPropertyOptional({ example: 'PA' })
   @IsOptional()
-  @IsString()
-  @Length(2, 2)
+  @IsCountryCode()
   flag_country?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
@@ -26,6 +26,7 @@ export class CreateVesselDto {
   @ApiPropertyOptional({ example: 'Container Ship' })
   @IsOptional()
   @IsString()
+  @Length(1, 50)
   vessel_type?: string;
 
   @ApiPropertyOptional({ example: 2019 })
@@ -37,7 +38,7 @@ export class CreateVesselDto {
 
   @ApiPropertyOptional({ description: 'Gross tonnage' })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   gross_tonnage?: number;
 

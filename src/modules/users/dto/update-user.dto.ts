@@ -3,11 +3,9 @@ import {
   IsArray,
   ArrayUnique,
   IsBoolean,
-  IsEmail,
   IsEnum,
   IsInt,
   IsOptional,
-  IsPhoneNumber,
   IsString,
   IsUUID,
   IsTimeZone,
@@ -15,10 +13,13 @@ import {
   Matches,
   Max,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { UserRole, UserStatus, SingleDevicePolicy } from '@prisma/client';
 import { CreateUserDto } from './create-user.dto';
 import { USERS_CONSTANTS } from '../constants/users.constants';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import { CountryCodeField, IsPhoneForCountry } from '../../../common/validators/country-aware.validators';
 
 const OFFICE_HOURS_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -29,7 +30,7 @@ const OFFICE_HOURS_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export class UpdateUserDto extends PartialType(CreateUserDto) {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   email?: string;
 
   @ApiPropertyOptional()
@@ -44,8 +45,18 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsPhoneNumber()
+  @IsPhoneForCountry({ countryField: 'preferred_country_code' })
   phone?: string;
+
+  @ApiPropertyOptional({
+    example: 'AE',
+    description: 'Optional preferred country. Change anytime after login. Send null to clear.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @CountryCodeField()
+  preferred_country_code?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -14,6 +14,18 @@ export interface CurrentUser {
 
   tenantId: string;
 
+  /** Tenant ISO country (optional — may be null until set). */
+  countryCode?: string | null;
+
+  /** User's personal preferred country (optional). */
+  preferredCountryCode?: string | null;
+
+  /** Tenant base currency (ISO 4217). */
+  baseCurrency?: string | null;
+
+  /** Tenant IANA timezone. */
+  timezone?: string | null;
+
   branchId: string | null;
 
   /**

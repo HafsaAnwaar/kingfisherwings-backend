@@ -3,21 +3,33 @@ import {
   UnauthorizedException,
   ForbiddenException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
+import * as speakeasy from 'speakeasy';
+import * as QRCode from 'qrcode';
 
 import { Prisma, TenantStatus, UserStatus, User, Tenant } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordUtil } from '../../common/utils/password.util';
+import { EmailService } from '../../shared/email/email.service';
 
 import { UsersService } from '../users/users.service';
 import { UserMapper } from '../users/mappers/user.mapper';
+import { UsersHelper } from '../users/helpers/users.helper';
+import { PasswordHelper } from '../users/helpers/password.helper';
 import { ChangePasswordDto } from '../users/dto/change-password.dto';
 import { TenantChangePasswordDto } from './dto/tenant-change-password.dto';
-
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
+import {
+  AcceptInviteDto,
+  DisableTwoFactorDto,
+  InviteUserDto,
+  TotpVerifyDto,
+} from './dto/invite-2fa.dto';
 import { LoginDto } from './dto/login.dto';
 import { TenantLoginDto } from './dto/tenant-login.dto';
 import { SuperAdminSignupDto } from './dto/super-admin-signup.dto';
@@ -39,6 +51,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly emailService: EmailService,
   ) {}
 
   // =====================================================
@@ -98,6 +111,9 @@ export class AuthService {
 
         throw new UnauthorizedException('Invalid credentials.');
       }
+
+      this.assertLoginRestrictions(user, meta);
+      await this.assertTwoFactorIfRequired(tx, user, dto);
 
       return this.completeUserLogin(tx, tenant, user, dto, meta);
     });
@@ -508,6 +524,43 @@ export class AuthService {
     const response = await this.usersService.findOne(principal.tenantId, principal.id);
 
     return { success: true, data: response };
+  }
+
+  /**
+   * Signed-in user updates optional preferred country / phone / locale.
+   * Organization country for the whole tenant is PATCH /organization (tenant admin)
+   * or PATCH /tenants/:id (SuperAdmin) — also optional.
+   */
+  async updateMyProfile(principal: RequestPrincipal, dto: UpdateMyProfileDto) {
+    if (isSuperAdmin(principal)) {
+      throw new BadRequestException(
+        'SuperAdmin has no preferred country on the platform account. Set country on each tenant via PATCH /tenants/:id (optional).',
+      );
+    }
+
+    const updated = await this.usersService.updateUser(
+      principal.tenantId,
+      principal.id,
+      {
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+        ...(dto.avatar_url !== undefined ? { avatar_url: dto.avatar_url } : {}),
+        ...(dto.preferred_country_code !== undefined
+          ? { preferred_country_code: dto.preferred_country_code }
+          : {}),
+      },
+      principal.id,
+    );
+
+    if (dto.locale !== undefined) {
+      await this.prisma.runWithTenant(principal.tenantId, (tx) =>
+        tx.user.update({
+          where: { id: principal.id },
+          data: { locale: dto.locale },
+        }),
+      );
+    }
+
+    return { success: true, message: 'Profile updated.', data: updated };
   }
 
   // =====================================================
@@ -936,6 +989,250 @@ export class AuthService {
         success,
         failure_reason,
       },
+    });
+  }
+
+  // =====================================================
+  // LOGIN RESTRICTIONS + 2FA + INVITES (Week 1)
+  // =====================================================
+
+  private assertLoginRestrictions(user: User, meta: LoginMeta) {
+    if (!UsersHelper.isWithinOfficeHours(user)) {
+      throw new ForbiddenException('Login is only allowed during configured office hours.');
+    }
+    if (!UsersHelper.isIpAllowed(user, meta.ip_address)) {
+      throw new ForbiddenException('Your IP address is not allowed for this account.');
+    }
+    if (!UsersHelper.isMacAllowed(user, meta.mac_address)) {
+      throw new ForbiddenException('Your device MAC address is not allowed for this account.');
+    }
+  }
+
+  private async assertTwoFactorIfRequired(
+    tx: Prisma.TransactionClient,
+    user: User,
+    dto: { totp_code?: string; backup_code?: string },
+  ) {
+    if (!user.two_factor_enabled || !user.two_factor_secret) {
+      return;
+    }
+
+    if (dto.totp_code) {
+      const ok = speakeasy.totp.verify({
+        secret: user.two_factor_secret,
+        encoding: 'base32',
+        token: dto.totp_code,
+        window: 1,
+      });
+      if (!ok) {
+        throw new UnauthorizedException('Invalid two-factor authentication code.');
+      }
+      return;
+    }
+
+    if (dto.backup_code) {
+      const codes = user.two_factor_backup_codes ?? [];
+      const idx = codes.findIndex((c) => c === dto.backup_code);
+      if (idx < 0) {
+        throw new UnauthorizedException('Invalid backup code.');
+      }
+      const remaining = codes.filter((_, i) => i !== idx);
+      await tx.user.update({
+        where: { id: user.id },
+        data: { two_factor_backup_codes: remaining },
+      });
+      return;
+    }
+
+    throw new UnauthorizedException({
+      message: 'Two-factor authentication required.',
+      code: 'REQUIRES_2FA',
+    });
+  }
+
+  async inviteUser(tenantId: string, actorId: string, dto: InviteUserDto) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const user = await tx.user.findFirst({
+        where: { id: dto.user_id, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found.');
+      }
+
+      const token = randomBytes(32).toString('hex');
+      const expiresAt = PasswordHelper.inviteTokenExpiry();
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          invite_token: token,
+          invite_expires_at: expiresAt,
+          status: UserStatus.INVITED,
+          updated_by: actorId,
+        },
+      });
+
+
+      const to = dto.email ?? user.email;
+      const appUrl = this.configService.get<string>('APP_URL') ?? 'http://localhost:3000';
+      await this.emailService.send({
+        tenantId,
+        eventType: 'USER_INVITE',
+        to,
+        subject: 'You are invited to FreightSaas',
+        body: `You have been invited. Open ${appUrl}/accept-invite?token=${token} and set your password. This link expires at ${expiresAt.toISOString()}.`,
+        createdBy: actorId,
+      });
+
+      return {
+        success: true,
+        message: 'Invite sent.',
+        data: { user_id: user.id, email: to, expires_at: expiresAt },
+      };
+    });
+  }
+
+  async acceptInvite(dto: AcceptInviteDto) {
+    PasswordHelper.assertStrength(dto.password);
+
+    const user = await this.prisma.user.findFirst({
+      where: { invite_token: dto.token, deleted_at: null },
+    });
+    if (!user || !user.invite_expires_at || user.invite_expires_at < new Date()) {
+      throw new BadRequestException('Invite token is invalid or expired.');
+    }
+
+    const passwordHash = await PasswordUtil.hash(dto.password);
+
+    const updated = await this.prisma.runWithTenant(user.tenant_id, (tx) =>
+      tx.user.update({
+        where: { id: user.id },
+        data: {
+          password_hash: passwordHash,
+          password_changed_at: new Date(),
+          password_expires_at: PasswordHelper.calculateExpiryDate(),
+          must_change_password: false,
+          status: UserStatus.ACTIVE,
+          invite_token: null,
+          invite_expires_at: null,
+          email_verified: true,
+          first_name: dto.first_name ?? user.first_name,
+          last_name: dto.last_name ?? user.last_name,
+        },
+      }),
+    );
+
+    return {
+      success: true,
+      message: 'Invite accepted. You can now log in.',
+      data: UserMapper.toResponse(updated),
+    };
+  }
+
+  async setupTwoFactor(tenantId: string, userId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const user = await tx.user.findFirst({ where: { id: userId, tenant_id: tenantId, deleted_at: null } });
+      if (!user) {
+        throw new NotFoundException('User not found.');
+      }
+
+      const secret = speakeasy.generateSecret({
+        name: `FreightSaas (${user.email})`,
+        length: 20,
+      });
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { two_factor_secret: secret.base32, two_factor_enabled: false },
+      });
+
+      const otpauth = secret.otpauth_url ?? '';
+      const qr_data_url = await QRCode.toDataURL(otpauth);
+
+      return {
+        success: true,
+        data: {
+          secret: secret.base32,
+          otpauth_url: otpauth,
+          qr_data_url,
+          message: 'Scan the QR code, then POST /auth/2fa/enable with a TOTP code to activate.',
+        },
+      };
+    });
+  }
+
+  async enableTwoFactor(tenantId: string, userId: string, dto: TotpVerifyDto) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const user = await tx.user.findFirst({ where: { id: userId, tenant_id: tenantId, deleted_at: null } });
+      if (!user?.two_factor_secret) {
+        throw new BadRequestException('Call POST /auth/2fa/setup first.');
+      }
+
+      const ok = speakeasy.totp.verify({
+        secret: user.two_factor_secret,
+        encoding: 'base32',
+        token: dto.code,
+        window: 1,
+      });
+      if (!ok) {
+        throw new BadRequestException('Invalid TOTP code.');
+      }
+
+      const backupCodes = PasswordHelper.generateBackupCodes();
+      await tx.user.update({
+        where: { id: userId },
+        data: { two_factor_enabled: true, two_factor_backup_codes: backupCodes },
+      });
+
+      return {
+        success: true,
+        message: 'Two-factor authentication enabled.',
+        data: { backup_codes: backupCodes },
+      };
+    });
+  }
+
+  async disableTwoFactor(tenantId: string, userId: string, dto: DisableTwoFactorDto) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const user = await tx.user.findFirst({ where: { id: userId, tenant_id: tenantId, deleted_at: null } });
+      if (!user) {
+        throw new NotFoundException('User not found.');
+      }
+
+      const passwordValid = await PasswordUtil.verify(user.password_hash, dto.password);
+      if (!passwordValid) {
+        throw new UnauthorizedException('Invalid password.');
+      }
+
+      if (user.two_factor_enabled) {
+        if (!dto.code) {
+          throw new UnauthorizedException('Two-factor code required to disable 2FA.');
+        }
+        const totpOk = user.two_factor_secret
+          ? speakeasy.totp.verify({
+              secret: user.two_factor_secret,
+              encoding: 'base32',
+              token: dto.code,
+              window: 1,
+            })
+          : false;
+        if (!totpOk) {
+          const codes = user.two_factor_backup_codes ?? [];
+          if (!codes.includes(dto.code)) {
+            throw new UnauthorizedException('Invalid two-factor or backup code.');
+          }
+        }
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          two_factor_enabled: false,
+          two_factor_secret: null,
+          two_factor_backup_codes: [],
+        },
+      });
+
+      return { success: true, message: 'Two-factor authentication disabled.' };
     });
   }
 }

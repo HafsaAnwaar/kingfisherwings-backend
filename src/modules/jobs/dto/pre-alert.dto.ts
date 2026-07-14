@@ -1,9 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
 
 export class SendPreAlertDto {
   @ApiProperty({ example: 'consignee@example.com' })
-  @IsEmail()
+  @IsStrictEmail()
   to_email!: string;
 
   @ApiPropertyOptional()

@@ -43,6 +43,14 @@ export class CreateJobChargeDto {
   @IsBoolean()
   is_cost?: boolean;
 
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Provisional estimate — excluded from confirmed P&L until confirmed.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  is_provisional?: boolean;
+
   @ApiPropertyOptional({ default: true })
   @IsOptional()
   @IsBoolean()

@@ -1,5 +1,10 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsPhoneNumber, IsString, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import {
+  CountryCodeField,
+  IsPhoneForCountry,
+} from '../../../common/validators/country-aware.validators';
 
 export class CreateTruckerDto {
   @ApiProperty({ example: 'Al Futtaim Logistics' })
@@ -14,23 +19,23 @@ export class CreateTruckerDto {
 
   @ApiPropertyOptional({ example: 'AE' })
   @IsOptional()
-  @IsString()
-  @Length(2, 2)
+  @CountryCodeField()
   country_code?: string;
 
   @ApiPropertyOptional({ example: '+971501234567' })
   @IsOptional()
-  @IsPhoneNumber()
+  @IsPhoneForCountry()
   phone?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'ops@truckers.ae' })
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   email?: string;
 
   @ApiPropertyOptional({ example: 'Ahmed Khan' })
   @IsOptional()
   @IsString()
+  @Length(2, 200)
   contact_person?: string;
 
   @ApiPropertyOptional({ default: true })

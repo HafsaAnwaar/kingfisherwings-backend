@@ -177,7 +177,32 @@ enum DocumentType {
   JOB_CARD
   JOB_PNL
   PROFORMA_INVOICE
+  PRE_CAN
+  CAN
+  EXCHANGE_LETTER
+  UNDERTAKE_LETTER
+  TRANSPORT_REQUEST
+  SHIPPING_ADVICE
+  PROOF_OF_DELIVERY
+  E_AWB
+  BARCODE_LABEL
+  CONSIGNEE_LABEL
+  JOB_COSTING
+  FREIGHT_CERTIFICATE
   OTHER
+}
+
+enum CustomsClearanceStatus {
+  PENDING
+  FILED
+  QUERY
+  CLEARED
+  RELEASED
+}
+
+enum DepositType {
+  CUSTOMS
+  PORT
 }
 
 enum TenantStatus {
@@ -209,6 +234,9 @@ enum EmailEventType {
   JOB_DOCUMENT
   AWB_LOW_STOCK_ALERT
   INVOICE_SENT
+  MILESTONE_STATUS
+  USER_INVITE
+  WHATSAPP_OUTBOUND
   OTHER
 }
 
@@ -252,6 +280,62 @@ enum PaymentRequestStatus {
   APPROVED
   REJECTED
   PAID
+  CANCELLED
+}
+
+/// Chart of Accounts — top-level IFRS-style groups (Ch.17)
+enum AccountGroup {
+  ASSETS
+  LIABILITIES
+  EQUITY
+  REVENUE
+  EXPENSES
+}
+
+enum AccountType {
+  CURRENT_ASSET
+  FIXED_ASSET
+  CURRENT_LIABILITY
+  LONG_TERM_LIABILITY
+  EQUITY
+  REVENUE
+  COST_OF_SALES
+  EXPENSE
+  OTHER_INCOME
+  OTHER_EXPENSE
+}
+
+enum AccountSubType {
+  BANK
+  CASH
+  TRADE_RECEIVABLE
+  TRADE_PAYABLE
+  TAX
+  INVENTORY
+  FIXED_ASSET
+  EQUITY
+  REVENUE
+  EXPENSE
+  GENERAL
+}
+
+enum VoucherType {
+  JOURNAL
+  BANK_PAYMENT
+  CASH_PAYMENT
+  BANK_RECEIPT
+  CASH_RECEIPT
+  CONTRA
+  PURCHASE_INVOICE
+  PURCHASE_CREDIT_NOTE
+  OPENING_BALANCE
+  RECURRING
+}
+
+enum VoucherStatus {
+  DRAFT
+  POSTED
+  REVERSED
   CANCELLED
 }
 
@@ -304,11 +388,12 @@ model Tenant {
   primary_color String? @db.VarChar(20)
 
   // Localization
-  language             String @default("en") @db.VarChar(10)
-  base_currency        String @default("USD") @db.Char(3)
-  timezone             String @default("Asia/Dubai") @db.VarChar(100)
-  country_code         String @default("AE") @db.Char(2)
-  financial_year_start Int    @default(1)
+  language             String  @default("en") @db.VarChar(10)
+  base_currency        String  @default("USD") @db.Char(3)
+  timezone             String  @default("Asia/Dubai") @db.VarChar(100)
+  /// Optional — set/changed any time after signup (SuperAdmin or tenant admin). When null, phones use international E.164 and currency/timezone keep their own defaults.
+  country_code         String? @db.Char(2)
+  financial_year_start Int     @default(1)
 
   // Business Registration
   vat_number String? @db.VarChar(50)
@@ -411,6 +496,8 @@ model Company {
   quotations   Quotation[]
   jobs         Job[]
   invoices     Invoice[]
+  chart_of_accounts ChartOfAccount[]
+  vouchers     Voucher[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -531,6 +618,9 @@ model User {
   avatar_url String? @db.Text
 
   locale String @default("en") @db.VarChar(10)
+
+  /// Optional personal country preference (ISO 3166-1 alpha-2). User can set after login; used for phone/tax validation when a record has no country_code of its own.
+  preferred_country_code String? @db.Char(2)
 
   // (Temporary, will be removed after RBAC)
   role UserRole @default(READ_ONLY)
@@ -1199,18 +1289,24 @@ model ChargeCode {
   description      String      @db.VarChar(200)
   charge_group     ChargeGroup @default(OTHER)
   applicable_modes String[]    @db.Text
-  tax_applicable   Boolean     @default(false)
-  tax_rate_id      String?     @db.Uuid
-  gl_revenue_code  String?     @db.VarChar(20)
-  gl_cost_code     String?     @db.VarChar(20)
-  unit             String?     @db.VarChar(30)
-  is_mandatory     Boolean     @default(false)
-  is_active        Boolean     @default(true)
-  created_at       DateTime    @default(now()) @db.Timestamptz
-  updated_at       DateTime    @updatedAt @db.Timestamptz
-  created_by       String?     @db.Uuid
-  updated_by       String?     @db.Uuid
-  deleted_at       DateTime?   @db.Timestamptz
+  tax_applicable          Boolean     @default(false)
+  tax_rate_id             String?     @db.Uuid
+  /// Legacy free-text codes — kept for CSV imports; prefer FK accounts below.
+  gl_revenue_code         String?     @db.VarChar(20)
+  gl_cost_code            String?     @db.VarChar(20)
+  gl_revenue_account_id   String?     @db.Uuid
+  gl_cost_account_id      String?     @db.Uuid
+  unit                    String?     @db.VarChar(30)
+  is_mandatory            Boolean     @default(false)
+  is_active               Boolean     @default(true)
+  created_at              DateTime    @default(now()) @db.Timestamptz
+  updated_at              DateTime    @updatedAt @db.Timestamptz
+  created_by              String?     @db.Uuid
+  updated_by              String?     @db.Uuid
+  deleted_at              DateTime?   @db.Timestamptz
+
+  gl_revenue_account ChartOfAccount? @relation("ChargeRevenueAccount", fields: [gl_revenue_account_id], references: [id])
+  gl_cost_account    ChartOfAccount? @relation("ChargeCostAccount", fields: [gl_cost_account_id], references: [id])
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -1451,6 +1547,8 @@ model Party {
   addresses PartyAddress[]
   invoices         Invoice[]
   payment_requests PaymentRequest[]
+  vouchers         Voucher[]
+  voucher_lines    VoucherLine[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -1499,7 +1597,7 @@ model PartyAddress {
   city          String?   @db.VarChar(100)
   state         String?   @db.VarChar(100)
   postal_code   String?   @db.VarChar(20)
-  country_code  String    @db.Char(2)
+  country_code  String?   @db.Char(2)
   is_default    Boolean   @default(false)
   created_at    DateTime  @default(now()) @db.Timestamptz
   updated_at    DateTime  @updatedAt @db.Timestamptz
@@ -1528,8 +1626,16 @@ model Job {
 
   /// House job if set (points at the Master); NULL means this job IS a master (or a standalone job with no consolidation).
   parent_job_id         String? @db.Uuid
+  /// True when created via POST /jobs/:id/sub-jobs (operational sub-file under a parent).
+  is_sub_job            Boolean @default(false)
   /// Set when this job originated from a won Quotation — the reverse of Quotation.converted_job_id.
   created_from_quote_id String? @db.Uuid
+
+  /// Scheduled pre-alert (Week 6) — cron sends when scheduled_at <= now.
+  pre_alert_scheduled_at DateTime? @db.Timestamptz
+  pre_alert_to_email     String?   @db.VarChar(255)
+  pre_alert_message      String?   @db.Text
+  pre_alert_sent_at      DateTime? @db.Timestamptz
 
   shipper_id        String?   @db.Uuid
   consignee_id      String?   @db.Uuid
@@ -1581,9 +1687,16 @@ model Job {
   email_logs       EmailLog[]               @relation("JobEmailLogs")
   invoices         Invoice[]
   payment_requests PaymentRequest[]
+  vouchers         Voucher[]
+  voucher_lines    VoucherLine[]
   bills_of_lading  BillOfLading[]
   cargo_lines      JobCargo[]
   stuffing_records StuffingRecord[]
+  container_free_days ContainerFreeDays[]
+  deposits         JobDeposit[]
+  part_deliveries  PartDelivery[]
+  proofs_of_delivery ProofOfDelivery[]
+  damage_reports   DamageReport[]
 
   @@unique([tenant_id, job_number])
   @@index([tenant_id])
@@ -1660,6 +1773,22 @@ model SeaFclJobDetail {
   freight_terms        String?               @db.VarChar(30)
   transhipment_port    String?               @db.VarChar(200)
   sailed_at            DateTime?             @db.Timestamptz
+
+  /// Week 9 — Sea FCL Import (Ch.11)
+  mbl_number_from_line       String?                 @db.VarChar(50)
+  hbl_number_from_agent      String?                 @db.VarChar(50)
+  actual_eta                 DateTime?               @db.Timestamptz
+  customs_entry_number       String?                 @db.VarChar(100)
+  customs_examination_details String?                @db.Text
+  customs_duty_amount        Decimal?                @db.Decimal(18, 4)
+  customs_tax_amount         Decimal?                @db.Decimal(18, 4)
+  customs_clearance_date     DateTime?               @db.Timestamptz
+  customs_status             CustomsClearanceStatus  @default(PENDING)
+  customs_broker_id          String?                 @db.Uuid
+  linked_export_job_id       String?                 @db.Uuid
+  cfs_storage_rate_per_day   Decimal?                @db.Decimal(18, 4)
+  cfs_storage_start_date     DateTime?               @db.Date
+
   created_at           DateTime              @default(now()) @db.Timestamptz
   updated_at           DateTime              @updatedAt @db.Timestamptz
   created_by           String?               @db.Uuid
@@ -1688,6 +1817,8 @@ model JobContainer {
   cbm               Decimal?        @db.Decimal(10, 3)
   status            ContainerStatus @default(EMPTY)
   gate_in_at        DateTime?       @db.Timestamptz
+  returned_at       DateTime?       @db.Timestamptz
+  return_condition  String?         @db.Text
   is_soc            Boolean         @default(false)
   created_at        DateTime        @default(now()) @db.Timestamptz
   updated_at        DateTime        @updatedAt @db.Timestamptz
@@ -1695,13 +1826,137 @@ model JobContainer {
   updated_by        String?         @db.Uuid
   deleted_at        DateTime?       @db.Timestamptz
 
-  sea_fcl_detail   SeaFclJobDetail  @relation(fields: [sea_fcl_detail_id], references: [id], onDelete: Cascade)
+  sea_fcl_detail   SeaFclJobDetail   @relation(fields: [sea_fcl_detail_id], references: [id], onDelete: Cascade)
   cargo_lines      JobCargo[]
   stuffing_records StuffingRecord[]
+  free_days        ContainerFreeDays?
+  damage_reports   DamageReport[]
 
   @@index([tenant_id])
   @@index([tenant_id, container_number])
   @@map("job_containers")
+}
+
+/// Per-container free days + demurrage/detention rates (Week 9 / Ch.11).
+model ContainerFreeDays {
+  id                     String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id              String    @db.Uuid
+  job_id                 String    @db.Uuid
+  container_id           String    @unique @db.Uuid
+  free_days_allowed      Int       @default(7)
+  last_free_day_date     DateTime? @db.Date
+  demurrage_start_date   DateTime? @db.Date
+  detention_start_date   DateTime? @db.Date
+  demurrage_rate_per_day Decimal   @default(0) @db.Decimal(18, 4)
+  detention_rate_per_day Decimal   @default(0) @db.Decimal(18, 4)
+  demurrage_accrued      Decimal   @default(0) @db.Decimal(18, 4)
+  detention_accrued      Decimal   @default(0) @db.Decimal(18, 4)
+  last_calculated_at     DateTime? @db.Timestamptz
+  created_at             DateTime  @default(now()) @db.Timestamptz
+  updated_at             DateTime  @updatedAt @db.Timestamptz
+  created_by             String?   @db.Uuid
+  updated_by             String?   @db.Uuid
+  deleted_at             DateTime? @db.Timestamptz
+
+  job       Job          @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  container JobContainer @relation(fields: [container_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("container_free_days")
+}
+
+model JobDeposit {
+  id                String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String      @db.Uuid
+  job_id            String      @db.Uuid
+  deposit_type      DepositType
+  deposit_amount    Decimal     @db.Decimal(18, 4)
+  currency_code     String      @default("AED") @db.Char(3)
+  deposit_receipt_number String? @db.VarChar(100)
+  deposit_expiry_date DateTime? @db.Date
+  remarks           String?     @db.Text
+  created_at        DateTime    @default(now()) @db.Timestamptz
+  updated_at        DateTime    @updatedAt @db.Timestamptz
+  created_by        String?     @db.Uuid
+  updated_by        String?     @db.Uuid
+  deleted_at        DateTime?   @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, deposit_expiry_date])
+  @@map("job_deposits")
+}
+
+model PartDelivery {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  job_id            String    @db.Uuid
+  container_id      String?   @db.Uuid
+  consignee_id      String?   @db.Uuid
+  delivery_date     DateTime  @db.Timestamptz
+  packages_delivered Int
+  quantity_remaining Int?
+  remarks           String?   @db.Text
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+  created_by        String?   @db.Uuid
+  updated_by        String?   @db.Uuid
+  deleted_at        DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("part_deliveries")
+}
+
+model ProofOfDelivery {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String    @db.Uuid
+  job_id                String    @db.Uuid
+  container_id          String?   @db.Uuid
+  actual_delivery_date  DateTime  @db.Timestamptz
+  delivered_by          String?   @db.VarChar(200)
+  received_by           String?   @db.VarChar(200)
+  signature_image_path  String?   @db.Text
+  remarks               String?   @db.Text
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("proofs_of_delivery")
+}
+
+model DamageReport {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  job_id               String    @db.Uuid
+  container_id         String?   @db.Uuid
+  damage_description   String    @db.Text
+  photo_urls           String[]  @db.Text
+  survey_report_number String?   @db.VarChar(100)
+  reported_at          DateTime  @default(now()) @db.Timestamptz
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+  created_by           String?   @db.Uuid
+  updated_by           String?   @db.Uuid
+  deleted_at           DateTime? @db.Timestamptz
+
+  job       Job           @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  container JobContainer? @relation(fields: [container_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("damage_reports")
 }
 
 /// FCL cargo lines — optionally assigned to a container (co-loading / split).
@@ -1826,6 +2081,8 @@ model JobCharge {
   tax_amount           Decimal   @default(0) @db.Decimal(18, 4)
   is_billable          Boolean   @default(true)
   is_cost              Boolean   @default(false)
+  /// Provisional cost/sales — estimated only; excluded from confirmed P&L until confirmed.
+  is_provisional       Boolean   @default(false)
   party_id             String?   @db.Uuid
   is_invoiced          Boolean   @default(false)
   created_at           DateTime  @default(now()) @db.Timestamptz
@@ -2348,6 +2605,7 @@ model Invoice {
   credit_notes     Invoice[] @relation("InvoiceCreditNotes")
   lines            InvoiceLine[]
   payment_requests PaymentRequest[]
+  vouchers         Voucher[]
 
   @@unique([tenant_id, invoice_number])
   @@index([tenant_id])
@@ -2424,6 +2682,134 @@ model PaymentRequest {
   @@index([tenant_id, invoice_id])
   @@index([tenant_id, job_id])
   @@map("payment_requests")
+}
+
+// =====================================================
+// ACCOUNTING — Chart of Accounts + Vouchers / GL (Ch.17)
+// =====================================================
+
+model ChartOfAccount {
+  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String         @db.Uuid
+  company_id     String?        @db.Uuid
+  parent_id      String?        @db.Uuid
+  account_code   String         @db.VarChar(30)
+  account_name   String         @db.VarChar(200)
+  account_name_ar String?       @db.VarChar(200)
+  account_group  AccountGroup
+  account_type   AccountType
+  account_sub_type AccountSubType @default(GENERAL)
+  is_header      Boolean        @default(false)
+  is_postable    Boolean        @default(true)
+  is_bank_account Boolean       @default(false)
+  is_cash_account Boolean       @default(false)
+  currency_code  String?        @db.Char(3)
+  opening_balance Decimal       @default(0) @db.Decimal(18, 4)
+  opening_balance_type String   @default("DEBIT") @db.VarChar(6)
+  allow_manual_entry Boolean    @default(true)
+  is_active      Boolean        @default(true)
+  sort_order     Int            @default(0)
+  notes          String?        @db.Text
+  created_at     DateTime       @default(now()) @db.Timestamptz
+  updated_at     DateTime       @updatedAt @db.Timestamptz
+  created_by     String?        @db.Uuid
+  updated_by     String?        @db.Uuid
+  deleted_at     DateTime?      @db.Timestamptz
+
+  company  Company?        @relation(fields: [company_id], references: [id])
+  parent   ChartOfAccount? @relation("CoaHierarchy", fields: [parent_id], references: [id])
+  children ChartOfAccount[] @relation("CoaHierarchy")
+  voucher_lines VoucherLine[]
+  charge_codes_revenue ChargeCode[] @relation("ChargeRevenueAccount")
+  charge_codes_cost    ChargeCode[] @relation("ChargeCostAccount")
+
+  @@unique([tenant_id, account_code])
+  @@index([tenant_id])
+  @@index([tenant_id, account_group])
+  @@index([tenant_id, parent_id])
+  @@map("chart_of_accounts")
+}
+
+model Voucher {
+  id                 String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String        @db.Uuid
+  company_id         String?       @db.Uuid
+  branch_id          String?       @db.Uuid
+  voucher_number     String        @db.VarChar(40)
+  voucher_type       VoucherType
+  status             VoucherStatus @default(DRAFT)
+  voucher_date       DateTime      @default(now()) @db.Date
+  currency_code      String        @db.Char(3)
+  exchange_rate      Decimal       @default(1) @db.Decimal(20, 8)
+  narration          String?       @db.Text
+  reference_number   String?       @db.VarChar(100)
+  party_id           String?       @db.Uuid
+  job_id             String?       @db.Uuid
+  invoice_id         String?       @db.Uuid
+  total_debit        Decimal       @default(0) @db.Decimal(18, 4)
+  total_credit       Decimal       @default(0) @db.Decimal(18, 4)
+  posted_at          DateTime?     @db.Timestamptz
+  posted_by          String?       @db.Uuid
+  reversed_at        DateTime?     @db.Timestamptz
+  reversed_by        String?       @db.Uuid
+  reversal_of_id     String?       @db.Uuid
+  created_at         DateTime      @default(now()) @db.Timestamptz
+  updated_at         DateTime      @updatedAt @db.Timestamptz
+  created_by         String?       @db.Uuid
+  updated_by         String?       @db.Uuid
+  deleted_at         DateTime?     @db.Timestamptz
+
+  company      Company?  @relation(fields: [company_id], references: [id])
+  party        Party?    @relation(fields: [party_id], references: [id])
+  job          Job?      @relation(fields: [job_id], references: [id])
+  invoice      Invoice?  @relation(fields: [invoice_id], references: [id])
+  reversal_of  Voucher?  @relation("VoucherReversal", fields: [reversal_of_id], references: [id])
+  reversals    Voucher[] @relation("VoucherReversal")
+  lines        VoucherLine[]
+
+  @@unique([tenant_id, voucher_number])
+  @@index([tenant_id])
+  @@index([tenant_id, voucher_type])
+  @@index([tenant_id, status])
+  @@index([tenant_id, voucher_date])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, invoice_id])
+  @@map("vouchers")
+}
+
+model VoucherLine {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String    @db.Uuid
+  voucher_id      String    @db.Uuid
+  account_id      String    @db.Uuid
+  line_no         Int       @default(1)
+  debit_amount    Decimal   @default(0) @db.Decimal(18, 4)
+  credit_amount   Decimal   @default(0) @db.Decimal(18, 4)
+  currency_code   String?   @db.Char(3)
+  exchange_rate   Decimal   @default(1) @db.Decimal(20, 8)
+  debit_base      Decimal   @default(0) @db.Decimal(18, 4)
+  credit_base     Decimal   @default(0) @db.Decimal(18, 4)
+  narration       String?   @db.VarChar(500)
+  party_id        String?   @db.Uuid
+  job_id          String?   @db.Uuid
+  cost_center     String?   @db.VarChar(50)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+  created_by      String?   @db.Uuid
+  updated_by      String?   @db.Uuid
+  deleted_at      DateTime? @db.Timestamptz
+
+  voucher Voucher        @relation(fields: [voucher_id], references: [id], onDelete: Cascade)
+  account ChartOfAccount @relation(fields: [account_id], references: [id])
+  party   Party?         @relation(fields: [party_id], references: [id])
+  job     Job?           @relation(fields: [job_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([tenant_id, voucher_id])
+  @@index([tenant_id, account_id])
+  @@index([tenant_id, party_id])
+  @@map("voucher_lines")
 }
 
 // =====================================================

@@ -43,15 +43,25 @@ export class CreateChargeCodeDto {
   @IsUUID()
   tax_rate_id?: string;
 
-  @ApiPropertyOptional({ example: '4001', description: 'Revenue GL account code (placeholder until GL module exists).' })
+  @ApiPropertyOptional({ example: '4001', description: 'Legacy revenue GL code string.' })
   @IsOptional()
   @IsString()
   gl_revenue_code?: string;
 
-  @ApiPropertyOptional({ example: '5001', description: 'Cost GL account code (placeholder until GL module exists).' })
+  @ApiPropertyOptional({ example: '5001', description: 'Legacy cost GL code string.' })
   @IsOptional()
   @IsString()
   gl_cost_code?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Linked revenue Chart of Account (Ch.17).' })
+  @IsOptional()
+  @IsUUID()
+  gl_revenue_account_id?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Linked cost Chart of Account (Ch.17).' })
+  @IsOptional()
+  @IsUUID()
+  gl_cost_account_id?: string;
 
   @ApiPropertyOptional({ example: 'Per Container' })
   @IsOptional()

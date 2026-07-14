@@ -4,8 +4,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
 import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
 import { EmailService } from '../../shared/email/email.service';
+import { WhatsAppService } from '../../shared/whatsapp/whatsapp.service';
 import { AIR_EXPORT_MILESTONES } from './constants/air-export-milestones';
 import { SEA_FCL_EXPORT_MILESTONES } from './constants/sea-fcl-export-milestones';
+import { SEA_FCL_IMPORT_MILESTONES } from './constants/sea-fcl-import-milestones';
 
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { UpdateAirJobDetailDto } from './dto/air-job-detail.dto';
@@ -26,6 +28,12 @@ import { CreateStuffingRecordDto, UpdateStuffingRecordDto } from './dto/stuffing
 import { SendPreAlertDto } from './dto/pre-alert.dto';
 import { GenerateJobDocumentDto } from './dto/generate-job-document.dto';
 import { JobQueryDto } from './dto/job-query.dto';
+import {
+  CreatePaymentRequestFromJobDto,
+  CreateSubJobDto,
+  SchedulePreAlertDto,
+  SendWhatsAppStatusDto,
+} from './dto/week4-6-ops.dto';
 
 const JOB_TYPE_CODE: Record<JobType, string> = {
   AIR_EXPORT: 'AE',
@@ -50,6 +58,7 @@ export class JobsService {
     private readonly numberGenerator: NumberGeneratorService,
     private readonly documentGeneration: DocumentGenerationService,
     private readonly emailService: EmailService,
+    private readonly whatsApp: WhatsAppService,
   ) {}
 
   // ============================================================
@@ -161,6 +170,19 @@ export class JobsService {
       if (dto.job_type === 'SEA_FCL_EXPORT') {
         await tx.jobMilestone.createMany({
           data: SEA_FCL_EXPORT_MILESTONES.map((milestone) => ({
+            tenant_id: tenantId,
+            job_id: job.id,
+            milestone,
+            created_by: actorId,
+            updated_by: actorId,
+          })),
+        });
+      }
+
+      // Sea FCL Import gets the Ch.11.2 14-milestone taxonomy at create.
+      if (dto.job_type === 'SEA_FCL_IMPORT') {
+        await tx.jobMilestone.createMany({
+          data: SEA_FCL_IMPORT_MILESTONES.map((milestone) => ({
             tenant_id: tenantId,
             job_id: job.id,
             milestone,
@@ -325,8 +347,14 @@ export class JobsService {
         orderBy: { created_at: 'asc' },
       });
 
-      const revenueLines = charges.filter((c) => !c.is_cost);
-      const costLines = charges.filter((c) => c.is_cost);
+      const confirmed = charges.filter((c) => !c.is_provisional);
+      const provisional = charges.filter((c) => c.is_provisional);
+      const revenueLines = confirmed.filter((c) => !c.is_cost);
+      const costLines = confirmed.filter((c) => c.is_cost);
+      const provisionalRevenue = provisional.filter((c) => !c.is_cost);
+      const provisionalCost = provisional.filter((c) => c.is_cost);
+      const provRev = provisionalRevenue.reduce((s, c) => s + Number(c.amount_base_currency), 0);
+      const provCost = provisionalCost.reduce((s, c) => s + Number(c.amount_base_currency), 0);
 
       return {
         job_id: job.id,
@@ -337,6 +365,13 @@ export class JobsService {
         gp_percent: Number(job.gp_percent),
         revenue_lines: revenueLines,
         cost_lines: costLines,
+        provisional: {
+          revenue_total: provRev,
+          cost_total: provCost,
+          gp_amount: provRev - provCost,
+          revenue_lines: provisionalRevenue,
+          cost_lines: provisionalCost,
+        },
       };
     });
   }
@@ -510,6 +545,10 @@ export class JobsService {
         stuffing_location,
         vgm_method,
         sailed_at,
+        actual_eta,
+        customs_clearance_date,
+        cfs_storage_start_date,
+        customs_status,
         ...rest
       } = dto;
 
@@ -521,6 +560,9 @@ export class JobsService {
             ? { stuffing_location: stuffing_location as StuffingLocationType }
             : {}),
           ...(vgm_method !== undefined ? { vgm_method: vgm_method as VgmMethod } : {}),
+          ...(customs_status !== undefined
+            ? { customs_status: customs_status as import('@prisma/client').CustomsClearanceStatus }
+            : {}),
           ...(si_cutoff ? { si_cutoff: new Date(si_cutoff) } : {}),
           ...(vgm_cutoff ? { vgm_cutoff: new Date(vgm_cutoff) } : {}),
           ...(cy_cutoff ? { cy_cutoff: new Date(cy_cutoff) } : {}),
@@ -530,6 +572,9 @@ export class JobsService {
           ...(si_submitted_at ? { si_submitted_at: new Date(si_submitted_at) } : {}),
           ...(vgm_submitted_at ? { vgm_submitted_at: new Date(vgm_submitted_at) } : {}),
           ...(sailed_at ? { sailed_at: new Date(sailed_at) } : {}),
+          ...(actual_eta ? { actual_eta: new Date(actual_eta) } : {}),
+          ...(customs_clearance_date ? { customs_clearance_date: new Date(customs_clearance_date) } : {}),
+          ...(cfs_storage_start_date ? { cfs_storage_start_date: new Date(cfs_storage_start_date) } : {}),
           updated_by: actorId,
         },
       });
@@ -1189,7 +1234,7 @@ export class JobsService {
 
       const { planned_date, actual_date, ...rest } = dto;
 
-      return tx.jobMilestone.update({
+      const updated = await tx.jobMilestone.update({
         where: { id: milestoneId },
         data: {
           ...rest,
@@ -1198,6 +1243,13 @@ export class JobsService {
           updated_by: actorId,
         },
       });
+
+      if (actual_date) {
+        // Fire-and-forget status email (Week 6) — failure must not roll back milestone.
+        void this.notifyMilestoneStatus(tenantId, jobId, updated.milestone, actorId);
+      }
+
+      return updated;
     });
   }
 
@@ -1256,6 +1308,7 @@ export class JobsService {
           tax_rate_id: dto.tax_rate_id,
           tax_amount: taxAmount,
           is_cost: dto.is_cost ?? false,
+          is_provisional: dto.is_provisional ?? false,
           is_billable: dto.is_billable ?? true,
           party_id: dto.party_id,
           created_by: actorId,
@@ -1677,6 +1730,32 @@ export class JobsService {
     };
   }
 
+  /** Import docs that also complete a milestone when queued (CAN / DO). */
+  async generateImportDocument(
+    tenantId: string,
+    jobId: string,
+    documentType: DocumentType,
+    dto: GenerateJobDocumentDto,
+    actorId?: string,
+  ) {
+    const result = await this.generateDocument(tenantId, jobId, documentType, dto, actorId);
+
+    const milestone =
+      documentType === 'CAN'
+        ? 'CAN_SENT'
+        : documentType === 'DELIVERY_ORDER'
+          ? 'DO_ISSUED'
+          : null;
+
+    if (milestone) {
+      await this.prisma.runWithTenant(tenantId, async (tx) => {
+        await this.markMilestoneIfPresent(tx, tenantId, jobId, milestone, new Date(), actorId);
+      });
+    }
+
+    return result;
+  }
+
   async getDocumentGenerationStatus(tenantId: string, jobId: string) {
     await this.findOne(tenantId, jobId);
     return this.documentGeneration.listTasks(tenantId, { jobId });
@@ -1861,7 +1940,9 @@ export class JobsService {
   }
 
   private async recalculateTotals(tx: Prisma.TransactionClient, tenantId: string, jobId: string): Promise<void> {
-    const charges = await tx.jobCharge.findMany({ where: { tenant_id: tenantId, job_id: jobId } });
+    const charges = await tx.jobCharge.findMany({
+      where: { tenant_id: tenantId, job_id: jobId, deleted_at: null, is_provisional: false },
+    });
 
     let revenue = 0;
     let cost = 0;
@@ -1878,6 +1959,199 @@ export class JobsService {
     await tx.job.update({
       where: { id: jobId },
       data: { revenue_total: revenue, cost_total: cost, gp_amount: gp, gp_percent: gpPercent },
+    });
+  }
+
+  /** Week 6 — email (and optional WhatsApp stub) when a milestone is completed. */
+  async notifyMilestoneStatus(tenantId: string, jobId: string, milestoneName: string, actorId?: string) {
+    const job = await this.findOne(tenantId, jobId);
+    const partyIds = [job.shipper_id, job.consignee_id].filter(Boolean) as string[];
+    const parties = partyIds.length
+      ? await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.party.findMany({
+            where: { tenant_id: tenantId, id: { in: partyIds }, deleted_at: null },
+            select: { id: true, email: true, phone: true },
+          }),
+        )
+      : [];
+    const consignee = parties.find((p) => p.id === job.consignee_id);
+    const shipper = parties.find((p) => p.id === job.shipper_id);
+    const to = consignee?.email ?? shipper?.email;
+    const body = 'Job ' + job.job_number + ': milestone "' + milestoneName + '" was completed.';
+
+    if (to) {
+      await this.emailService.send({
+        tenantId,
+        eventType: 'MILESTONE_STATUS',
+        to,
+        subject: '[Status] ' + job.job_number + ' — ' + milestoneName,
+        body,
+        jobId,
+        createdBy: actorId,
+      });
+    }
+
+    const phone = consignee?.phone ?? shipper?.phone;
+    if (phone) {
+      await this.whatsApp.sendStatusMessage({
+        tenantId,
+        toPhoneE164: phone,
+        body,
+        jobId,
+        createdBy: actorId,
+      });
+    }
+  }
+
+  async createSubJob(tenantId: string, parentId: string, dto: CreateSubJobDto, actorId?: string) {
+    const parent = await this.findOne(tenantId, parentId);
+    const shipperId = dto.shipper_id ?? parent.shipper_id;
+    if (!shipperId) {
+      throw new BadRequestException('shipper_id is required (set on the sub-job or inherit from the parent).');
+    }
+    return this.create(
+      tenantId,
+      {
+        job_type: dto.job_type ?? parent.job_type,
+        parent_job_id: parentId,
+        shipper_id: shipperId,
+        consignee_id: dto.consignee_id ?? parent.consignee_id ?? undefined,
+        agent_id: dto.agent_id ?? parent.agent_id ?? undefined,
+        commodity: dto.commodity ?? parent.commodity ?? undefined,
+        notes: dto.notes,
+        company_id: parent.company_id ?? undefined,
+        branch_id: parent.branch_id ?? undefined,
+      },
+      actorId,
+    ).then(async (job) => {
+      await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.update({ where: { id: job.id }, data: { is_sub_job: true } }),
+      );
+      return this.findOne(tenantId, job.id);
+    });
+  }
+
+  async listSubJobs(tenantId: string, parentId: string) {
+    await this.findOne(tenantId, parentId);
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findMany({
+        where: { tenant_id: tenantId, parent_job_id: parentId, is_sub_job: true, deleted_at: null },
+        orderBy: { created_at: 'asc' },
+      }),
+    );
+  }
+
+  async createPaymentRequestFromJob(
+    tenantId: string,
+    jobId: string,
+    dto: CreatePaymentRequestFromJobDto,
+    actorId?: string,
+  ) {
+    const job = await this.findOne(tenantId, jobId);
+    const partyId = dto.party_id ?? job.shipper_id ?? job.consignee_id;
+    if (!partyId) {
+      throw new BadRequestException('party_id is required when the job has no shipper/consignee.');
+    }
+
+    const amount = dto.amount ?? Number(job.revenue_total);
+    if (amount <= 0) {
+      throw new BadRequestException('Payment request amount must be greater than zero.');
+    }
+
+    const currency = dto.currency_code ?? 'AED';
+    const requestNumber = await this.numberGenerator.generate(tenantId, 'VOUCHER');
+
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.paymentRequest.create({
+        data: {
+          tenant_id: tenantId,
+          request_number: requestNumber,
+          status: 'PENDING',
+          party_id: partyId,
+          job_id: jobId,
+          amount,
+          currency_code: currency,
+          remarks: dto.remarks ?? `Payment request for job ${job.job_number}`,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      }),
+    );
+  }
+
+  async schedulePreAlert(tenantId: string, jobId: string, dto: SchedulePreAlertDto, actorId?: string) {
+    await this.findOne(tenantId, jobId);
+    const at = new Date(dto.scheduled_at);
+    if (at.getTime() <= Date.now()) {
+      throw new BadRequestException('scheduled_at must be in the future.');
+    }
+
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.update({
+        where: { id: jobId },
+        data: {
+          pre_alert_scheduled_at: at,
+          pre_alert_to_email: dto.to_email,
+          pre_alert_message: dto.message,
+          updated_by: actorId,
+        },
+        select: {
+          id: true,
+          job_number: true,
+          pre_alert_scheduled_at: true,
+          pre_alert_to_email: true,
+        },
+      }),
+    );
+  }
+
+  /** Called by scheduler — send due pre-alerts. */
+  async processScheduledPreAlerts(tenantId: string) {
+    const due = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          pre_alert_scheduled_at: { lte: new Date() },
+          pre_alert_sent_at: null,
+          pre_alert_to_email: { not: null },
+        },
+        take: 50,
+      }),
+    );
+
+    let sent = 0;
+    for (const job of due) {
+      if (!job.pre_alert_to_email) continue;
+      try {
+        await this.sendPreAlert(
+          tenantId,
+          job.id,
+          { to_email: job.pre_alert_to_email, message: job.pre_alert_message ?? undefined },
+          undefined,
+        );
+        await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.job.update({
+            where: { id: job.id },
+            data: { pre_alert_sent_at: new Date(), pre_alert_scheduled_at: null },
+          }),
+        );
+        sent += 1;
+      } catch {
+        // leave scheduled for retry
+      }
+    }
+    return { sent, checked: due.length };
+  }
+
+  async sendWhatsAppStatus(tenantId: string, jobId: string, dto: SendWhatsAppStatusDto, actorId?: string) {
+    const job = await this.findOne(tenantId, jobId);
+    return this.whatsApp.sendStatusMessage({
+      tenantId,
+      toPhoneE164: dto.to_phone,
+      body: dto.message ?? `Update on shipment ${job.job_number}.`,
+      jobId,
+      createdBy: actorId,
     });
   }
 

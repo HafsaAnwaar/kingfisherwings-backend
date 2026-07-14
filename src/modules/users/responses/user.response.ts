@@ -16,6 +16,10 @@ export class UserResponse {
   @ApiProperty() full_name!: string;
 
   @ApiPropertyOptional() phone?: string;
+  @ApiPropertyOptional({
+    description: 'Optional preferred country (ISO 3166-1 alpha-2). Not required.',
+  })
+  preferred_country_code?: string;
   @ApiPropertyOptional() avatar_url?: string;
 
   @ApiProperty({ enum: UserRole }) role!: UserRole;

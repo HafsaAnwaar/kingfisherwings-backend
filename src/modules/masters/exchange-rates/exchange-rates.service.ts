@@ -1,15 +1,39 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ExchangeRate } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { MasterQueryDto } from '../dto/master-query.dto';
 import { CreateExchangeRateDto } from '../dto/exchange-rate.dto';
+import { CountryLocaleService } from '../../../common/locale/country-locale.service';
 
 @Injectable()
 export class ExchangeRatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly locale: CountryLocaleService,
+  ) {}
 
   /** Upsert rather than plain create — re-submitting today's rate (e.g. a corrected manual entry) should replace it, not conflict. */
   async create(tenantId: string, dto: CreateExchangeRateDto, actorId?: string): Promise<ExchangeRate> {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deleted_at: null },
+      select: { base_currency: true, country_code: true },
+    });
+    const expectedBase =
+      tenant?.base_currency ??
+      this.locale.getDefaultCurrency(tenant?.country_code) ??
+      'USD';
+    const baseCurrency = (dto.base_currency || expectedBase).toUpperCase();
+
+    if (expectedBase && baseCurrency !== expectedBase.toUpperCase()) {
+      throw new BadRequestException(
+        `base_currency must match the tenant base currency (${expectedBase}). Change organization country/currency first if needed.`,
+      );
+    }
+
+    if (!this.locale.isKnownCurrency(baseCurrency)) {
+      throw new BadRequestException('base_currency must be a valid ISO 4217 currency code.');
+    }
+
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.exchangeRate.upsert({
         where: {
@@ -22,7 +46,7 @@ export class ExchangeRatesService {
         create: {
           tenant_id: tenantId,
           currency_id: dto.currency_id,
-          base_currency: dto.base_currency,
+          base_currency: baseCurrency,
           rate: dto.rate,
           rate_date: new Date(dto.rate_date),
           source: dto.source ?? 'manual',
@@ -32,6 +56,7 @@ export class ExchangeRatesService {
         },
         update: {
           rate: dto.rate,
+          base_currency: baseCurrency,
           source: dto.source ?? 'manual',
           manual_override: (dto.source ?? 'manual') === 'manual',
           updated_by: actorId,

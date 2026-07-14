@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsPhoneNumber, IsString, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import { IsPhoneForCountry } from '../../../common/validators/country-aware.validators';
 
 export class CreatePartyContactDto {
   @ApiProperty({ example: 'Fatima Al Suwaidi' })
@@ -10,21 +12,22 @@ export class CreatePartyContactDto {
   @ApiPropertyOptional({ example: 'Import Manager' })
   @IsOptional()
   @IsString()
+  @Length(1, 100)
   designation?: string;
 
   @ApiPropertyOptional({ example: '+97142223344' })
   @IsOptional()
-  @IsPhoneNumber()
+  @IsPhoneForCountry()
   phone?: string;
 
   @ApiPropertyOptional({ example: '+971501112233' })
   @IsOptional()
-  @IsPhoneNumber()
+  @IsPhoneForCountry()
   mobile?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'fatima@example.com' })
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   email?: string;
 
   @ApiPropertyOptional({ default: false })

@@ -4,7 +4,6 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
-  IsEmail,
   IsEnum,
   IsInt,
   IsNumber,
@@ -17,6 +16,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { InvoiceStatus, InvoiceType } from '@prisma/client';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
 
 export class CreateInvoiceLineDto {
   @ApiProperty({ example: 'Ocean Freight' })
@@ -162,7 +162,7 @@ export class CreatePurchaseInvoiceDto extends CreateInvoiceDto {
 
 export class SendInvoiceEmailDto {
   @ApiProperty({ example: 'customer@example.com' })
-  @IsEmail()
+  @IsStrictEmail()
   to_email!: string;
 
   @ApiPropertyOptional()

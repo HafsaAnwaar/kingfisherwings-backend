@@ -1,9 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
 
 export class SuperAdminLoginDto {
   @ApiProperty()
-  @IsEmail()
+  @IsStrictEmail()
   email!: string;
 
   @ApiProperty()

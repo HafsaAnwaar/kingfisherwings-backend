@@ -20,6 +20,7 @@ import { UserMapper } from '../users/mappers/user.mapper';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantQueryDto } from './dto/tenant-query.dto';
+import { CountryLocaleService } from '../../common/locale/country-locale.service';
 
 const OWNER_ROLE_CODE = 'TENANT_ADMIN';
 
@@ -27,6 +28,7 @@ const OWNER_ROLE_CODE = 'TENANT_ADMIN';
 export class TenantsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly locale: CountryLocaleService,
   ) {}
 
   // =====================================================
@@ -49,6 +51,18 @@ export class TenantsService {
       company_registration_number,
       ...tenantData
     } = createTenantDto;
+
+    // Country is optional. Only when provided do we suggest currency/timezone.
+    if (tenantData.country_code) {
+      const localeDefaults = this.locale.getLocaleDefaults(tenantData.country_code);
+      tenantData.country_code = localeDefaults.countryCode ?? tenantData.country_code;
+      if (!tenantData.base_currency && localeDefaults.baseCurrency) {
+        tenantData.base_currency = localeDefaults.baseCurrency;
+      }
+      if (!tenantData.timezone && localeDefaults.timezone) {
+        tenantData.timezone = localeDefaults.timezone;
+      }
+    }
 
     const passwordHash = await PasswordUtil.hash(password);
 
@@ -531,6 +545,19 @@ export class TenantsService {
       );
     }
 
+    const patch: UpdateTenantDto = { ...updateTenantDto };
+    // Optional country: only auto-align currency/timezone when country is newly set.
+    if (patch.country_code) {
+      const defaults = this.locale.getLocaleDefaults(patch.country_code);
+      patch.country_code = defaults.countryCode ?? patch.country_code;
+      if (patch.base_currency === undefined && defaults.baseCurrency) {
+        patch.base_currency = defaults.baseCurrency;
+      }
+      if (patch.timezone === undefined && defaults.timezone) {
+        patch.timezone = defaults.timezone;
+      }
+    }
+
     const updatedTenant = await this.prisma.$transaction(
       async (tx) => {
         return tx.tenant.update({
@@ -538,7 +565,7 @@ export class TenantsService {
             id,
           },
           data: {
-            ...updateTenantDto,
+            ...patch,
           },
         });
       },

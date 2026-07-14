@@ -1,5 +1,10 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsPhoneNumber, IsString, IsUUID, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import {
+  CountryCodeField,
+  IsPhoneForCountry,
+} from '../../../common/validators/country-aware.validators';
 
 export class CreateBranchDto {
   @ApiPropertyOptional({ format: 'uuid' })
@@ -25,22 +30,22 @@ export class CreateBranchDto {
   @ApiPropertyOptional({ example: 'Dubai' })
   @IsOptional()
   @IsString()
+  @Length(1, 100)
   city?: string;
 
   @ApiPropertyOptional({ default: 'AE' })
   @IsOptional()
-  @IsString()
-  @Length(2, 2)
+  @CountryCodeField()
   country_code?: string;
 
   @ApiPropertyOptional({ example: '+971501234567' })
   @IsOptional()
-  @IsPhoneNumber()
+  @IsPhoneForCountry()
   phone?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'dubai@example.com' })
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   email?: string;
 
   @ApiPropertyOptional({ default: false })

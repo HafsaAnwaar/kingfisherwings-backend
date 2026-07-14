@@ -32,6 +32,7 @@ export class UserMapper {
     response.last_name = user.last_name;
     response.full_name = UsersHelper.buildFullName(user.first_name, user.last_name);
     response.phone = user.phone ?? undefined;
+    response.preferred_country_code = user.preferred_country_code ?? undefined;
     response.avatar_url = user.avatar_url ?? undefined;
     response.role = user.role;
     response.status = user.status;

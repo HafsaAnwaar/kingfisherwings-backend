@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import {
+  CountryCodeField,
+  IsPhoneForCountry,
+  IsTaxIdForCountry,
+} from '../../../common/validators/country-aware.validators';
 
 export class CreateCompanyDto {
   @ApiProperty({ example: 'OCE-DXB' })
@@ -24,7 +30,7 @@ export class CreateCompanyDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsTaxIdForCountry()
   vat_number?: string;
 
   @ApiPropertyOptional()
@@ -39,18 +45,17 @@ export class CreateCompanyDto {
 
   @ApiPropertyOptional({ example: 'AE' })
   @IsOptional()
-  @IsString()
-  @Length(2, 2)
+  @CountryCodeField()
   country_code?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: '+971501234567' })
   @IsOptional()
-  @IsString()
+  @IsPhoneForCountry()
   phone?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   email?: string;
 
   @ApiPropertyOptional({ default: false, description: 'Only one company per tenant can be default.' })

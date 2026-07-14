@@ -327,6 +327,7 @@ export class UsersService {
             first_name: dto.first_name,
             last_name: dto.last_name,
             phone: dto.phone,
+            preferred_country_code: dto.preferred_country_code,
             avatar_url: dto.avatar_url,
             role: dto.role,
             status: dto.status ?? UserStatus.INVITED,
