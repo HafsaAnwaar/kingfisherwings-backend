@@ -12,4 +12,7 @@ export interface LoginMeta {
 
   device_name?: string;
 
+  /** Optional client-reported MAC for allow-list enforcement. */
+  mac_address?: string;
+
 }

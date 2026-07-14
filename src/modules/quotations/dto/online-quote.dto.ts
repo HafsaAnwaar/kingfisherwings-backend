@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsEmail,
   IsEnum,
   IsInt,
   IsNumber,
@@ -12,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { JobType } from '@prisma/client';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
 
 export class CreateOnlineQuoteDto {
   @ApiProperty({ example: 'kingfisher', description: 'Tenant slug — identifies which company receives the enquiry.' })
@@ -30,7 +30,7 @@ export class CreateOnlineQuoteDto {
 
   @ApiPropertyOptional({ example: 'john@acme.com' })
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   contact_email?: string;
 
   @ApiPropertyOptional({ example: 'John Smith' })

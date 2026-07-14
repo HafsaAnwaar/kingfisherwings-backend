@@ -11,6 +11,7 @@ import { UpdateCreditStatusDto } from './dto/update-credit-status.dto';
 import { CreatePartyContactDto, UpdatePartyContactDto } from './dto/party-contact.dto';
 import { CreatePartyAddressDto, UpdatePartyAddressDto } from './dto/party-address.dto';
 import { PartyImportResultDto } from './dto/party-import-result.dto';
+import { CountryLocaleService } from '../../common/locale/country-locale.service';
 
 const MAX_IMPORT_ROWS = 5000;
 
@@ -18,7 +19,10 @@ const MAX_IMPORT_ROWS = 5000;
 export class PartiesService {
   private readonly logger = new Logger(PartiesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly locale: CountryLocaleService,
+  ) {}
 
   // ============================================================
   // PARTY CRUD
@@ -27,6 +31,18 @@ export class PartiesService {
   async create(tenantId: string, dto: CreatePartyDto, actorId?: string): Promise<Party> {
     await this.assertSalespersonValid(tenantId, dto.salesperson_id);
     await this.assertCompanyExists(tenantId, dto.company_id);
+
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deleted_at: null },
+      select: { country_code: true, base_currency: true },
+    });
+    // Prefer explicit party country; else tenant country; else leave unset (optional).
+    const country = dto.country_code ?? tenant?.country_code ?? null;
+    const currency =
+      dto.currency_code ??
+      tenant?.base_currency ??
+      this.locale.getDefaultCurrency(country) ??
+      undefined;
 
     try {
       return await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -40,14 +56,14 @@ export class PartiesService {
             short_name: dto.short_name,
             vat_number: dto.vat_number,
             cr_number: dto.cr_number,
-            country_code: dto.country_code,
+            country_code: country ?? undefined,
             city: dto.city,
             address: dto.address,
             phone: dto.phone,
             email: dto.email,
             credit_limit: dto.credit_limit,
             credit_days: dto.credit_days,
-            currency_code: dto.currency_code,
+            currency_code: currency,
             salesperson_id: dto.salesperson_id,
             portal_access: dto.portal_access ?? false,
             marketing_subscription: dto.marketing_subscription ?? true,
@@ -462,6 +478,107 @@ export class PartiesService {
         data: { deleted_at: new Date(), updated_by: actorId },
       });
     });
+  }
+
+  // ============================================================
+  // HISTORY + EXPORT (Week 2 / 6)
+  // ============================================================
+
+  async getHistory(tenantId: string, partyId: string) {
+    await this.findOne(tenantId, partyId);
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const [jobsAsShipper, jobsAsConsignee, quotations, invoices, paymentRequests, audit] =
+        await Promise.all([
+          tx.job.findMany({
+            where: { tenant_id: tenantId, shipper_id: partyId, deleted_at: null },
+            select: { id: true, job_number: true, job_type: true, status: true, created_at: true },
+            take: 50,
+            orderBy: { created_at: 'desc' },
+          }),
+          tx.job.findMany({
+            where: { tenant_id: tenantId, consignee_id: partyId, deleted_at: null },
+            select: { id: true, job_number: true, job_type: true, status: true, created_at: true },
+            take: 50,
+            orderBy: { created_at: 'desc' },
+          }),
+          tx.quotation.findMany({
+            where: { tenant_id: tenantId, customer_id: partyId, deleted_at: null },
+            select: { id: true, quotation_number: true, status: true, created_at: true, revenue_total: true },
+            take: 50,
+            orderBy: { created_at: 'desc' },
+          }),
+          tx.invoice.findMany({
+            where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
+            select: {
+              id: true,
+              invoice_number: true,
+              status: true,
+              invoice_type: true,
+              total_amount: true,
+              created_at: true,
+            },
+            take: 50,
+            orderBy: { created_at: 'desc' },
+          }),
+          tx.paymentRequest.findMany({
+            where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
+            select: { id: true, request_number: true, status: true, amount: true, created_at: true },
+            take: 50,
+            orderBy: { created_at: 'desc' },
+          }),
+          tx.auditLog.findMany({
+            where: {
+              tenant_id: tenantId,
+              entity: { in: ['Party', 'party', 'PARTIES'] },
+              entity_id: partyId,
+            },
+            take: 50,
+            orderBy: { created_at: 'desc' },
+          }),
+        ]);
+
+      return {
+        party_id: partyId,
+        jobs: [...jobsAsShipper, ...jobsAsConsignee],
+        quotations,
+        invoices,
+        payment_requests: paymentRequests,
+        audit_trail: audit,
+      };
+    });
+  }
+
+  async exportCsv(tenantId: string, query: PartyQueryDto) {
+    const page = await this.findAll(tenantId, { ...query, page: 1, limit: 5000 });
+    const rows = page.data as Array<Record<string, unknown>>;
+    const headers = [
+      'party_type',
+      'code',
+      'name',
+      'short_name',
+      'vat_number',
+      'country_code',
+      'city',
+      'phone',
+      'email',
+      'currency_code',
+      'is_active',
+    ];
+    const escape = (v: unknown) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(',')];
+    for (const row of rows) {
+      lines.push(headers.map((h) => escape(row[h])).join(','));
+    }
+    return {
+      content_type: 'text/csv',
+      filename: 'parties-export.csv',
+      csv: lines.join('\n'),
+      count: rows.length,
+    };
   }
 
   // ============================================================

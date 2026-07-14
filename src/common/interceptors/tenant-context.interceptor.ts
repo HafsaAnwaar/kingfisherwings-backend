@@ -3,16 +3,8 @@ import { Observable } from 'rxjs';
 import { TenantContextStorage } from '../context/tenant-context.storage';
 
 /**
- * Registered globally (APP_INTERCEPTOR). Makes the current request's
- * tenant id available via TenantContextStorage for the lifetime of the
- * request — useful for logging/tracing and as a source of truth other
- * code can read.
- *
- * IMPORTANT: this alone does NOT enforce RLS. Actual enforcement
- * happens per-operation via PrismaService.runWithTenant(tenantId, ...),
- * which every tenant-scoped service method must call explicitly (see
- * that method's doc comment for why this is explicit rather than a
- * transparent Prisma Client Extension).
+ * Sets tenant id + optional locale onto ALS for the request.
+ * Country is never mandatory — fields may be null until someone sets them.
  */
 @Injectable()
 export class TenantContextInterceptor implements NestInterceptor {
@@ -20,9 +12,27 @@ export class TenantContextInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest();
-    const principal = request.user as { tenantId?: string } | undefined;
+    const principal = request.user as
+      | {
+          tenantId?: string;
+          countryCode?: string | null;
+          preferredCountryCode?: string | null;
+          baseCurrency?: string | null;
+          timezone?: string | null;
+        }
+      | undefined;
+
     const tenantId = principal?.tenantId ?? null;
 
-    return this.tenantContext.run(tenantId, () => next.handle());
+    return this.tenantContext.run(
+      tenantId,
+      () => next.handle(),
+      {
+        countryCode: principal?.countryCode ?? null,
+        preferredCountryCode: principal?.preferredCountryCode ?? null,
+        baseCurrency: principal?.baseCurrency ?? null,
+        timezone: principal?.timezone ?? null,
+      },
+    );
   }
 }

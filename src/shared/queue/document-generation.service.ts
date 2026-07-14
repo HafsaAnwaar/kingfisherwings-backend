@@ -548,6 +548,22 @@ export class DocumentGenerationService {
       PROFORMA_INVOICE: 'Proforma Invoice',
       PRE_ALERT: 'Pre-Alert',
       VGM: 'VGM Submission',
+      PRE_CAN: 'Pre-Arrival Notice (Pre-CAN)',
+      CAN: 'Cargo Arrival Notice (CAN)',
+      EXCHANGE_LETTER: 'Exchange Letter',
+      UNDERTAKE_LETTER: 'Undertake Letter',
+      DELIVERY_ORDER: 'Delivery Order',
+      TRANSPORT_REQUEST: 'Transport Request',
+      PROOF_OF_DELIVERY: 'Proof of Delivery',
+      SHIPPING_ADVICE: 'Shipping Advice',
+      ARRIVAL_NOTICE: 'Arrival Notice',
+      E_AWB: 'Electronic Air Waybill (E-AWB)',
+      BARCODE_LABEL: 'Barcode Label',
+      CONSIGNEE_LABEL: 'Consignee Label',
+      JOB_COSTING: 'Job Costing Sheet',
+      FREIGHT_CERTIFICATE: 'Freight Certificate',
+      HAWB: 'House Air Waybill (HAWB)',
+      MAWB: 'Master Air Waybill (MAWB)',
     };
 
     const houseJob = job.house_jobs[0];

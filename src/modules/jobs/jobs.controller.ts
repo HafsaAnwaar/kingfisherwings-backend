@@ -35,19 +35,41 @@ import { CreateStuffingRecordDto, UpdateStuffingRecordDto } from './dto/stuffing
 import { SendPreAlertDto } from './dto/pre-alert.dto';
 import { GenerateJobDocumentDto } from './dto/generate-job-document.dto';
 import { JobQueryDto } from './dto/job-query.dto';
+import {
+  CreatePaymentRequestFromJobDto,
+  CreateSubJobDto,
+  SchedulePreAlertDto,
+  SendWhatsAppStatusDto,
+} from './dto/week4-6-ops.dto';
+import {
+  CalculateCfsStorageDto,
+  CreateDamageReportDto,
+  CreateJobDepositDto,
+  CreatePartDeliveryDto,
+  CreateProofOfDeliveryDto,
+  LinkTranshipmentDto,
+  ReturnContainerDto,
+  UpdateCustomsStatusDto,
+  UpdateJobDepositDto,
+  UpsertContainerFreeDaysDto,
+} from './dto/sea-fcl-import.dto';
 
 import { RolesGuard } from '../users/guards/roles.guard';
 import { PermissionsGuard } from '../users/guards/permissions.guard';
 import { RequirePermissions } from '../users/decorators/permissions.decorator';
 import { CurrentUser } from '../users/decorators/current-user.decorator';
 import { JOBS_PERMISSIONS } from './constants/jobs-permission.constants';
+import { SeaFclImportService } from './sea-fcl-import.service';
 
 @ApiTags('Jobs')
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller('jobs')
 export class JobsController {
-  constructor(private readonly service: JobsService) {}
+  constructor(
+    private readonly service: JobsService,
+    private readonly seaFclImport: SeaFclImportService,
+  ) {}
 
   @Get()
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
@@ -695,6 +717,121 @@ export class JobsController {
     return this.service.sendPreAlert(tenantId, id, dto, actorId);
   }
 
+  @Post(':id/pre-alert/schedule')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Schedule a pre-alert email for a future UTC time (cron delivers it)' })
+  schedulePreAlert(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SchedulePreAlertDto,
+  ) {
+    return this.service.schedulePreAlert(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/whatsapp/status')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Send WhatsApp status stub (logged until WHATSAPP_ENABLED=true)' })
+  sendWhatsApp(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SendWhatsAppStatusDto,
+  ) {
+    return this.service.sendWhatsAppStatus(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/sub-jobs')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List operational sub-jobs under this parent' })
+  listSubJobs(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.listSubJobs(tenantId, id);
+  }
+
+  @Post(':id/sub-jobs')
+  @RequirePermissions(JOBS_PERMISSIONS.CREATE)
+  @ApiOperation({ summary: 'Create an operational sub-job under this parent' })
+  createSubJob(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateSubJobDto,
+  ) {
+    return this.service.createSubJob(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/payment-requests')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Create a payment request from job totals / parties' })
+  createPaymentRequestFromJob(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreatePaymentRequestFromJobDto,
+  ) {
+    return this.service.createPaymentRequestFromJob(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/documents/e-awb')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue E-AWB PDF generation' })
+  generateEawb(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'E_AWB', dto, actorId);
+  }
+
+  @Post(':id/documents/barcode-label')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue barcode label PDF' })
+  generateBarcodeLabel(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'BARCODE_LABEL', dto, actorId);
+  }
+
+  @Post(':id/documents/consignee-label')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue consignee label PDF' })
+  generateConsigneeLabel(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'CONSIGNEE_LABEL', dto, actorId);
+  }
+
+  @Post(':id/documents/job-costing')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue job costing sheet PDF' })
+  generateJobCosting(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'JOB_COSTING', dto, actorId);
+  }
+
+  @Post(':id/documents/freight-certificate')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue freight certificate PDF' })
+  generateFreightCertificate(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'FREIGHT_CERTIFICATE', dto, actorId);
+  }
+
   @Post(':id/containers')
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({ summary: 'Add a container to a Sea FCL job' })
@@ -871,5 +1008,279 @@ export class JobsController {
     @Param('recordId', ParseUUIDPipe) recordId: string,
   ) {
     await this.service.removeStuffingRecord(tenantId, id, recordId, actorId);
+  }
+
+  // ── Week 9 — Sea FCL Import (Ch.11) ────────────────────────────────────────
+
+  @Get(':id/free-days')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List per-container free days + demurrage/detention accrual (traffic light)' })
+  listFreeDays(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.seaFclImport.listFreeDays(tenantId, id);
+  }
+
+  @Post(':id/free-days')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Upsert free-days / demurrage rates for a container' })
+  upsertFreeDays(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpsertContainerFreeDaysDto,
+  ) {
+    return this.seaFclImport.upsertFreeDays(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/free-days/recalculate')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Recalculate demurrage + detention accruals for all containers on the job' })
+  recalculateDemurrage(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.seaFclImport.recalculateDemurrage(tenantId, id);
+  }
+
+  @Get(':id/deposits')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List customs / port deposits with expiry alert bands' })
+  listDeposits(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.seaFclImport.listDeposits(tenantId, id);
+  }
+
+  @Post(':id/deposits')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Create a customs or port deposit record' })
+  createDeposit(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateJobDepositDto,
+  ) {
+    return this.seaFclImport.createDeposit(tenantId, id, dto, actorId);
+  }
+
+  @Patch(':id/deposits/:depositId')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Update a deposit' })
+  updateDeposit(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('depositId', ParseUUIDPipe) depositId: string,
+    @Body() dto: UpdateJobDepositDto,
+  ) {
+    return this.seaFclImport.updateDeposit(tenantId, id, depositId, dto, actorId);
+  }
+
+  @Delete(':id/deposits/:depositId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Soft-delete a deposit' })
+  async removeDeposit(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('depositId', ParseUUIDPipe) depositId: string,
+  ) {
+    await this.seaFclImport.removeDeposit(tenantId, id, depositId, actorId);
+  }
+
+  @Patch(':id/customs-status')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Update customs clearance workflow (PENDING→FILED→QUERY→CLEARED→RELEASED)' })
+  updateCustomsStatus(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCustomsStatusDto,
+  ) {
+    return this.seaFclImport.updateCustomsStatus(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/containers/:containerId/return')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record container return to shipping line' })
+  returnContainer(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('containerId', ParseUUIDPipe) containerId: string,
+    @Body() dto: ReturnContainerDto,
+  ) {
+    return this.seaFclImport.returnContainer(tenantId, id, containerId, dto, actorId);
+  }
+
+  @Get(':id/part-deliveries')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List part deliveries' })
+  listPartDeliveries(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.seaFclImport.listPartDeliveries(tenantId, id);
+  }
+
+  @Post(':id/part-deliveries')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record a part delivery (remaining balance auto-calculated from job pieces)' })
+  createPartDelivery(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreatePartDeliveryDto,
+  ) {
+    return this.seaFclImport.createPartDelivery(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/pods')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List proofs of delivery' })
+  listPods(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.seaFclImport.listPods(tenantId, id);
+  }
+
+  @Post(':id/pods')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record proof of delivery' })
+  createPod(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateProofOfDeliveryDto,
+  ) {
+    return this.seaFclImport.createPod(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/damage-reports')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List damage reports' })
+  listDamageReports(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.seaFclImport.listDamageReports(tenantId, id);
+  }
+
+  @Post(':id/damage-reports')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Create a damage report (description + photo URLs + survey #)' })
+  createDamageReport(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateDamageReportDto,
+  ) {
+    return this.seaFclImport.createDamageReport(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/transhipment-link')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Link this FCL Import job to an outbound SEA_FCL_EXPORT job' })
+  linkTranshipment(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LinkTranshipmentDto,
+  ) {
+    return this.seaFclImport.linkTranshipment(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/cfs-storage/calculate')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Calculate CFS storage: days × rate_per_day from sea-fcl-details' })
+  calculateCfsStorage(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CalculateCfsStorageDto,
+  ) {
+    return this.seaFclImport.calculateCfsStorage(tenantId, id, dto);
+  }
+
+  @Post(':id/documents/pre-can')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Pre-CAN (pre-arrival notice) PDF' })
+  generatePreCan(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'PRE_CAN', dto, actorId);
+  }
+
+  @Post(':id/documents/can')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Cargo Arrival Notice (CAN) PDF and mark CAN_SENT' })
+  generateCan(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateImportDocument(tenantId, id, 'CAN', dto, actorId);
+  }
+
+  @Post(':id/documents/exchange-letter')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Exchange Letter PDF' })
+  generateExchangeLetter(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'EXCHANGE_LETTER', dto, actorId);
+  }
+
+  @Post(':id/documents/undertake-letter')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Undertake Letter PDF' })
+  generateUndertakeLetter(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'UNDERTAKE_LETTER', dto, actorId);
+  }
+
+  @Post(':id/documents/delivery-order')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Delivery Order PDF and mark DO_ISSUED' })
+  generateDeliveryOrder(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateImportDocument(tenantId, id, 'DELIVERY_ORDER', dto, actorId);
+  }
+
+  @Post(':id/documents/transport-request')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Transport Request PDF' })
+  generateTransportRequest(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'TRANSPORT_REQUEST', dto, actorId);
+  }
+
+  @Post(':id/documents/shipping-advice')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Shipping Advice PDF' })
+  generateShippingAdvice(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'SHIPPING_ADVICE', dto, actorId);
+  }
+
+  @Post(':id/documents/proof-of-delivery')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Proof of Delivery PDF' })
+  generatePodDocument(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'PROOF_OF_DELIVERY', dto, actorId);
   }
 }

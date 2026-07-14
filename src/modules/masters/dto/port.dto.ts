@@ -1,11 +1,11 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsLatitude, IsLongitude, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsEnum, IsLatitude, IsLongitude, IsOptional, IsString, Length, Matches } from 'class-validator';
 import { ShipmentMode } from '@prisma/client';
+import { IsCountryCode, IsUnLocode } from '../../../common/validators/input-format.validators';
 
 export class CreatePortDto {
   @ApiProperty({ example: 'AEJEA', description: 'UN/LOCODE' })
-  @IsString()
-  @Length(5, 10)
+  @IsUnLocode()
   un_locode!: string;
 
   @ApiProperty({ example: 'Jebel Ali' })
@@ -16,11 +16,11 @@ export class CreatePortDto {
   @ApiPropertyOptional({ example: 'Dubai' })
   @IsOptional()
   @IsString()
+  @Length(1, 100)
   city?: string;
 
   @ApiProperty({ example: 'AE' })
-  @IsString()
-  @Length(2, 2)
+  @IsCountryCode()
   country_code!: string;
 
   @ApiPropertyOptional({ enum: ShipmentMode, default: ShipmentMode.SEA })

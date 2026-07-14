@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 const BL_TYPES = ['Original', 'Seaway', 'Express Release', 'Surrendered'];
 const FREIGHT_TERMS = ['Prepaid', 'Collect', 'Third Party'];
@@ -142,6 +142,76 @@ export class UpdateSeaFclJobDetailDto {
   @IsOptional()
   @IsDateString()
   sailed_at?: string;
+
+  // ── Week 9 import fields ──────────────────────────────────────────────────
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  mbl_number_from_line?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  hbl_number_from_agent?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  actual_eta?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  customs_entry_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  customs_examination_details?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  customs_duty_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  customs_tax_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  customs_clearance_date?: string;
+
+  @ApiPropertyOptional({ enum: ['PENDING', 'FILED', 'QUERY', 'CLEARED', 'RELEASED'] })
+  @IsOptional()
+  @IsIn(['PENDING', 'FILED', 'QUERY', 'CLEARED', 'RELEASED'])
+  customs_status?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  customs_broker_id?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  linked_export_job_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cfs_storage_rate_per_day?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  cfs_storage_start_date?: string;
 }
 
 export class SubmitSiDto {

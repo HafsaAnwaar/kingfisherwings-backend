@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsCountryCode, IsSwiftCode } from '../../../common/validators/input-format.validators';
 
 export class CreateBankDto {
   @ApiProperty({ example: 'Emirates NBD' })
@@ -10,22 +11,23 @@ export class CreateBankDto {
   @ApiPropertyOptional({ example: 'ENBD' })
   @IsOptional()
   @IsString()
+  @Length(1, 50)
   short_name?: string;
 
   @ApiPropertyOptional({ example: 'EBILAEAD' })
   @IsOptional()
-  @IsString()
+  @IsSwiftCode()
   swift_code?: string;
 
   @ApiPropertyOptional({ example: 'AE07' })
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Z]{2}\d{2}$/, { message: 'iban_prefix must look like AE07' })
   iban_prefix?: string;
 
   @ApiPropertyOptional({ example: 'AE' })
   @IsOptional()
-  @IsString()
-  @Length(2, 2)
+  @IsCountryCode()
   country_code?: string;
 
   @ApiPropertyOptional({ default: true })

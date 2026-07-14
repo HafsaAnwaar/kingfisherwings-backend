@@ -6,6 +6,7 @@ import { JOBS_PERMISSION_CONSTANTS } from '../../modules/jobs/constants/jobs-per
 import { AWB_STOCK_PERMISSION_CONSTANTS } from '../../modules/awb-stock/constants/awb-stock-permission.constants';
 import { SEARCH_PERMISSION_CONSTANTS } from '../../modules/search/constants/search-permission.constants';
 import { INVOICES_PERMISSION_CONSTANTS } from '../../modules/invoices/constants/invoices-permission.constants';
+import { GL_PERMISSION_CONSTANTS } from '../../modules/gl/constants/gl-permission.constants';
 
 export interface PermissionCatalogEntry {
   module: string;
@@ -63,5 +64,10 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: INVOICES_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${INVOICES_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(GL_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: GL_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${GL_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
 ];

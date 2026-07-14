@@ -2,22 +2,23 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
-  IsEmail,
   IsEnum,
   IsInt,
   IsOptional,
   IsString,
   IsUUID,
-  IsPhoneNumber,
   IsTimeZone,
   Length,
   Max,
   Min,
   ArrayUnique,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 import { UserRole, UserStatus } from '@prisma/client';
 import { USERS_CONSTANTS } from '../constants/users.constants';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import { CountryCodeField, IsPhoneForCountry } from '../../../common/validators/country-aware.validators';
 
 const OFFICE_HOURS_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -40,7 +41,7 @@ export class CreateUserDto {
   // =====================================================
 
   @ApiProperty({ example: 'ahmed@kingfisherwings.com' })
-  @IsEmail()
+  @IsStrictEmail()
   email!: string;
 
   @ApiProperty({ example: 'Ahmed' })
@@ -55,8 +56,18 @@ export class CreateUserDto {
 
   @ApiPropertyOptional({ example: '+971501234567' })
   @IsOptional()
-  @IsPhoneNumber()
+  @IsPhoneForCountry({ countryField: 'preferred_country_code' })
   phone?: string;
+
+  @ApiPropertyOptional({
+    example: 'AE',
+    description: 'Optional. User can set/change preferred country anytime after login. Send null to clear.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @CountryCodeField()
+  preferred_country_code?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

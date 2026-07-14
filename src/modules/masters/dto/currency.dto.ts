@@ -1,10 +1,11 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { IsKnownCurrencyCode, NormalizeCurrencyCode } from '../../../common/validators/country-aware.validators';
 
 export class CreateCurrencyDto {
   @ApiProperty({ example: 'AED', description: 'ISO 4217' })
-  @IsString()
-  @Length(3, 3)
+  @NormalizeCurrencyCode()
+  @IsKnownCurrencyCode()
   code!: string;
 
   @ApiProperty({ example: 'UAE Dirham' })

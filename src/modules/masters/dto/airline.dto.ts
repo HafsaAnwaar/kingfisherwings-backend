@@ -1,22 +1,20 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUrl, Length } from 'class-validator';
+import { IsCountryCode, IsIata2Code, IsIcao3Code, IsAwbPrefix } from '../../../common/validators/input-format.validators';
 
 export class CreateAirlineDto {
   @ApiProperty({ example: 'EK', description: 'IATA 2-letter code' })
-  @IsString()
-  @Length(2, 2)
+  @IsIata2Code()
   iata_code!: string;
 
   @ApiPropertyOptional({ example: 'UAE', description: 'ICAO 3-letter code' })
   @IsOptional()
-  @IsString()
-  @Length(3, 3)
+  @IsIcao3Code()
   icao_code?: string;
 
   @ApiPropertyOptional({ example: '176', description: '3-digit AWB prefix' })
   @IsOptional()
-  @IsString()
-  @Length(3, 3)
+  @IsAwbPrefix()
   prefix_code?: string;
 
   @ApiProperty({ example: 'Emirates' })
@@ -26,8 +24,7 @@ export class CreateAirlineDto {
 
   @ApiPropertyOptional({ example: 'AE' })
   @IsOptional()
-  @IsString()
-  @Length(2, 2)
+  @IsCountryCode()
   country_code?: string;
 
   @ApiPropertyOptional({ default: true })

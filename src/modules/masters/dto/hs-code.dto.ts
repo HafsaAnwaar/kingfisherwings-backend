@@ -1,9 +1,10 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, Length, Max, Min, Matches } from 'class-validator';
 
 export class CreateHsCodeDto {
   @ApiProperty({ example: '8517.12' })
   @IsString()
+  @Matches(/^\d{4}(\.\d{2}){0,3}$/, { message: 'hs_code must look like 8517 or 8517.12' })
   @Length(4, 12)
   hs_code!: string;
 
@@ -34,6 +35,7 @@ export class CreateHsCodeDto {
   @ApiPropertyOptional({ example: 'UN3481' })
   @IsOptional()
   @IsString()
+  @Matches(/^UN\d{4}$/, { message: 'un_number must look like UN3481' })
   un_number?: string;
 
   @ApiPropertyOptional({ default: false })

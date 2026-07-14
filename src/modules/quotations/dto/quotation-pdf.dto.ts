@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { QuotationPdfMode } from '@prisma/client';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
 
 export class GenerateQuotationPdfDto {
   @ApiProperty({ enum: QuotationPdfMode, default: QuotationPdfMode.CUSTOMER })
@@ -16,12 +17,12 @@ export class GenerateQuotationPdfDto {
 
 export class SendQuotationEmailDto {
   @ApiProperty({ example: 'customer@example.com' })
-  @IsEmail()
+  @IsStrictEmail()
   to_email!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   cc_email?: string;
 
   @ApiPropertyOptional({ enum: QuotationPdfMode, default: QuotationPdfMode.CUSTOMER })

@@ -1,12 +1,19 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsInt, IsOptional, IsPhoneNumber, IsString, IsUrl, Length, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUrl, Length, Max, Min, ValidateIf } from 'class-validator';
+import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import {
+  CountryCodeField,
+  IsKnownCurrencyCode,
+  IsPhoneForCountry,
+  IsTaxIdForCountry,
+  IsTimezoneForCountry,
+  NormalizeCurrencyCode,
+} from '../../../common/validators/country-aware.validators';
 
 /**
- * Fields a tenant's own admin may edit about their organization.
- * Deliberately excludes: code, slug, domain, password_hash,
- * subscription_plan, status, trial/subscription dates, max_users,
- * max_branches, max_storage_gb, is_active, country_code — those stay
- * SuperAdmin-only via POST/PATCH /tenants.
+ * Fields a tenant's own admin may edit about their organization after login.
+ * country_code is optional — set, change, or clear (null) anytime.
+ * SuperAdmin-only fields (code, slug, subscription, limits) stay on POST/PATCH /tenants.
  */
 export class UpdateOrganizationProfileDto {
   @ApiPropertyOptional()
@@ -46,14 +53,24 @@ export class UpdateOrganizationProfileDto {
   @IsString()
   city?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    example: 'AE',
+    description: 'Optional. Changing country updates phone/tax validation rules. Send null to clear.',
+    nullable: true,
+  })
   @IsOptional()
-  @IsPhoneNumber()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @CountryCodeField()
+  country_code?: string | null;
+
+  @ApiPropertyOptional({ example: '+971501234567' })
+  @IsOptional()
+  @IsPhoneForCountry()
   phone?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
+  @IsStrictEmail()
   email?: string;
 
   @ApiPropertyOptional({ example: 'en' })
@@ -64,13 +81,13 @@ export class UpdateOrganizationProfileDto {
 
   @ApiPropertyOptional({ example: 'AED' })
   @IsOptional()
-  @IsString()
-  @Length(3, 3)
+  @NormalizeCurrencyCode()
+  @IsKnownCurrencyCode()
   base_currency?: string;
 
   @ApiPropertyOptional({ example: 'Asia/Dubai' })
   @IsOptional()
-  @IsString()
+  @IsTimezoneForCountry()
   timezone?: string;
 
   @ApiPropertyOptional({ minimum: 1, maximum: 12, description: 'Month the financial year starts (1=Jan).' })
@@ -82,7 +99,7 @@ export class UpdateOrganizationProfileDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsTaxIdForCountry()
   vat_number?: string;
 
   @ApiPropertyOptional()

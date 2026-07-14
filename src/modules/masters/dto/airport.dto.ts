@@ -1,16 +1,15 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsLatitude, IsLongitude, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsLatitude, IsLongitude, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsCountryCode, IsIata3Code, IsIcao4Code } from '../../../common/validators/input-format.validators';
 
 export class CreateAirportDto {
   @ApiProperty({ example: 'DXB', description: 'IATA code' })
-  @IsString()
-  @Length(3, 3)
+  @IsIata3Code()
   iata_code!: string;
 
   @ApiPropertyOptional({ example: 'OMDB', description: 'ICAO code' })
   @IsOptional()
-  @IsString()
-  @Length(4, 4)
+  @IsIcao4Code()
   icao_code?: string;
 
   @ApiProperty({ example: 'Dubai International Airport' })
@@ -21,11 +20,11 @@ export class CreateAirportDto {
   @ApiPropertyOptional({ example: 'Dubai' })
   @IsOptional()
   @IsString()
+  @Length(1, 100)
   city?: string;
 
   @ApiProperty({ example: 'AE' })
-  @IsString()
-  @Length(2, 2)
+  @IsCountryCode()
   country_code!: string;
 
   @ApiPropertyOptional()
@@ -41,6 +40,8 @@ export class CreateAirportDto {
   @ApiPropertyOptional({ example: 'Asia/Dubai' })
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Za-z_+\-/]+$/, { message: 'timezone must look like Asia/Dubai' })
+  @Length(3, 64)
   timezone?: string;
 
   @ApiPropertyOptional({ default: true })

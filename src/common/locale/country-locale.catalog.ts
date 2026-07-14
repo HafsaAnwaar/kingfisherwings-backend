@@ -1,0 +1,452 @@
+/**
+ * Country → operational locale defaults for freight SaaS.
+ * Phones are validated via libphonenumber-js against the ISO country.
+ * Currency / timezone / postal / tax patterns below drive defaults + format checks.
+ *
+ * Unknown countries still get ISO currency lookup when listed; phone validation
+ * falls back to generic E.164 if libphonenumber cannot resolve the region.
+ */
+
+export interface CountryLocaleProfile {
+  /** ISO 3166-1 alpha-2 */
+  countryCode: string;
+  /** International dialing prefix, e.g. +971 */
+  dialCode: string;
+  /** Primary / default ISO 4217 currency for the country */
+  defaultCurrency: string;
+  /** Preferred IANA timezones (first is default) */
+  timezones: string[];
+  /** Optional postal / ZIP pattern; omit = no strict check */
+  postalCodePattern?: RegExp;
+  /** Optional national tax / VAT / GST / EIN pattern */
+  taxIdPattern?: RegExp;
+  /** Human-readable tax label for error messages */
+  taxIdLabel?: string;
+}
+
+const re = (source: string, flags = 'i') => new RegExp(`^${source}$`, flags);
+
+/**
+ * Freight-relevant + common markets. Expand freely — lookup falls back to
+ * DEFAULT_CURRENCY_BY_COUNTRY then USD / Asia/Dubai.
+ */
+export const COUNTRY_LOCALE_PROFILES: Record<string, CountryLocaleProfile> = {
+  AE: {
+    countryCode: 'AE',
+    dialCode: '+971',
+    defaultCurrency: 'AED',
+    timezones: ['Asia/Dubai'],
+    postalCodePattern: re('\\d{5}'),
+    taxIdPattern: re('\\d{15}'),
+    taxIdLabel: 'UAE TRN (15 digits)',
+  },
+  SA: {
+    countryCode: 'SA',
+    dialCode: '+966',
+    defaultCurrency: 'SAR',
+    timezones: ['Asia/Riyadh'],
+    postalCodePattern: re('\\d{5}(-\\d{4})?'),
+    taxIdPattern: re('\\d{15}'),
+    taxIdLabel: 'KSA VAT number (15 digits)',
+  },
+  QA: {
+    countryCode: 'QA',
+    dialCode: '+974',
+    defaultCurrency: 'QAR',
+    timezones: ['Asia/Qatar'],
+  },
+  KW: {
+    countryCode: 'KW',
+    dialCode: '+965',
+    defaultCurrency: 'KWD',
+    timezones: ['Asia/Kuwait'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  BH: {
+    countryCode: 'BH',
+    dialCode: '+973',
+    defaultCurrency: 'BHD',
+    timezones: ['Asia/Bahrain'],
+  },
+  OM: {
+    countryCode: 'OM',
+    dialCode: '+968',
+    defaultCurrency: 'OMR',
+    timezones: ['Asia/Muscat'],
+    postalCodePattern: re('\\d{3}'),
+  },
+  IN: {
+    countryCode: 'IN',
+    dialCode: '+91',
+    defaultCurrency: 'INR',
+    timezones: ['Asia/Kolkata'],
+    postalCodePattern: re('\\d{6}'),
+    taxIdPattern: re('[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]'),
+    taxIdLabel: 'GSTIN',
+  },
+  PK: {
+    countryCode: 'PK',
+    dialCode: '+92',
+    defaultCurrency: 'PKR',
+    timezones: ['Asia/Karachi'],
+    postalCodePattern: re('\\d{5}'),
+    taxIdPattern: re('\\d{7}-\\d'),
+    taxIdLabel: 'NTN',
+  },
+  BD: {
+    countryCode: 'BD',
+    dialCode: '+880',
+    defaultCurrency: 'BDT',
+    timezones: ['Asia/Dhaka'],
+    postalCodePattern: re('\\d{4}'),
+  },
+  CN: {
+    countryCode: 'CN',
+    dialCode: '+86',
+    defaultCurrency: 'CNY',
+    timezones: ['Asia/Shanghai'],
+    postalCodePattern: re('\\d{6}'),
+  },
+  HK: {
+    countryCode: 'HK',
+    dialCode: '+852',
+    defaultCurrency: 'HKD',
+    timezones: ['Asia/Hong_Kong'],
+  },
+  SG: {
+    countryCode: 'SG',
+    dialCode: '+65',
+    defaultCurrency: 'SGD',
+    timezones: ['Asia/Singapore'],
+    postalCodePattern: re('\\d{6}'),
+    taxIdPattern: re('(GST)?\\d{8,10}[A-Z]?'),
+    taxIdLabel: 'GST registration number',
+  },
+  MY: {
+    countryCode: 'MY',
+    dialCode: '+60',
+    defaultCurrency: 'MYR',
+    timezones: ['Asia/Kuala_Lumpur'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  TH: {
+    countryCode: 'TH',
+    dialCode: '+66',
+    defaultCurrency: 'THB',
+    timezones: ['Asia/Bangkok'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  VN: {
+    countryCode: 'VN',
+    dialCode: '+84',
+    defaultCurrency: 'VND',
+    timezones: ['Asia/Ho_Chi_Minh'],
+    postalCodePattern: re('\\d{5,6}'),
+  },
+  ID: {
+    countryCode: 'ID',
+    dialCode: '+62',
+    defaultCurrency: 'IDR',
+    timezones: ['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  PH: {
+    countryCode: 'PH',
+    dialCode: '+63',
+    defaultCurrency: 'PHP',
+    timezones: ['Asia/Manila'],
+    postalCodePattern: re('\\d{4}'),
+  },
+  JP: {
+    countryCode: 'JP',
+    dialCode: '+81',
+    defaultCurrency: 'JPY',
+    timezones: ['Asia/Tokyo'],
+    postalCodePattern: re('\\d{3}-?\\d{4}'),
+  },
+  KR: {
+    countryCode: 'KR',
+    dialCode: '+82',
+    defaultCurrency: 'KRW',
+    timezones: ['Asia/Seoul'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  US: {
+    countryCode: 'US',
+    dialCode: '+1',
+    defaultCurrency: 'USD',
+    timezones: ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles'],
+    postalCodePattern: re('\\d{5}(-\\d{4})?'),
+    taxIdPattern: re('\\d{2}-?\\d{7}'),
+    taxIdLabel: 'EIN',
+  },
+  CA: {
+    countryCode: 'CA',
+    dialCode: '+1',
+    defaultCurrency: 'CAD',
+    timezones: ['America/Toronto', 'America/Vancouver'],
+    postalCodePattern: re('[A-Z]\\d[A-Z]\\s?\\d[A-Z]\\d'),
+    taxIdPattern: re('\\d{9}(RT\\d{4})?'),
+    taxIdLabel: 'BN / GST number',
+  },
+  GB: {
+    countryCode: 'GB',
+    dialCode: '+44',
+    defaultCurrency: 'GBP',
+    timezones: ['Europe/London'],
+    postalCodePattern: re('[A-Z]{1,2}\\d[A-Z\\d]?\\s?\\d[A-Z]{2}'),
+    taxIdPattern: re('(GB)?\\d{9}|GB\\d{12}|GBGD\\d{3}|GBHA\\d{3}'),
+    taxIdLabel: 'UK VAT number',
+  },
+  DE: {
+    countryCode: 'DE',
+    dialCode: '+49',
+    defaultCurrency: 'EUR',
+    timezones: ['Europe/Berlin'],
+    postalCodePattern: re('\\d{5}'),
+    taxIdPattern: re('(DE)?\\d{9}'),
+    taxIdLabel: 'USt-IdNr',
+  },
+  FR: {
+    countryCode: 'FR',
+    dialCode: '+33',
+    defaultCurrency: 'EUR',
+    timezones: ['Europe/Paris'],
+    postalCodePattern: re('\\d{5}'),
+    taxIdPattern: re('(FR)?[A-Z0-9]{2}\\d{9}'),
+    taxIdLabel: 'TVA intracommunautaire',
+  },
+  NL: {
+    countryCode: 'NL',
+    dialCode: '+31',
+    defaultCurrency: 'EUR',
+    timezones: ['Europe/Amsterdam'],
+    postalCodePattern: re('\\d{4}\\s?[A-Z]{2}'),
+    taxIdPattern: re('(NL)?\\d{9}B\\d{2}'),
+    taxIdLabel: 'BTW-nummer',
+  },
+  BE: {
+    countryCode: 'BE',
+    dialCode: '+32',
+    defaultCurrency: 'EUR',
+    timezones: ['Europe/Brussels'],
+    postalCodePattern: re('\\d{4}'),
+    taxIdPattern: re('(BE)?0?\\d{9}'),
+    taxIdLabel: 'BTW / TVA',
+  },
+  IT: {
+    countryCode: 'IT',
+    dialCode: '+39',
+    defaultCurrency: 'EUR',
+    timezones: ['Europe/Rome'],
+    postalCodePattern: re('\\d{5}'),
+    taxIdPattern: re('(IT)?\\d{11}'),
+    taxIdLabel: 'Partita IVA',
+  },
+  ES: {
+    countryCode: 'ES',
+    dialCode: '+34',
+    defaultCurrency: 'EUR',
+    timezones: ['Europe/Madrid'],
+    postalCodePattern: re('\\d{5}'),
+    taxIdPattern: re('(ES)?[A-Z0-9]\\d{7}[A-Z0-9]'),
+    taxIdLabel: 'NIF / CIF / VAT',
+  },
+  TR: {
+    countryCode: 'TR',
+    dialCode: '+90',
+    defaultCurrency: 'TRY',
+    timezones: ['Europe/Istanbul'],
+    postalCodePattern: re('\\d{5}'),
+    taxIdPattern: re('\\d{10}'),
+    taxIdLabel: 'Vergi numarası',
+  },
+  EG: {
+    countryCode: 'EG',
+    dialCode: '+20',
+    defaultCurrency: 'EGP',
+    timezones: ['Africa/Cairo'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  ZA: {
+    countryCode: 'ZA',
+    dialCode: '+27',
+    defaultCurrency: 'ZAR',
+    timezones: ['Africa/Johannesburg'],
+    postalCodePattern: re('\\d{4}'),
+  },
+  NG: {
+    countryCode: 'NG',
+    dialCode: '+234',
+    defaultCurrency: 'NGN',
+    timezones: ['Africa/Lagos'],
+    postalCodePattern: re('\\d{6}'),
+  },
+  KE: {
+    countryCode: 'KE',
+    dialCode: '+254',
+    defaultCurrency: 'KES',
+    timezones: ['Africa/Nairobi'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  AU: {
+    countryCode: 'AU',
+    dialCode: '+61',
+    defaultCurrency: 'AUD',
+    timezones: ['Australia/Sydney', 'Australia/Melbourne', 'Australia/Perth'],
+    postalCodePattern: re('\\d{4}'),
+    taxIdPattern: re('\\d{2}\\s?\\d{3}\\s?\\d{3}\\s?\\d{3}'),
+    taxIdLabel: 'ABN',
+  },
+  NZ: {
+    countryCode: 'NZ',
+    dialCode: '+64',
+    defaultCurrency: 'NZD',
+    timezones: ['Pacific/Auckland'],
+    postalCodePattern: re('\\d{4}'),
+  },
+  BR: {
+    countryCode: 'BR',
+    dialCode: '+55',
+    defaultCurrency: 'BRL',
+    timezones: ['America/Sao_Paulo'],
+    postalCodePattern: re('\\d{5}-?\\d{3}'),
+    taxIdPattern: re('\\d{14}|\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}'),
+    taxIdLabel: 'CNPJ',
+  },
+  MX: {
+    countryCode: 'MX',
+    dialCode: '+52',
+    defaultCurrency: 'MXN',
+    timezones: ['America/Mexico_City'],
+    postalCodePattern: re('\\d{5}'),
+    taxIdPattern: re('[A-Z&Ñ]{3,4}\\d{6}[A-Z0-9]{3}'),
+    taxIdLabel: 'RFC',
+  },
+  CH: {
+    countryCode: 'CH',
+    dialCode: '+41',
+    defaultCurrency: 'CHF',
+    timezones: ['Europe/Zurich'],
+    postalCodePattern: re('\\d{4}'),
+    taxIdPattern: re('(CHE-)?\\d{3}\\.?\\d{3}\\.?\\d{3}(MWST|TVA|IVA)?'),
+    taxIdLabel: 'UID / MWST',
+  },
+  SE: {
+    countryCode: 'SE',
+    dialCode: '+46',
+    defaultCurrency: 'SEK',
+    timezones: ['Europe/Stockholm'],
+    postalCodePattern: re('\\d{3}\\s?\\d{2}'),
+    taxIdPattern: re('(SE)?\\d{12}'),
+    taxIdLabel: 'Momsregistreringsnummer',
+  },
+  NO: {
+    countryCode: 'NO',
+    dialCode: '+47',
+    defaultCurrency: 'NOK',
+    timezones: ['Europe/Oslo'],
+    postalCodePattern: re('\\d{4}'),
+  },
+  DK: {
+    countryCode: 'DK',
+    dialCode: '+45',
+    defaultCurrency: 'DKK',
+    timezones: ['Europe/Copenhagen'],
+    postalCodePattern: re('\\d{4}'),
+  },
+  PL: {
+    countryCode: 'PL',
+    dialCode: '+48',
+    defaultCurrency: 'PLN',
+    timezones: ['Europe/Warsaw'],
+    postalCodePattern: re('\\d{2}-\\d{3}'),
+    taxIdPattern: re('(PL)?\\d{10}'),
+    taxIdLabel: 'NIP',
+  },
+  RU: {
+    countryCode: 'RU',
+    dialCode: '+7',
+    defaultCurrency: 'RUB',
+    timezones: ['Europe/Moscow'],
+    postalCodePattern: re('\\d{6}'),
+  },
+  LK: {
+    countryCode: 'LK',
+    dialCode: '+94',
+    defaultCurrency: 'LKR',
+    timezones: ['Asia/Colombo'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  JO: {
+    countryCode: 'JO',
+    dialCode: '+962',
+    defaultCurrency: 'JOD',
+    timezones: ['Asia/Amman'],
+    postalCodePattern: re('\\d{5}'),
+  },
+  LB: {
+    countryCode: 'LB',
+    dialCode: '+961',
+    defaultCurrency: 'LBP',
+    timezones: ['Asia/Beirut'],
+  },
+  IQ: {
+    countryCode: 'IQ',
+    dialCode: '+964',
+    defaultCurrency: 'IQD',
+    timezones: ['Asia/Baghdad'],
+  },
+};
+
+/** ISO 4217 codes we accept platform-wide (masters + documents). */
+export const KNOWN_CURRENCY_CODES = new Set([
+  'AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN',
+  'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL',
+  'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY',
+  'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP',
+  'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD',
+  'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HRK', 'HTG', 'HUF', 'IDR', 'ILS',
+  'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR',
+  'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD',
+  'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU',
+  'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK',
+  'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG',
+  'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK',
+  'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB',
+  'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX',
+  'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF',
+  'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL',
+]);
+
+/**
+ * Sparse fallback: ISO2 → default currency when no rich profile exists.
+ * Built from common UN / ISO mappings for freight corridors.
+ */
+export const DEFAULT_CURRENCY_BY_COUNTRY: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.values(COUNTRY_LOCALE_PROFILES).map((p) => [p.countryCode, p.defaultCurrency]),
+  ),
+  AF: 'AFN', AL: 'ALL', AM: 'AMD', AO: 'AOA', AR: 'ARS', AT: 'EUR',
+  AZ: 'AZN', BA: 'BAM', BB: 'BBD', BG: 'BGN', BI: 'BIF', BJ: 'XOF',
+  BO: 'BOB', BS: 'BSD', BT: 'BTN', BW: 'BWP', BY: 'BYN', BZ: 'BZD',
+  CD: 'CDF', CG: 'XAF', CI: 'XOF', CL: 'CLP', CM: 'XAF', CO: 'COP',
+  CR: 'CRC', CU: 'CUP', CY: 'EUR', CZ: 'CZK', DJ: 'DJF', DO: 'DOP',
+  DZ: 'DZD', EC: 'USD', EE: 'EUR', ER: 'ERN', ET: 'ETB', FI: 'EUR',
+  FJ: 'FJD', GA: 'XAF', GE: 'GEL', GH: 'GHS', GM: 'GMD', GN: 'GNF',
+  GR: 'EUR', GT: 'GTQ', GY: 'GYD', HN: 'HNL', HR: 'EUR', HT: 'HTG',
+  HU: 'HUF', IE: 'EUR', IL: 'ILS', IR: 'IRR', IS: 'ISK', JM: 'JMD',
+  KG: 'KGS', KH: 'KHR', KM: 'KMF', KN: 'XCD', KP: 'KPW', KY: 'KYD',
+  KZ: 'KZT', LA: 'LAK', LI: 'CHF', LR: 'LRD', LS: 'LSL', LT: 'EUR',
+  LU: 'EUR', LV: 'EUR', LY: 'LYD', MA: 'MAD', MD: 'MDL', ME: 'EUR',
+  MG: 'MGA', MK: 'MKD', ML: 'XOF', MM: 'MMK', MN: 'MNT', MO: 'MOP',
+  MR: 'MRU', MT: 'EUR', MU: 'MUR', MV: 'MVR', MW: 'MWK', MZ: 'MZN',
+  NA: 'NAD', NE: 'XOF', NI: 'NIO', NP: 'NPR', PA: 'PAB', PE: 'PEN',
+  PG: 'PGK', PR: 'USD', PT: 'EUR', PY: 'PYG', RO: 'RON', RS: 'RSD',
+  RW: 'RWF', SC: 'SCR', SD: 'SDG', SI: 'EUR', SK: 'EUR', SL: 'SLE',
+  SN: 'XOF', SO: 'SOS', SR: 'SRD', SS: 'SSP', SY: 'SYP', SZ: 'SZL',
+  TD: 'XAF', TG: 'XOF', TJ: 'TJS', TM: 'TMT', TN: 'TND', TO: 'TOP',
+  TT: 'TTD', TW: 'TWD', TZ: 'TZS', UA: 'UAH', UG: 'UGX', UY: 'UYU',
+  UZ: 'UZS', VE: 'VES', VU: 'VUV', WS: 'WST', YE: 'YER', ZM: 'ZMW',
+  ZW: 'ZWL',
+};
