@@ -1,7 +1,7 @@
 // src/modules/auth/auth.controller.ts
 
 import { Controller, Post, Get, Patch, Body, Req, Param, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { UserRole } from '@prisma/client';
 

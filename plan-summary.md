@@ -60,15 +60,16 @@ Backend repo state assessed against implemented modules (`src/app.module.ts`, co
 | **8** | 10, 16 | **Done** | HBL/MBL/FIATA + Switch/Proxy/Back-to-Back/Rider BL PDFs; surrender notice, SI, stuffing/sailing/transhipment; job card/P&L/proforma/manifests; finalize locks BL |
 | **9** | 11 | **Done** | FCL import fields on `sea_fcl_job_details`; free days + demurrage/detention; deposits; customs status; POD/part delivery/damage; transhipment link; CFS storage; 14 import milestones; 8 import document PDFs; daily demurrage cron |
 | **10** | 18 | **Done** | `invoices`, credit notes, purchase invoices, payment requests |
-| **11** | 17, 19 | **In progress** | Chart of Accounts + vouchers (draft/post/reverse), account ledger, trial balance; charge-code → GL account FKs. Still open: full AR/AP aging, bank recon, cheques/PDC, CCP/VPP, auto-post from invoices |
+| **11** | 17, 19 | **Done** | COA + vouchers; invoice→GL auto-post; AR/AP aging + statements; payments/allocations; cheques/PDC; bank recon + bank transfers. Still open (portals): CCP/VPP |
+| **12** | 17, 20, 23 | **Done** | Trial balance, Balance Sheet, P&L, Cash Flow, UAE VAT return; MIS dashboard / profitability / operational KPIs; My Reports (saved report configs). **Phase 1 MVP finance path complete.** |
 
 ### What's next
 
-1. Finish **Week 11** — AR/AP aging, bank reconciliation, payment/receipt voucher matching, invoice→GL auto-post.
-2. Apply migrations locally including `20260714160000_gl_chart_of_accounts_vouchers`.
-3. After deploy: `POST /tenants/:id/sync-permissions` (or equivalent) so existing tenants get `gl.*` permissions.
+1. Start **Week 13** — Customer portal / Track & Trace / notifications (or Air Import if ops-first).
+2. Apply migrations including `20260715160000_financial_mis_reports_week12`.
+3. After deploy: `POST /tenants/:id/sync-permissions` for new `gl.view_reports` / `gl.manage_reports`.
 
-**Phase 1 MVP target (per PDF):** Air Export + Sea FCL Export/Import + Full Finance + MIS Dashboard (through Week 12).
+**Phase 1 MVP target (per PDF):** Air Export + Sea FCL Export/Import + Full Finance + MIS Dashboard (through Week 12) — **backend complete**.
 
 ---
 

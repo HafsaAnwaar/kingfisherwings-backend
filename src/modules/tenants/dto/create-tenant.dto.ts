@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 
 import { SubscriptionPlan, TenantStatus } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsStrongPassword } from '../../users/validators/password.validator';
 import { IsStrictEmail } from '../../../common/validators/input-format.validators';
 import {
@@ -47,6 +48,11 @@ export class CreateTenantDto {
   @Length(3, 200)
   display_name?: string;
 
+  @ApiProperty({
+    example: 'kingfisher-wings',
+    description: 'URL-safe tenant identifier (lowercase letters, digits, hyphens)',
+    pattern: '^[a-z0-9-]+$',
+  })
   @IsString()
   @Length(3, 100)
   @Matches(/^[a-z0-9-]+$/)

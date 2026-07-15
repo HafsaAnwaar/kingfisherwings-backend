@@ -38,6 +38,11 @@ export class CreateTenantBankAccountDto {
   @IsUUID()
   branch_id?: string;
 
+  @ApiPropertyOptional({ format: 'uuid', description: 'Linked Chart of Accounts bank ledger account' })
+  @IsOptional()
+  @IsUUID()
+  gl_account_id?: string;
+
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()

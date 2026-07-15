@@ -339,6 +339,45 @@ enum VoucherStatus {
   CANCELLED
 }
 
+/// Customer receipt vs vendor payment (Ch.19)
+enum PaymentDirection {
+  RECEIPT
+  PAYMENT
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  CREDIT_CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum ChequeType {
+  RECEIVABLE
+  PAYABLE
+}
+
+enum ChequeStatus {
+  PENDING
+  DEPOSITED
+  CLEARED
+  BOUNCED
+  CANCELLED
+}
+
+enum BankReconciliationStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
 enum ContainerStatus {
   EMPTY
   STUFFED
@@ -498,6 +537,10 @@ model Company {
   invoices     Invoice[]
   chart_of_accounts ChartOfAccount[]
   vouchers     Voucher[]
+  payments     Payment[]
+  cheques      Cheque[]
+  bank_reconciliations BankReconciliation[]
+  saved_reports SavedReport[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -518,6 +561,8 @@ model TenantBankAccount {
   swift_code     String?   @db.VarChar(20)
   currency_code  String    @default("AED") @db.Char(3)
   branch_id      String?   @db.Uuid
+  /// Optional link to a Chart of Accounts bank ledger account (Ch.19)
+  gl_account_id  String?   @db.Uuid
   is_default     Boolean   @default(false)
   is_active      Boolean   @default(true)
   created_at     DateTime  @default(now()) @db.Timestamptz
@@ -526,9 +571,14 @@ model TenantBankAccount {
   updated_by     String?   @db.Uuid
   deleted_at     DateTime? @db.Timestamptz
 
-  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  tenant      Tenant          @relation(fields: [tenant_id], references: [id])
+  gl_account  ChartOfAccount? @relation("BankAccountGlLink", fields: [gl_account_id], references: [id])
+  payments    Payment[]
+  cheques     Cheque[]
+  reconciliations BankReconciliation[]
 
   @@index([tenant_id])
+  @@index([tenant_id, gl_account_id])
   @@map("tenant_bank_accounts")
 }
 
@@ -547,6 +597,7 @@ enum DocumentNumberType {
   GRN
   GDO
   PURCHASE_INVOICE
+  PAYMENT
 }
 
 enum DocumentNumberResetFrequency {
@@ -1549,6 +1600,8 @@ model Party {
   payment_requests PaymentRequest[]
   vouchers         Voucher[]
   voucher_lines    VoucherLine[]
+  payments         Payment[]
+  cheques          Cheque[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -2606,6 +2659,7 @@ model Invoice {
   lines            InvoiceLine[]
   payment_requests PaymentRequest[]
   vouchers         Voucher[]
+  payment_allocations PaymentAllocation[]
 
   @@unique([tenant_id, invoice_number])
   @@index([tenant_id])
@@ -2722,6 +2776,10 @@ model ChartOfAccount {
   voucher_lines VoucherLine[]
   charge_codes_revenue ChargeCode[] @relation("ChargeRevenueAccount")
   charge_codes_cost    ChargeCode[] @relation("ChargeCostAccount")
+  bank_accounts        TenantBankAccount[] @relation("BankAccountGlLink")
+  payments_as_gl       Payment[]           @relation("PaymentGlAccount")
+  reconciliation_lines BankReconciliationLine[]
+  reconciliations      BankReconciliation[] @relation("ReconGlAccount")
 
   @@unique([tenant_id, account_code])
   @@index([tenant_id])
@@ -2766,6 +2824,8 @@ model Voucher {
   reversal_of  Voucher?  @relation("VoucherReversal", fields: [reversal_of_id], references: [id])
   reversals    Voucher[] @relation("VoucherReversal")
   lines        VoucherLine[]
+  payments     Payment[]
+  reconciliation_lines BankReconciliationLine[]
 
   @@unique([tenant_id, voucher_number])
   @@index([tenant_id])
@@ -2810,6 +2870,220 @@ model VoucherLine {
   @@index([tenant_id, account_id])
   @@index([tenant_id, party_id])
   @@map("voucher_lines")
+}
+
+// =====================================================
+// ACCOUNTING — AR / AP / Payments / Cheques / Bank Recon (Ch.19)
+// =====================================================
+
+model Payment {
+  id                   String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String           @db.Uuid
+  company_id           String?          @db.Uuid
+  branch_id            String?          @db.Uuid
+  payment_number       String           @db.VarChar(40)
+  direction            PaymentDirection
+  payment_method       PaymentMethod    @default(BANK_TRANSFER)
+  status               PaymentStatus    @default(DRAFT)
+  payment_date         DateTime         @default(now()) @db.Date
+  party_id             String           @db.Uuid
+  amount               Decimal          @db.Decimal(18, 4)
+  currency_code        String           @db.Char(3)
+  exchange_rate        Decimal          @default(1) @db.Decimal(20, 8)
+  amount_base          Decimal          @default(0) @db.Decimal(18, 4)
+  unallocated_amount   Decimal          @default(0) @db.Decimal(18, 4)
+  bank_account_id      String?          @db.Uuid
+  gl_account_id        String?          @db.Uuid
+  cheque_id            String?          @unique @db.Uuid
+  voucher_id           String?          @unique @db.Uuid
+  reference_number     String?          @db.VarChar(100)
+  narration            String?          @db.Text
+  posted_at            DateTime?        @db.Timestamptz
+  posted_by            String?          @db.Uuid
+  created_at           DateTime         @default(now()) @db.Timestamptz
+  updated_at           DateTime         @updatedAt @db.Timestamptz
+  created_by           String?          @db.Uuid
+  updated_by           String?          @db.Uuid
+  deleted_at           DateTime?        @db.Timestamptz
+
+  company      Company?          @relation(fields: [company_id], references: [id])
+  party        Party             @relation(fields: [party_id], references: [id])
+  bank_account TenantBankAccount? @relation(fields: [bank_account_id], references: [id])
+  gl_account   ChartOfAccount?   @relation("PaymentGlAccount", fields: [gl_account_id], references: [id])
+  cheque       Cheque?           @relation(fields: [cheque_id], references: [id])
+  voucher      Voucher?          @relation(fields: [voucher_id], references: [id])
+  allocations  PaymentAllocation[]
+
+  @@unique([tenant_id, payment_number])
+  @@index([tenant_id])
+  @@index([tenant_id, direction])
+  @@index([tenant_id, status])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, payment_date])
+  @@map("payments")
+}
+
+model PaymentAllocation {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  payment_id  String    @db.Uuid
+  invoice_id  String    @db.Uuid
+  amount      Decimal   @db.Decimal(18, 4)
+  created_at  DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @updatedAt @db.Timestamptz
+  created_by  String?   @db.Uuid
+  updated_by  String?   @db.Uuid
+  deleted_at  DateTime? @db.Timestamptz
+
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoice_id], references: [id])
+
+  @@unique([payment_id, invoice_id])
+  @@index([tenant_id])
+  @@index([tenant_id, payment_id])
+  @@index([tenant_id, invoice_id])
+  @@map("payment_allocations")
+}
+
+model Cheque {
+  id               String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String       @db.Uuid
+  company_id       String?      @db.Uuid
+  cheque_number    String       @db.VarChar(50)
+  cheque_type      ChequeType
+  status           ChequeStatus @default(PENDING)
+  party_id         String       @db.Uuid
+  bank_account_id  String?      @db.Uuid
+  bank_name        String?      @db.VarChar(200)
+  amount           Decimal      @db.Decimal(18, 4)
+  currency_code    String       @db.Char(3)
+  cheque_date      DateTime     @db.Date
+  due_date         DateTime?    @db.Date
+  is_pdc           Boolean      @default(false)
+  deposited_at     DateTime?    @db.Timestamptz
+  cleared_at       DateTime?    @db.Timestamptz
+  bounced_at       DateTime?    @db.Timestamptz
+  bounce_reason    String?      @db.VarChar(500)
+  remarks          String?      @db.Text
+  created_at       DateTime     @default(now()) @db.Timestamptz
+  updated_at       DateTime     @updatedAt @db.Timestamptz
+  created_by       String?      @db.Uuid
+  updated_by       String?      @db.Uuid
+  deleted_at       DateTime?    @db.Timestamptz
+
+  company      Company?           @relation(fields: [company_id], references: [id])
+  party        Party              @relation(fields: [party_id], references: [id])
+  bank_account TenantBankAccount? @relation(fields: [bank_account_id], references: [id])
+  payment      Payment?
+
+  @@unique([tenant_id, cheque_number, cheque_type])
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, due_date])
+  @@index([tenant_id, is_pdc])
+  @@map("cheques")
+}
+
+model BankReconciliation {
+  id                  String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String                   @db.Uuid
+  company_id          String?                  @db.Uuid
+  bank_account_id     String?                  @db.Uuid
+  gl_account_id       String                   @db.Uuid
+  statement_date      DateTime                 @db.Date
+  statement_balance   Decimal                  @db.Decimal(18, 4)
+  book_balance        Decimal                  @default(0) @db.Decimal(18, 4)
+  status              BankReconciliationStatus @default(DRAFT)
+  remarks             String?                  @db.Text
+  completed_at        DateTime?                @db.Timestamptz
+  completed_by        String?                  @db.Uuid
+  created_at          DateTime                 @default(now()) @db.Timestamptz
+  updated_at          DateTime                 @updatedAt @db.Timestamptz
+  created_by          String?                  @db.Uuid
+  updated_by          String?                  @db.Uuid
+  deleted_at          DateTime?                @db.Timestamptz
+
+  company      Company?           @relation(fields: [company_id], references: [id])
+  bank_account TenantBankAccount? @relation(fields: [bank_account_id], references: [id])
+  gl_account   ChartOfAccount     @relation("ReconGlAccount", fields: [gl_account_id], references: [id])
+  lines        BankReconciliationLine[]
+
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, gl_account_id])
+  @@index([tenant_id, statement_date])
+  @@map("bank_reconciliations")
+}
+
+model BankReconciliationLine {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String    @db.Uuid
+  reconciliation_id  String    @db.Uuid
+  voucher_id         String?   @db.Uuid
+  voucher_line_id    String?   @db.Uuid
+  account_id         String?   @db.Uuid
+  txn_date           DateTime  @db.Date
+  description        String?   @db.VarChar(500)
+  debit_amount       Decimal   @default(0) @db.Decimal(18, 4)
+  credit_amount      Decimal   @default(0) @db.Decimal(18, 4)
+  is_matched         Boolean   @default(false)
+  statement_ref      String?   @db.VarChar(100)
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @updatedAt @db.Timestamptz
+  created_by         String?   @db.Uuid
+  updated_by         String?   @db.Uuid
+  deleted_at         DateTime? @db.Timestamptz
+
+  reconciliation BankReconciliation @relation(fields: [reconciliation_id], references: [id], onDelete: Cascade)
+  voucher        Voucher?           @relation(fields: [voucher_id], references: [id])
+  account        ChartOfAccount?    @relation(fields: [account_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([tenant_id, reconciliation_id])
+  @@index([tenant_id, voucher_id])
+  @@map("bank_reconciliation_lines")
+}
+
+// =====================================================
+// ACCOUNTING — Financial / MIS reports (Ch.20 / Ch.23 / Week 12)
+// =====================================================
+
+enum SavedReportType {
+  BALANCE_SHEET
+  PROFIT_AND_LOSS
+  CASH_FLOW
+  TRIAL_BALANCE
+  VAT_RETURN
+  AR_AGING
+  AP_AGING
+  JOB_PROFITABILITY
+  MIS_DASHBOARD
+  CUSTOM
+}
+
+model SavedReport {
+  id           String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String          @db.Uuid
+  company_id   String?         @db.Uuid
+  name         String          @db.VarChar(200)
+  report_type  SavedReportType
+  description  String?         @db.Text
+  /// Stored filter payload (dates, party_id, job_type, etc.)
+  filters      Json            @default("{}")
+  is_shared    Boolean         @default(false)
+  created_at   DateTime        @default(now()) @db.Timestamptz
+  updated_at   DateTime        @updatedAt @db.Timestamptz
+  created_by   String?         @db.Uuid
+  updated_by   String?         @db.Uuid
+  deleted_at   DateTime?       @db.Timestamptz
+
+  company Company? @relation(fields: [company_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([tenant_id, report_type])
+  @@index([tenant_id, created_by])
+  @@map("saved_reports")
 }
 
 // =====================================================

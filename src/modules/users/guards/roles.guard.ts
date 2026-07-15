@@ -9,18 +9,28 @@ import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { AuthenticatedRequest } from '../interfaces/current-user.interface';
 import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
+import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
 
 /**
  * Requires request.user to be populated by the Auth module's
- * JwtAuthGuard, which must run before this guard in the guard chain
- * (e.g. @UseGuards(JwtAuthGuard, RolesGuard)). Fails closed if absent.
- * A SuperAdmin principal bypasses this check entirely.
+ * JwtAuthGuard, which must run before this guard in the guard chain.
+ * Fails closed if absent. SuperAdmin bypasses role checks.
+ * Routes marked @Public() are skipped so public widgets work under
+ * controller-level @UseGuards(RolesGuard, ...).
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) {
+      return true;
+    }
+
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),

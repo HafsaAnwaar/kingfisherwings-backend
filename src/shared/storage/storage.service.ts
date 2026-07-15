@@ -74,6 +74,26 @@ export class StorageService {
   }
 
   resolveLocalPath(tenantId: string, filename: string): string {
-    return path.join(this.root, tenantId, filename);
+    // Reject path traversal / absolute paths — only a bare file name is allowed.
+    const safeName = path.basename(filename.replace(/\\/g, '/'));
+    if (
+      !safeName ||
+      safeName === '.' ||
+      safeName === '..' ||
+      safeName.includes('\0') ||
+      filename.includes('..')
+    ) {
+      throw new Error('Invalid filename.');
+    }
+
+    const rootResolved = path.resolve(this.root);
+    const tenantDir = path.resolve(rootResolved, tenantId);
+    const filePath = path.resolve(tenantDir, safeName);
+
+    if (!filePath.startsWith(tenantDir + path.sep) && filePath !== tenantDir) {
+      throw new Error('Invalid filename.');
+    }
+
+    return filePath;
   }
 }
