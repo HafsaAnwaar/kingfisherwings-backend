@@ -187,12 +187,11 @@ export class AuthService {
 
   // =====================================================
   // SUPER ADMIN SIGNUP
+  // =====================================================
+  // SUPER ADMIN SIGNUP
   //
-  // Public self-registration for the platform owner. Unlike Tenant and
-  // User creation (which always require an existing higher-privileged
-  // actor), SuperAdmin is the root of the trust chain, so it has to be
-  // able to bootstrap itself. Auto-logs in on success, same as signup
-  // flows typically do, so the caller doesn't need a second round trip.
+  // Self-registration for platform owners. Keep this endpoint off
+  // public UIs/docs; callers who know the path can still bootstrap.
   // =====================================================
 
   async superAdminSignup(dto: SuperAdminSignupDto, meta: LoginMeta) {

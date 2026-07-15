@@ -11,6 +11,7 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   const port = config.get<number>('PORT') || 3000;
+  const publicUrl = config.get<string>('PUBLIC_API_URL') || `http://localhost:${port}`;
 
   app.enableCors();
 
@@ -26,7 +27,9 @@ async function bootstrap() {
     .setTitle('KingFisher Wings ERP API')
     .setDescription('KingFisher Wings ERP Backend')
     .setVersion('1.0')
+    .addServer(publicUrl)
     .addBearerAuth()
+    .addApiKey({ type: 'apiKey', name: 'X-Cron-Secret', in: 'header' }, 'cron-secret')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

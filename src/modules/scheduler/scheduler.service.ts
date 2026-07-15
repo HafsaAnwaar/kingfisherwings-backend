@@ -10,6 +10,7 @@ export class SchedulerService {
   private readonly logger = new Logger(SchedulerService.name);
   private running = false;
   private demurrageRunning = false;
+  private preAlertRunning = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -97,27 +98,38 @@ export class SchedulerService {
   /** Week 6 — deliver due scheduled pre-alerts every 5 minutes. */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleScheduledPreAlerts() {
-    const tenants = await this.prisma.tenant.findMany({
-      where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
-      select: { id: true, name: true },
-    });
-
-    let total = 0;
-    for (const tenant of tenants) {
-      try {
-        const result = await this.jobsService.processScheduledPreAlerts(tenant.id);
-        total += result.sent;
-        if (result.sent > 0) {
-          this.logger.log(`Tenant ${tenant.name}: sent ${result.sent} scheduled pre-alert(s).`);
-        }
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        this.logger.error(`Scheduled pre-alert failed for tenant ${tenant.id}: ${message}`);
-      }
+    if (this.preAlertRunning) {
+      this.logger.warn('Pre-alert cron skipped — previous run still in progress.');
+      return;
     }
 
-    if (total > 0) {
-      this.logger.log(`Pre-alert scheduler complete — ${total} email(s) sent.`);
+    this.preAlertRunning = true;
+
+    try {
+      const tenants = await this.prisma.tenant.findMany({
+        where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
+        select: { id: true, name: true },
+      });
+
+      let total = 0;
+      for (const tenant of tenants) {
+        try {
+          const result = await this.jobsService.processScheduledPreAlerts(tenant.id);
+          total += result.sent;
+          if (result.sent > 0) {
+            this.logger.log(`Tenant ${tenant.name}: sent ${result.sent} scheduled pre-alert(s).`);
+          }
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          this.logger.error(`Scheduled pre-alert failed for tenant ${tenant.id}: ${message}`);
+        }
+      }
+
+      if (total > 0) {
+        this.logger.log(`Pre-alert scheduler complete — ${total} email(s) sent.`);
+      }
+    } finally {
+      this.preAlertRunning = false;
     }
   }
 }

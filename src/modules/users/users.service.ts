@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-import { Prisma, User, Tenant, Branch, Department, UserStatus } from '@prisma/client';
+import { Prisma, User, Tenant, Branch, Department, UserStatus, UserRole } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersRepository } from './users.repository';
@@ -168,6 +168,18 @@ export class UsersService {
     return role;
   }
 
+  /**
+   * SuperAdmin is a separate platform principal — never assignable on tenant
+   * User rows via POST/PATCH /users (even for platform SuperAdmin callers).
+   */
+  private assertAssignableStaffRole(role: UserRole) {
+    if (role === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Cannot assign SUPER_ADMIN via /users. Platform owners live in the SuperAdmin table.',
+      );
+    }
+  }
+
   private async validatePermission(
     tx: Prisma.TransactionClient,
     tenantId: string,
@@ -301,6 +313,8 @@ export class UsersService {
     this.log('CREATE_USER', `Creating user ${dto.email} for tenant ${tenantId} (by ${creatorLabel})`);
 
     const tenant = await this.validateTenant(tenantId);
+
+    this.assertAssignableStaffRole(dto.role);
 
     const temporaryPassword = PasswordUtil.generateTemporaryPassword(
       PASSWORD_CONSTANTS.TEMP_PASSWORD_LENGTH,
@@ -463,6 +477,10 @@ export class UsersService {
     this.log('UPDATE_USER', `Updating user ${id} for tenant ${tenantId}`);
 
     await this.validateTenant(tenantId);
+
+    if (dto.role !== undefined) {
+      this.assertAssignableStaffRole(dto.role);
+    }
 
     try {
       const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {

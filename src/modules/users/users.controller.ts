@@ -99,9 +99,15 @@ export class UsersController {
       tenantId = dto.tenant_id;
       creator = { superAdminId: superAdmin.id };
     } else {
+      // Tenant-scoped callers: always force their JWT tenant — ignore body.tenant_id.
       const user = principal as CurrentUserType;
       tenantId = user.tenantId;
       creator = { userId: user.id };
+      if (dto.tenant_id && dto.tenant_id !== user.tenantId) {
+        throw new BadRequestException(
+          'tenant_id cannot be set by tenant users — users are always created in your own tenant.',
+        );
+      }
     }
 
     const result = await this.usersService.createUser(tenantId, dto, creator);

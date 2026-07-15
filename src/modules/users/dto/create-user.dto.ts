@@ -97,7 +97,10 @@ export class CreateUserDto {
   // SYSTEM ROLE (legacy enum — see RBAC migration note on User.role)
   // =====================================================
 
-  @ApiProperty({ enum: UserRole })
+  @ApiProperty({
+    enum: UserRole,
+    description: 'Staff role within the tenant. SUPER_ADMIN is rejected — it is not a tenant user role.',
+  })
   @IsEnum(UserRole)
   role!: UserRole;
 

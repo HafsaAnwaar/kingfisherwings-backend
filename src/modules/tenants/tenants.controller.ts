@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -158,17 +160,20 @@ export class TenantsController {
   // =====================================================
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Soft delete tenant',
   })
-  remove(
+  @ApiResponse({ status: 204, description: 'Tenant soft-deleted' })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
+  async remove(
     @Param(
       'id',
       new ParseUUIDPipe(),
     )
     id: string,
-  ) {
-    return this.tenantsService.remove(id);
+  ): Promise<void> {
+    await this.tenantsService.remove(id);
   }
 
   // =====================================================

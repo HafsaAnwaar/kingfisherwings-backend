@@ -10,6 +10,7 @@ import { NumberGeneratorService } from '../organization/number-formats/number-ge
 import { PdfService } from '../../shared/pdf/pdf.service';
 import { StorageService } from '../../shared/storage/storage.service';
 import { EmailService } from '../../shared/email/email.service';
+import { GlAutoPostService } from '../gl/gl-auto-post.service';
 import {
   CreateCreditNoteDto,
   CreateInvoiceDto,
@@ -31,6 +32,7 @@ export class InvoicesService {
     private readonly pdfService: PdfService,
     private readonly storage: StorageService,
     private readonly emailService: EmailService,
+    private readonly glAutoPost: GlAutoPostService,
   ) {}
 
   async findAll(tenantId: string, query: InvoiceQueryDto, invoiceType?: InvoiceType) {
@@ -432,13 +434,22 @@ export class InvoicesService {
       throw new BadRequestException('Invoice must have at least one line before posting.');
     }
 
-    return this.prisma.runWithTenant(tenantId, (tx) =>
+    const posted = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.invoice.update({
         where: { id },
-        data: { status: 'POSTED', posted_at: new Date(), updated_by: actorId },
+        data: {
+          status: 'POSTED',
+          posted_at: new Date(),
+          balance_due: invoice.balance_due ?? invoice.total_amount,
+          amount_paid: invoice.amount_paid ?? 0,
+          updated_by: actorId,
+        },
         include: { lines: { where: { deleted_at: null } }, party: true },
       }),
     );
+
+    const gl = await this.glAutoPost.postInvoiceToGl(tenantId, id, actorId);
+    return { ...posted, gl_auto_post: gl };
   }
 
   async send(tenantId: string, id: string, dto: SendInvoiceEmailDto, actorId?: string) {
@@ -491,7 +502,11 @@ export class InvoicesService {
       throw new BadRequestException('This invoice cannot be cancelled.');
     }
 
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    if (Number(invoice.amount_paid) > 0) {
+      throw new BadRequestException('Cannot cancel an invoice with payments applied. Reverse payments first.');
+    }
+
+    const cancelled = await this.prisma.runWithTenant(tenantId, async (tx) => {
       for (const line of invoice.lines) {
         if (line.job_charge_id) {
           await tx.jobCharge.update({
@@ -506,6 +521,9 @@ export class InvoicesService {
         data: { status: 'CANCELLED', updated_by: actorId },
       });
     });
+
+    const gl = await this.glAutoPost.reverseInvoiceGl(tenantId, id, actorId);
+    return { ...cancelled, gl_reversal: gl };
   }
 
   async generatePdf(tenantId: string, id: string, actorId?: string) {

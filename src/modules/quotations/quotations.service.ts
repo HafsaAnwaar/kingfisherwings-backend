@@ -567,6 +567,21 @@ export class QuotationsService {
     });
   }
 
+  /** HTTP cron helper — expire across all active tenants. */
+  async expireDueAllTenants(): Promise<{ tenants: number; expired: number }> {
+    const tenants = await this.prisma.tenant.findMany({
+      where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
+      select: { id: true },
+    });
+
+    let expired = 0;
+    for (const tenant of tenants) {
+      const result = await this.expireDue(tenant.id);
+      expired += result.expired;
+    }
+    return { tenants: tenants.length, expired };
+  }
+
   // ============================================================
   // PDF & EMAIL (Ch.7)
   // ============================================================

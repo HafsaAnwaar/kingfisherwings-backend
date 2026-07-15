@@ -1776,7 +1776,9 @@ export class JobsService {
       throw new BadRequestException('to_email is required to send a pre-alert.');
     }
 
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    // Resolve milestone + compose body inside a short transaction; send email OUTSIDE
+    // so SMTP latency cannot exhaust Prisma interactive transaction slots (cron errors).
+    const prepared = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const milestone = await tx.jobMilestone.findFirst({
         where: { tenant_id: tenantId, job_id: jobId, milestone: 'PRE_ALERT_SENT', deleted_at: null },
       });
@@ -1798,37 +1800,41 @@ export class JobsService {
           (seaDetail?.voyage_number ? `<p>Voyage: ${seaDetail.voyage_number}</p>` : '') +
           (job.commodity ? `<p>Commodity: ${job.commodity}</p>` : '');
 
-      const emailLog = await this.emailService.send({
-        tenantId,
-        eventType: 'PRE_ALERT',
-        to: dto.to_email,
-        subject,
-        body,
-        jobId,
-        createdBy: actorId,
-      });
+      return { milestone, subject, body };
+    });
 
-      if (!milestone.actual_date) {
+    const emailLog = await this.emailService.send({
+      tenantId,
+      eventType: 'PRE_ALERT',
+      to: dto.to_email,
+      subject: prepared.subject,
+      body: prepared.body,
+      jobId,
+      createdBy: actorId,
+    });
+
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      if (!prepared.milestone.actual_date) {
         await tx.jobMilestone.update({
-          where: { id: milestone.id },
+          where: { id: prepared.milestone.id },
           data: {
             actual_date: new Date(),
             completed_by: actorId,
-            notes: dto.message ?? milestone.notes,
+            notes: dto.message ?? prepared.milestone.notes,
             updated_by: actorId,
           },
         });
       }
-
-      return {
-        success: emailLog.status === 'SENT',
-        email_log_id: emailLog.id,
-        status: emailLog.status,
-        job_id: jobId,
-        to_email: dto.to_email,
-        milestone: 'PRE_ALERT_SENT',
-      };
     });
+
+    return {
+      success: emailLog.status === 'SENT',
+      email_log_id: emailLog.id,
+      status: emailLog.status,
+      job_id: jobId,
+      to_email: dto.to_email,
+      milestone: 'PRE_ALERT_SENT',
+    };
   }
 
   // ============================================================

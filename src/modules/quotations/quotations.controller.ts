@@ -12,7 +12,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 import { QuotationsService } from './quotations.service';
 
@@ -25,6 +26,7 @@ import { MarkLostDto, ApprovalDecisionDto } from './dto/quotation-actions.dto';
 import { GenerateQuotationPdfDto, SendQuotationEmailDto } from './dto/quotation-pdf.dto';
 
 import { Public } from '../auth/decorators/public.decorator';
+import { CronSecretGuard } from '../../common/guards/cron-secret.guard';
 
 import { RolesGuard } from '../users/guards/roles.guard';
 import { PermissionsGuard } from '../users/guards/permissions.guard';
@@ -82,19 +84,32 @@ export class QuotationsController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('online-quote')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Public online quote widget — customer submits cargo details, system auto-calculates from tariff (Ch.7.5)' })
+  @ApiOperation({
+    summary: 'Public online quote widget — no auth required (Ch.7.5)',
+    description: 'Rate-limited. Identify the tenant with tenant_slug. Spam protection via IP throttle.',
+  })
   createOnlineQuote(@Body() dto: CreateOnlineQuoteDto) {
     return this.service.createOnlineQuote(dto);
   }
 
+  @Public()
+  @UseGuards(CronSecretGuard)
   @Post('expire-due')
-  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Batch-expire all quotations past valid_until (intended for daily cron)' })
-  expireDue(@CurrentUser('tenantId') tenantId: string, @CurrentUser('id') actorId: string) {
-    return this.service.expireDue(tenantId, actorId);
+  @ApiOperation({
+    summary: 'Batch-expire quotations past valid_until (cron / internal only)',
+    description: 'Requires header X-Cron-Secret matching env CRON_SECRET. Not callable by normal users.',
+  })
+  @ApiHeader({ name: 'X-Cron-Secret', required: true })
+  @ApiSecurity('cron-secret')
+  expireDue(@Query('tenant_id') tenantId: string) {
+    if (!tenantId) {
+      return this.service.expireDueAllTenants();
+    }
+    return this.service.expireDue(tenantId);
   }
 
   @Get(':id')

@@ -36,10 +36,18 @@ implements OnModuleInit, OnModuleDestroy {
   async runWithTenant<T>(
     tenantId: string,
     callback: (tx: Prisma.TransactionClient) => Promise<T>,
+    options?: { maxWait?: number; timeout?: number },
   ): Promise<T> {
-    return this.$transaction(async (tx) => {
-      await tx.$executeRaw(setTenantContextQuery(tenantId));
-      return callback(tx);
-    });
+    return this.$transaction(
+      async (tx) => {
+        await tx.$executeRaw(setTenantContextQuery(tenantId));
+        return callback(tx);
+      },
+      {
+        // Default Prisma interactive-tx wait is ~2s; cron+traffic need more headroom.
+        maxWait: options?.maxWait ?? 15_000,
+        timeout: options?.timeout ?? 30_000,
+      },
+    );
   }
 }

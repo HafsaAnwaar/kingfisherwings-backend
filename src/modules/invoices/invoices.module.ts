@@ -4,6 +4,7 @@ import { OrganizationModule } from '../organization/organization.module';
 import { PdfModule } from '../../shared/pdf/pdf.module';
 import { StorageModule } from '../../shared/storage/storage.module';
 import { EmailModule } from '../../shared/email/email.module';
+import { GlModule } from '../gl/gl.module';
 import { InvoicesController } from './invoices.controller';
 import { CreditNotesController } from './credit-notes.controller';
 import { PurchaseInvoicesController } from './purchase-invoices.controller';
@@ -12,7 +13,7 @@ import { InvoicesService } from './invoices.service';
 import { PaymentRequestsService } from './payment-requests.service';
 
 @Module({
-  imports: [PrismaModule, OrganizationModule, PdfModule, StorageModule, EmailModule],
+  imports: [PrismaModule, OrganizationModule, PdfModule, StorageModule, EmailModule, GlModule],
   controllers: [
     InvoicesController,
     CreditNotesController,
