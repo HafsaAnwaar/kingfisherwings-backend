@@ -13,4 +13,25 @@ export class HolidaysService extends BaseMasterService<Holiday> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
+
+  async create(tenantId: string, data: Record<string, unknown>, actorId?: string): Promise<Holiday> {
+    return super.create(tenantId, this.coerceDates(data), actorId);
+  }
+
+  async update(
+    tenantId: string,
+    id: string,
+    data: Record<string, unknown>,
+    actorId?: string,
+  ): Promise<Holiday> {
+    return super.update(tenantId, id, this.coerceDates(data), actorId);
+  }
+
+  private coerceDates(data: Record<string, unknown>): Record<string, unknown> {
+    const next = { ...data };
+    if (typeof next.date === 'string') {
+      next.date = new Date(next.date);
+    }
+    return next;
+  }
 }

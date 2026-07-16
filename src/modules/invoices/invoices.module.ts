@@ -7,6 +7,7 @@ import { EmailModule } from '../../shared/email/email.module';
 import { GlModule } from '../gl/gl.module';
 import { InvoicesController } from './invoices.controller';
 import { CreditNotesController } from './credit-notes.controller';
+import { DebitNotesController } from './debit-notes.controller';
 import { PurchaseInvoicesController } from './purchase-invoices.controller';
 import { PaymentRequestsController } from './payment-requests.controller';
 import { InvoicesService } from './invoices.service';
@@ -17,6 +18,7 @@ import { PaymentRequestsService } from './payment-requests.service';
   controllers: [
     InvoicesController,
     CreditNotesController,
+    DebitNotesController,
     PurchaseInvoicesController,
     PaymentRequestsController,
   ],

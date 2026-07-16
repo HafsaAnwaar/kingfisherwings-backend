@@ -2,6 +2,7 @@
 
 import { Controller, Post, Get, Patch, Body, Req, Param, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { UserRole } from '@prisma/client';
 
@@ -41,6 +42,7 @@ export class AuthController {
   // =====================================================
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Staff login: tenant slug + email + password' })
@@ -53,6 +55,7 @@ export class AuthController {
   // =====================================================
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('tenant-login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Tenant admin login: tenant slug + the tenant's own password" })
@@ -65,6 +68,7 @@ export class AuthController {
   // =====================================================
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('super-admin/signup')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Platform super admin self-registration' })
@@ -77,6 +81,7 @@ export class AuthController {
   // =====================================================
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('super-admin/login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Platform super admin login' })
@@ -89,6 +94,7 @@ export class AuthController {
   // =====================================================
 
   @Public()
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Exchange a refresh token for a new token pair' })
@@ -212,6 +218,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('accept-invite')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Accept invite token and set password' })

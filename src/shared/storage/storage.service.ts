@@ -41,7 +41,11 @@ export class StorageService {
     filename: string,
     mimeType = 'application/pdf',
   ): Promise<StoredFile> {
-    const s3Key = `${tenantId}/${Date.now()}-${filename}`;
+    const safeName = path.basename(String(filename).replace(/\\/g, '/'));
+    if (!safeName || safeName === '.' || safeName === '..' || safeName.includes('\0')) {
+      throw new Error('Invalid filename.');
+    }
+    const s3Key = `${tenantId}/${Date.now()}-${safeName}`;
 
     if (this.useS3 && this.s3 && this.s3Bucket) {
       await this.s3
@@ -59,17 +63,17 @@ export class StorageService {
 
     const dir = path.join(this.root, tenantId);
     await fs.mkdir(dir, { recursive: true });
-    const filePath = path.join(dir, filename);
+    const filePath = this.resolveLocalPath(tenantId, safeName);
     await fs.writeFile(filePath, buffer);
 
-    const fileUrl = `${this.publicBaseUrl}/${tenantId}/${encodeURIComponent(filename)}`;
+    const fileUrl = `${this.publicBaseUrl}/${tenantId}/${encodeURIComponent(safeName)}`;
     this.logger.log(`Saved file locally: ${filePath}`);
 
     return { fileUrl, s3Key, fileSize: buffer.length, mimeType };
   }
 
   async readBuffer(tenantId: string, filename: string): Promise<Buffer> {
-    const filePath = path.join(this.root, tenantId, filename);
+    const filePath = this.resolveLocalPath(tenantId, filename);
     return fs.readFile(filePath);
   }
 

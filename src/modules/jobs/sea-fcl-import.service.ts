@@ -272,7 +272,7 @@ export class SeaFclImportService {
   async createPartDelivery(tenantId: string, jobId: string, dto: CreatePartDeliveryDto, actorId?: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getImportDetailOrThrow(tx, tenantId, jobId);
-      const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId } });
+      const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
       const previous = await tx.partDelivery.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
       });

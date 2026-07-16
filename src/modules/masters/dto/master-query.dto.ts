@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class MasterQueryDto {
@@ -15,6 +15,7 @@ export class MasterQueryDto {
   @Transform(({ value }) => Number(value))
   @IsInt()
   @Min(1)
+  @Max(200)
   limit: number = 20;
 
   @ApiPropertyOptional({ description: 'Free-text search — matched fields vary per entity.' })
@@ -33,3 +34,5 @@ export class MasterQueryDto {
   @IsIn(['asc', 'desc'])
   order: 'asc' | 'desc' = 'asc';
 }
+
+

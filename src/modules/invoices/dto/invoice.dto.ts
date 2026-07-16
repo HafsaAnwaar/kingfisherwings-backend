@@ -154,6 +154,25 @@ export class CreateCreditNoteDto {
   lines?: CreateInvoiceLineDto[];
 }
 
+/** Extra charge against a posted customer invoice (Ch.18). */
+export class CreateDebitNoteDto {
+  @ApiProperty({ format: 'uuid', description: 'Original customer invoice being debited' })
+  @IsUUID()
+  credited_invoice_id!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  remarks?: string;
+
+  @ApiPropertyOptional({ type: [CreateInvoiceLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateInvoiceLineDto)
+  lines?: CreateInvoiceLineDto[];
+}
+
 export class CreatePurchaseInvoiceDto extends CreateInvoiceDto {
   @ApiProperty({ format: 'uuid', description: 'Vendor/supplier party' })
   @IsUUID()

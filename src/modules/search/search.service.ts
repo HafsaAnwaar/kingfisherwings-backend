@@ -151,21 +151,59 @@ export class SearchService {
     const jobs = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findMany({
         where,
-        select: { id: true, job_number: true, job_type: true, status: true, commodity: true },
+        select: {
+          id: true,
+          job_number: true,
+          job_type: true,
+          status: true,
+          commodity: true,
+          shipper_id: true,
+          consignee_id: true,
+          air_details: { select: { hawb_number: true, mawb_number: true } },
+          sea_fcl_details: { select: { hbl_number: true, mbl_number: true, booking_number: true } },
+        },
         take: limit,
         orderBy: { created_at: 'desc' },
       }),
     );
 
-    return jobs.map((j) => ({
-      entity_type: 'job' as const,
-      id: j.id,
-      title: j.job_number,
-      subtitle: j.commodity ?? j.job_type,
-      reference: j.job_number,
-      status: j.status,
-      matched_field: 'job',
-    }));
+    const partyIds = [
+      ...new Set(
+        jobs.flatMap((j) => [j.shipper_id, j.consignee_id].filter((id): id is string => Boolean(id))),
+      ),
+    ];
+    const parties =
+      partyIds.length === 0
+        ? []
+        : await this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.party.findMany({
+              where: { tenant_id: tenantId, id: { in: partyIds }, deleted_at: null },
+              select: { id: true, name: true },
+            }),
+          );
+    const partyNameById = new Map(parties.map((p) => [p.id, p.name]));
+
+    return jobs.map((j) => {
+      const partyName =
+        (j.shipper_id && partyNameById.get(j.shipper_id)) ||
+        (j.consignee_id && partyNameById.get(j.consignee_id));
+      const docRef =
+        j.air_details?.hawb_number ??
+        j.air_details?.mawb_number ??
+        j.sea_fcl_details?.hbl_number ??
+        j.sea_fcl_details?.mbl_number ??
+        j.sea_fcl_details?.booking_number;
+      const subtitleParts = [j.commodity ?? j.job_type, partyName, docRef].filter(Boolean);
+      return {
+        entity_type: 'job' as const,
+        id: j.id,
+        title: j.job_number,
+        subtitle: subtitleParts.join(' · ') || undefined,
+        reference: j.job_number,
+        status: j.status,
+        matched_field: 'job',
+      };
+    });
   }
 
   private async searchQuotations(
@@ -200,17 +238,36 @@ export class SearchService {
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findMany({
         where,
-        select: { id: true, quotation_number: true, status: true, commodity: true },
+        select: {
+          id: true,
+          quotation_number: true,
+          status: true,
+          commodity: true,
+          customer_id: true,
+        },
         take: limit,
         orderBy: { created_at: 'desc' },
       }),
     );
 
+    const customerIds = [...new Set(rows.map((q) => q.customer_id).filter(Boolean))];
+    const customers =
+      customerIds.length === 0
+        ? []
+        : await this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.party.findMany({
+              where: { tenant_id: tenantId, id: { in: customerIds }, deleted_at: null },
+              select: { id: true, name: true },
+            }),
+          );
+    const customerNameById = new Map(customers.map((c) => [c.id, c.name]));
+
     return rows.map((q) => ({
       entity_type: 'quotation' as const,
       id: q.id,
       title: q.quotation_number,
-      subtitle: q.commodity ?? undefined,
+      subtitle:
+        [customerNameById.get(q.customer_id), q.commodity].filter(Boolean).join(' · ') || undefined,
       reference: q.quotation_number,
       status: q.status,
       matched_field: 'quotation',
@@ -291,7 +348,13 @@ export class SearchService {
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.invoice.findMany({
         where,
-        select: { id: true, invoice_number: true, status: true, invoice_type: true },
+        select: {
+          id: true,
+          invoice_number: true,
+          status: true,
+          invoice_type: true,
+          party: { select: { name: true } },
+        },
         take: limit,
         orderBy: { created_at: 'desc' },
       }),
@@ -301,7 +364,7 @@ export class SearchService {
       entity_type: 'invoice' as const,
       id: i.id,
       title: i.invoice_number,
-      subtitle: i.invoice_type,
+      subtitle: [i.party?.name, i.invoice_type].filter(Boolean).join(' · ') || undefined,
       reference: i.invoice_number,
       status: i.status,
       matched_field: 'invoice',
