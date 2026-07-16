@@ -457,7 +457,8 @@ export class PaymentsService {
         });
         if (!inv) continue;
         const paid = Number(inv.amount_paid) + Number(alloc.amount);
-        const balance = Number(inv.total_amount) - paid;
+        // Preserve CN/DN adjustments already reflected in balance_due.
+        const balance = Math.max(0, Number(inv.balance_due) - Number(alloc.amount));
         let status: InvoiceStatus = inv.status;
         if (balance <= 0.0001) status = 'PAID';
         else if (paid > 0) status = 'PARTIALLY_PAID';
@@ -466,7 +467,7 @@ export class PaymentsService {
           where: { id: inv.id },
           data: {
             amount_paid: paid,
-            balance_due: Math.max(balance, 0),
+            balance_due: balance,
             status,
             updated_by: actorId,
           },
@@ -527,7 +528,8 @@ export class PaymentsService {
         });
         if (!inv) continue;
         const paid = Math.max(Number(inv.amount_paid) - Number(alloc.amount), 0);
-        const balance = Number(inv.total_amount) - paid;
+        // Restore only the cancelled allocation; keep prior CN/DN effects on balance_due.
+        const balance = Number(inv.balance_due) + Number(alloc.amount);
         let status: InvoiceStatus = 'POSTED';
         if (paid <= 0.0001) {
           status = inv.sent_at ? 'SENT' : 'POSTED';

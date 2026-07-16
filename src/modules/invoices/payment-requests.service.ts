@@ -181,20 +181,39 @@ export class PaymentRequestsService {
       });
 
       if (request.invoice_id) {
-        const invoice = await tx.invoice.findFirst({ where: { id: request.invoice_id } });
-        if (invoice) {
-          const amountPaid = Number(invoice.amount_paid) + Number(request.amount);
-          const balanceDue = Number(invoice.total_amount) - amountPaid;
-          await tx.invoice.update({
-            where: { id: invoice.id },
-            data: {
-              amount_paid: amountPaid,
-              balance_due: balanceDue,
-              status: balanceDue <= 0 ? 'PAID' : 'PARTIALLY_PAID',
-              updated_by: actorId,
-            },
-          });
+        const invoice = await tx.invoice.findFirst({
+          where: { id: request.invoice_id, tenant_id: tenantId, deleted_at: null },
+        });
+        if (!invoice) {
+          throw new BadRequestException('Linked invoice not found or has been deleted.');
         }
+        if (['CANCELLED', 'VOID'].includes(invoice.status)) {
+          throw new BadRequestException('Cannot apply payment to a cancelled or void invoice.');
+        }
+
+        const requestAmount = Number(request.amount);
+        const currentBalance = Number(invoice.balance_due);
+        if (requestAmount <= 0) {
+          throw new BadRequestException('Payment request amount must be positive.');
+        }
+        if (requestAmount > currentBalance + 0.005) {
+          throw new BadRequestException(
+            `Payment amount (${requestAmount}) exceeds invoice balance due (${currentBalance}).`,
+          );
+        }
+
+        const amountPaid = Number(invoice.amount_paid) + requestAmount;
+        // Preserve CN/DN adjustments already reflected in balance_due.
+        const balanceDue = Math.max(0, currentBalance - requestAmount);
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            amount_paid: amountPaid,
+            balance_due: balanceDue,
+            status: balanceDue <= 0 ? 'PAID' : 'PARTIALLY_PAID',
+            updated_by: actorId,
+          },
+        });
       }
 
       return updated;

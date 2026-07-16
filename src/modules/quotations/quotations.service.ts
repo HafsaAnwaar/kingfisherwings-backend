@@ -401,7 +401,7 @@ export class QuotationsService {
     }
 
     const chargeCode = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.chargeCode.findFirst({ where: { id: tariff.charge_code_id, tenant_id: tenantId } }),
+      tx.chargeCode.findFirst({ where: { id: tariff.charge_code_id, tenant_id: tenantId, deleted_at: null } }),
     );
 
     return this.addLine(
@@ -1358,7 +1358,9 @@ export class QuotationsService {
       return 0;
     }
 
-    const taxRate = await tx.taxRate.findFirst({ where: { id: dto.tax_rate_id, tenant_id: tenantId } });
+    const taxRate = await tx.taxRate.findFirst({
+      where: { id: dto.tax_rate_id, tenant_id: tenantId, deleted_at: null },
+    });
 
     if (!taxRate) {
       throw new NotFoundException('Tax rate not found.');
@@ -1470,7 +1472,9 @@ export class QuotationsService {
       ? (fn: (tx: Prisma.TransactionClient) => Promise<any>) => fn(existingTx)
       : (fn: (tx: Prisma.TransactionClient) => Promise<any>) => this.prisma.runWithTenant(tenantId, fn);
 
-    const branch = await run((tx) => tx.branch.findFirst({ where: { id: branchId, tenant_id: tenantId } }));
+    const branch = await run((tx) =>
+      tx.branch.findFirst({ where: { id: branchId, tenant_id: tenantId, deleted_at: null } }),
+    );
 
     return branch?.code;
   }

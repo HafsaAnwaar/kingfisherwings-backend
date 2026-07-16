@@ -15,14 +15,25 @@ export class TariffsService extends BaseMasterService<Tariff> {
 
   async create(tenantId: string, data: Record<string, unknown>, actorId?: string): Promise<Tariff> {
     await this.assertChargeCodeExists(tenantId, data.charge_code_id as string);
-    return super.create(tenantId, data, actorId);
+    return super.create(tenantId, this.coerceDates(data), actorId);
   }
 
   async update(tenantId: string, id: string, data: Record<string, unknown>, actorId?: string): Promise<Tariff> {
     if (data.charge_code_id) {
       await this.assertChargeCodeExists(tenantId, data.charge_code_id as string);
     }
-    return super.update(tenantId, id, data, actorId);
+    return super.update(tenantId, id, this.coerceDates(data), actorId);
+  }
+
+  private coerceDates(data: Record<string, unknown>): Record<string, unknown> {
+    const next = { ...data };
+    if (typeof next.valid_from === 'string') {
+      next.valid_from = new Date(next.valid_from);
+    }
+    if (typeof next.valid_to === 'string') {
+      next.valid_to = new Date(next.valid_to);
+    }
+    return next;
   }
 
   /**

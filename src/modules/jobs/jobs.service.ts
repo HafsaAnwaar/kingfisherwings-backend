@@ -290,8 +290,8 @@ export class JobsService {
               },
             },
           },
-          charges: { orderBy: { created_at: 'asc' } },
-          milestones: { orderBy: { created_at: 'asc' } },
+          charges: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } },
+          milestones: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } },
           notes_list: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
           documents: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
           bills_of_lading: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
@@ -1225,7 +1225,7 @@ export class JobsService {
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const milestone = await tx.jobMilestone.findFirst({
-        where: { id: milestoneId, job_id: jobId, tenant_id: tenantId },
+        where: { id: milestoneId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
       });
 
       if (!milestone) {
@@ -1326,7 +1326,9 @@ export class JobsService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getOrThrow(tx, tenantId, jobId);
 
-      const existing = await tx.jobCharge.findFirst({ where: { id: chargeId, job_id: jobId, tenant_id: tenantId } });
+      const existing = await tx.jobCharge.findFirst({
+        where: { id: chargeId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
 
       if (!existing) {
         throw new NotFoundException('Charge line not found.');
@@ -1370,13 +1372,18 @@ export class JobsService {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getOrThrow(tx, tenantId, jobId);
 
-      const existing = await tx.jobCharge.findFirst({ where: { id: chargeId, job_id: jobId, tenant_id: tenantId } });
+      const existing = await tx.jobCharge.findFirst({
+        where: { id: chargeId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
 
       if (!existing) {
         throw new NotFoundException('Charge line not found.');
       }
 
-      await tx.jobCharge.delete({ where: { id: chargeId } });
+      await tx.jobCharge.update({
+        where: { id: chargeId },
+        data: { deleted_at: new Date() },
+      });
       await this.recalculateTotals(tx, tenantId, jobId);
     });
   }
@@ -1396,7 +1403,13 @@ export class JobsService {
       }
 
       const masterCharge = await tx.jobCharge.findFirst({
-        where: { job_id: masterId, charge_code_id: chargeCodeId, tenant_id: tenantId, is_cost: true },
+        where: {
+          job_id: masterId,
+          charge_code_id: chargeCodeId,
+          tenant_id: tenantId,
+          is_cost: true,
+          deleted_at: null,
+        },
       });
 
       if (!masterCharge) {
@@ -2170,7 +2183,9 @@ export class JobsService {
       return 0;
     }
 
-    const taxRate = await tx.taxRate.findFirst({ where: { id: dto.tax_rate_id, tenant_id: tenantId } });
+    const taxRate = await tx.taxRate.findFirst({
+      where: { id: dto.tax_rate_id, tenant_id: tenantId, deleted_at: null },
+    });
 
     if (!taxRate) {
       throw new NotFoundException('Tax rate not found.');
@@ -2183,7 +2198,7 @@ export class JobsService {
     if (!branchId) return undefined;
 
     const branch = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.branch.findFirst({ where: { id: branchId, tenant_id: tenantId } }),
+      tx.branch.findFirst({ where: { id: branchId, tenant_id: tenantId, deleted_at: null } }),
     );
 
     return branch?.code;

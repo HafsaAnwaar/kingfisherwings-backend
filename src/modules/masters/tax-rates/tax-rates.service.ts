@@ -17,7 +17,7 @@ export class TaxRatesService extends BaseMasterService<TaxRate> {
     if (data.is_default) {
       await this.clearExistingDefault(tenantId, data.country_code as string);
     }
-    return super.create(tenantId, data, actorId);
+    return super.create(tenantId, this.coerceDates(data), actorId);
   }
 
   async update(
@@ -29,7 +29,18 @@ export class TaxRatesService extends BaseMasterService<TaxRate> {
     if (data.is_default && data.country_code) {
       await this.clearExistingDefault(tenantId, data.country_code as string, id);
     }
-    return super.update(tenantId, id, data, actorId);
+    return super.update(tenantId, id, this.coerceDates(data), actorId);
+  }
+
+  private coerceDates(data: Record<string, unknown>): Record<string, unknown> {
+    const next = { ...data };
+    if (typeof next.effective_from === 'string') {
+      next.effective_from = new Date(next.effective_from);
+    }
+    if (typeof next.effective_to === 'string') {
+      next.effective_to = new Date(next.effective_to);
+    }
+    return next;
   }
 
   private async clearExistingDefault(tenantId: string, countryCode: string, excludeId?: string): Promise<void> {

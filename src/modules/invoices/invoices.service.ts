@@ -13,6 +13,7 @@ import { EmailService } from '../../shared/email/email.service';
 import { GlAutoPostService } from '../gl/gl-auto-post.service';
 import {
   CreateCreditNoteDto,
+  CreateDebitNoteDto,
   CreateInvoiceDto,
   CreateInvoiceLineDto,
   CreatePurchaseInvoiceDto,
@@ -106,7 +107,9 @@ export class InvoicesService {
     const invoiceNumber = await this.numberGenerator.generate(tenantId, docType);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const party = await tx.party.findFirst({ where: { id: dto.party_id, tenant_id: tenantId } });
+      const party = await tx.party.findFirst({
+        where: { id: dto.party_id, tenant_id: tenantId, deleted_at: null },
+      });
 
       const invoice = await tx.invoice.create({
         data: {
@@ -174,6 +177,12 @@ export class InvoicesService {
         throw new BadRequestException('Job must have a shipper or consignee to invoice.');
       }
 
+      const defaultTax = await tx.taxRate.findFirst({
+        where: { tenant_id: tenantId, deleted_at: null, is_active: true, is_default: true },
+        orderBy: { effective_from: 'desc' },
+      });
+      const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
+
       const invoice = await tx.invoice.create({
         data: {
           tenant_id: tenantId,
@@ -187,13 +196,22 @@ export class InvoicesService {
           department_id: job.department_id,
           currency_code: job.charges[0].currency_code,
           exchange_rate: job.charges[0].exchange_rate,
-          vat_rate: 5,
+          vat_rate: defaultVatRate,
           created_by: actorId,
           updated_by: actorId,
         },
       });
 
       for (const [index, charge] of job.charges.entries()) {
+        const chargeAmount = Number(charge.amount);
+        const chargeTax = Number(charge.tax_amount);
+        const lineTaxRate =
+          chargeAmount > 0 && chargeTax > 0
+            ? Math.round((chargeTax / chargeAmount) * 10000) / 100
+            : chargeTax > 0
+              ? defaultVatRate
+              : 0;
+
         await tx.invoiceLine.create({
           data: {
             tenant_id: tenantId,
@@ -206,9 +224,9 @@ export class InvoicesService {
             unit_price: charge.unit_price,
             amount: charge.amount,
             tax_rate_id: charge.tax_rate_id,
-            tax_rate: Number(charge.tax_amount) > 0 ? 5 : 0,
+            tax_rate: lineTaxRate,
             tax_amount: charge.tax_amount,
-            is_taxable: Number(charge.tax_amount) > 0,
+            is_taxable: chargeTax > 0,
             sort_order: index,
             created_by: actorId,
             updated_by: actorId,
@@ -277,6 +295,55 @@ export class InvoicesService {
       }
 
       return this.recalculateAndReturn(tx, tenantId, creditNote.id);
+    });
+  }
+
+  async createDebitNote(tenantId: string, dto: CreateDebitNoteDto, actorId?: string) {
+    const original = await this.findOne(tenantId, dto.credited_invoice_id);
+
+    if (original.invoice_type !== 'CUSTOMER_INVOICE') {
+      throw new BadRequestException('Debit notes can only be issued against customer invoices.');
+    }
+
+    if (!['POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'].includes(original.status)) {
+      throw new BadRequestException('Original invoice must be posted before issuing a debit note.');
+    }
+
+    if (!dto.lines?.length) {
+      throw new BadRequestException('Debit notes require at least one line (extra charge).');
+    }
+
+    const lines = dto.lines;
+    const invoiceNumber = await this.numberGenerator.generate(tenantId, 'DEBIT_NOTE');
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const debitNote = await tx.invoice.create({
+        data: {
+          tenant_id: tenantId,
+          company_id: original.company_id,
+          invoice_number: invoiceNumber,
+          invoice_type: 'DEBIT_NOTE',
+          status: 'DRAFT',
+          job_id: original.job_id,
+          party_id: original.party_id,
+          branch_id: original.branch_id,
+          department_id: original.department_id,
+          credited_invoice_id: original.id,
+          currency_code: original.currency_code,
+          exchange_rate: original.exchange_rate,
+          vat_rate: original.vat_rate,
+          party_vat_number: original.party_vat_number,
+          remarks: dto.remarks,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+
+      for (const [index, line] of lines.entries()) {
+        await this.createLineInternal(tx, tenantId, debitNote.id, line, actorId, index, debitNote.vat_rate);
+      }
+
+      return this.recalculateAndReturn(tx, tenantId, debitNote.id);
     });
   }
 
@@ -384,7 +451,9 @@ export class InvoicesService {
           amount,
           ...(dto.charge_code_id !== undefined ? { charge_code_id: dto.charge_code_id } : {}),
           ...(dto.tax_rate_id !== undefined ? { tax_rate_id: dto.tax_rate_id } : {}),
-          ...(dto.is_taxable !== undefined ? { is_taxable: dto.is_taxable, tax_rate: taxRate, tax_amount: taxAmount } : {}),
+          is_taxable: isTaxable,
+          tax_rate: taxRate,
+          tax_amount: taxAmount,
           ...(dto.sort_order !== undefined ? { sort_order: dto.sort_order } : {}),
           updated_by: actorId,
         },
@@ -434,8 +503,8 @@ export class InvoicesService {
       throw new BadRequestException('Invoice must have at least one line before posting.');
     }
 
-    const posted = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.invoice.update({
+    const posted = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const updated = await tx.invoice.update({
         where: { id },
         data: {
           status: 'POSTED',
@@ -445,8 +514,55 @@ export class InvoicesService {
           updated_by: actorId,
         },
         include: { lines: { where: { deleted_at: null } }, party: true },
-      }),
-    );
+      });
+
+      // Credit note reduces original AR; debit note increases it.
+      if (
+        invoice.credited_invoice_id &&
+        (invoice.invoice_type === 'CREDIT_NOTE' || invoice.invoice_type === 'DEBIT_NOTE')
+      ) {
+        const original = await tx.invoice.findFirst({
+          where: {
+            id: invoice.credited_invoice_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+        });
+        if (original) {
+          const delta = Number(invoice.total_amount);
+          if (invoice.invoice_type === 'CREDIT_NOTE' && delta > Number(original.balance_due) + 0.005) {
+            throw new BadRequestException(
+              `Credit note total (${delta}) exceeds original invoice balance due (${original.balance_due}).`,
+            );
+          }
+          const signed = invoice.invoice_type === 'CREDIT_NOTE' ? -delta : delta;
+          const nextBalance = Math.max(0, Number(original.balance_due) + signed);
+          const amountPaid = Number(original.amount_paid);
+          const total = Number(original.total_amount);
+          let status = original.status;
+          if (['POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'].includes(original.status)) {
+            if (nextBalance <= 0 && amountPaid >= total) {
+              status = 'PAID';
+            } else if (nextBalance <= 0) {
+              // Fully credited — treat as paid/settled for AR aging
+              status = 'PAID';
+            } else if (amountPaid > 0 || invoice.invoice_type === 'CREDIT_NOTE') {
+              status = nextBalance < total ? 'PARTIALLY_PAID' : original.status === 'PAID' ? 'PARTIALLY_PAID' : original.status;
+            }
+          }
+          await tx.invoice.update({
+            where: { id: original.id },
+            data: {
+              balance_due: nextBalance,
+              status,
+              updated_by: actorId,
+            },
+          });
+        }
+      }
+
+      return updated;
+    });
 
     const gl = await this.glAutoPost.postInvoiceToGl(tenantId, id, actorId);
     return { ...posted, gl_auto_post: gl };
@@ -506,6 +622,9 @@ export class InvoicesService {
       throw new BadRequestException('Cannot cancel an invoice with payments applied. Reverse payments first.');
     }
 
+    // Reverse GL first so a failed reversal never leaves a cancelled invoice with open vouchers.
+    const gl = await this.glAutoPost.reverseInvoiceGl(tenantId, id, actorId);
+
     const cancelled = await this.prisma.runWithTenant(tenantId, async (tx) => {
       for (const line of invoice.lines) {
         if (line.job_charge_id) {
@@ -516,13 +635,39 @@ export class InvoicesService {
         }
       }
 
+      // Undo CN/DN impact on the original invoice balance when cancelling a posted note.
+      if (
+        invoice.credited_invoice_id &&
+        ['POSTED', 'SENT'].includes(invoice.status) &&
+        (invoice.invoice_type === 'CREDIT_NOTE' || invoice.invoice_type === 'DEBIT_NOTE')
+      ) {
+        const original = await tx.invoice.findFirst({
+          where: { id: invoice.credited_invoice_id, tenant_id: tenantId, deleted_at: null },
+        });
+        if (original && !['CANCELLED', 'VOID'].includes(original.status)) {
+          const delta = Number(invoice.total_amount);
+          const signed = invoice.invoice_type === 'CREDIT_NOTE' ? delta : -delta;
+          const nextBalance = Math.max(0, Number(original.balance_due) + signed);
+          const amountPaid = Number(original.amount_paid);
+          const total = Number(original.total_amount);
+          let status = original.status;
+          if (nextBalance <= 0) status = 'PAID';
+          else if (amountPaid > 0) status = 'PARTIALLY_PAID';
+          else if (original.status === 'PAID' && nextBalance > 0) status = 'POSTED';
+          else if (nextBalance >= total && amountPaid === 0) status = 'POSTED';
+          await tx.invoice.update({
+            where: { id: original.id },
+            data: { balance_due: nextBalance, status, updated_by: actorId },
+          });
+        }
+      }
+
       return tx.invoice.update({
         where: { id },
         data: { status: 'CANCELLED', updated_by: actorId },
       });
     });
 
-    const gl = await this.glAutoPost.reverseInvoiceGl(tenantId, id, actorId);
     return { ...cancelled, gl_reversal: gl };
   }
 
@@ -663,7 +808,20 @@ export class InvoicesService {
     const taxAmount = lines.reduce((sum: number, l: InvoiceLine) => sum + Number(l.tax_amount), 0);
     const totalAmount = subtotal + taxAmount;
     const invoice = await tx.invoice.findFirstOrThrow({ where: { id: invoiceId } });
-    const balanceDue = totalAmount - Number(invoice.amount_paid);
+
+    // Drafts / notes: balance tracks document total.
+    // Posted customer/purchase invoices: preserve CN/DN deltas already on balance_due.
+    let balanceDue: number;
+    if (
+      invoice.status === 'DRAFT' ||
+      !['CUSTOMER_INVOICE', 'PURCHASE_INVOICE'].includes(invoice.invoice_type)
+    ) {
+      balanceDue = Math.max(0, totalAmount - Number(invoice.amount_paid));
+    } else {
+      const previousImplied = Number(invoice.total_amount) - Number(invoice.amount_paid);
+      const cnDnDelta = Number(invoice.balance_due) - previousImplied;
+      balanceDue = Math.max(0, totalAmount - Number(invoice.amount_paid) + cnDnDelta);
+    }
 
     return tx.invoice.update({
       where: { id: invoiceId },
