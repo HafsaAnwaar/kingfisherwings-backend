@@ -1,24 +1,35 @@
 # Live API Test Report
 
 **Target:** https://kingfisherwings.onrender.com
-**Run ID:** 1783751652556
-**When:** 2026-07-11T06:43:03.740Z
-**OpenAPI operations catalogued:** 287
-**Test executions:** 524
-**Passed:** 515
-**Failed:** 9
+**Run ID:** 1784282902909
+**When:** 2026-07-17T10:18:47.769Z
+**OpenAPI operations catalogued:** 441
+**Test executions:** 771
+**Passed:** 760
+**Failed:** 11
 
 ## Summary by tag
 
 | Tag | Pass | Fail |
 |-----|------|------|
 | AWB Stock | 21 | 0 |
-| Auth | 23 | 2 |
+| Auth | 34 | 3 |
 | Companies | 8 | 0 |
 | Credit Notes | 6 | 1 |
+| Debit Notes | 6 | 0 |
 | Files | 1 | 0 |
+| GL — AR / AP Aging | 4 | 0 |
+| GL — Bank Reconciliation | 17 | 0 |
+| GL — Chart of Accounts | 12 | 0 |
+| GL — Cheques / PDC | 15 | 0 |
+| GL — Financial Reports | 5 | 0 |
+| GL — MIS Dashboard | 3 | 0 |
+| GL — My Reports | 7 | 0 |
+| GL — Payments (AR/AP) | 14 | 0 |
+| GL — Vouchers | 16 | 0 |
 | Invoices | 29 | 2 |
-| Jobs | 71 | 1 |
+| Jobs | 197 | 1 |
+| Locale | 0 | 2 |
 | Masters — Airlines | 7 | 0 |
 | Masters — Airports | 7 | 0 |
 | Masters — Banks | 7 | 0 |
@@ -39,12 +50,12 @@
 | Masters — UnitsOfMeasure | 7 | 0 |
 | Masters — Vessels | 7 | 0 |
 | Masters — Warehouses | 7 | 0 |
-| Masters | 27 | 1 |
+| Masters | 28 | 0 |
 | Organization Profile | 3 | 0 |
 | Organization — Bank Accounts | 7 | 0 |
 | Organization — Number Formats | 7 | 0 |
 | Organization | 8 | 0 |
-| Parties | 26 | 0 |
+| Parties | 28 | 0 |
 | Payment Requests | 16 | 0 |
 | Purchase Invoices | 9 | 1 |
 | Quotations — Online Tariff Master | 7 | 0 |
@@ -55,6 +66,7 @@
 | Tenants | 1 | 0 |
 | Untagged | 1 | 0 |
 | Users | 20 | 0 |
+| Vessels — Schedules | 6 | 0 |
 
 ## Case types
 
@@ -65,11 +77,13 @@
 
 | Type | Method | Path | Expected | Got | Notes |
 |------|--------|------|----------|-----|-------|
-| PASS_CASE | POST | /masters/tax-rates | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
-| PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/pdf | 2xx |  | fetch failed |
-| PASS_CASE | POST | /jobs/365b233e-6602-465c-b9aa-bc088a151162/documents/hawb | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
-| PASS_CASE | POST | /invoices/87cb2ed9-df7e-452f-b304-246f083dd953/pdf | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
-| PASS_CASE | POST | /invoices/87cb2ed9-df7e-452f-b304-246f083dd953/send | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
+| FAIL_CASE | GET | /locale/defaults | 401 | 200 | Expected 401, got 200 |
+| FAIL_CASE | GET | /locale/{countryCode} | 401 | 200 | Expected 401, got 200 |
+| FAIL_CASE | POST | /auth/accept-invite | 401 | 400 | Expected 401, got 400 |
+| PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/pdf | 2xx |  | fetch failed |
+| PASS_CASE | POST | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/documents/hawb | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
+| PASS_CASE | POST | /invoices/daa7f5a5-ac70-43a9-bec0-49e395ccc685/pdf | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
+| PASS_CASE | POST | /invoices/daa7f5a5-ac70-43a9-bec0-49e395ccc685/send | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
 | PASS_CASE | POST | /credit-notes | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
 | PASS_CASE | POST | /purchase-invoices | 2xx | 500 | {"statusCode":500,"message":"Internal server error"} |
 | FAIL_CASE | POST | /auth/logout | 400/403/404/422 | 200 | Unexpected success/status 200 |
@@ -79,6 +93,8 @@
 
 | Status | Type | Method | Path | Title | HTTP |
 |--------|------|--------|------|-------|------|
+| FAIL | FAIL_CASE | GET | /locale/defaults | No Authorization header | 200 |
+| FAIL | FAIL_CASE | GET | /locale/{countryCode} | No Authorization header | 200 |
 | PASS | FAIL_CASE | GET | /health | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /tenants | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /tenants | No Authorization header | 401 |
@@ -117,8 +133,14 @@
 | PASS | FAIL_CASE | POST | /auth/sessions/{sessionId}/revoke | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /auth/logout-all | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /auth/me | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /auth/me | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /auth/change-password | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /auth/tenant/change-password | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /auth/invite | No Authorization header | 401 |
+| FAIL | FAIL_CASE | POST | /auth/accept-invite | No Authorization header | 400 |
+| PASS | FAIL_CASE | POST | /auth/2fa/setup | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /auth/2fa/enable | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /auth/2fa/disable | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /masters/countries | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /masters/countries | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /masters/countries/{id} | No Authorization header | 401 |
@@ -167,6 +189,10 @@
 | PASS | FAIL_CASE | GET | /masters/vessels/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /masters/vessels/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | DELETE | /masters/vessels/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /vessels/{id}/schedules | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /vessels/{id}/schedules | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /vessels/{id}/schedules/{scheduleId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /vessels/{id}/schedules/{scheduleId} | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /masters/truckers | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /masters/truckers | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /masters/truckers/{id} | No Authorization header | 401 |
@@ -219,6 +245,8 @@
 | PASS | FAIL_CASE | DELETE | /masters/designations/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /parties | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /parties | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /parties/export | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /parties/{id}/history | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /parties/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /parties/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | DELETE | /parties/{id} | No Authorization header | 401 |
@@ -242,6 +270,16 @@
 | PASS | FAIL_CASE | GET | /organization/number-formats/{documentType} | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /organization/number-formats/{documentType} | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /organization/number-formats/{documentType}/preview | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /quotations/tariffs | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /quotations/tariffs | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /quotations/tariffs/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /quotations/tariffs/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /quotations/tariffs/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /quotations/zip-distances | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /quotations/zip-distances | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /quotations/zip-distances/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /quotations/zip-distances/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /quotations/zip-distances/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /quotations | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /quotations | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /quotations/reports/chargewise | No Authorization header | 401 |
@@ -250,7 +288,7 @@
 | PASS | FAIL_CASE | GET | /quotations/reports/analytics/lost-reasons | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /quotations/reports/analytics/response-time | No Authorization header | 401 |
 | PASS | PASS | POST | /quotations/online-quote | Public route — auth not required (catalogued) |  |
-| PASS | FAIL_CASE | POST | /quotations/expire-due | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /quotations/expire-due | No Authorization header | 403 |
 | PASS | FAIL_CASE | GET | /quotations/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /quotations/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | DELETE | /quotations/{id} | No Authorization header | 401 |
@@ -273,16 +311,6 @@
 | PASS | FAIL_CASE | GET | /quotations/{id}/pdf | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /quotations/{id}/pdf/status | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /quotations/{id}/send-email | No Authorization header | 401 |
-| PASS | FAIL_CASE | GET | /quotations/tariffs | No Authorization header | 401 |
-| PASS | FAIL_CASE | POST | /quotations/tariffs | No Authorization header | 401 |
-| PASS | FAIL_CASE | GET | /quotations/tariffs/{id} | No Authorization header | 401 |
-| PASS | FAIL_CASE | PATCH | /quotations/tariffs/{id} | No Authorization header | 401 |
-| PASS | FAIL_CASE | DELETE | /quotations/tariffs/{id} | No Authorization header | 401 |
-| PASS | FAIL_CASE | GET | /quotations/zip-distances | No Authorization header | 401 |
-| PASS | FAIL_CASE | POST | /quotations/zip-distances | No Authorization header | 401 |
-| PASS | FAIL_CASE | GET | /quotations/zip-distances/{id} | No Authorization header | 401 |
-| PASS | FAIL_CASE | PATCH | /quotations/zip-distances/{id} | No Authorization header | 401 |
-| PASS | FAIL_CASE | DELETE | /quotations/zip-distances/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /jobs | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /jobs | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /jobs/{id} | No Authorization header | 401 |
@@ -298,10 +326,21 @@
 | PASS | FAIL_CASE | POST | /jobs/{id}/documents | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /jobs/{id}/containers | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/containers | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/containers/fill | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/containers/{containerId}/fill | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/cutoffs | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/cargo | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/cargo | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/bills-of-lading | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/bills-of-lading | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/stuffing-records | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/stuffing-records | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/close | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/cancel | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/air-details | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/sea-fcl-details | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/sea-fcl-details/si-submission | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/sea-fcl-details/vgm-submission | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/milestones/{milestoneId} | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/charges | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/charges/{chargeId} | No Authorization header | 401 |
@@ -317,9 +356,69 @@
 | PASS | FAIL_CASE | POST | /jobs/{id}/documents/mawb | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/documents/pre-alert | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/documents/cargo-manifest | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/hbl | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/hbl-express-release | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/mbl | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/fiata-bl | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/rider-bl | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/switch-bl | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/proxy-bl | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/back-to-back-bl | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/surrender-notice | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/si | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/stuffing-report | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/sailing-confirmation | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/transhipment-confirmation | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/freight-manifest | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/job-card | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/job-pnl | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/proforma-invoice | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/pre-alert/send | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/pre-alert/schedule | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/whatsapp/status | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/sub-jobs | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/sub-jobs | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/payment-requests | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/e-awb | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/barcode-label | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/consignee-label | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/job-costing | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/freight-certificate | No Authorization header | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/containers/{containerId} | No Authorization header | 401 |
 | PASS | FAIL_CASE | DELETE | /jobs/{id}/containers/{containerId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/containers/{containerId}/cargo | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/containers/{containerId}/split | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/cargo/{cargoId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /jobs/{id}/cargo/{cargoId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/bills-of-lading/{blId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /jobs/{id}/bills-of-lading/{blId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/stuffing-records/{recordId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /jobs/{id}/stuffing-records/{recordId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/free-days | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/free-days | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/free-days/recalculate | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/deposits | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/deposits | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/deposits/{depositId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /jobs/{id}/deposits/{depositId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/customs-status | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/containers/{containerId}/return | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/part-deliveries | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/part-deliveries | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/pods | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/pods | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /jobs/{id}/damage-reports | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/damage-reports | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/transhipment-link | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/cfs-storage/calculate | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/pre-can | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/can | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/exchange-letter | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/undertake-letter | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/delivery-order | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/transport-request | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/shipping-advice | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/proof-of-delivery | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /awb-stock/batches | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /awb-stock/batches | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /awb-stock/reports/low-stock | No Authorization header | 401 |
@@ -352,6 +451,10 @@
 | PASS | FAIL_CASE | POST | /credit-notes | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /credit-notes/{id} | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /credit-notes/{id}/post | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /debit-notes | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /debit-notes | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /debit-notes/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /debit-notes/{id}/post | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /purchase-invoices | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /purchase-invoices | No Authorization header | 401 |
 | PASS | FAIL_CASE | GET | /purchase-invoices/{id} | No Authorization header | 401 |
@@ -366,6 +469,71 @@
 | PASS | FAIL_CASE | POST | /payment-requests/{id}/approve | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /payment-requests/{id}/reject | No Authorization header | 401 |
 | PASS | FAIL_CASE | POST | /payment-requests/{id}/mark-paid | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/accounts | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/accounts | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/accounts/tree | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/accounts/reports/trial-balance | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/accounts/seed-defaults | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/accounts/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/accounts/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /gl/accounts/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/accounts/{id}/ledger | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/vouchers | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/vouchers | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/vouchers/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/vouchers/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /gl/vouchers/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/vouchers/{id}/lines | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/vouchers/{id}/lines/{lineId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /gl/vouchers/{id}/lines/{lineId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/vouchers/{id}/post | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/vouchers/{id}/reverse | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/payments | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/payments | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/payments/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/payments/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /gl/payments/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/payments/{id}/allocations | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /gl/payments/{id}/allocations/{allocationId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/payments/{id}/post | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/payments/{id}/cancel | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/ar/aging | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/ap/aging | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/ar/statement/{partyId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/ap/statement/{partyId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/cheques | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/cheques/reports/pdc-due | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/cheques/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/cheques/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques/{id}/deposit | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques/{id}/clear | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques/{id}/bounce | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques/{id}/cancel | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/bank-transfers | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/bank-reconciliations | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/bank-reconciliations | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/bank-reconciliations/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/bank-reconciliations/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /gl/bank-reconciliations/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/bank-reconciliations/{id}/unmatched | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/bank-reconciliations/{id}/lines | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/bank-reconciliations/{id}/lines/{lineId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /gl/bank-reconciliations/{id}/lines/{lineId} | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/bank-reconciliations/{id}/complete | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/reports/trial-balance | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/reports/balance-sheet | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/reports/profit-and-loss | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/reports/cash-flow | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/reports/vat-return | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/mis/dashboard | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/mis/profitability | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/mis/operational | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/saved-reports | No Authorization header | 401 |
+| PASS | FAIL_CASE | POST | /gl/saved-reports | No Authorization header | 401 |
+| PASS | FAIL_CASE | GET | /gl/saved-reports/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/saved-reports/{id} | No Authorization header | 401 |
+| PASS | FAIL_CASE | DELETE | /gl/saved-reports/{id} | No Authorization header | 401 |
 | PASS | PASS_CASE | POST | /auth/super-admin/signup | Super admin signup | 201 |
 | PASS | FAIL_CASE | POST | /auth/super-admin/login | Super admin login with wrong password | 401 |
 | PASS | PASS_CASE | POST | /tenants | Create tenant | 201 |
@@ -389,7 +557,7 @@
 | PASS | PASS_CASE | POST | /masters/ports | Create port LHR | 201 |
 | PASS | PASS_CASE | POST | /masters/airlines | Create airline EK | 201 |
 | PASS | PASS_CASE | POST | /masters/charge-codes | Create charge code AFR | 201 |
-| FAIL | PASS_CASE | POST | /masters/tax-rates | Create tax rate VAT5 | 500 |
+| PASS | PASS_CASE | POST | /masters/tax-rates | Create tax rate VAT5 | 201 |
 | PASS | PASS_CASE | POST | /masters/branches | Create branch | 201 |
 | PASS | PASS_CASE | GET | /masters/currencies | List masters/currencies | 200 |
 | PASS | PASS_CASE | GET | /masters/countries | List masters/countries | 200 |
@@ -413,45 +581,45 @@
 | PASS | PASS_CASE | POST | /parties | Create customer party | 201 |
 | PASS | PASS_CASE | POST | /parties | Create consignee party | 201 |
 | PASS | PASS_CASE | POST | /parties | Create party — missing required fields | 400 |
-| PASS | PASS_CASE | POST | /parties/8d413ed4-f9a3-4443-8463-cf033dadae40/contacts | Add party contact | 201 |
-| PASS | PASS_CASE | GET | /parties/8d413ed4-f9a3-4443-8463-cf033dadae40 | Get party | 200 |
+| PASS | PASS_CASE | POST | /parties/37d2d332-b5a8-48db-883f-68de86a13a45/contacts | Add party contact | 201 |
+| PASS | PASS_CASE | GET | /parties/37d2d332-b5a8-48db-883f-68de86a13a45 | Get party | 200 |
 | PASS | PASS_CASE | GET | /parties | List parties | 200 |
 | PASS | PASS_CASE | POST | /quotations | Create quotation | 201 |
-| PASS | PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/lines | Add quotation revenue line | 201 |
-| PASS | PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/lines | Add quotation cost line | 201 |
-| PASS | PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/submit | Submit quotation | 201 |
-| PASS | PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/approve | Approve quotation | 201 |
-| PASS | PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/send | Send quotation | 201 |
-| PASS | PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/mark-won | Mark won | 201 |
-| PASS | PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/convert-to-job | Convert to job | 201 |
-| FAIL | PASS_CASE | POST | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/pdf | Queue quotation PDF |  |
-| PASS | PASS_CASE | GET | /quotations/87cbc756-011b-4b2d-8cc6-d34d7f8d04fd/pdf | Get quotation PDF info | 200 |
+| PASS | PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/lines | Add quotation revenue line | 201 |
+| PASS | PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/lines | Add quotation cost line | 201 |
+| PASS | PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/submit | Submit quotation | 201 |
+| PASS | PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/approve | Approve quotation | 201 |
+| PASS | PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/send | Send quotation | 201 |
+| PASS | PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/mark-won | Mark won | 201 |
+| PASS | PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/convert-to-job | Convert to job | 201 |
+| FAIL | PASS_CASE | POST | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/pdf | Queue quotation PDF |  |
+| PASS | PASS_CASE | GET | /quotations/29e22fd1-b083-4a66-bb72-47634cff4d5e/pdf | Get quotation PDF info | 200 |
 | PASS | PASS_CASE | POST | /jobs | Create job directly | 201 |
-| PASS | PASS_CASE | GET | /jobs/365b233e-6602-465c-b9aa-bc088a151162 | Get job | 200 |
+| PASS | PASS_CASE | GET | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e | Get job | 200 |
 | PASS | PASS_CASE | GET | /jobs | List jobs | 200 |
-| PASS | PASS_CASE | PATCH | /jobs/365b233e-6602-465c-b9aa-bc088a151162/air-details | Update air details | 200 |
-| PASS | PASS_CASE | GET | /jobs/365b233e-6602-465c-b9aa-bc088a151162/milestones | List milestones | 200 |
-| PASS | PASS_CASE | PATCH | /jobs/365b233e-6602-465c-b9aa-bc088a151162/milestones/25b6a81f-bd91-4761-bf67-76ecb0a34e2f | Complete milestone | 200 |
-| PASS | PASS_CASE | POST | /jobs/365b233e-6602-465c-b9aa-bc088a151162/charges | Add job charge | 201 |
-| PASS | PASS_CASE | GET | /jobs/365b233e-6602-465c-b9aa-bc088a151162/pnl | Job P&L | 200 |
-| PASS | PASS_CASE | POST | /jobs/365b233e-6602-465c-b9aa-bc088a151162/notes | Add job note | 201 |
-| FAIL | PASS_CASE | POST | /jobs/365b233e-6602-465c-b9aa-bc088a151162/documents/hawb | Queue HAWB PDF | 500 |
-| PASS | PASS_CASE | GET | /jobs/365b233e-6602-465c-b9aa-bc088a151162/documents/generation-status | Doc generation status | 200 |
-| PASS | PASS_CASE | POST | /jobs/365b233e-6602-465c-b9aa-bc088a151162/pre-alert/send | Send pre-alert | 201 |
+| PASS | PASS_CASE | PATCH | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/air-details | Update air details | 200 |
+| PASS | PASS_CASE | GET | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/milestones | List milestones | 200 |
+| PASS | PASS_CASE | PATCH | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/milestones/94e2c718-e342-4118-ad51-84566b67d3df | Complete milestone | 200 |
+| PASS | PASS_CASE | POST | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/charges | Add job charge | 201 |
+| PASS | PASS_CASE | GET | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/pnl | Job P&L | 200 |
+| PASS | PASS_CASE | POST | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/notes | Add job note | 201 |
+| FAIL | PASS_CASE | POST | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/documents/hawb | Queue HAWB PDF | 500 |
+| PASS | PASS_CASE | GET | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/documents/generation-status | Doc generation status | 200 |
+| PASS | PASS_CASE | POST | /jobs/34dd1cb7-da3d-43ec-865f-95f7fac3df8e/pre-alert/send | Send pre-alert | 201 |
 | PASS | PASS_CASE | POST | /awb-stock/batches | Create AWB batch | 201 |
-| PASS | PASS_CASE | POST | /awb-stock/batches/a6ec8be4-f8c9-4f9b-99de-3424bc404d27/allocate | Allocate AWB | 201 |
+| PASS | PASS_CASE | POST | /awb-stock/batches/4f063554-ce04-47f3-9b0e-d36e761403c5/allocate | Allocate AWB | 201 |
 | PASS | PASS_CASE | GET | /awb-stock/reports/low-stock | Low stock report | 200 |
 | PASS | PASS_CASE | GET | /awb-stock/batches | List batches | 200 |
-| PASS | PASS_CASE | POST | /invoices/from-job/365b233e-6602-465c-b9aa-bc088a151162 | Invoice from job | 201 |
-| PASS | PASS_CASE | GET | /invoices/87cb2ed9-df7e-452f-b304-246f083dd953 | Get invoice | 200 |
-| PASS | PASS_CASE | POST | /invoices/87cb2ed9-df7e-452f-b304-246f083dd953/post | Post invoice | 201 |
-| FAIL | PASS_CASE | POST | /invoices/87cb2ed9-df7e-452f-b304-246f083dd953/pdf | Generate invoice PDF | 500 |
-| FAIL | PASS_CASE | POST | /invoices/87cb2ed9-df7e-452f-b304-246f083dd953/send | Send invoice email | 500 |
+| PASS | PASS_CASE | POST | /invoices/from-job/34dd1cb7-da3d-43ec-865f-95f7fac3df8e | Invoice from job | 201 |
+| PASS | PASS_CASE | GET | /invoices/daa7f5a5-ac70-43a9-bec0-49e395ccc685 | Get invoice | 200 |
+| PASS | PASS_CASE | POST | /invoices/daa7f5a5-ac70-43a9-bec0-49e395ccc685/post | Post invoice | 201 |
+| FAIL | PASS_CASE | POST | /invoices/daa7f5a5-ac70-43a9-bec0-49e395ccc685/pdf | Generate invoice PDF | 500 |
+| FAIL | PASS_CASE | POST | /invoices/daa7f5a5-ac70-43a9-bec0-49e395ccc685/send | Send invoice email | 500 |
 | PASS | PASS_CASE | GET | /invoices/reports/overdue | Overdue report | 200 |
 | FAIL | PASS_CASE | POST | /credit-notes | Create credit note | 500 |
 | PASS | PASS_CASE | POST | /payment-requests | Create payment request | 201 |
-| PASS | PASS_CASE | POST | /payment-requests/62135902-cf60-446b-8b5e-cc02bb0b51e4/approve | Approve payment request | 201 |
-| PASS | PASS_CASE | POST | /payment-requests/62135902-cf60-446b-8b5e-cc02bb0b51e4/mark-paid | Mark payment paid | 201 |
+| PASS | PASS_CASE | POST | /payment-requests/1d58d6aa-19ad-4ff9-8304-b6876022118a/approve | Approve payment request | 201 |
+| PASS | PASS_CASE | POST | /payment-requests/1d58d6aa-19ad-4ff9-8304-b6876022118a/mark-paid | Mark payment paid | 201 |
 | FAIL | PASS_CASE | POST | /purchase-invoices | Create purchase invoice | 500 |
 | PASS | PASS_CASE | GET | /search?q=Al%20Noor&limit=10 | Global search | 200 |
 | PASS | PASS_CASE | GET | /users | List users | 200 |
@@ -479,8 +647,14 @@
 | FAIL | FAIL_CASE | POST | /auth/logout | Invalid / incomplete payload | 200 |
 | PASS | FAIL_CASE | POST | /auth/sessions/{sessionId}/revoke | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /auth/logout-all | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /auth/me | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /auth/change-password | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /auth/tenant/change-password | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /auth/invite | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /auth/accept-invite | Invalid / incomplete payload | 400 |
+| PASS | FAIL_CASE | POST | /auth/2fa/setup | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /auth/2fa/enable | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /auth/2fa/disable | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /masters/countries | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /masters/countries/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /masters/currencies | Invalid / incomplete payload | 401 |
@@ -500,6 +674,8 @@
 | PASS | FAIL_CASE | PATCH | /masters/shipping-lines/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /masters/vessels | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /masters/vessels/{id} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /vessels/{id}/schedules | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /vessels/{id}/schedules/{scheduleId} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /masters/truckers | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /masters/truckers/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /masters/warehouses | Invalid / incomplete payload | 401 |
@@ -532,8 +708,12 @@
 | PASS | FAIL_CASE | PATCH | /organization/bank-accounts/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /organization/number-formats | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /organization/number-formats/{documentType} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /quotations/tariffs | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /quotations/tariffs/{id} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /quotations/zip-distances | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /quotations/zip-distances/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /quotations | Invalid / incomplete payload | 401 |
-| PASS | FAIL_CASE | POST | /quotations/expire-due | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /quotations/expire-due | Invalid / incomplete payload | 403 |
 | PASS | FAIL_CASE | PATCH | /quotations/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /quotations/{id}/lines | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /quotations/{id}/apply-tariff | Invalid / incomplete payload | 401 |
@@ -550,20 +730,21 @@
 | PASS | FAIL_CASE | POST | /quotations/{id}/expire | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /quotations/{id}/pdf | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /quotations/{id}/send-email | Invalid / incomplete payload | 401 |
-| PASS | FAIL_CASE | POST | /quotations/tariffs | Invalid / incomplete payload | 401 |
-| PASS | FAIL_CASE | PATCH | /quotations/tariffs/{id} | Invalid / incomplete payload | 401 |
-| PASS | FAIL_CASE | POST | /quotations/zip-distances | Invalid / incomplete payload | 401 |
-| PASS | FAIL_CASE | PATCH | /quotations/zip-distances/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/milestones | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/notes | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/documents | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/containers | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/cargo | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/bills-of-lading | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/stuffing-records | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/close | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/cancel | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/air-details | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/sea-fcl-details | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/sea-fcl-details/si-submission | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/sea-fcl-details/vgm-submission | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/milestones/{milestoneId} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/charges | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/charges/{chargeId} | Invalid / incomplete payload | 401 |
@@ -575,8 +756,58 @@
 | PASS | FAIL_CASE | POST | /jobs/{id}/documents/mawb | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/documents/pre-alert | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/documents/cargo-manifest | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/hbl | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/hbl-express-release | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/mbl | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/fiata-bl | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/rider-bl | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/switch-bl | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/proxy-bl | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/back-to-back-bl | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/surrender-notice | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/si | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/stuffing-report | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/sailing-confirmation | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/transhipment-confirmation | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/freight-manifest | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/job-card | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/job-pnl | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/proforma-invoice | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /jobs/{id}/pre-alert/send | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/pre-alert/schedule | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/whatsapp/status | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/sub-jobs | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/payment-requests | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/e-awb | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/barcode-label | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/consignee-label | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/job-costing | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/freight-certificate | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /jobs/{id}/containers/{containerId} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/containers/{containerId}/cargo | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/containers/{containerId}/split | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/cargo/{cargoId} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/bills-of-lading/{blId} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/stuffing-records/{recordId} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/free-days | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/free-days/recalculate | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/deposits | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/deposits/{depositId} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /jobs/{id}/customs-status | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/containers/{containerId}/return | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/part-deliveries | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/pods | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/damage-reports | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/transhipment-link | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/cfs-storage/calculate | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/pre-can | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/can | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/exchange-letter | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/undertake-letter | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/delivery-order | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/transport-request | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/shipping-advice | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /jobs/{id}/documents/proof-of-delivery | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /awb-stock/batches | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /awb-stock/batches/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /awb-stock/batches/{id}/allocate | Invalid / incomplete payload | 401 |
@@ -594,6 +825,8 @@
 | PASS | FAIL_CASE | POST | /invoices/{id}/cancel | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /credit-notes | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /credit-notes/{id}/post | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /debit-notes | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /debit-notes/{id}/post | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /purchase-invoices | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | PATCH | /purchase-invoices/{id} | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /purchase-invoices/{id}/post | Invalid / incomplete payload | 401 |
@@ -602,18 +835,46 @@
 | PASS | FAIL_CASE | POST | /payment-requests/{id}/approve | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /payment-requests/{id}/reject | Invalid / incomplete payload | 401 |
 | PASS | FAIL_CASE | POST | /payment-requests/{id}/mark-paid | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/accounts | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/accounts/seed-defaults | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/accounts/{id} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/vouchers | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/vouchers/{id} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/vouchers/{id}/lines | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/vouchers/{id}/lines/{lineId} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/vouchers/{id}/post | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/vouchers/{id}/reverse | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/payments | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/payments/{id} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/payments/{id}/allocations | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/payments/{id}/post | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/payments/{id}/cancel | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/cheques/{id} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques/{id}/deposit | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques/{id}/clear | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques/{id}/bounce | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/cheques/{id}/cancel | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/bank-transfers | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/bank-reconciliations | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/bank-reconciliations/{id} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/bank-reconciliations/{id}/lines | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/bank-reconciliations/{id}/lines/{lineId} | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/bank-reconciliations/{id}/complete | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | POST | /gl/saved-reports | Invalid / incomplete payload | 401 |
+| PASS | FAIL_CASE | PATCH | /gl/saved-reports/{id} | Invalid / incomplete payload | 401 |
 | FAIL | PASS_CASE | POST | /auth/logout | Logout | 401 |
 
 ## Context IDs created this run
 ```json
 {
-  "saEmail": "live.sa.1783751652556@kingfisher.test",
-  "tenantSlug": "live-1783751652556",
-  "tenantId": "9aa39198-9fba-430d-9c22-b81d328a0186",
-  "companyId": "64b08617-3d49-40da-8ef5-c62c15ab6acf",
-  "customerId": "8d413ed4-f9a3-4443-8463-cf033dadae40",
-  "quotationId": "87cbc756-011b-4b2d-8cc6-d34d7f8d04fd",
-  "jobId": "365b233e-6602-465c-b9aa-bc088a151162",
-  "invoiceId": "87cb2ed9-df7e-452f-b304-246f083dd953"
+  "saEmail": "live.sa.1784282902909@kingfisher.test",
+  "tenantSlug": "live-1784282902909",
+  "tenantId": "4a244149-aec4-4cbd-a4c4-fb96b60a5dc8",
+  "companyId": "0f31377f-c3ef-4e72-ab77-0cdc4a40005c",
+  "customerId": "37d2d332-b5a8-48db-883f-68de86a13a45",
+  "quotationId": "29e22fd1-b083-4a66-bb72-47634cff4d5e",
+  "jobId": "34dd1cb7-da3d-43ec-865f-95f7fac3df8e",
+  "invoiceId": "daa7f5a5-ac70-43a9-bec0-49e395ccc685"
 }
 ```

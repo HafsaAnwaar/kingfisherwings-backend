@@ -1,305 +1,489 @@
 # LIVE PASS Cases — One Per API
 
 **Base URL:** `https://kingfisherwings.onrender.com`
-**Run ID:** 1783751652556
-**When:** 2026-07-11T06:43:03.771Z
-**OpenAPI APIs:** 287
+**Run ID:** 1784282902909
+**When:** 2026-07-17T10:18:47.828Z
+**OpenAPI APIs:** 441
 
 Every OpenAPI operation appears exactly once. Live execution result is shown when available.
 
 | # | Method | Path | Live result | HTTP |
 |---|--------|------|-------------|------|
-| 1 | GET | `/health` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 2 | POST | `/tenants` | EXECUTED_PASS | 201 |
-| 3 | GET | `/tenants` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 4 | GET | `/tenants/statistics` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 5 | POST | `/tenants/sync-permissions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 6 | POST | `/tenants/{id}/sync-permissions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 7 | GET | `/tenants/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 8 | PATCH | `/tenants/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 9 | DELETE | `/tenants/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 10 | PATCH | `/tenants/{id}/restore` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 11 | PATCH | `/tenants/{id}/activate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 12 | PATCH | `/tenants/{id}/deactivate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 13 | GET | `/companies` | EXECUTED_PASS | 200 |
-| 14 | POST | `/companies` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 15 | GET | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 16 | PATCH | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 17 | DELETE | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 18 | GET | `/users` | EXECUTED_PASS | 200 |
-| 19 | POST | `/users` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 20 | GET | `/users/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 21 | PATCH | `/users/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 22 | DELETE | `/users/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 23 | PATCH | `/users/{id}/status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 24 | POST | `/users/bulk` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 25 | POST | `/users/{id}/restore` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 26 | POST | `/users/me/change-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 27 | POST | `/users/{id}/admin-reset-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 28 | POST | `/users/{id}/force-logout` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 29 | POST | `/auth/login` | EXECUTED_PASS |  |
-| 30 | POST | `/auth/tenant-login` | EXECUTED_PASS | 200 |
-| 31 | POST | `/auth/super-admin/signup` | EXECUTED_PASS | 201 |
-| 32 | POST | `/auth/super-admin/login` | EXECUTED_PASS |  |
-| 33 | POST | `/auth/refresh` | EXECUTED_PASS | 200 |
-| 34 | POST | `/auth/logout` | EXECUTED_FAIL | 401 |
-| 35 | GET | `/auth/sessions` | EXECUTED_PASS | 200 |
-| 36 | POST | `/auth/sessions/{sessionId}/revoke` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 37 | POST | `/auth/logout-all` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 38 | GET | `/auth/me` | EXECUTED_PASS | 200 |
-| 39 | POST | `/auth/change-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 40 | POST | `/auth/tenant/change-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 41 | GET | `/masters/countries` | EXECUTED_PASS | 200 |
-| 42 | POST | `/masters/countries` | EXECUTED_PASS | 201 |
-| 43 | GET | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 44 | PATCH | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 45 | DELETE | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 46 | GET | `/masters/currencies` | EXECUTED_PASS | 200 |
-| 47 | POST | `/masters/currencies` | EXECUTED_PASS | 201 |
-| 48 | GET | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 49 | PATCH | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 50 | DELETE | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 51 | GET | `/masters/exchange-rates` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 52 | POST | `/masters/exchange-rates` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 53 | GET | `/masters/exchange-rates/latest/{currencyId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 54 | GET | `/masters/ports` | EXECUTED_PASS | 200 |
-| 55 | POST | `/masters/ports` | EXECUTED_PASS | 201 |
-| 56 | GET | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 57 | PATCH | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 58 | DELETE | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 59 | GET | `/masters/airports` | EXECUTED_PASS | 200 |
-| 60 | POST | `/masters/airports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 61 | GET | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 62 | PATCH | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 63 | DELETE | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 64 | GET | `/masters/container-types` | EXECUTED_PASS | 200 |
-| 65 | POST | `/masters/container-types` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 66 | GET | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 67 | PATCH | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 68 | DELETE | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 69 | GET | `/masters/hs-codes` | EXECUTED_PASS | 200 |
-| 70 | POST | `/masters/hs-codes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 71 | GET | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 72 | PATCH | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 73 | DELETE | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 74 | GET | `/masters/airlines` | EXECUTED_PASS | 200 |
-| 75 | POST | `/masters/airlines` | EXECUTED_PASS | 201 |
-| 76 | GET | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 77 | PATCH | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 78 | DELETE | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 79 | GET | `/masters/shipping-lines` | EXECUTED_PASS | 200 |
-| 80 | POST | `/masters/shipping-lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 81 | GET | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 82 | PATCH | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 83 | DELETE | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 84 | GET | `/masters/vessels` | EXECUTED_PASS | 200 |
-| 85 | POST | `/masters/vessels` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 86 | GET | `/masters/vessels/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 87 | PATCH | `/masters/vessels/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 88 | DELETE | `/masters/vessels/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 89 | GET | `/masters/truckers` | EXECUTED_PASS | 200 |
-| 90 | POST | `/masters/truckers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 91 | GET | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 92 | PATCH | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 93 | DELETE | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 94 | GET | `/masters/warehouses` | EXECUTED_PASS | 200 |
-| 95 | POST | `/masters/warehouses` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 96 | GET | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 97 | PATCH | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 98 | DELETE | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 99 | GET | `/masters/charge-codes` | EXECUTED_PASS | 200 |
-| 100 | POST | `/masters/charge-codes` | EXECUTED_PASS | 201 |
-| 101 | GET | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 102 | PATCH | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 103 | DELETE | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 104 | GET | `/masters/banks` | EXECUTED_PASS | 200 |
-| 105 | POST | `/masters/banks` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 106 | GET | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 107 | PATCH | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 108 | DELETE | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 109 | GET | `/masters/holidays` | EXECUTED_PASS | 200 |
-| 110 | POST | `/masters/holidays` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 111 | GET | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 112 | PATCH | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 113 | DELETE | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 114 | GET | `/masters/units-of-measure` | EXECUTED_PASS | 200 |
-| 115 | POST | `/masters/units-of-measure` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 116 | GET | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 117 | PATCH | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 118 | DELETE | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 119 | GET | `/masters/tax-rates` | EXECUTED_PASS | 200 |
-| 120 | POST | `/masters/tax-rates` | EXECUTED_FAIL | 500 |
-| 121 | GET | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 122 | PATCH | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 123 | DELETE | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 124 | GET | `/masters/branches` | EXECUTED_PASS | 200 |
-| 125 | POST | `/masters/branches` | EXECUTED_PASS | 201 |
-| 126 | GET | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 127 | PATCH | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 128 | DELETE | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 129 | GET | `/masters/departments` | EXECUTED_PASS | 200 |
-| 130 | POST | `/masters/departments` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 131 | GET | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 132 | PATCH | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 133 | DELETE | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 134 | GET | `/masters/designations` | EXECUTED_PASS | 200 |
-| 135 | POST | `/masters/designations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 136 | GET | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 137 | PATCH | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 138 | DELETE | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 139 | GET | `/parties` | EXECUTED_PASS | 200 |
-| 140 | POST | `/parties` | EXECUTED_PASS | 201 |
-| 141 | GET | `/parties/{id}` | EXECUTED_PASS | 200 |
-| 142 | PATCH | `/parties/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 143 | DELETE | `/parties/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 144 | POST | `/parties/import` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 145 | PATCH | `/parties/{id}/credit-status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 146 | POST | `/parties/{id}/contacts` | EXECUTED_PASS | 201 |
-| 147 | PATCH | `/parties/{id}/contacts/{contactId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 148 | DELETE | `/parties/{id}/contacts/{contactId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 149 | POST | `/parties/{id}/addresses` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 150 | PATCH | `/parties/{id}/addresses/{addressId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 151 | DELETE | `/parties/{id}/addresses/{addressId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 152 | GET | `/organization/profile` | EXECUTED_PASS | 200 |
-| 153 | PATCH | `/organization/profile` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 154 | GET | `/organization/bank-accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 155 | POST | `/organization/bank-accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 156 | GET | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 157 | PATCH | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 158 | DELETE | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 159 | GET | `/organization/number-formats` | EXECUTED_PASS | 200 |
-| 160 | POST | `/organization/number-formats` | EXECUTED_PASS | 201 |
-| 161 | GET | `/organization/number-formats/{documentType}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 162 | PATCH | `/organization/number-formats/{documentType}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 163 | GET | `/organization/number-formats/{documentType}/preview` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 164 | GET | `/quotations` | EXECUTED_PASS | 200 |
-| 165 | POST | `/quotations` | EXECUTED_PASS | 201 |
-| 166 | GET | `/quotations/reports/chargewise` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 167 | GET | `/quotations/reports/analytics` | EXECUTED_PASS | 200 |
-| 168 | GET | `/quotations/reports/analytics/conversion` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 169 | GET | `/quotations/reports/analytics/lost-reasons` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 170 | GET | `/quotations/reports/analytics/response-time` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 171 | POST | `/quotations/online-quote` | EXECUTED_PASS |  |
-| 172 | POST | `/quotations/expire-due` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 173 | GET | `/quotations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 174 | PATCH | `/quotations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 175 | DELETE | `/quotations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 176 | GET | `/quotations/{id}/revisions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 177 | POST | `/quotations/{id}/lines` | EXECUTED_PASS | 201 |
-| 178 | POST | `/quotations/{id}/apply-tariff` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 179 | PATCH | `/quotations/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 180 | DELETE | `/quotations/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 181 | POST | `/quotations/{id}/submit` | EXECUTED_PASS | 201 |
-| 182 | POST | `/quotations/{id}/approve` | EXECUTED_PASS | 201 |
-| 183 | POST | `/quotations/{id}/reject` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 184 | POST | `/quotations/{id}/send` | EXECUTED_PASS | 201 |
-| 185 | POST | `/quotations/{id}/mark-won` | EXECUTED_PASS | 201 |
-| 186 | POST | `/quotations/{id}/mark-lost` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 187 | POST | `/quotations/{id}/duplicate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 188 | POST | `/quotations/{id}/convert-to-job` | EXECUTED_PASS | 201 |
-| 189 | POST | `/quotations/{id}/archive` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 190 | POST | `/quotations/{id}/expire` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 191 | POST | `/quotations/{id}/pdf` | EXECUTED_FAIL |  |
-| 192 | GET | `/quotations/{id}/pdf` | EXECUTED_PASS | 200 |
-| 193 | GET | `/quotations/{id}/pdf/status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 194 | POST | `/quotations/{id}/send-email` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 195 | GET | `/quotations/tariffs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 196 | POST | `/quotations/tariffs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 197 | GET | `/quotations/tariffs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 198 | PATCH | `/quotations/tariffs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 199 | DELETE | `/quotations/tariffs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 200 | GET | `/quotations/zip-distances` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 201 | POST | `/quotations/zip-distances` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 202 | GET | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 203 | PATCH | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 204 | DELETE | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 205 | GET | `/jobs` | EXECUTED_PASS | 200 |
-| 206 | POST | `/jobs` | EXECUTED_PASS | 201 |
-| 207 | GET | `/jobs/{id}` | EXECUTED_PASS | 200 |
-| 208 | PATCH | `/jobs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 209 | DELETE | `/jobs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 210 | GET | `/jobs/{id}/house-jobs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 211 | GET | `/jobs/{id}/milestones` | EXECUTED_PASS | 200 |
-| 212 | POST | `/jobs/{id}/milestones` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 213 | GET | `/jobs/{id}/pnl` | EXECUTED_PASS | 200 |
-| 214 | GET | `/jobs/{id}/notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 215 | POST | `/jobs/{id}/notes` | EXECUTED_PASS | 201 |
-| 216 | GET | `/jobs/{id}/documents` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 217 | POST | `/jobs/{id}/documents` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 218 | GET | `/jobs/{id}/containers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 219 | POST | `/jobs/{id}/containers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 220 | POST | `/jobs/{id}/close` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 221 | POST | `/jobs/{id}/cancel` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 222 | PATCH | `/jobs/{id}/air-details` | EXECUTED_PASS | 200 |
-| 223 | PATCH | `/jobs/{id}/sea-fcl-details` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 224 | PATCH | `/jobs/{id}/milestones/{milestoneId}` | EXECUTED_PASS | 200 |
-| 225 | POST | `/jobs/{id}/charges` | EXECUTED_PASS | 201 |
-| 226 | PATCH | `/jobs/{id}/charges/{chargeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 227 | DELETE | `/jobs/{id}/charges/{chargeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 228 | POST | `/jobs/{id}/prorate-cost/{chargeCodeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 229 | PATCH | `/jobs/{id}/notes/{noteId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 230 | DELETE | `/jobs/{id}/notes/{noteId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 231 | PATCH | `/jobs/{id}/documents/{documentId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 232 | DELETE | `/jobs/{id}/documents/{documentId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 233 | POST | `/jobs/{id}/documents/{documentId}/finalize` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 234 | GET | `/jobs/{id}/documents/generation-status` | EXECUTED_PASS | 200 |
-| 235 | POST | `/jobs/{id}/documents/hawb` | EXECUTED_FAIL | 500 |
-| 236 | POST | `/jobs/{id}/documents/mawb` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 237 | POST | `/jobs/{id}/documents/pre-alert` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 238 | POST | `/jobs/{id}/documents/cargo-manifest` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 239 | POST | `/jobs/{id}/pre-alert/send` | EXECUTED_PASS | 201 |
-| 240 | PATCH | `/jobs/{id}/containers/{containerId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 241 | DELETE | `/jobs/{id}/containers/{containerId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 242 | GET | `/awb-stock/batches` | EXECUTED_PASS | 200 |
-| 243 | POST | `/awb-stock/batches` | EXECUTED_PASS | 201 |
-| 244 | GET | `/awb-stock/reports/low-stock` | EXECUTED_PASS | 200 |
-| 245 | GET | `/awb-stock/allocations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 246 | GET | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 247 | PATCH | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 248 | DELETE | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 249 | POST | `/awb-stock/batches/{id}/allocate` | EXECUTED_PASS | 201 |
-| 250 | POST | `/awb-stock/batches/{id}/transfer-branch` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 251 | POST | `/awb-stock/allocations/{id}/void` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 252 | POST | `/awb-stock/allocations/{id}/mark-used` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 253 | GET | `/search` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 254 | GET | `/files/{tenantId}/{filename}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 255 | GET | `/invoices` | EXECUTED_PASS | 200 |
-| 256 | POST | `/invoices` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 257 | GET | `/invoices/reports/overdue` | EXECUTED_PASS | 200 |
-| 258 | GET | `/invoices/{id}` | EXECUTED_PASS | 200 |
-| 259 | PATCH | `/invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 260 | DELETE | `/invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 261 | POST | `/invoices/from-job/{jobId}` | EXECUTED_PASS | 201 |
-| 262 | POST | `/invoices/{id}/lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 263 | PATCH | `/invoices/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 264 | DELETE | `/invoices/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 265 | POST | `/invoices/{id}/post` | EXECUTED_PASS | 201 |
-| 266 | POST | `/invoices/{id}/send` | EXECUTED_FAIL | 500 |
-| 267 | POST | `/invoices/{id}/pdf` | EXECUTED_FAIL | 500 |
-| 268 | GET | `/invoices/{id}/pdf` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 269 | POST | `/invoices/{id}/cancel` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 270 | GET | `/credit-notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 271 | POST | `/credit-notes` | EXECUTED_FAIL | 500 |
-| 272 | GET | `/credit-notes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 273 | POST | `/credit-notes/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 274 | GET | `/purchase-invoices` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 275 | POST | `/purchase-invoices` | EXECUTED_FAIL | 500 |
-| 276 | GET | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 277 | PATCH | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 278 | DELETE | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 279 | POST | `/purchase-invoices/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 280 | GET | `/payment-requests` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 281 | POST | `/payment-requests` | EXECUTED_PASS | 201 |
-| 282 | GET | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 283 | PATCH | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 284 | DELETE | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 285 | POST | `/payment-requests/{id}/approve` | EXECUTED_PASS | 201 |
-| 286 | POST | `/payment-requests/{id}/reject` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 287 | POST | `/payment-requests/{id}/mark-paid` | EXECUTED_PASS | 201 |
+| 1 | GET | `/locale/defaults` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 2 | GET | `/locale/{countryCode}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 3 | GET | `/health` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 4 | POST | `/tenants` | EXECUTED_PASS | 201 |
+| 5 | GET | `/tenants` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 6 | GET | `/tenants/statistics` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 7 | POST | `/tenants/sync-permissions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 8 | POST | `/tenants/{id}/sync-permissions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 9 | GET | `/tenants/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 10 | PATCH | `/tenants/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 11 | DELETE | `/tenants/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 12 | PATCH | `/tenants/{id}/restore` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 13 | PATCH | `/tenants/{id}/activate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 14 | PATCH | `/tenants/{id}/deactivate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 15 | GET | `/companies` | EXECUTED_PASS | 200 |
+| 16 | POST | `/companies` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 17 | GET | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 18 | PATCH | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 19 | DELETE | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 20 | GET | `/users` | EXECUTED_PASS | 200 |
+| 21 | POST | `/users` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 22 | GET | `/users/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 23 | PATCH | `/users/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 24 | DELETE | `/users/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 25 | PATCH | `/users/{id}/status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 26 | POST | `/users/bulk` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 27 | POST | `/users/{id}/restore` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 28 | POST | `/users/me/change-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 29 | POST | `/users/{id}/admin-reset-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 30 | POST | `/users/{id}/force-logout` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 31 | POST | `/auth/login` | EXECUTED_PASS |  |
+| 32 | POST | `/auth/tenant-login` | EXECUTED_PASS | 200 |
+| 33 | POST | `/auth/super-admin/signup` | EXECUTED_PASS | 201 |
+| 34 | POST | `/auth/super-admin/login` | EXECUTED_PASS |  |
+| 35 | POST | `/auth/refresh` | EXECUTED_PASS | 200 |
+| 36 | POST | `/auth/logout` | EXECUTED_FAIL | 401 |
+| 37 | GET | `/auth/sessions` | EXECUTED_PASS | 200 |
+| 38 | POST | `/auth/sessions/{sessionId}/revoke` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 39 | POST | `/auth/logout-all` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 40 | GET | `/auth/me` | EXECUTED_PASS | 200 |
+| 41 | PATCH | `/auth/me` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 42 | POST | `/auth/change-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 43 | POST | `/auth/tenant/change-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 44 | POST | `/auth/invite` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 45 | POST | `/auth/accept-invite` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 46 | POST | `/auth/2fa/setup` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 47 | POST | `/auth/2fa/enable` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 48 | POST | `/auth/2fa/disable` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 49 | GET | `/masters/countries` | EXECUTED_PASS | 200 |
+| 50 | POST | `/masters/countries` | EXECUTED_PASS | 201 |
+| 51 | GET | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 52 | PATCH | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 53 | DELETE | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 54 | GET | `/masters/currencies` | EXECUTED_PASS | 200 |
+| 55 | POST | `/masters/currencies` | EXECUTED_PASS | 201 |
+| 56 | GET | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 57 | PATCH | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 58 | DELETE | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 59 | GET | `/masters/exchange-rates` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 60 | POST | `/masters/exchange-rates` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 61 | GET | `/masters/exchange-rates/latest/{currencyId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 62 | GET | `/masters/ports` | EXECUTED_PASS | 200 |
+| 63 | POST | `/masters/ports` | EXECUTED_PASS | 201 |
+| 64 | GET | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 65 | PATCH | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 66 | DELETE | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 67 | GET | `/masters/airports` | EXECUTED_PASS | 200 |
+| 68 | POST | `/masters/airports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 69 | GET | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 70 | PATCH | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 71 | DELETE | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 72 | GET | `/masters/container-types` | EXECUTED_PASS | 200 |
+| 73 | POST | `/masters/container-types` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 74 | GET | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 75 | PATCH | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 76 | DELETE | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 77 | GET | `/masters/hs-codes` | EXECUTED_PASS | 200 |
+| 78 | POST | `/masters/hs-codes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 79 | GET | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 80 | PATCH | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 81 | DELETE | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 82 | GET | `/masters/airlines` | EXECUTED_PASS | 200 |
+| 83 | POST | `/masters/airlines` | EXECUTED_PASS | 201 |
+| 84 | GET | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 85 | PATCH | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 86 | DELETE | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 87 | GET | `/masters/shipping-lines` | EXECUTED_PASS | 200 |
+| 88 | POST | `/masters/shipping-lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 89 | GET | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 90 | PATCH | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 91 | DELETE | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 92 | GET | `/masters/vessels` | EXECUTED_PASS | 200 |
+| 93 | POST | `/masters/vessels` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 94 | GET | `/masters/vessels/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 95 | PATCH | `/masters/vessels/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 96 | DELETE | `/masters/vessels/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 97 | GET | `/vessels/{id}/schedules` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 98 | POST | `/vessels/{id}/schedules` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 99 | PATCH | `/vessels/{id}/schedules/{scheduleId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 100 | DELETE | `/vessels/{id}/schedules/{scheduleId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 101 | GET | `/masters/truckers` | EXECUTED_PASS | 200 |
+| 102 | POST | `/masters/truckers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 103 | GET | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 104 | PATCH | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 105 | DELETE | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 106 | GET | `/masters/warehouses` | EXECUTED_PASS | 200 |
+| 107 | POST | `/masters/warehouses` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 108 | GET | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 109 | PATCH | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 110 | DELETE | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 111 | GET | `/masters/charge-codes` | EXECUTED_PASS | 200 |
+| 112 | POST | `/masters/charge-codes` | EXECUTED_PASS | 201 |
+| 113 | GET | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 114 | PATCH | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 115 | DELETE | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 116 | GET | `/masters/banks` | EXECUTED_PASS | 200 |
+| 117 | POST | `/masters/banks` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 118 | GET | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 119 | PATCH | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 120 | DELETE | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 121 | GET | `/masters/holidays` | EXECUTED_PASS | 200 |
+| 122 | POST | `/masters/holidays` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 123 | GET | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 124 | PATCH | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 125 | DELETE | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 126 | GET | `/masters/units-of-measure` | EXECUTED_PASS | 200 |
+| 127 | POST | `/masters/units-of-measure` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 128 | GET | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 129 | PATCH | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 130 | DELETE | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 131 | GET | `/masters/tax-rates` | EXECUTED_PASS | 200 |
+| 132 | POST | `/masters/tax-rates` | EXECUTED_PASS | 201 |
+| 133 | GET | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 134 | PATCH | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 135 | DELETE | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 136 | GET | `/masters/branches` | EXECUTED_PASS | 200 |
+| 137 | POST | `/masters/branches` | EXECUTED_PASS | 201 |
+| 138 | GET | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 139 | PATCH | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 140 | DELETE | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 141 | GET | `/masters/departments` | EXECUTED_PASS | 200 |
+| 142 | POST | `/masters/departments` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 143 | GET | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 144 | PATCH | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 145 | DELETE | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 146 | GET | `/masters/designations` | EXECUTED_PASS | 200 |
+| 147 | POST | `/masters/designations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 148 | GET | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 149 | PATCH | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 150 | DELETE | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 151 | GET | `/parties` | EXECUTED_PASS | 200 |
+| 152 | POST | `/parties` | EXECUTED_PASS | 201 |
+| 153 | GET | `/parties/export` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 154 | GET | `/parties/{id}/history` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 155 | GET | `/parties/{id}` | EXECUTED_PASS | 200 |
+| 156 | PATCH | `/parties/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 157 | DELETE | `/parties/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 158 | POST | `/parties/import` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 159 | PATCH | `/parties/{id}/credit-status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 160 | POST | `/parties/{id}/contacts` | EXECUTED_PASS | 201 |
+| 161 | PATCH | `/parties/{id}/contacts/{contactId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 162 | DELETE | `/parties/{id}/contacts/{contactId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 163 | POST | `/parties/{id}/addresses` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 164 | PATCH | `/parties/{id}/addresses/{addressId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 165 | DELETE | `/parties/{id}/addresses/{addressId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 166 | GET | `/organization/profile` | EXECUTED_PASS | 200 |
+| 167 | PATCH | `/organization/profile` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 168 | GET | `/organization/bank-accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 169 | POST | `/organization/bank-accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 170 | GET | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 171 | PATCH | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 172 | DELETE | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 173 | GET | `/organization/number-formats` | EXECUTED_PASS | 200 |
+| 174 | POST | `/organization/number-formats` | EXECUTED_PASS | 201 |
+| 175 | GET | `/organization/number-formats/{documentType}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 176 | PATCH | `/organization/number-formats/{documentType}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 177 | GET | `/organization/number-formats/{documentType}/preview` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 178 | GET | `/quotations/tariffs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 179 | POST | `/quotations/tariffs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 180 | GET | `/quotations/tariffs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 181 | PATCH | `/quotations/tariffs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 182 | DELETE | `/quotations/tariffs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 183 | GET | `/quotations/zip-distances` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 184 | POST | `/quotations/zip-distances` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 185 | GET | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 186 | PATCH | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 187 | DELETE | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 188 | GET | `/quotations` | EXECUTED_PASS | 200 |
+| 189 | POST | `/quotations` | EXECUTED_PASS | 201 |
+| 190 | GET | `/quotations/reports/chargewise` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 191 | GET | `/quotations/reports/analytics` | EXECUTED_PASS | 200 |
+| 192 | GET | `/quotations/reports/analytics/conversion` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 193 | GET | `/quotations/reports/analytics/lost-reasons` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 194 | GET | `/quotations/reports/analytics/response-time` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 195 | POST | `/quotations/online-quote` | EXECUTED_PASS |  |
+| 196 | POST | `/quotations/expire-due` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 197 | GET | `/quotations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 198 | PATCH | `/quotations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 199 | DELETE | `/quotations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 200 | GET | `/quotations/{id}/revisions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 201 | POST | `/quotations/{id}/lines` | EXECUTED_PASS | 201 |
+| 202 | POST | `/quotations/{id}/apply-tariff` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 203 | PATCH | `/quotations/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 204 | DELETE | `/quotations/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 205 | POST | `/quotations/{id}/submit` | EXECUTED_PASS | 201 |
+| 206 | POST | `/quotations/{id}/approve` | EXECUTED_PASS | 201 |
+| 207 | POST | `/quotations/{id}/reject` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 208 | POST | `/quotations/{id}/send` | EXECUTED_PASS | 201 |
+| 209 | POST | `/quotations/{id}/mark-won` | EXECUTED_PASS | 201 |
+| 210 | POST | `/quotations/{id}/mark-lost` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 211 | POST | `/quotations/{id}/duplicate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 212 | POST | `/quotations/{id}/convert-to-job` | EXECUTED_PASS | 201 |
+| 213 | POST | `/quotations/{id}/archive` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 214 | POST | `/quotations/{id}/expire` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 215 | POST | `/quotations/{id}/pdf` | EXECUTED_FAIL |  |
+| 216 | GET | `/quotations/{id}/pdf` | EXECUTED_PASS | 200 |
+| 217 | GET | `/quotations/{id}/pdf/status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 218 | POST | `/quotations/{id}/send-email` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 219 | GET | `/jobs` | EXECUTED_PASS | 200 |
+| 220 | POST | `/jobs` | EXECUTED_PASS | 201 |
+| 221 | GET | `/jobs/{id}` | EXECUTED_PASS | 200 |
+| 222 | PATCH | `/jobs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 223 | DELETE | `/jobs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 224 | GET | `/jobs/{id}/house-jobs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 225 | GET | `/jobs/{id}/milestones` | EXECUTED_PASS | 200 |
+| 226 | POST | `/jobs/{id}/milestones` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 227 | GET | `/jobs/{id}/pnl` | EXECUTED_PASS | 200 |
+| 228 | GET | `/jobs/{id}/notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 229 | POST | `/jobs/{id}/notes` | EXECUTED_PASS | 201 |
+| 230 | GET | `/jobs/{id}/documents` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 231 | POST | `/jobs/{id}/documents` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 232 | GET | `/jobs/{id}/containers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 233 | POST | `/jobs/{id}/containers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 234 | GET | `/jobs/{id}/containers/fill` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 235 | GET | `/jobs/{id}/containers/{containerId}/fill` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 236 | GET | `/jobs/{id}/cutoffs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 237 | GET | `/jobs/{id}/cargo` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 238 | POST | `/jobs/{id}/cargo` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 239 | GET | `/jobs/{id}/bills-of-lading` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 240 | POST | `/jobs/{id}/bills-of-lading` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 241 | GET | `/jobs/{id}/stuffing-records` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 242 | POST | `/jobs/{id}/stuffing-records` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 243 | POST | `/jobs/{id}/close` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 244 | POST | `/jobs/{id}/cancel` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 245 | PATCH | `/jobs/{id}/air-details` | EXECUTED_PASS | 200 |
+| 246 | PATCH | `/jobs/{id}/sea-fcl-details` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 247 | POST | `/jobs/{id}/sea-fcl-details/si-submission` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 248 | POST | `/jobs/{id}/sea-fcl-details/vgm-submission` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 249 | PATCH | `/jobs/{id}/milestones/{milestoneId}` | EXECUTED_PASS | 200 |
+| 250 | POST | `/jobs/{id}/charges` | EXECUTED_PASS | 201 |
+| 251 | PATCH | `/jobs/{id}/charges/{chargeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 252 | DELETE | `/jobs/{id}/charges/{chargeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 253 | POST | `/jobs/{id}/prorate-cost/{chargeCodeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 254 | PATCH | `/jobs/{id}/notes/{noteId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 255 | DELETE | `/jobs/{id}/notes/{noteId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 256 | PATCH | `/jobs/{id}/documents/{documentId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 257 | DELETE | `/jobs/{id}/documents/{documentId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 258 | POST | `/jobs/{id}/documents/{documentId}/finalize` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 259 | GET | `/jobs/{id}/documents/generation-status` | EXECUTED_PASS | 200 |
+| 260 | POST | `/jobs/{id}/documents/hawb` | EXECUTED_FAIL | 500 |
+| 261 | POST | `/jobs/{id}/documents/mawb` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 262 | POST | `/jobs/{id}/documents/pre-alert` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 263 | POST | `/jobs/{id}/documents/cargo-manifest` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 264 | POST | `/jobs/{id}/documents/hbl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 265 | POST | `/jobs/{id}/documents/hbl-express-release` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 266 | POST | `/jobs/{id}/documents/mbl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 267 | POST | `/jobs/{id}/documents/fiata-bl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 268 | POST | `/jobs/{id}/documents/rider-bl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 269 | POST | `/jobs/{id}/documents/switch-bl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 270 | POST | `/jobs/{id}/documents/proxy-bl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 271 | POST | `/jobs/{id}/documents/back-to-back-bl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 272 | POST | `/jobs/{id}/documents/surrender-notice` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 273 | POST | `/jobs/{id}/documents/si` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 274 | POST | `/jobs/{id}/documents/stuffing-report` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 275 | POST | `/jobs/{id}/documents/sailing-confirmation` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 276 | POST | `/jobs/{id}/documents/transhipment-confirmation` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 277 | POST | `/jobs/{id}/documents/freight-manifest` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 278 | POST | `/jobs/{id}/documents/job-card` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 279 | POST | `/jobs/{id}/documents/job-pnl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 280 | POST | `/jobs/{id}/documents/proforma-invoice` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 281 | POST | `/jobs/{id}/pre-alert/send` | EXECUTED_PASS | 201 |
+| 282 | POST | `/jobs/{id}/pre-alert/schedule` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 283 | POST | `/jobs/{id}/whatsapp/status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 284 | GET | `/jobs/{id}/sub-jobs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 285 | POST | `/jobs/{id}/sub-jobs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 286 | POST | `/jobs/{id}/payment-requests` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 287 | POST | `/jobs/{id}/documents/e-awb` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 288 | POST | `/jobs/{id}/documents/barcode-label` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 289 | POST | `/jobs/{id}/documents/consignee-label` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 290 | POST | `/jobs/{id}/documents/job-costing` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 291 | POST | `/jobs/{id}/documents/freight-certificate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 292 | PATCH | `/jobs/{id}/containers/{containerId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 293 | DELETE | `/jobs/{id}/containers/{containerId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 294 | POST | `/jobs/{id}/containers/{containerId}/cargo` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 295 | POST | `/jobs/{id}/containers/{containerId}/split` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 296 | PATCH | `/jobs/{id}/cargo/{cargoId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 297 | DELETE | `/jobs/{id}/cargo/{cargoId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 298 | PATCH | `/jobs/{id}/bills-of-lading/{blId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 299 | DELETE | `/jobs/{id}/bills-of-lading/{blId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 300 | PATCH | `/jobs/{id}/stuffing-records/{recordId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 301 | DELETE | `/jobs/{id}/stuffing-records/{recordId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 302 | GET | `/jobs/{id}/free-days` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 303 | POST | `/jobs/{id}/free-days` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 304 | POST | `/jobs/{id}/free-days/recalculate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 305 | GET | `/jobs/{id}/deposits` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 306 | POST | `/jobs/{id}/deposits` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 307 | PATCH | `/jobs/{id}/deposits/{depositId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 308 | DELETE | `/jobs/{id}/deposits/{depositId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 309 | PATCH | `/jobs/{id}/customs-status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 310 | POST | `/jobs/{id}/containers/{containerId}/return` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 311 | GET | `/jobs/{id}/part-deliveries` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 312 | POST | `/jobs/{id}/part-deliveries` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 313 | GET | `/jobs/{id}/pods` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 314 | POST | `/jobs/{id}/pods` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 315 | GET | `/jobs/{id}/damage-reports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 316 | POST | `/jobs/{id}/damage-reports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 317 | POST | `/jobs/{id}/transhipment-link` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 318 | POST | `/jobs/{id}/cfs-storage/calculate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 319 | POST | `/jobs/{id}/documents/pre-can` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 320 | POST | `/jobs/{id}/documents/can` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 321 | POST | `/jobs/{id}/documents/exchange-letter` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 322 | POST | `/jobs/{id}/documents/undertake-letter` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 323 | POST | `/jobs/{id}/documents/delivery-order` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 324 | POST | `/jobs/{id}/documents/transport-request` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 325 | POST | `/jobs/{id}/documents/shipping-advice` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 326 | POST | `/jobs/{id}/documents/proof-of-delivery` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 327 | GET | `/awb-stock/batches` | EXECUTED_PASS | 200 |
+| 328 | POST | `/awb-stock/batches` | EXECUTED_PASS | 201 |
+| 329 | GET | `/awb-stock/reports/low-stock` | EXECUTED_PASS | 200 |
+| 330 | GET | `/awb-stock/allocations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 331 | GET | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 332 | PATCH | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 333 | DELETE | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 334 | POST | `/awb-stock/batches/{id}/allocate` | EXECUTED_PASS | 201 |
+| 335 | POST | `/awb-stock/batches/{id}/transfer-branch` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 336 | POST | `/awb-stock/allocations/{id}/void` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 337 | POST | `/awb-stock/allocations/{id}/mark-used` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 338 | GET | `/search` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 339 | GET | `/files/{tenantId}/{filename}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 340 | GET | `/invoices` | EXECUTED_PASS | 200 |
+| 341 | POST | `/invoices` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 342 | GET | `/invoices/reports/overdue` | EXECUTED_PASS | 200 |
+| 343 | GET | `/invoices/{id}` | EXECUTED_PASS | 200 |
+| 344 | PATCH | `/invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 345 | DELETE | `/invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 346 | POST | `/invoices/from-job/{jobId}` | EXECUTED_PASS | 201 |
+| 347 | POST | `/invoices/{id}/lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 348 | PATCH | `/invoices/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 349 | DELETE | `/invoices/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 350 | POST | `/invoices/{id}/post` | EXECUTED_PASS | 201 |
+| 351 | POST | `/invoices/{id}/send` | EXECUTED_FAIL | 500 |
+| 352 | POST | `/invoices/{id}/pdf` | EXECUTED_FAIL | 500 |
+| 353 | GET | `/invoices/{id}/pdf` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 354 | POST | `/invoices/{id}/cancel` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 355 | GET | `/credit-notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 356 | POST | `/credit-notes` | EXECUTED_FAIL | 500 |
+| 357 | GET | `/credit-notes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 358 | POST | `/credit-notes/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 359 | GET | `/debit-notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 360 | POST | `/debit-notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 361 | GET | `/debit-notes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 362 | POST | `/debit-notes/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 363 | GET | `/purchase-invoices` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 364 | POST | `/purchase-invoices` | EXECUTED_FAIL | 500 |
+| 365 | GET | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 366 | PATCH | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 367 | DELETE | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 368 | POST | `/purchase-invoices/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 369 | GET | `/payment-requests` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 370 | POST | `/payment-requests` | EXECUTED_PASS | 201 |
+| 371 | GET | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 372 | PATCH | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 373 | DELETE | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 374 | POST | `/payment-requests/{id}/approve` | EXECUTED_PASS | 201 |
+| 375 | POST | `/payment-requests/{id}/reject` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 376 | POST | `/payment-requests/{id}/mark-paid` | EXECUTED_PASS | 201 |
+| 377 | GET | `/gl/accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 378 | POST | `/gl/accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 379 | GET | `/gl/accounts/tree` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 380 | GET | `/gl/accounts/reports/trial-balance` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 381 | POST | `/gl/accounts/seed-defaults` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 382 | GET | `/gl/accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 383 | PATCH | `/gl/accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 384 | DELETE | `/gl/accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 385 | GET | `/gl/accounts/{id}/ledger` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 386 | GET | `/gl/vouchers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 387 | POST | `/gl/vouchers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 388 | GET | `/gl/vouchers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 389 | PATCH | `/gl/vouchers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 390 | DELETE | `/gl/vouchers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 391 | POST | `/gl/vouchers/{id}/lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 392 | PATCH | `/gl/vouchers/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 393 | DELETE | `/gl/vouchers/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 394 | POST | `/gl/vouchers/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 395 | POST | `/gl/vouchers/{id}/reverse` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 396 | GET | `/gl/payments` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 397 | POST | `/gl/payments` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 398 | GET | `/gl/payments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 399 | PATCH | `/gl/payments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 400 | DELETE | `/gl/payments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 401 | POST | `/gl/payments/{id}/allocations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 402 | DELETE | `/gl/payments/{id}/allocations/{allocationId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 403 | POST | `/gl/payments/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 404 | POST | `/gl/payments/{id}/cancel` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 405 | GET | `/gl/ar/aging` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 406 | GET | `/gl/ap/aging` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 407 | GET | `/gl/ar/statement/{partyId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 408 | GET | `/gl/ap/statement/{partyId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 409 | GET | `/gl/cheques` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 410 | POST | `/gl/cheques` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 411 | GET | `/gl/cheques/reports/pdc-due` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 412 | GET | `/gl/cheques/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 413 | PATCH | `/gl/cheques/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 414 | POST | `/gl/cheques/{id}/deposit` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 415 | POST | `/gl/cheques/{id}/clear` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 416 | POST | `/gl/cheques/{id}/bounce` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 417 | POST | `/gl/cheques/{id}/cancel` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 418 | POST | `/gl/bank-transfers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 419 | GET | `/gl/bank-reconciliations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 420 | POST | `/gl/bank-reconciliations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 421 | GET | `/gl/bank-reconciliations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 422 | PATCH | `/gl/bank-reconciliations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 423 | DELETE | `/gl/bank-reconciliations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 424 | GET | `/gl/bank-reconciliations/{id}/unmatched` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 425 | POST | `/gl/bank-reconciliations/{id}/lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 426 | PATCH | `/gl/bank-reconciliations/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 427 | DELETE | `/gl/bank-reconciliations/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 428 | POST | `/gl/bank-reconciliations/{id}/complete` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 429 | GET | `/gl/reports/trial-balance` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 430 | GET | `/gl/reports/balance-sheet` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 431 | GET | `/gl/reports/profit-and-loss` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 432 | GET | `/gl/reports/cash-flow` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 433 | GET | `/gl/reports/vat-return` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 434 | GET | `/gl/mis/dashboard` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 435 | GET | `/gl/mis/profitability` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 436 | GET | `/gl/mis/operational` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 437 | GET | `/gl/saved-reports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 438 | POST | `/gl/saved-reports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 439 | GET | `/gl/saved-reports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 440 | PATCH | `/gl/saved-reports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 441 | DELETE | `/gl/saved-reports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 
 ## Per-API PASS details
 
-### PASS-001: `GET /health`
+### PASS-001: `GET /locale/defaults`
+**Purpose:** Optional country → suggested dial / currency / timezone
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Locale |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-002: `GET /locale/{countryCode}`
+**Purpose:** Locale suggestions for an ISO country (still optional to use)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Locale |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-003: `GET /health`
 
 | Field | Value |
 |-------|-------|
@@ -313,7 +497,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-002: `POST /tenants`
+### PASS-004: `POST /tenants`
 **Purpose:** Create a new tenant (also provisions its TENANT_ADMIN owner user)
 
 | Field | Value |
@@ -329,7 +513,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-003: `GET /tenants`
+### PASS-005: `GET /tenants`
 **Purpose:** Get all tenants
 
 | Field | Value |
@@ -344,7 +528,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-004: `GET /tenants/statistics`
+### PASS-006: `GET /tenants/statistics`
 **Purpose:** Tenant statistics
 
 | Field | Value |
@@ -359,7 +543,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-005: `POST /tenants/sync-permissions`
+### PASS-007: `POST /tenants/sync-permissions`
 **Purpose:** Reconcile ALL tenants against the current permission/role catalog — for tenants created before a later module added new permissions.
 
 | Field | Value |
@@ -374,7 +558,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-006: `POST /tenants/{id}/sync-permissions`
+### PASS-008: `POST /tenants/{id}/sync-permissions`
 **Purpose:** Reconcile one tenant against the current permission/role catalog
 
 | Field | Value |
@@ -389,7 +573,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-007: `GET /tenants/{id}`
+### PASS-009: `GET /tenants/{id}`
 **Purpose:** Get tenant by ID
 
 | Field | Value |
@@ -404,7 +588,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-008: `PATCH /tenants/{id}`
+### PASS-010: `PATCH /tenants/{id}`
 **Purpose:** Update tenant
 
 | Field | Value |
@@ -419,7 +603,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-009: `DELETE /tenants/{id}`
+### PASS-011: `DELETE /tenants/{id}`
 **Purpose:** Soft delete tenant
 
 | Field | Value |
@@ -434,7 +618,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-010: `PATCH /tenants/{id}/restore`
+### PASS-012: `PATCH /tenants/{id}/restore`
 **Purpose:** Restore tenant
 
 | Field | Value |
@@ -449,7 +633,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-011: `PATCH /tenants/{id}/activate`
+### PASS-013: `PATCH /tenants/{id}/activate`
 **Purpose:** Activate tenant
 
 | Field | Value |
@@ -464,7 +648,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-012: `PATCH /tenants/{id}/deactivate`
+### PASS-014: `PATCH /tenants/{id}/deactivate`
 **Purpose:** Deactivate tenant
 
 | Field | Value |
@@ -479,7 +663,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-013: `GET /companies`
+### PASS-015: `GET /companies`
 **Purpose:** List this tenant's companies (usually just the one default, more for multi-entity groups)
 
 | Field | Value |
@@ -495,7 +679,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-014: `POST /companies`
+### PASS-016: `POST /companies`
 **Purpose:** Register an additional company under this tenant (multi-entity groups)
 
 | Field | Value |
@@ -510,7 +694,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-015: `GET /companies/{id}`
+### PASS-017: `GET /companies/{id}`
 **Purpose:** Get a company by id
 
 | Field | Value |
@@ -525,7 +709,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-016: `PATCH /companies/{id}`
+### PASS-018: `PATCH /companies/{id}`
 **Purpose:** Update a company
 
 | Field | Value |
@@ -540,7 +724,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-017: `DELETE /companies/{id}`
+### PASS-019: `DELETE /companies/{id}`
 **Purpose:** Soft-delete a company (blocked if it is the only one, or currently default)
 
 | Field | Value |
@@ -555,7 +739,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-018: `GET /users`
+### PASS-020: `GET /users`
 **Purpose:** List users for the current tenant (paginated, filterable).
 
 | Field | Value |
@@ -571,7 +755,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-019: `POST /users`
+### PASS-021: `POST /users`
 **Purpose:** Create a user. Returns a system-generated temporary password.
 
 | Field | Value |
@@ -586,7 +770,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-020: `GET /users/{id}`
+### PASS-022: `GET /users/{id}`
 **Purpose:** Get a single user by id.
 
 | Field | Value |
@@ -601,7 +785,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-021: `PATCH /users/{id}`
+### PASS-023: `PATCH /users/{id}`
 **Purpose:** Update a user.
 
 | Field | Value |
@@ -616,7 +800,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-022: `DELETE /users/{id}`
+### PASS-024: `DELETE /users/{id}`
 **Purpose:** Soft-delete a user.
 
 | Field | Value |
@@ -631,7 +815,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-023: `PATCH /users/{id}/status`
+### PASS-025: `PATCH /users/{id}/status`
 **Purpose:** Change a user's status (activate, suspend, etc).
 
 | Field | Value |
@@ -646,7 +830,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-024: `POST /users/bulk`
+### PASS-026: `POST /users/bulk`
 **Purpose:** Apply an action (activate/deactivate/suspend/delete/restore) to multiple users.
 
 | Field | Value |
@@ -661,7 +845,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-025: `POST /users/{id}/restore`
+### PASS-027: `POST /users/{id}/restore`
 **Purpose:** Restore a soft-deleted user.
 
 | Field | Value |
@@ -676,7 +860,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-026: `POST /users/me/change-password`
+### PASS-028: `POST /users/me/change-password`
 **Purpose:** Authenticated user changes their own password.
 
 | Field | Value |
@@ -691,7 +875,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-027: `POST /users/{id}/admin-reset-password`
+### PASS-029: `POST /users/{id}/admin-reset-password`
 **Purpose:** Admin resets a target user's password to a new temporary password.
 
 | Field | Value |
@@ -706,7 +890,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-028: `POST /users/{id}/force-logout`
+### PASS-030: `POST /users/{id}/force-logout`
 **Purpose:** Force-logout: revoke a target user's active sessions on all devices.
 
 | Field | Value |
@@ -721,7 +905,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-029: `POST /auth/login`
+### PASS-031: `POST /auth/login`
 **Purpose:** Staff login: tenant slug + email + password
 
 | Field | Value |
@@ -737,7 +921,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-030: `POST /auth/tenant-login`
+### PASS-032: `POST /auth/tenant-login`
 **Purpose:** Tenant admin login: tenant slug + the tenant's own password
 
 | Field | Value |
@@ -753,7 +937,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-031: `POST /auth/super-admin/signup`
+### PASS-033: `POST /auth/super-admin/signup`
 **Purpose:** Platform super admin self-registration
 
 | Field | Value |
@@ -769,7 +953,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-032: `POST /auth/super-admin/login`
+### PASS-034: `POST /auth/super-admin/login`
 **Purpose:** Platform super admin login
 
 | Field | Value |
@@ -785,7 +969,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-033: `POST /auth/refresh`
+### PASS-035: `POST /auth/refresh`
 **Purpose:** Exchange a refresh token for a new token pair
 
 | Field | Value |
@@ -801,7 +985,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-034: `POST /auth/logout`
+### PASS-036: `POST /auth/logout`
 **Purpose:** Revoke the current session
 
 | Field | Value |
@@ -817,7 +1001,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-035: `GET /auth/sessions`
+### PASS-037: `GET /auth/sessions`
 **Purpose:** List the authenticated user's own active sessions
 
 | Field | Value |
@@ -833,7 +1017,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-036: `POST /auth/sessions/{sessionId}/revoke`
+### PASS-038: `POST /auth/sessions/{sessionId}/revoke`
 **Purpose:** Revoke one of the authenticated user's own sessions
 
 | Field | Value |
@@ -848,7 +1032,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-037: `POST /auth/logout-all`
+### PASS-039: `POST /auth/logout-all`
 **Purpose:** Log out of every device (revokes all active sessions)
 
 | Field | Value |
@@ -863,7 +1047,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-038: `GET /auth/me`
+### PASS-040: `GET /auth/me`
 **Purpose:** Get the authenticated principal (user, tenant owner, or super admin)
 
 | Field | Value |
@@ -879,7 +1063,22 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-039: `POST /auth/change-password`
+### PASS-041: `PATCH /auth/me`
+**Purpose:** Update own profile after login (preferred country, phone, locale)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Auth |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-042: `POST /auth/change-password`
 **Purpose:** Change the authenticated user password
 
 | Field | Value |
@@ -894,7 +1093,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-040: `POST /auth/tenant/change-password`
+### PASS-043: `POST /auth/tenant/change-password`
 **Purpose:** Change the tenant's own login password (POST /auth/tenant-login credential). Tenant admins only.
 
 | Field | Value |
@@ -909,7 +1108,82 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-041: `GET /masters/countries`
+### PASS-044: `POST /auth/invite`
+**Purpose:** Send invite email with accept token for an INVITED user
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Auth |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-045: `POST /auth/accept-invite`
+**Purpose:** Accept invite token and set password
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Auth |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-046: `POST /auth/2fa/setup`
+**Purpose:** Generate TOTP secret + QR for the current user
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Auth |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-047: `POST /auth/2fa/enable`
+**Purpose:** Enable 2FA after verifying a TOTP code from the authenticator app
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Auth |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-048: `POST /auth/2fa/disable`
+**Purpose:** Disable 2FA (password + optional TOTP/backup code)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Auth |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-049: `GET /masters/countries`
 **Purpose:** List countries
 
 | Field | Value |
@@ -925,7 +1199,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-042: `POST /masters/countries`
+### PASS-050: `POST /masters/countries`
 **Purpose:** Create a country
 
 | Field | Value |
@@ -941,7 +1215,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-043: `GET /masters/countries/{id}`
+### PASS-051: `GET /masters/countries/{id}`
 **Purpose:** Get a country by id
 
 | Field | Value |
@@ -956,7 +1230,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-044: `PATCH /masters/countries/{id}`
+### PASS-052: `PATCH /masters/countries/{id}`
 **Purpose:** Update a country
 
 | Field | Value |
@@ -971,7 +1245,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-045: `DELETE /masters/countries/{id}`
+### PASS-053: `DELETE /masters/countries/{id}`
 **Purpose:** Soft-delete a country
 
 | Field | Value |
@@ -986,7 +1260,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-046: `GET /masters/currencies`
+### PASS-054: `GET /masters/currencies`
 **Purpose:** List currencies
 
 | Field | Value |
@@ -1002,7 +1276,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-047: `POST /masters/currencies`
+### PASS-055: `POST /masters/currencies`
 **Purpose:** Create a currency
 
 | Field | Value |
@@ -1018,7 +1292,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-048: `GET /masters/currencies/{id}`
+### PASS-056: `GET /masters/currencies/{id}`
 **Purpose:** Get a currency by id
 
 | Field | Value |
@@ -1033,7 +1307,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-049: `PATCH /masters/currencies/{id}`
+### PASS-057: `PATCH /masters/currencies/{id}`
 **Purpose:** Update a currency
 
 | Field | Value |
@@ -1048,7 +1322,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-050: `DELETE /masters/currencies/{id}`
+### PASS-058: `DELETE /masters/currencies/{id}`
 **Purpose:** Soft-delete a currency
 
 | Field | Value |
@@ -1063,7 +1337,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-051: `GET /masters/exchange-rates`
+### PASS-059: `GET /masters/exchange-rates`
 **Purpose:** List exchange rates, optionally filtered by currency
 
 | Field | Value |
@@ -1078,7 +1352,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-052: `POST /masters/exchange-rates`
+### PASS-060: `POST /masters/exchange-rates`
 **Purpose:** Record (or correct) an exchange rate for a date — upserts by currency + date
 
 | Field | Value |
@@ -1093,7 +1367,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-053: `GET /masters/exchange-rates/latest/{currencyId}`
+### PASS-061: `GET /masters/exchange-rates/latest/{currencyId}`
 **Purpose:** Most recent rate on file for a currency
 
 | Field | Value |
@@ -1108,7 +1382,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-054: `GET /masters/ports`
+### PASS-062: `GET /masters/ports`
 **Purpose:** List ports
 
 | Field | Value |
@@ -1124,7 +1398,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-055: `POST /masters/ports`
+### PASS-063: `POST /masters/ports`
 **Purpose:** Create a port
 
 | Field | Value |
@@ -1140,7 +1414,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-056: `GET /masters/ports/{id}`
+### PASS-064: `GET /masters/ports/{id}`
 **Purpose:** Get a port record by id
 
 | Field | Value |
@@ -1155,7 +1429,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-057: `PATCH /masters/ports/{id}`
+### PASS-065: `PATCH /masters/ports/{id}`
 **Purpose:** Update a port
 
 | Field | Value |
@@ -1170,7 +1444,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-058: `DELETE /masters/ports/{id}`
+### PASS-066: `DELETE /masters/ports/{id}`
 **Purpose:** Soft-delete a port
 
 | Field | Value |
@@ -1185,7 +1459,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-059: `GET /masters/airports`
+### PASS-067: `GET /masters/airports`
 **Purpose:** List airports
 
 | Field | Value |
@@ -1201,7 +1475,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-060: `POST /masters/airports`
+### PASS-068: `POST /masters/airports`
 **Purpose:** Create an airport
 
 | Field | Value |
@@ -1216,7 +1490,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-061: `GET /masters/airports/{id}`
+### PASS-069: `GET /masters/airports/{id}`
 **Purpose:** Get an airport by id
 
 | Field | Value |
@@ -1231,7 +1505,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-062: `PATCH /masters/airports/{id}`
+### PASS-070: `PATCH /masters/airports/{id}`
 **Purpose:** Update an airport
 
 | Field | Value |
@@ -1246,7 +1520,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-063: `DELETE /masters/airports/{id}`
+### PASS-071: `DELETE /masters/airports/{id}`
 **Purpose:** Soft-delete an airport
 
 | Field | Value |
@@ -1261,7 +1535,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-064: `GET /masters/container-types`
+### PASS-072: `GET /masters/container-types`
 **Purpose:** List container types
 
 | Field | Value |
@@ -1277,7 +1551,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-065: `POST /masters/container-types`
+### PASS-073: `POST /masters/container-types`
 **Purpose:** Create a container type
 
 | Field | Value |
@@ -1292,7 +1566,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-066: `GET /masters/container-types/{id}`
+### PASS-074: `GET /masters/container-types/{id}`
 **Purpose:** Get a container type by id
 
 | Field | Value |
@@ -1307,7 +1581,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-067: `PATCH /masters/container-types/{id}`
+### PASS-075: `PATCH /masters/container-types/{id}`
 **Purpose:** Update a container type
 
 | Field | Value |
@@ -1322,7 +1596,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-068: `DELETE /masters/container-types/{id}`
+### PASS-076: `DELETE /masters/container-types/{id}`
 **Purpose:** Soft-delete a container type
 
 | Field | Value |
@@ -1337,7 +1611,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-069: `GET /masters/hs-codes`
+### PASS-077: `GET /masters/hs-codes`
 **Purpose:** List HS codes
 
 | Field | Value |
@@ -1353,7 +1627,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-070: `POST /masters/hs-codes`
+### PASS-078: `POST /masters/hs-codes`
 **Purpose:** Create an HS code
 
 | Field | Value |
@@ -1368,7 +1642,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-071: `GET /masters/hs-codes/{id}`
+### PASS-079: `GET /masters/hs-codes/{id}`
 **Purpose:** Get an HS code by id
 
 | Field | Value |
@@ -1383,7 +1657,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-072: `PATCH /masters/hs-codes/{id}`
+### PASS-080: `PATCH /masters/hs-codes/{id}`
 **Purpose:** Update an HS code
 
 | Field | Value |
@@ -1398,7 +1672,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-073: `DELETE /masters/hs-codes/{id}`
+### PASS-081: `DELETE /masters/hs-codes/{id}`
 **Purpose:** Soft-delete an HS code
 
 | Field | Value |
@@ -1413,7 +1687,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-074: `GET /masters/airlines`
+### PASS-082: `GET /masters/airlines`
 **Purpose:** list airlines
 
 | Field | Value |
@@ -1429,7 +1703,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-075: `POST /masters/airlines`
+### PASS-083: `POST /masters/airlines`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -1445,7 +1719,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-076: `GET /masters/airlines/{id}`
+### PASS-084: `GET /masters/airlines/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -1460,7 +1734,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-077: `PATCH /masters/airlines/{id}`
+### PASS-085: `PATCH /masters/airlines/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -1475,7 +1749,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-078: `DELETE /masters/airlines/{id}`
+### PASS-086: `DELETE /masters/airlines/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -1490,7 +1764,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-079: `GET /masters/shipping-lines`
+### PASS-087: `GET /masters/shipping-lines`
 **Purpose:** list shippinglines
 
 | Field | Value |
@@ -1506,7 +1780,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-080: `POST /masters/shipping-lines`
+### PASS-088: `POST /masters/shipping-lines`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -1521,7 +1795,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-081: `GET /masters/shipping-lines/{id}`
+### PASS-089: `GET /masters/shipping-lines/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -1536,7 +1810,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-082: `PATCH /masters/shipping-lines/{id}`
+### PASS-090: `PATCH /masters/shipping-lines/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -1551,7 +1825,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-083: `DELETE /masters/shipping-lines/{id}`
+### PASS-091: `DELETE /masters/shipping-lines/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -1566,7 +1840,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-084: `GET /masters/vessels`
+### PASS-092: `GET /masters/vessels`
 **Purpose:** list vessels
 
 | Field | Value |
@@ -1582,7 +1856,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-085: `POST /masters/vessels`
+### PASS-093: `POST /masters/vessels`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -1597,7 +1871,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-086: `GET /masters/vessels/{id}`
+### PASS-094: `GET /masters/vessels/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -1612,7 +1886,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-087: `PATCH /masters/vessels/{id}`
+### PASS-095: `PATCH /masters/vessels/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -1627,7 +1901,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-088: `DELETE /masters/vessels/{id}`
+### PASS-096: `DELETE /masters/vessels/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -1642,7 +1916,67 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-089: `GET /masters/truckers`
+### PASS-097: `GET /vessels/{id}/schedules`
+**Purpose:** List vessel voyage schedules (filter by ETD/ETA)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Vessels — Schedules |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-098: `POST /vessels/{id}/schedules`
+**Purpose:** Create a vessel voyage schedule
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Vessels — Schedules |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-099: `PATCH /vessels/{id}/schedules/{scheduleId}`
+**Purpose:** Update a vessel voyage schedule
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Vessels — Schedules |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-100: `DELETE /vessels/{id}/schedules/{scheduleId}`
+**Purpose:** Soft-delete a vessel voyage schedule
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Vessels — Schedules |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-101: `GET /masters/truckers`
 **Purpose:** list truckers
 
 | Field | Value |
@@ -1658,7 +1992,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-090: `POST /masters/truckers`
+### PASS-102: `POST /masters/truckers`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -1673,7 +2007,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-091: `GET /masters/truckers/{id}`
+### PASS-103: `GET /masters/truckers/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -1688,7 +2022,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-092: `PATCH /masters/truckers/{id}`
+### PASS-104: `PATCH /masters/truckers/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -1703,7 +2037,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-093: `DELETE /masters/truckers/{id}`
+### PASS-105: `DELETE /masters/truckers/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -1718,7 +2052,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-094: `GET /masters/warehouses`
+### PASS-106: `GET /masters/warehouses`
 **Purpose:** list warehouses
 
 | Field | Value |
@@ -1734,7 +2068,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-095: `POST /masters/warehouses`
+### PASS-107: `POST /masters/warehouses`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -1749,7 +2083,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-096: `GET /masters/warehouses/{id}`
+### PASS-108: `GET /masters/warehouses/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -1764,7 +2098,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-097: `PATCH /masters/warehouses/{id}`
+### PASS-109: `PATCH /masters/warehouses/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -1779,7 +2113,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-098: `DELETE /masters/warehouses/{id}`
+### PASS-110: `DELETE /masters/warehouses/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -1794,7 +2128,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-099: `GET /masters/charge-codes`
+### PASS-111: `GET /masters/charge-codes`
 **Purpose:** list chargecodes
 
 | Field | Value |
@@ -1810,7 +2144,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-100: `POST /masters/charge-codes`
+### PASS-112: `POST /masters/charge-codes`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -1826,7 +2160,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-101: `GET /masters/charge-codes/{id}`
+### PASS-113: `GET /masters/charge-codes/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -1841,7 +2175,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-102: `PATCH /masters/charge-codes/{id}`
+### PASS-114: `PATCH /masters/charge-codes/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -1856,7 +2190,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-103: `DELETE /masters/charge-codes/{id}`
+### PASS-115: `DELETE /masters/charge-codes/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -1871,7 +2205,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-104: `GET /masters/banks`
+### PASS-116: `GET /masters/banks`
 **Purpose:** list banks
 
 | Field | Value |
@@ -1887,7 +2221,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-105: `POST /masters/banks`
+### PASS-117: `POST /masters/banks`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -1902,7 +2236,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-106: `GET /masters/banks/{id}`
+### PASS-118: `GET /masters/banks/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -1917,7 +2251,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-107: `PATCH /masters/banks/{id}`
+### PASS-119: `PATCH /masters/banks/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -1932,7 +2266,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-108: `DELETE /masters/banks/{id}`
+### PASS-120: `DELETE /masters/banks/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -1947,7 +2281,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-109: `GET /masters/holidays`
+### PASS-121: `GET /masters/holidays`
 **Purpose:** list holidays
 
 | Field | Value |
@@ -1963,7 +2297,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-110: `POST /masters/holidays`
+### PASS-122: `POST /masters/holidays`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -1978,7 +2312,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-111: `GET /masters/holidays/{id}`
+### PASS-123: `GET /masters/holidays/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -1993,7 +2327,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-112: `PATCH /masters/holidays/{id}`
+### PASS-124: `PATCH /masters/holidays/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -2008,7 +2342,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-113: `DELETE /masters/holidays/{id}`
+### PASS-125: `DELETE /masters/holidays/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -2023,7 +2357,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-114: `GET /masters/units-of-measure`
+### PASS-126: `GET /masters/units-of-measure`
 **Purpose:** list unitsofmeasure
 
 | Field | Value |
@@ -2039,7 +2373,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-115: `POST /masters/units-of-measure`
+### PASS-127: `POST /masters/units-of-measure`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -2054,7 +2388,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-116: `GET /masters/units-of-measure/{id}`
+### PASS-128: `GET /masters/units-of-measure/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -2069,7 +2403,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-117: `PATCH /masters/units-of-measure/{id}`
+### PASS-129: `PATCH /masters/units-of-measure/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -2084,7 +2418,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-118: `DELETE /masters/units-of-measure/{id}`
+### PASS-130: `DELETE /masters/units-of-measure/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -2099,7 +2433,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-119: `GET /masters/tax-rates`
+### PASS-131: `GET /masters/tax-rates`
 **Purpose:** list taxrates
 
 | Field | Value |
@@ -2115,7 +2449,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-120: `POST /masters/tax-rates`
+### PASS-132: `POST /masters/tax-rates`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -2124,14 +2458,14 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — TaxRates |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_FAIL** |
-| Live HTTP | 500 |
+| Live status | **EXECUTED_PASS** |
+| Live HTTP | 201 |
 | Live title | Create tax rate VAT5 |
-| Live notes | {"statusCode":500,"message":"Internal server error"} |
+| Live notes | OK |
 
 ---
 
-### PASS-121: `GET /masters/tax-rates/{id}`
+### PASS-133: `GET /masters/tax-rates/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -2146,7 +2480,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-122: `PATCH /masters/tax-rates/{id}`
+### PASS-134: `PATCH /masters/tax-rates/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -2161,7 +2495,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-123: `DELETE /masters/tax-rates/{id}`
+### PASS-135: `DELETE /masters/tax-rates/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -2176,7 +2510,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-124: `GET /masters/branches`
+### PASS-136: `GET /masters/branches`
 **Purpose:** list branches
 
 | Field | Value |
@@ -2192,7 +2526,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-125: `POST /masters/branches`
+### PASS-137: `POST /masters/branches`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -2208,7 +2542,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-126: `GET /masters/branches/{id}`
+### PASS-138: `GET /masters/branches/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -2223,7 +2557,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-127: `PATCH /masters/branches/{id}`
+### PASS-139: `PATCH /masters/branches/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -2238,7 +2572,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-128: `DELETE /masters/branches/{id}`
+### PASS-140: `DELETE /masters/branches/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -2253,7 +2587,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-129: `GET /masters/departments`
+### PASS-141: `GET /masters/departments`
 **Purpose:** list departments
 
 | Field | Value |
@@ -2269,7 +2603,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-130: `POST /masters/departments`
+### PASS-142: `POST /masters/departments`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -2284,7 +2618,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-131: `GET /masters/departments/{id}`
+### PASS-143: `GET /masters/departments/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -2299,7 +2633,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-132: `PATCH /masters/departments/{id}`
+### PASS-144: `PATCH /masters/departments/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -2314,7 +2648,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-133: `DELETE /masters/departments/{id}`
+### PASS-145: `DELETE /masters/departments/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -2329,7 +2663,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-134: `GET /masters/designations`
+### PASS-146: `GET /masters/designations`
 **Purpose:** list designations
 
 | Field | Value |
@@ -2345,7 +2679,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-135: `POST /masters/designations`
+### PASS-147: `POST /masters/designations`
 **Purpose:** Create a record
 
 | Field | Value |
@@ -2360,7 +2694,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-136: `GET /masters/designations/{id}`
+### PASS-148: `GET /masters/designations/{id}`
 **Purpose:** Get a record by id
 
 | Field | Value |
@@ -2375,7 +2709,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-137: `PATCH /masters/designations/{id}`
+### PASS-149: `PATCH /masters/designations/{id}`
 **Purpose:** Update a record
 
 | Field | Value |
@@ -2390,7 +2724,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-138: `DELETE /masters/designations/{id}`
+### PASS-150: `DELETE /masters/designations/{id}`
 **Purpose:** Soft-delete a record
 
 | Field | Value |
@@ -2405,7 +2739,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-139: `GET /parties`
+### PASS-151: `GET /parties`
 **Purpose:** List parties (customers, agents, suppliers, carriers, etc.)
 
 | Field | Value |
@@ -2421,7 +2755,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-140: `POST /parties`
+### PASS-152: `POST /parties`
 **Purpose:** Create a party
 
 | Field | Value |
@@ -2437,7 +2771,37 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-141: `GET /parties/{id}`
+### PASS-153: `GET /parties/export`
+**Purpose:** Export parties as CSV
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Parties |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-154: `GET /parties/{id}/history`
+**Purpose:** Party transaction history — jobs, quotations, invoices, payment requests, audit trail
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Parties |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-155: `GET /parties/{id}`
 **Purpose:** Get a party with its contacts and addresses
 
 | Field | Value |
@@ -2453,7 +2817,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-142: `PATCH /parties/{id}`
+### PASS-156: `PATCH /parties/{id}`
 **Purpose:** Update a party
 
 | Field | Value |
@@ -2468,7 +2832,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-143: `DELETE /parties/{id}`
+### PASS-157: `DELETE /parties/{id}`
 **Purpose:** Soft-delete a party
 
 | Field | Value |
@@ -2483,7 +2847,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-144: `POST /parties/import`
+### PASS-158: `POST /parties/import`
 **Purpose:** Bulk-import parties from CSV. Columns match the party fields (party_type, code, name, ...); use "|" to separate multiple tags within a cell. Best-effort: bad rows are reported, good rows still import.
 
 | Field | Value |
@@ -2498,7 +2862,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-145: `PATCH /parties/{id}/credit-status`
+### PASS-159: `PATCH /parties/{id}/credit-status`
 **Purpose:** Change credit status (Active / On Hold / Blacklisted)
 
 | Field | Value |
@@ -2513,7 +2877,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-146: `POST /parties/{id}/contacts`
+### PASS-160: `POST /parties/{id}/contacts`
 **Purpose:** Add a contact to a party
 
 | Field | Value |
@@ -2529,7 +2893,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-147: `PATCH /parties/{id}/contacts/{contactId}`
+### PASS-161: `PATCH /parties/{id}/contacts/{contactId}`
 **Purpose:** Update a party's contact
 
 | Field | Value |
@@ -2544,7 +2908,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-148: `DELETE /parties/{id}/contacts/{contactId}`
+### PASS-162: `DELETE /parties/{id}/contacts/{contactId}`
 **Purpose:** Remove a party's contact
 
 | Field | Value |
@@ -2559,7 +2923,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-149: `POST /parties/{id}/addresses`
+### PASS-163: `POST /parties/{id}/addresses`
 **Purpose:** Add an address to a party
 
 | Field | Value |
@@ -2574,7 +2938,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-150: `PATCH /parties/{id}/addresses/{addressId}`
+### PASS-164: `PATCH /parties/{id}/addresses/{addressId}`
 **Purpose:** Update a party's address
 
 | Field | Value |
@@ -2589,7 +2953,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-151: `DELETE /parties/{id}/addresses/{addressId}`
+### PASS-165: `DELETE /parties/{id}/addresses/{addressId}`
 **Purpose:** Remove a party's address
 
 | Field | Value |
@@ -2604,7 +2968,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-152: `GET /organization/profile`
+### PASS-166: `GET /organization/profile`
 **Purpose:** Get this tenant's own organization profile
 
 | Field | Value |
@@ -2620,7 +2984,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-153: `PATCH /organization/profile`
+### PASS-167: `PATCH /organization/profile`
 **Purpose:** Update this tenant's own organization profile (Ch.27.1)
 
 | Field | Value |
@@ -2635,7 +2999,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-154: `GET /organization/bank-accounts`
+### PASS-168: `GET /organization/bank-accounts`
 **Purpose:** List this tenant's own bank accounts
 
 | Field | Value |
@@ -2650,7 +3014,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-155: `POST /organization/bank-accounts`
+### PASS-169: `POST /organization/bank-accounts`
 **Purpose:** Add a bank account
 
 | Field | Value |
@@ -2665,7 +3029,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-156: `GET /organization/bank-accounts/{id}`
+### PASS-170: `GET /organization/bank-accounts/{id}`
 **Purpose:** Get a bank account by id
 
 | Field | Value |
@@ -2680,7 +3044,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-157: `PATCH /organization/bank-accounts/{id}`
+### PASS-171: `PATCH /organization/bank-accounts/{id}`
 **Purpose:** Update a bank account
 
 | Field | Value |
@@ -2695,7 +3059,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-158: `DELETE /organization/bank-accounts/{id}`
+### PASS-172: `DELETE /organization/bank-accounts/{id}`
 **Purpose:** Soft-delete a bank account
 
 | Field | Value |
@@ -2710,7 +3074,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-159: `GET /organization/number-formats`
+### PASS-173: `GET /organization/number-formats`
 **Purpose:** List all configured document number formats (Ch.2.2)
 
 | Field | Value |
@@ -2726,7 +3090,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-160: `POST /organization/number-formats`
+### PASS-174: `POST /organization/number-formats`
 **Purpose:** Configure the number format for a document type
 
 | Field | Value |
@@ -2742,7 +3106,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-161: `GET /organization/number-formats/{documentType}`
+### PASS-175: `GET /organization/number-formats/{documentType}`
 **Purpose:** Get the number format for one document type
 
 | Field | Value |
@@ -2757,7 +3121,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-162: `PATCH /organization/number-formats/{documentType}`
+### PASS-176: `PATCH /organization/number-formats/{documentType}`
 **Purpose:** Update the number format for a document type
 
 | Field | Value |
@@ -2772,7 +3136,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-163: `GET /organization/number-formats/{documentType}/preview`
+### PASS-177: `GET /organization/number-formats/{documentType}/preview`
 **Purpose:** Preview the next number for this format without consuming a sequence value
 
 | Field | Value |
@@ -2787,7 +3151,157 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-164: `GET /quotations`
+### PASS-178: `GET /quotations/tariffs`
+**Purpose:** List tariff rate cards
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Online Tariff Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-179: `POST /quotations/tariffs`
+**Purpose:** Create a tariff rate card (sale rate + cost rate per lane/service/container type)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Online Tariff Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-180: `GET /quotations/tariffs/{id}`
+**Purpose:** Get a tariff by id
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Online Tariff Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-181: `PATCH /quotations/tariffs/{id}`
+**Purpose:** Update a tariff
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Online Tariff Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-182: `DELETE /quotations/tariffs/{id}`
+**Purpose:** Soft-delete a tariff
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Online Tariff Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-183: `GET /quotations/zip-distances`
+**Purpose:** List zip-to-zip distances
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Zip Distance Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-184: `POST /quotations/zip-distances`
+**Purpose:** Record a distance between two zip/location codes
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Zip Distance Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-185: `GET /quotations/zip-distances/{id}`
+**Purpose:** Get a zip distance record by id
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Zip Distance Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-186: `PATCH /quotations/zip-distances/{id}`
+**Purpose:** Update a zip distance record
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Zip Distance Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-187: `DELETE /quotations/zip-distances/{id}`
+**Purpose:** Soft-delete a zip distance record
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Quotations — Zip Distance Master |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-188: `GET /quotations`
 **Purpose:** List quotations
 
 | Field | Value |
@@ -2803,7 +3317,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-165: `POST /quotations`
+### PASS-189: `POST /quotations`
 **Purpose:** Create a quotation (DRAFT)
 
 | Field | Value |
@@ -2819,7 +3333,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-166: `GET /quotations/reports/chargewise`
+### PASS-190: `GET /quotations/reports/chargewise`
 **Purpose:** "All Quotations Chargewise" report — same filters as the list, with each charge line included
 
 | Field | Value |
@@ -2834,7 +3348,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-167: `GET /quotations/reports/analytics`
+### PASS-191: `GET /quotations/reports/analytics`
 **Purpose:** Quotation analytics summary — volume, conversion, GP totals (Ch.7.7)
 
 | Field | Value |
@@ -2850,7 +3364,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-168: `GET /quotations/reports/analytics/conversion`
+### PASS-192: `GET /quotations/reports/analytics/conversion`
 **Purpose:** Win/loss and quote-to-job conversion rates
 
 | Field | Value |
@@ -2865,7 +3379,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-169: `GET /quotations/reports/analytics/lost-reasons`
+### PASS-193: `GET /quotations/reports/analytics/lost-reasons`
 **Purpose:** Lost quotation breakdown by reason code
 
 | Field | Value |
@@ -2880,7 +3394,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-170: `GET /quotations/reports/analytics/response-time`
+### PASS-194: `GET /quotations/reports/analytics/response-time`
 **Purpose:** Average hours from creation to submit/send
 
 | Field | Value |
@@ -2895,8 +3409,8 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-171: `POST /quotations/online-quote`
-**Purpose:** Public online quote widget — customer submits cargo details, system auto-calculates from tariff (Ch.7.5)
+### PASS-195: `POST /quotations/online-quote`
+**Purpose:** Public online quote widget — no auth required (Ch.7.5)
 
 | Field | Value |
 |-------|-------|
@@ -2911,8 +3425,8 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-172: `POST /quotations/expire-due`
-**Purpose:** Batch-expire all quotations past valid_until (intended for daily cron)
+### PASS-196: `POST /quotations/expire-due`
+**Purpose:** Batch-expire quotations past valid_until (cron / internal only)
 
 | Field | Value |
 |-------|-------|
@@ -2926,7 +3440,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-173: `GET /quotations/{id}`
+### PASS-197: `GET /quotations/{id}`
 **Purpose:** Get a quotation with its lines, status history, and approvals
 
 | Field | Value |
@@ -2941,7 +3455,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-174: `PATCH /quotations/{id}`
+### PASS-198: `PATCH /quotations/{id}`
 **Purpose:** Update a quotation header (DRAFT or REJECTED only)
 
 | Field | Value |
@@ -2956,7 +3470,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-175: `DELETE /quotations/{id}`
+### PASS-199: `DELETE /quotations/{id}`
 **Purpose:** Soft-delete a quotation (DRAFT only)
 
 | Field | Value |
@@ -2971,7 +3485,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-176: `GET /quotations/{id}/revisions`
+### PASS-200: `GET /quotations/{id}/revisions`
 **Purpose:** List all revisions in this quotation version chain
 
 | Field | Value |
@@ -2986,7 +3500,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-177: `POST /quotations/{id}/lines`
+### PASS-201: `POST /quotations/{id}/lines`
 **Purpose:** Add a charge line — GP recalculates automatically
 
 | Field | Value |
@@ -3002,7 +3516,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-178: `POST /quotations/{id}/apply-tariff`
+### PASS-202: `POST /quotations/{id}/apply-tariff`
 **Purpose:** Auto-add a charge line from the best-matching Online Tariff Master rate for this quotation's lane
 
 | Field | Value |
@@ -3017,7 +3531,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-179: `PATCH /quotations/{id}/lines/{lineId}`
+### PASS-203: `PATCH /quotations/{id}/lines/{lineId}`
 **Purpose:** Update a charge line
 
 | Field | Value |
@@ -3032,7 +3546,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-180: `DELETE /quotations/{id}/lines/{lineId}`
+### PASS-204: `DELETE /quotations/{id}/lines/{lineId}`
 **Purpose:** Remove a charge line
 
 | Field | Value |
@@ -3047,7 +3561,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-181: `POST /quotations/{id}/submit`
+### PASS-205: `POST /quotations/{id}/submit`
 **Purpose:** DRAFT/REJECTED -> SUBMITTED, opens the approval cycle
 
 | Field | Value |
@@ -3063,7 +3577,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-182: `POST /quotations/{id}/approve`
+### PASS-206: `POST /quotations/{id}/approve`
 **Purpose:** SUBMITTED -> APPROVED
 
 | Field | Value |
@@ -3079,7 +3593,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-183: `POST /quotations/{id}/reject`
+### PASS-207: `POST /quotations/{id}/reject`
 **Purpose:** SUBMITTED -> REJECTED (editable again, can be resubmitted)
 
 | Field | Value |
@@ -3094,7 +3608,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-184: `POST /quotations/{id}/send`
+### PASS-208: `POST /quotations/{id}/send`
 **Purpose:** APPROVED -> SENT
 
 | Field | Value |
@@ -3110,7 +3624,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-185: `POST /quotations/{id}/mark-won`
+### PASS-209: `POST /quotations/{id}/mark-won`
 **Purpose:** SENT -> WON
 
 | Field | Value |
@@ -3126,7 +3640,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-186: `POST /quotations/{id}/mark-lost`
+### PASS-210: `POST /quotations/{id}/mark-lost`
 **Purpose:** SENT -> LOST, with a reason code
 
 | Field | Value |
@@ -3141,7 +3655,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-187: `POST /quotations/{id}/duplicate`
+### PASS-211: `POST /quotations/{id}/duplicate`
 **Purpose:** Clone into a new revision (new DRAFT, version+1, linked to the same parent)
 
 | Field | Value |
@@ -3156,7 +3670,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-188: `POST /quotations/{id}/convert-to-job`
+### PASS-212: `POST /quotations/{id}/convert-to-job`
 **Purpose:** WON -> CONVERTED. Creates a minimal Job + carries charge lines over. Full job management (milestones, documents) is a separate module.
 
 | Field | Value |
@@ -3172,7 +3686,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-189: `POST /quotations/{id}/archive`
+### PASS-213: `POST /quotations/{id}/archive`
 **Purpose:** Archive a closed quotation (soft-delete)
 
 | Field | Value |
@@ -3187,7 +3701,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-190: `POST /quotations/{id}/expire`
+### PASS-214: `POST /quotations/{id}/expire`
 **Purpose:** Manually expire a quotation past its valid_until date
 
 | Field | Value |
@@ -3202,7 +3716,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-191: `POST /quotations/{id}/pdf`
+### PASS-215: `POST /quotations/{id}/pdf`
 **Purpose:** Queue PDF generation for a quotation (customer or internal mode)
 
 | Field | Value |
@@ -3218,7 +3732,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-192: `GET /quotations/{id}/pdf`
+### PASS-216: `GET /quotations/{id}/pdf`
 **Purpose:** Get quotation PDF URLs and recent generation tasks
 
 | Field | Value |
@@ -3234,7 +3748,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-193: `GET /quotations/{id}/pdf/status`
+### PASS-217: `GET /quotations/{id}/pdf/status`
 **Purpose:** List PDF generation task status for a quotation
 
 | Field | Value |
@@ -3249,7 +3763,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-194: `POST /quotations/{id}/send-email`
+### PASS-218: `POST /quotations/{id}/send-email`
 **Purpose:** Email quotation PDF to customer (generates PDF if not yet available)
 
 | Field | Value |
@@ -3264,157 +3778,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-195: `GET /quotations/tariffs`
-**Purpose:** List tariff rate cards
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Online Tariff Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-196: `POST /quotations/tariffs`
-**Purpose:** Create a tariff rate card (sale rate + cost rate per lane/service/container type)
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Online Tariff Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-197: `GET /quotations/tariffs/{id}`
-**Purpose:** Get a tariff by id
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Online Tariff Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-198: `PATCH /quotations/tariffs/{id}`
-**Purpose:** Update a tariff
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Online Tariff Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-199: `DELETE /quotations/tariffs/{id}`
-**Purpose:** Soft-delete a tariff
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Online Tariff Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-200: `GET /quotations/zip-distances`
-**Purpose:** List zip-to-zip distances
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Zip Distance Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-201: `POST /quotations/zip-distances`
-**Purpose:** Record a distance between two zip/location codes
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Zip Distance Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-202: `GET /quotations/zip-distances/{id}`
-**Purpose:** Get a zip distance record by id
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Zip Distance Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-203: `PATCH /quotations/zip-distances/{id}`
-**Purpose:** Update a zip distance record
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Zip Distance Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-204: `DELETE /quotations/zip-distances/{id}`
-**Purpose:** Soft-delete a zip distance record
-
-| Field | Value |
-|-------|-------|
-| Case | **PASS** |
-| Tag | Quotations — Zip Distance Master |
-| Auth | Bearer {{TOKEN}} |
-| Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
-
----
-
-### PASS-205: `GET /jobs`
+### PASS-219: `GET /jobs`
 **Purpose:** List jobs
 
 | Field | Value |
@@ -3430,8 +3794,8 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-206: `POST /jobs`
-**Purpose:** Create a job (booking). AIR_EXPORT jobs auto-get their detail row + the full 15-milestone taxonomy. Set parent_job_id to create a HOUSE job under an existing master.
+### PASS-220: `POST /jobs`
+**Purpose:** Create a job (booking). AIR_EXPORT auto-seeds 15 milestones; SEA_FCL_EXPORT auto-seeds 16 FCL milestones + sea_fcl_details. Set parent_job_id for a HOUSE job.
 
 | Field | Value |
 |-------|-------|
@@ -3446,7 +3810,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-207: `GET /jobs/{id}`
+### PASS-221: `GET /jobs/{id}`
 **Purpose:** Get a job with air details, charges, milestones, and its house jobs (if a master)
 
 | Field | Value |
@@ -3462,7 +3826,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-208: `PATCH /jobs/{id}`
+### PASS-222: `PATCH /jobs/{id}`
 **Purpose:** Update a job (not allowed once COMPLETED or CANCELLED)
 
 | Field | Value |
@@ -3477,7 +3841,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-209: `DELETE /jobs/{id}`
+### PASS-223: `DELETE /jobs/{id}`
 **Purpose:** Soft-delete a completed or cancelled job
 
 | Field | Value |
@@ -3492,7 +3856,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-210: `GET /jobs/{id}/house-jobs`
+### PASS-224: `GET /jobs/{id}/house-jobs`
 **Purpose:** List the house jobs consolidated under this master job
 
 | Field | Value |
@@ -3507,7 +3871,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-211: `GET /jobs/{id}/milestones`
+### PASS-225: `GET /jobs/{id}/milestones`
 **Purpose:** List all milestones for a job
 
 | Field | Value |
@@ -3523,7 +3887,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-212: `POST /jobs/{id}/milestones`
+### PASS-226: `POST /jobs/{id}/milestones`
 **Purpose:** Add a custom milestone outside the standard taxonomy
 
 | Field | Value |
@@ -3538,7 +3902,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-213: `GET /jobs/{id}/pnl`
+### PASS-227: `GET /jobs/{id}/pnl`
 **Purpose:** Job P&L breakdown — revenue lines, cost lines, GP summary (Ch.8.2)
 
 | Field | Value |
@@ -3554,7 +3918,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-214: `GET /jobs/{id}/notes`
+### PASS-228: `GET /jobs/{id}/notes`
 **Purpose:** List notes on a job
 
 | Field | Value |
@@ -3569,7 +3933,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-215: `POST /jobs/{id}/notes`
+### PASS-229: `POST /jobs/{id}/notes`
 **Purpose:** Add a note to a job
 
 | Field | Value |
@@ -3585,7 +3949,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-216: `GET /jobs/{id}/documents`
+### PASS-230: `GET /jobs/{id}/documents`
 **Purpose:** List documents attached to a job
 
 | Field | Value |
@@ -3600,7 +3964,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-217: `POST /jobs/{id}/documents`
+### PASS-231: `POST /jobs/{id}/documents`
 **Purpose:** Register a document on a job (metadata + file URL)
 
 | Field | Value |
@@ -3615,7 +3979,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-218: `GET /jobs/{id}/containers`
+### PASS-232: `GET /jobs/{id}/containers`
 **Purpose:** List containers on a Sea FCL job
 
 | Field | Value |
@@ -3630,7 +3994,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-219: `POST /jobs/{id}/containers`
+### PASS-233: `POST /jobs/{id}/containers`
 **Purpose:** Add a container to a Sea FCL job
 
 | Field | Value |
@@ -3645,7 +4009,142 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-220: `POST /jobs/{id}/close`
+### PASS-234: `GET /jobs/{id}/containers/fill`
+**Purpose:** Container fill indicators — weight % and CBM % for all containers
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-235: `GET /jobs/{id}/containers/{containerId}/fill`
+**Purpose:** Container fill indicator for one container
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-236: `GET /jobs/{id}/cutoffs`
+**Purpose:** SI / VGM / CY cutoff traffic-light status (green / amber ≤24h / red past)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-237: `GET /jobs/{id}/cargo`
+**Purpose:** List FCL cargo lines on a job
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-238: `POST /jobs/{id}/cargo`
+**Purpose:** Add an FCL cargo line (optionally assigned to a container)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-239: `GET /jobs/{id}/bills-of-lading`
+**Purpose:** List bills of lading on a Sea FCL job
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-240: `POST /jobs/{id}/bills-of-lading`
+**Purpose:** Create a bill of lading data record (PDF variants are Week 8)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-241: `GET /jobs/{id}/stuffing-records`
+**Purpose:** List stuffing records on a Sea FCL job
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-242: `POST /jobs/{id}/stuffing-records`
+**Purpose:** Create a stuffing record and mark STUFFING_COMPLETED
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-243: `POST /jobs/{id}/close`
 **Purpose:** Close a job (status -> COMPLETED)
 
 | Field | Value |
@@ -3660,7 +4159,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-221: `POST /jobs/{id}/cancel`
+### PASS-244: `POST /jobs/{id}/cancel`
 **Purpose:** Cancel a job (status -> CANCELLED)
 
 | Field | Value |
@@ -3675,7 +4174,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-222: `PATCH /jobs/{id}/air-details`
+### PASS-245: `PATCH /jobs/{id}/air-details`
 **Purpose:** Update Air Export-specific booking fields (airline, HAWB/MAWB, flight, AWB type, freight type)
 
 | Field | Value |
@@ -3691,8 +4190,8 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-223: `PATCH /jobs/{id}/sea-fcl-details`
-**Purpose:** Update Sea FCL-specific booking fields (shipping line, BL numbers, cutoffs)
+### PASS-246: `PATCH /jobs/{id}/sea-fcl-details`
+**Purpose:** Update Sea FCL-specific booking fields (shipping line, BL numbers, cutoffs, VGM/SI)
 
 | Field | Value |
 |-------|-------|
@@ -3706,7 +4205,37 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-224: `PATCH /jobs/{id}/milestones/{milestoneId}`
+### PASS-247: `POST /jobs/{id}/sea-fcl-details/si-submission`
+**Purpose:** Record SI submission (date + version) and mark SI_SUBMITTED milestone
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-248: `POST /jobs/{id}/sea-fcl-details/vgm-submission`
+**Purpose:** Record VGM submission (date + SM1/SM2) and mark VGM_SUBMITTED milestone
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-249: `PATCH /jobs/{id}/milestones/{milestoneId}`
 **Purpose:** Update a milestone — set actual_date to mark it complete
 
 | Field | Value |
@@ -3722,7 +4251,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-225: `POST /jobs/{id}/charges`
+### PASS-250: `POST /jobs/{id}/charges`
 **Purpose:** Add a charge line — Job P&L recalculates automatically
 
 | Field | Value |
@@ -3738,7 +4267,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-226: `PATCH /jobs/{id}/charges/{chargeId}`
+### PASS-251: `PATCH /jobs/{id}/charges/{chargeId}`
 **Purpose:** Update a charge line
 
 | Field | Value |
@@ -3753,7 +4282,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-227: `DELETE /jobs/{id}/charges/{chargeId}`
+### PASS-252: `DELETE /jobs/{id}/charges/{chargeId}`
 **Purpose:** Remove a charge line
 
 | Field | Value |
@@ -3768,7 +4297,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-228: `POST /jobs/{id}/prorate-cost/{chargeCodeId}`
+### PASS-253: `POST /jobs/{id}/prorate-cost/{chargeCodeId}`
 **Purpose:** Distribute a master job's cost line to its house jobs, proportionally by chargeable weight
 
 | Field | Value |
@@ -3783,7 +4312,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-229: `PATCH /jobs/{id}/notes/{noteId}`
+### PASS-254: `PATCH /jobs/{id}/notes/{noteId}`
 **Purpose:** Update a job note
 
 | Field | Value |
@@ -3798,7 +4327,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-230: `DELETE /jobs/{id}/notes/{noteId}`
+### PASS-255: `DELETE /jobs/{id}/notes/{noteId}`
 **Purpose:** Remove a job note
 
 | Field | Value |
@@ -3813,7 +4342,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-231: `PATCH /jobs/{id}/documents/{documentId}`
+### PASS-256: `PATCH /jobs/{id}/documents/{documentId}`
 **Purpose:** Update a draft document metadata
 
 | Field | Value |
@@ -3828,7 +4357,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-232: `DELETE /jobs/{id}/documents/{documentId}`
+### PASS-257: `DELETE /jobs/{id}/documents/{documentId}`
 **Purpose:** Remove a draft document
 
 | Field | Value |
@@ -3843,7 +4372,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-233: `POST /jobs/{id}/documents/{documentId}/finalize`
+### PASS-258: `POST /jobs/{id}/documents/{documentId}/finalize`
 **Purpose:** Finalize a document (DRAFT -> ORIGINAL, locked)
 
 | Field | Value |
@@ -3858,7 +4387,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-234: `GET /jobs/{id}/documents/generation-status`
+### PASS-259: `GET /jobs/{id}/documents/generation-status`
 **Purpose:** List async document generation tasks for a job
 
 | Field | Value |
@@ -3874,7 +4403,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-235: `POST /jobs/{id}/documents/hawb`
+### PASS-260: `POST /jobs/{id}/documents/hawb`
 **Purpose:** Queue HAWB PDF generation (Puppeteer + BullMQ)
 
 | Field | Value |
@@ -3890,7 +4419,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-236: `POST /jobs/{id}/documents/mawb`
+### PASS-261: `POST /jobs/{id}/documents/mawb`
 **Purpose:** Queue MAWB PDF generation (Puppeteer + BullMQ)
 
 | Field | Value |
@@ -3905,7 +4434,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-237: `POST /jobs/{id}/documents/pre-alert`
+### PASS-262: `POST /jobs/{id}/documents/pre-alert`
 **Purpose:** Queue pre-alert document PDF generation
 
 | Field | Value |
@@ -3920,7 +4449,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-238: `POST /jobs/{id}/documents/cargo-manifest`
+### PASS-263: `POST /jobs/{id}/documents/cargo-manifest`
 **Purpose:** Queue cargo manifest PDF generation
 
 | Field | Value |
@@ -3935,7 +4464,262 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-239: `POST /jobs/{id}/pre-alert/send`
+### PASS-264: `POST /jobs/{id}/documents/hbl`
+**Purpose:** Queue HBL draft/original PDF (layout_variant: STANDARD | LAYOUT_A | LAYOUT_B)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-265: `POST /jobs/{id}/documents/hbl-express-release`
+**Purpose:** Queue Non-Negotiable HBL Express/Telex Release PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-266: `POST /jobs/{id}/documents/mbl`
+**Purpose:** Queue Master BL / OBL PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-267: `POST /jobs/{id}/documents/fiata-bl`
+**Purpose:** Queue FIATA FBL PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-268: `POST /jobs/{id}/documents/rider-bl`
+**Purpose:** Queue Rider/Addendum to BL PDF (pass rider_terms)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-269: `POST /jobs/{id}/documents/switch-bl`
+**Purpose:** Queue Switch BL PDF (switched_from_bl_number + switch consignee/notify)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-270: `POST /jobs/{id}/documents/proxy-bl`
+**Purpose:** Queue Proxy BL PDF (proxy_forwarder_name / address)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-271: `POST /jobs/{id}/documents/back-to-back-bl`
+**Purpose:** Queue Back-to-Back BL PDF (master + house pair)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-272: `POST /jobs/{id}/documents/surrender-notice`
+**Purpose:** Queue BL Surrender Notice PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-273: `POST /jobs/{id}/documents/si`
+**Purpose:** Queue Shipping Instruction (SI) PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-274: `POST /jobs/{id}/documents/stuffing-report`
+**Purpose:** Queue Stuffing Report PDF from stuffing records + containers
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-275: `POST /jobs/{id}/documents/sailing-confirmation`
+**Purpose:** Queue Sailing Confirmation PDF (uses sailed_at / vessel sailed milestone)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-276: `POST /jobs/{id}/documents/transhipment-confirmation`
+**Purpose:** Queue Transhipment Confirmation PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-277: `POST /jobs/{id}/documents/freight-manifest`
+**Purpose:** Queue Freight Manifest PDF (FCL)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-278: `POST /jobs/{id}/documents/job-card`
+**Purpose:** Queue Job Card PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-279: `POST /jobs/{id}/documents/job-pnl`
+**Purpose:** Queue Job P&L Statement PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-280: `POST /jobs/{id}/documents/proforma-invoice`
+**Purpose:** Queue Proforma Invoice PDF for the job
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-281: `POST /jobs/{id}/pre-alert/send`
 **Purpose:** Send pre-alert and mark PRE_ALERT_SENT milestone complete
 
 | Field | Value |
@@ -3951,7 +4735,157 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-240: `PATCH /jobs/{id}/containers/{containerId}`
+### PASS-282: `POST /jobs/{id}/pre-alert/schedule`
+**Purpose:** Schedule a pre-alert email for a future UTC time (cron delivers it)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-283: `POST /jobs/{id}/whatsapp/status`
+**Purpose:** Send WhatsApp status stub (logged until WHATSAPP_ENABLED=true)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-284: `GET /jobs/{id}/sub-jobs`
+**Purpose:** List operational sub-jobs under this parent
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-285: `POST /jobs/{id}/sub-jobs`
+**Purpose:** Create an operational sub-job under this parent
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-286: `POST /jobs/{id}/payment-requests`
+**Purpose:** Create a payment request from job totals / parties
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-287: `POST /jobs/{id}/documents/e-awb`
+**Purpose:** Queue E-AWB PDF generation
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-288: `POST /jobs/{id}/documents/barcode-label`
+**Purpose:** Queue barcode label PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-289: `POST /jobs/{id}/documents/consignee-label`
+**Purpose:** Queue consignee label PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-290: `POST /jobs/{id}/documents/job-costing`
+**Purpose:** Queue job costing sheet PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-291: `POST /jobs/{id}/documents/freight-certificate`
+**Purpose:** Queue freight certificate PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-292: `PATCH /jobs/{id}/containers/{containerId}`
 **Purpose:** Update a container on a Sea FCL job
 
 | Field | Value |
@@ -3966,7 +4900,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-241: `DELETE /jobs/{id}/containers/{containerId}`
+### PASS-293: `DELETE /jobs/{id}/containers/{containerId}`
 **Purpose:** Remove a container from a Sea FCL job
 
 | Field | Value |
@@ -3981,7 +4915,502 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-242: `GET /awb-stock/batches`
+### PASS-294: `POST /jobs/{id}/containers/{containerId}/cargo`
+**Purpose:** Assign an existing cargo line to a container
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-295: `POST /jobs/{id}/containers/{containerId}/split`
+**Purpose:** Split one container across multiple house consignees (co-loading)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-296: `PATCH /jobs/{id}/cargo/{cargoId}`
+**Purpose:** Update an FCL cargo line
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-297: `DELETE /jobs/{id}/cargo/{cargoId}`
+**Purpose:** Remove an FCL cargo line
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-298: `PATCH /jobs/{id}/bills-of-lading/{blId}`
+**Purpose:** Update a bill of lading (draft → original / surrendered flags)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-299: `DELETE /jobs/{id}/bills-of-lading/{blId}`
+**Purpose:** Soft-delete a bill of lading
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-300: `PATCH /jobs/{id}/stuffing-records/{recordId}`
+**Purpose:** Update a stuffing record
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-301: `DELETE /jobs/{id}/stuffing-records/{recordId}`
+**Purpose:** Soft-delete a stuffing record
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-302: `GET /jobs/{id}/free-days`
+**Purpose:** List per-container free days + demurrage/detention accrual (traffic light)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-303: `POST /jobs/{id}/free-days`
+**Purpose:** Upsert free-days / demurrage rates for a container
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-304: `POST /jobs/{id}/free-days/recalculate`
+**Purpose:** Recalculate demurrage + detention accruals for all containers on the job
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-305: `GET /jobs/{id}/deposits`
+**Purpose:** List customs / port deposits with expiry alert bands
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-306: `POST /jobs/{id}/deposits`
+**Purpose:** Create a customs or port deposit record
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-307: `PATCH /jobs/{id}/deposits/{depositId}`
+**Purpose:** Update a deposit
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-308: `DELETE /jobs/{id}/deposits/{depositId}`
+**Purpose:** Soft-delete a deposit
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-309: `PATCH /jobs/{id}/customs-status`
+**Purpose:** Update customs clearance workflow (PENDING→FILED→QUERY→CLEARED→RELEASED)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-310: `POST /jobs/{id}/containers/{containerId}/return`
+**Purpose:** Record container return to shipping line
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-311: `GET /jobs/{id}/part-deliveries`
+**Purpose:** List part deliveries
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-312: `POST /jobs/{id}/part-deliveries`
+**Purpose:** Record a part delivery (remaining balance auto-calculated from job pieces)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-313: `GET /jobs/{id}/pods`
+**Purpose:** List proofs of delivery
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-314: `POST /jobs/{id}/pods`
+**Purpose:** Record proof of delivery
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-315: `GET /jobs/{id}/damage-reports`
+**Purpose:** List damage reports
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-316: `POST /jobs/{id}/damage-reports`
+**Purpose:** Create a damage report (description + photo URLs + survey #)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-317: `POST /jobs/{id}/transhipment-link`
+**Purpose:** Link this FCL Import job to an outbound SEA_FCL_EXPORT job
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-318: `POST /jobs/{id}/cfs-storage/calculate`
+**Purpose:** Calculate CFS storage: days × rate_per_day from sea-fcl-details
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-319: `POST /jobs/{id}/documents/pre-can`
+**Purpose:** Queue Pre-CAN (pre-arrival notice) PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-320: `POST /jobs/{id}/documents/can`
+**Purpose:** Queue Cargo Arrival Notice (CAN) PDF and mark CAN_SENT
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-321: `POST /jobs/{id}/documents/exchange-letter`
+**Purpose:** Queue Exchange Letter PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-322: `POST /jobs/{id}/documents/undertake-letter`
+**Purpose:** Queue Undertake Letter PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-323: `POST /jobs/{id}/documents/delivery-order`
+**Purpose:** Queue Delivery Order PDF and mark DO_ISSUED
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-324: `POST /jobs/{id}/documents/transport-request`
+**Purpose:** Queue Transport Request PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-325: `POST /jobs/{id}/documents/shipping-advice`
+**Purpose:** Queue Shipping Advice PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-326: `POST /jobs/{id}/documents/proof-of-delivery`
+**Purpose:** Queue Proof of Delivery PDF
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Jobs |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-327: `GET /awb-stock/batches`
 **Purpose:** List AWB stock batches
 
 | Field | Value |
@@ -3997,7 +5426,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-243: `POST /awb-stock/batches`
+### PASS-328: `POST /awb-stock/batches`
 **Purpose:** Register a new AWB number range for an airline
 
 | Field | Value |
@@ -4013,7 +5442,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-244: `GET /awb-stock/reports/low-stock`
+### PASS-329: `GET /awb-stock/reports/low-stock`
 **Purpose:** Batches at or below their low-stock threshold
 
 | Field | Value |
@@ -4029,7 +5458,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-245: `GET /awb-stock/allocations`
+### PASS-330: `GET /awb-stock/allocations`
 **Purpose:** List AWB allocations
 
 | Field | Value |
@@ -4044,7 +5473,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-246: `GET /awb-stock/batches/{id}`
+### PASS-331: `GET /awb-stock/batches/{id}`
 **Purpose:** Get an AWB stock batch with recent allocations
 
 | Field | Value |
@@ -4059,7 +5488,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-247: `PATCH /awb-stock/batches/{id}`
+### PASS-332: `PATCH /awb-stock/batches/{id}`
 **Purpose:** Update batch metadata (threshold, notes)
 
 | Field | Value |
@@ -4074,7 +5503,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-248: `DELETE /awb-stock/batches/{id}`
+### PASS-333: `DELETE /awb-stock/batches/{id}`
 **Purpose:** Soft-delete an empty AWB stock batch
 
 | Field | Value |
@@ -4089,7 +5518,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-249: `POST /awb-stock/batches/{id}/allocate`
+### PASS-334: `POST /awb-stock/batches/{id}/allocate`
 **Purpose:** Allocate the next AWB number from a batch to a job
 
 | Field | Value |
@@ -4105,7 +5534,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-250: `POST /awb-stock/batches/{id}/transfer-branch`
+### PASS-335: `POST /awb-stock/batches/{id}/transfer-branch`
 **Purpose:** Transfer batch ownership to another branch
 
 | Field | Value |
@@ -4120,7 +5549,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-251: `POST /awb-stock/allocations/{id}/void`
+### PASS-336: `POST /awb-stock/allocations/{id}/void`
 **Purpose:** Void an allocated (unused) AWB number
 
 | Field | Value |
@@ -4135,7 +5564,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-252: `POST /awb-stock/allocations/{id}/mark-used`
+### PASS-337: `POST /awb-stock/allocations/{id}/mark-used`
 **Purpose:** Mark an allocated AWB as used (flown/printed)
 
 | Field | Value |
@@ -4150,7 +5579,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-253: `GET /search`
+### PASS-338: `GET /search`
 **Purpose:** Global search across jobs, quotations, and parties
 
 | Field | Value |
@@ -4165,7 +5594,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-254: `GET /files/{tenantId}/{filename}`
+### PASS-339: `GET /files/{tenantId}/{filename}`
 **Purpose:** Download a locally stored file (PDFs generated by the system)
 
 | Field | Value |
@@ -4180,7 +5609,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-255: `GET /invoices`
+### PASS-340: `GET /invoices`
 **Purpose:** List customer invoices (Ch.18)
 
 | Field | Value |
@@ -4196,7 +5625,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-256: `POST /invoices`
+### PASS-341: `POST /invoices`
 **Purpose:** Create a draft customer invoice
 
 | Field | Value |
@@ -4211,7 +5640,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-257: `GET /invoices/reports/overdue`
+### PASS-342: `GET /invoices/reports/overdue`
 **Purpose:** Overdue customer invoices past due_date with outstanding balance
 
 | Field | Value |
@@ -4227,7 +5656,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-258: `GET /invoices/{id}`
+### PASS-343: `GET /invoices/{id}`
 **Purpose:** Get invoice with lines
 
 | Field | Value |
@@ -4243,7 +5672,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-259: `PATCH /invoices/{id}`
+### PASS-344: `PATCH /invoices/{id}`
 **Purpose:** Update a draft invoice header
 
 | Field | Value |
@@ -4258,7 +5687,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-260: `DELETE /invoices/{id}`
+### PASS-345: `DELETE /invoices/{id}`
 **Purpose:** Soft-delete a draft invoice
 
 | Field | Value |
@@ -4273,7 +5702,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-261: `POST /invoices/from-job/{jobId}`
+### PASS-346: `POST /invoices/from-job/{jobId}`
 **Purpose:** Create draft invoice from uninvoiced billable job charges
 
 | Field | Value |
@@ -4289,7 +5718,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-262: `POST /invoices/{id}/lines`
+### PASS-347: `POST /invoices/{id}/lines`
 **Purpose:** Add a line to a draft invoice
 
 | Field | Value |
@@ -4304,7 +5733,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-263: `PATCH /invoices/{id}/lines/{lineId}`
+### PASS-348: `PATCH /invoices/{id}/lines/{lineId}`
 **Purpose:** Update an invoice line
 
 | Field | Value |
@@ -4319,7 +5748,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-264: `DELETE /invoices/{id}/lines/{lineId}`
+### PASS-349: `DELETE /invoices/{id}/lines/{lineId}`
 **Purpose:** Remove an invoice line
 
 | Field | Value |
@@ -4334,7 +5763,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-265: `POST /invoices/{id}/post`
+### PASS-350: `POST /invoices/{id}/post`
 **Purpose:** Post a draft invoice (DRAFT -> POSTED)
 
 | Field | Value |
@@ -4350,7 +5779,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-266: `POST /invoices/{id}/send`
+### PASS-351: `POST /invoices/{id}/send`
 **Purpose:** Email invoice PDF to customer
 
 | Field | Value |
@@ -4366,7 +5795,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-267: `POST /invoices/{id}/pdf`
+### PASS-352: `POST /invoices/{id}/pdf`
 **Purpose:** Generate invoice PDF
 
 | Field | Value |
@@ -4382,7 +5811,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-268: `GET /invoices/{id}/pdf`
+### PASS-353: `GET /invoices/{id}/pdf`
 **Purpose:** Get invoice PDF metadata
 
 | Field | Value |
@@ -4397,7 +5826,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-269: `POST /invoices/{id}/cancel`
+### PASS-354: `POST /invoices/{id}/cancel`
 **Purpose:** Cancel an invoice
 
 | Field | Value |
@@ -4412,7 +5841,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-270: `GET /credit-notes`
+### PASS-355: `GET /credit-notes`
 **Purpose:** List credit notes
 
 | Field | Value |
@@ -4427,7 +5856,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-271: `POST /credit-notes`
+### PASS-356: `POST /credit-notes`
 **Purpose:** Create a credit note against a posted customer invoice
 
 | Field | Value |
@@ -4443,7 +5872,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-272: `GET /credit-notes/{id}`
+### PASS-357: `GET /credit-notes/{id}`
 **Purpose:** Get a credit note
 
 | Field | Value |
@@ -4458,7 +5887,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-273: `POST /credit-notes/{id}/post`
+### PASS-358: `POST /credit-notes/{id}/post`
 **Purpose:** Post a draft credit note
 
 | Field | Value |
@@ -4473,7 +5902,67 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-274: `GET /purchase-invoices`
+### PASS-359: `GET /debit-notes`
+**Purpose:** List debit notes
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Debit Notes |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-360: `POST /debit-notes`
+**Purpose:** Create a debit note against a posted customer invoice (extra charge)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Debit Notes |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-361: `GET /debit-notes/{id}`
+**Purpose:** Get a debit note
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Debit Notes |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-362: `POST /debit-notes/{id}/post`
+**Purpose:** Post a draft debit note
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | Debit Notes |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-363: `GET /purchase-invoices`
 **Purpose:** List purchase invoices (vendor bills)
 
 | Field | Value |
@@ -4488,7 +5977,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-275: `POST /purchase-invoices`
+### PASS-364: `POST /purchase-invoices`
 **Purpose:** Create a draft purchase invoice
 
 | Field | Value |
@@ -4504,7 +5993,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-276: `GET /purchase-invoices/{id}`
+### PASS-365: `GET /purchase-invoices/{id}`
 **Purpose:** Get a purchase invoice
 
 | Field | Value |
@@ -4519,7 +6008,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-277: `PATCH /purchase-invoices/{id}`
+### PASS-366: `PATCH /purchase-invoices/{id}`
 **Purpose:** Update a draft purchase invoice
 
 | Field | Value |
@@ -4534,7 +6023,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-278: `DELETE /purchase-invoices/{id}`
+### PASS-367: `DELETE /purchase-invoices/{id}`
 **Purpose:** Soft-delete a draft purchase invoice
 
 | Field | Value |
@@ -4549,7 +6038,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-279: `POST /purchase-invoices/{id}/post`
+### PASS-368: `POST /purchase-invoices/{id}/post`
 **Purpose:** Post a draft purchase invoice
 
 | Field | Value |
@@ -4564,7 +6053,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-280: `GET /payment-requests`
+### PASS-369: `GET /payment-requests`
 **Purpose:** List payment requests
 
 | Field | Value |
@@ -4579,7 +6068,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-281: `POST /payment-requests`
+### PASS-370: `POST /payment-requests`
 **Purpose:** Create a payment request
 
 | Field | Value |
@@ -4595,7 +6084,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-282: `GET /payment-requests/{id}`
+### PASS-371: `GET /payment-requests/{id}`
 **Purpose:** Get a payment request
 
 | Field | Value |
@@ -4610,7 +6099,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-283: `PATCH /payment-requests/{id}`
+### PASS-372: `PATCH /payment-requests/{id}`
 **Purpose:** Update a pending payment request
 
 | Field | Value |
@@ -4625,7 +6114,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-284: `DELETE /payment-requests/{id}`
+### PASS-373: `DELETE /payment-requests/{id}`
 **Purpose:** Soft-delete a pending payment request
 
 | Field | Value |
@@ -4640,7 +6129,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-285: `POST /payment-requests/{id}/approve`
+### PASS-374: `POST /payment-requests/{id}/approve`
 **Purpose:** Approve a payment request
 
 | Field | Value |
@@ -4656,7 +6145,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-286: `POST /payment-requests/{id}/reject`
+### PASS-375: `POST /payment-requests/{id}/reject`
 **Purpose:** Reject a payment request
 
 | Field | Value |
@@ -4671,7 +6160,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
-### PASS-287: `POST /payment-requests/{id}/mark-paid`
+### PASS-376: `POST /payment-requests/{id}/mark-paid`
 **Purpose:** Mark an approved payment request as paid
 
 | Field | Value |
@@ -4687,7 +6176,982 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 
 ---
 
+### PASS-377: `GET /gl/accounts`
+**Purpose:** List chart of accounts (Ch.17)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-378: `POST /gl/accounts`
+**Purpose:** Create a GL account
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-379: `GET /gl/accounts/tree`
+**Purpose:** Hierarchical chart of accounts tree
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-380: `GET /gl/accounts/reports/trial-balance`
+**Purpose:** Trial balance from posted voucher lines + opening balances
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-381: `POST /gl/accounts/seed-defaults`
+**Purpose:** Seed a starter freight COA (only when empty)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-382: `GET /gl/accounts/{id}`
+**Purpose:** Get account by id
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-383: `PATCH /gl/accounts/{id}`
+**Purpose:** Update a GL account
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-384: `DELETE /gl/accounts/{id}`
+**Purpose:** Soft-delete a GL account (blocked if used on voucher lines)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-385: `GET /gl/accounts/{id}/ledger`
+**Purpose:** GL register for one account (posted vouchers)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Chart of Accounts |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-386: `GET /gl/vouchers`
+**Purpose:** List vouchers (Ch.17)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-387: `POST /gl/vouchers`
+**Purpose:** Create a draft voucher (optionally with lines)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-388: `GET /gl/vouchers/{id}`
+**Purpose:** Get voucher with lines
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-389: `PATCH /gl/vouchers/{id}`
+**Purpose:** Update draft voucher header
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-390: `DELETE /gl/vouchers/{id}`
+**Purpose:** Soft-delete a draft voucher
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-391: `POST /gl/vouchers/{id}/lines`
+**Purpose:** Add a line to a draft voucher
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-392: `PATCH /gl/vouchers/{id}/lines/{lineId}`
+**Purpose:** Update a draft voucher line
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-393: `DELETE /gl/vouchers/{id}/lines/{lineId}`
+**Purpose:** Remove a line from a draft voucher
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-394: `POST /gl/vouchers/{id}/post`
+**Purpose:** Post a balanced draft voucher to the GL
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-395: `POST /gl/vouchers/{id}/reverse`
+**Purpose:** Create an offsetting posted reversal voucher
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Vouchers |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-396: `GET /gl/payments`
+**Purpose:** List customer receipts and vendor payments (Ch.19)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-397: `POST /gl/payments`
+**Purpose:** Create a draft receipt or vendor payment
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-398: `GET /gl/payments/{id}`
+**Purpose:** Get payment with allocations
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-399: `PATCH /gl/payments/{id}`
+**Purpose:** Update a draft payment header
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-400: `DELETE /gl/payments/{id}`
+**Purpose:** Soft-delete a draft payment
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-401: `POST /gl/payments/{id}/allocations`
+**Purpose:** Allocate payment amount to an open invoice
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-402: `DELETE /gl/payments/{id}/allocations/{allocationId}`
+**Purpose:** Remove a draft payment allocation
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-403: `POST /gl/payments/{id}/post`
+**Purpose:** Post payment: update invoice balances + create GL voucher
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-404: `POST /gl/payments/{id}/cancel`
+**Purpose:** Cancel payment (reverses invoice balances and GL if posted)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Payments (AR/AP) |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-405: `GET /gl/ar/aging`
+**Purpose:** Accounts Receivable aging buckets (Ch.19.1)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — AR / AP Aging |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-406: `GET /gl/ap/aging`
+**Purpose:** Accounts Payable aging buckets (Ch.19.2)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — AR / AP Aging |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-407: `GET /gl/ar/statement/{partyId}`
+**Purpose:** Customer AR statement (invoices + receipts)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — AR / AP Aging |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-408: `GET /gl/ap/statement/{partyId}`
+**Purpose:** Vendor AP statement (purchase invoices + payments)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — AR / AP Aging |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-409: `GET /gl/cheques`
+**Purpose:** List cheques (receivable / payable / PDC)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-410: `POST /gl/cheques`
+**Purpose:** Register a cheque / PDC
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-411: `GET /gl/cheques/reports/pdc-due`
+**Purpose:** PDC due within N days (default 30)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-412: `GET /gl/cheques/{id}`
+**Purpose:** Get cheque by id
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-413: `PATCH /gl/cheques/{id}`
+**Purpose:** Update a pending cheque
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-414: `POST /gl/cheques/{id}/deposit`
+**Purpose:** Mark cheque deposited
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-415: `POST /gl/cheques/{id}/clear`
+**Purpose:** Mark cheque cleared
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-416: `POST /gl/cheques/{id}/bounce`
+**Purpose:** Mark cheque bounced
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-417: `POST /gl/cheques/{id}/cancel`
+**Purpose:** Cancel a cheque
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Cheques / PDC |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-418: `POST /gl/bank-transfers`
+**Purpose:** Post a contra bank/cash transfer voucher (Ch.19.3)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-419: `GET /gl/bank-reconciliations`
+**Purpose:** List bank reconciliations
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-420: `POST /gl/bank-reconciliations`
+**Purpose:** Start a draft bank reconciliation
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-421: `GET /gl/bank-reconciliations/{id}`
+**Purpose:** Get bank reconciliation with lines + summary
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-422: `PATCH /gl/bank-reconciliations/{id}`
+**Purpose:** Update draft bank reconciliation header
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-423: `DELETE /gl/bank-reconciliations/{id}`
+**Purpose:** Cancel / soft-delete a draft reconciliation
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-424: `GET /gl/bank-reconciliations/{id}/unmatched`
+**Purpose:** Posted bank GL lines not yet matched on this recon
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-425: `POST /gl/bank-reconciliations/{id}/lines`
+**Purpose:** Add a matched / statement line
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-426: `PATCH /gl/bank-reconciliations/{id}/lines/{lineId}`
+**Purpose:** Update recon line match flags
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-427: `DELETE /gl/bank-reconciliations/{id}/lines/{lineId}`
+**Purpose:** Remove a recon line
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-428: `POST /gl/bank-reconciliations/{id}/complete`
+**Purpose:** Complete bank reconciliation
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Bank Reconciliation |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-429: `GET /gl/reports/trial-balance`
+**Purpose:** Trial balance (Ch.20.1) — also available at GET /gl/accounts/reports/trial-balance
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Financial Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-430: `GET /gl/reports/balance-sheet`
+**Purpose:** Balance Sheet as of a date (Ch.20.1 / Week 12)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Financial Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-431: `GET /gl/reports/profit-and-loss`
+**Purpose:** Profit & Loss for a period (Ch.20.1 / Week 12)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Financial Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-432: `GET /gl/reports/cash-flow`
+**Purpose:** Cash Flow from bank/cash voucher activity (Ch.20.1 / Week 12)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Financial Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-433: `GET /gl/reports/vat-return`
+**Purpose:** UAE VAT return draft from posted invoices (Ch.20.2 / Week 12)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — Financial Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-434: `GET /gl/mis/dashboard`
+**Purpose:** Management MIS dashboard widgets (Ch.23 / Week 12)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — MIS Dashboard |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-435: `GET /gl/mis/profitability`
+**Purpose:** Job profitability by shipper / job_type / branch / salesperson (Ch.23)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — MIS Dashboard |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-436: `GET /gl/mis/operational`
+**Purpose:** Operational KPIs — pending PRs, draft invoices, uninvoiced charges
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — MIS Dashboard |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-437: `GET /gl/saved-reports`
+**Purpose:** List saved / shared report configurations (Ch.23 My Reports)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — My Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-438: `POST /gl/saved-reports`
+**Purpose:** Save a report configuration (filters + type)
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — My Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-439: `GET /gl/saved-reports/{id}`
+**Purpose:** Get a saved report by id
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — My Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-440: `PATCH /gl/saved-reports/{id}`
+**Purpose:** Update a saved report
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — My Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
+### PASS-441: `DELETE /gl/saved-reports/{id}`
+**Purpose:** Soft-delete a saved report
+
+| Field | Value |
+|-------|-------|
+| Case | **PASS** |
+| Tag | GL — My Reports |
+| Auth | Bearer {{TOKEN}} |
+| Expected | 2xx |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+
+---
+
 ## Coverage
-- APIs in OpenAPI: **287**
-- PASS sections: **287**
+- APIs in OpenAPI: **441**
+- PASS sections: **441**
 - Missing: **0**
