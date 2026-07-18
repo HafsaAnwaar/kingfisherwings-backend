@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import * as Handlebars from 'handlebars';
-import puppeteer from 'puppeteer';
+import * as fs from 'fs';
+import puppeteer, { type Browser, type PuppeteerLaunchOptions } from 'puppeteer';
 import { DocumentType, InvoiceType, JobType, QuotationPdfMode } from '@prisma/client';
 
 export interface QuotationPdfData {
@@ -156,6 +157,8 @@ export interface InvoicePdfData {
 
 @Injectable()
 export class PdfService {
+  private readonly logger = new Logger(PdfService.name);
+
   async generateQuotationPdf(data: QuotationPdfData, mode: QuotationPdfMode): Promise<Buffer> {
     const showCosts = mode === 'INTERNAL';
     const lines = showCosts ? data.lines : data.lines.filter((l) => !l.is_cost);
@@ -229,19 +232,68 @@ export class PdfService {
   }
 
   private async htmlToPdf(html: string): Promise<Buffer> {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-
+    let browser: Browser | undefined;
     try {
+      browser = await puppeteer.launch(this.buildLaunchOptions());
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20mm', bottom: '20mm' } });
+      await page.setContent(html, {
+        waitUntil: 'domcontentloaded',
+        timeout: Number(process.env.PUPPETEER_TIMEOUT ?? 30_000),
+      });
+      const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '20mm', bottom: '20mm' },
+      });
       return Buffer.from(pdf);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`PDF generation failed: ${message}`);
+      throw new ServiceUnavailableException(
+        `PDF generation is unavailable. ${message}. ` +
+          'Set PUPPETEER_EXECUTABLE_PATH to a Chromium binary (see docs/PDF_SETUP_GUIDE.md).',
+      );
     } finally {
-      await browser.close();
+      if (browser) {
+        await browser.close().catch(() => undefined);
+      }
     }
+  }
+
+  private buildLaunchOptions(): PuppeteerLaunchOptions {
+    const executablePath = this.resolveChromiumPath();
+    const options: PuppeteerLaunchOptions = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--font-render-hinting=none',
+        '--single-process',
+      ],
+    };
+    if (executablePath) {
+      options.executablePath = executablePath;
+      this.logger.log(`Using Chromium at ${executablePath}`);
+    }
+    return options;
+  }
+
+  private resolveChromiumPath(): string | undefined {
+    const fromEnv = (process.env.PUPPETEER_EXECUTABLE_PATH ?? '').trim();
+    if (fromEnv && fs.existsSync(fromEnv)) {
+      return fromEnv;
+    }
+
+    // Common paths on Alpine / Debian Docker images used by Render.
+    const candidates = [
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+    ];
+    return candidates.find((p) => fs.existsSync(p));
   }
 }
 

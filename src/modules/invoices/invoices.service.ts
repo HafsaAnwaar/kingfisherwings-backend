@@ -93,7 +93,9 @@ export class InvoicesService {
   ) {
     await this.assertPartyExists(tenantId, dto.party_id);
     if (dto.job_id) await this.assertJobExists(tenantId, dto.job_id);
-    if (dto.company_id) await this.assertCompanyExists(tenantId, dto.company_id);
+
+    const companyId = dto.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
+    if (companyId) await this.assertCompanyExists(tenantId, companyId);
 
     const docType =
       invoiceType === 'PURCHASE_INVOICE'
@@ -114,7 +116,7 @@ export class InvoicesService {
       const invoice = await tx.invoice.create({
         data: {
           tenant_id: tenantId,
-          company_id: dto.company_id,
+          company_id: companyId,
           invoice_number: invoiceNumber,
           invoice_type: invoiceType,
           status: 'DRAFT',
@@ -254,13 +256,29 @@ export class InvoicesService {
       throw new BadRequestException('Original invoice must be posted before issuing a credit note.');
     }
 
+    const lines =
+      dto.lines ??
+      original.lines.map((l) => ({
+        description: l.description,
+        quantity: Number(l.quantity),
+        unit_price: Number(l.unit_price),
+        charge_code_id: l.charge_code_id ?? undefined,
+        tax_rate_id: l.tax_rate_id ?? undefined,
+        is_taxable: l.is_taxable,
+      }));
+
+    if (!lines.length) {
+      throw new BadRequestException('Credit note requires at least one line.');
+    }
+
+    const companyId = original.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
     const invoiceNumber = await this.numberGenerator.generate(tenantId, 'CREDIT_NOTE');
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const creditNote = await tx.invoice.create({
         data: {
           tenant_id: tenantId,
-          company_id: original.company_id,
+          company_id: companyId,
           invoice_number: invoiceNumber,
           invoice_type: 'CREDIT_NOTE',
           status: 'DRAFT',
@@ -278,17 +296,6 @@ export class InvoicesService {
           updated_by: actorId,
         },
       });
-
-      const lines =
-        dto.lines ??
-        original.lines.map((l) => ({
-          description: l.description,
-          quantity: Number(l.quantity),
-          unit_price: Number(l.unit_price),
-          charge_code_id: l.charge_code_id ?? undefined,
-          tax_rate_id: l.tax_rate_id ?? undefined,
-          is_taxable: l.is_taxable,
-        }));
 
       for (const [index, line] of lines.entries()) {
         await this.createLineInternal(tx, tenantId, creditNote.id, line, actorId, index, creditNote.vat_rate);
@@ -314,13 +321,14 @@ export class InvoicesService {
     }
 
     const lines = dto.lines;
+    const companyId = original.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
     const invoiceNumber = await this.numberGenerator.generate(tenantId, 'DEBIT_NOTE');
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const debitNote = await tx.invoice.create({
         data: {
           tenant_id: tenantId,
-          company_id: original.company_id,
+          company_id: companyId,
           invoice_number: invoiceNumber,
           invoice_type: 'DEBIT_NOTE',
           status: 'DRAFT',
@@ -576,9 +584,14 @@ export class InvoicesService {
     }
 
     let pdfBuffer: Buffer | undefined;
+    let pdfWarning: string | undefined;
     if (!invoice.pdf_url) {
-      const generated = await this.generatePdf(tenantId, id, actorId);
-      pdfBuffer = generated.buffer;
+      try {
+        const generated = await this.generatePdf(tenantId, id, actorId);
+        pdfBuffer = generated.buffer;
+      } catch (err) {
+        pdfWarning = err instanceof Error ? err.message : 'PDF generation failed';
+      }
     }
 
     const emailLog = await this.emailService.send({
@@ -586,7 +599,9 @@ export class InvoicesService {
       eventType: 'INVOICE_SENT',
       to: dto.to_email,
       subject: `Invoice ${invoice.invoice_number}`,
-      body: dto.message ?? `<p>Please find attached invoice <strong>${invoice.invoice_number}</strong>.</p>`,
+      body:
+        (dto.message ?? `<p>Please find invoice <strong>${invoice.invoice_number}</strong>.</p>`) +
+        (pdfWarning ? `<p><em>Note: PDF attachment unavailable (${pdfWarning})</em></p>` : ''),
       attachmentBuffer: pdfBuffer,
       attachmentName: pdfBuffer ? `${invoice.invoice_number}.pdf` : undefined,
       attachmentPath: invoice.pdf_url ?? undefined,
@@ -608,6 +623,8 @@ export class InvoicesService {
       success: emailLog.status === 'SENT',
       email_log_id: emailLog.id,
       status: emailLog.status,
+      pdf_attached: Boolean(pdfBuffer || invoice.pdf_url),
+      pdf_warning: pdfWarning,
     }));
   }
 
@@ -858,5 +875,16 @@ export class InvoicesService {
       tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } }),
     );
     if (!exists) throw new NotFoundException('Company not found.');
+  }
+
+  private async resolveDefaultCompanyId(tenantId: string): Promise<string | undefined> {
+    const company = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.company.findFirst({
+        where: { tenant_id: tenantId, deleted_at: null, is_active: true },
+        orderBy: [{ is_default: 'desc' }, { created_at: 'asc' }],
+        select: { id: true },
+      }),
+    );
+    return company?.id;
   }
 }

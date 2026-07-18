@@ -1,7 +1,8 @@
 node_modules
 node_modules/
 .env
-.env.example
+.env.local
+.env.*.local
 dist/
 dist
 
@@ -26,3 +27,4 @@ Thumbs.db
 
 # Generated
 *.tsbuildinfo
+storage/

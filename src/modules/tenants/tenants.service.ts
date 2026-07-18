@@ -66,7 +66,8 @@ export class TenantsService {
 
     const passwordHash = await PasswordUtil.hash(password);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(
+      async (tx) => {
       const tenantCreateData: Prisma.TenantUncheckedCreateInput = {
         ...tenantData,
         password_hash: passwordHash,
@@ -196,7 +197,9 @@ export class TenantsService {
       });
 
       return { tenant, owner, company: defaultCompany };
-    });
+    },
+      { maxWait: 20_000, timeout: 60_000 },
+    );
 
     return {
       success: true,
