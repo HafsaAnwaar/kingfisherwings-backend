@@ -1,0 +1,40 @@
+# Dependencies & build artifacts
+node_modules
+npm-debug.log*
+dist
+coverage
+build
+*.tsbuildinfo
+
+# Secrets — never bake into the image
+.env
+.env.*
+!.env.example
+
+# Local / test artifacts
+storage
+uploads
+docs
+*.md
+!docs/PDF_SETUP_GUIDE.md
+openapi-live.json
+docs/live-api-test-*.json
+docs/live-api-test-*.md
+docs/LIVE_*.md
+
+# Git / IDE
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Dev-only
+docker-compose*
+Dockerfile.dev
+test
+src/test
+**/*.spec.ts
+**/*e2e-spec.ts
+agent-transcripts

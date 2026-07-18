@@ -27,14 +27,27 @@ export class NumberGeneratorService {
     options: GenerateNumberOptions = {},
   ): Promise<string> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const format = await tx.documentNumberFormat.findFirst({
+      let format = await tx.documentNumberFormat.findFirst({
         where: { tenant_id: tenantId, document_type: documentType, is_active: true },
       });
 
+      // Auto-provision a sensible default so invoice/CN/DN/PI never 500 on fresh tenants.
       if (!format) {
-        throw new NotFoundException(
-          `No active number format configured for ${documentType}. Configure one at POST /organization/number-formats first.`,
-        );
+        format = await tx.documentNumberFormat.create({
+          data: {
+            tenant_id: tenantId,
+            document_type: documentType,
+            prefix: this.defaultPrefix(documentType),
+            include_branch_code: false,
+            include_year: true,
+            year_digits: 2,
+            include_month: true,
+            sequence_length: 5,
+            separator: '/',
+            reset_frequency: 'YEARLY',
+            is_active: true,
+          },
+        });
       }
 
       const now = new Date();
@@ -64,6 +77,20 @@ export class NumberGeneratorService {
 
       return this.assemble(format, sequence.last_sequence, now, branchCode, options.extraSegment);
     });
+  }
+
+  private defaultPrefix(documentType: DocumentNumberType): string {
+    const map: Partial<Record<DocumentNumberType, string>> = {
+      INVOICE: 'INV',
+      CREDIT_NOTE: 'CN',
+      DEBIT_NOTE: 'DN',
+      PURCHASE_INVOICE: 'PI',
+      QUOTATION: 'Q',
+      JOB_NUMBER: 'JOB',
+      VOUCHER: 'JV',
+      PAYMENT: 'PAY',
+    };
+    return map[documentType] ?? 'DOC';
   }
 
   /** Builds the string for the *next* number without consuming a sequence value — for UI "preview this format" displays. */

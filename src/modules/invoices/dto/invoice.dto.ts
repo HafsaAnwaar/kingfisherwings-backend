@@ -26,11 +26,13 @@ export class CreateInvoiceLineDto {
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   quantity?: number;
 
   @ApiProperty({ example: 1500 })
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   unit_price!: number;
