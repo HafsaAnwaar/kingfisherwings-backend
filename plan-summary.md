@@ -65,9 +65,9 @@ Backend repo state assessed against implemented modules (`src/app.module.ts`, co
 
 ### What's next
 
-1. Start **Week 13** — Customer portal / Track & Trace / notifications (or Air Import if ops-first).
-2. Apply migrations including `20260715160000_financial_mis_reports_week12`.
-3. After deploy: `POST /tenants/:id/sync-permissions` for new `gl.view_reports` / `gl.manage_reports`.
+1. **Week 13 in progress** — Customer Portal foundation shipped: `PortalUser` / `PortalSession`, staff credential provisioning (`/portal-admin/users`), portal login (`/portal/auth/*`). Next: shipments / documents / CCP APIs on portal JWT.
+2. Apply migration `20260804160807_week13_customer_portal_foundation` and `POST /tenants/:id/sync-permissions` for `portal.manage_users` / `portal.view_users`.
+3. Apply Week-12 financial MIS migrations if not already on the env; sync `gl.view_reports` / `gl.manage_reports` as needed.
 
 **Phase 1 MVP target (per PDF):** Air Export + Sea FCL Export/Import + Full Finance + MIS Dashboard (through Week 12) — **backend complete**.
 
