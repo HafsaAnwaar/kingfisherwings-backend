@@ -1,0 +1,3 @@
+# Force LF for shell scripts (Windows CRLF causes "Exec format error" on Linux/Render)
+*.sh text eol=lf
+docker/entrypoint.sh text eol=lf
