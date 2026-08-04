@@ -20,6 +20,7 @@ import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { FilesModule } from './files/files.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { GlModule } from './modules/gl/gl.module';
+import { PortalModule } from './modules/portal/portal.module';
 
 import redisConfig from './config/redis.config';
 import smtpConfig from './config/smtp.config';
@@ -59,6 +60,7 @@ import { LocaleModule } from './common/locale/locale.module';
     FilesModule,
     InvoicesModule,
     GlModule,
+    PortalModule,
   ],
   providers: [
     {

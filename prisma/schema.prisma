@@ -235,6 +235,7 @@ enum EmailEventType {
   INVOICE_SENT
   MILESTONE_STATUS
   USER_INVITE
+  PORTAL_CREDENTIALS
   WHATSAPP_OUTBOUND
   OTHER
 }
@@ -484,6 +485,7 @@ model Tenant {
   login_history    LoginHistory[]
   bank_accounts    TenantBankAccount[]
   companies        Company[]
+  portal_users     PortalUser[]
 
   @@index([created_by_super_admin_id])
   @@map("tenants")
@@ -1601,6 +1603,7 @@ model Party {
   voucher_lines    VoucherLine[]
   payments         Payment[]
   cheques          Cheque[]
+  portal_users     PortalUser[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -3146,4 +3149,61 @@ model SuperAdminSession {
 enum SingleDevicePolicy {
   TERMINATE_OLDEST
   REJECT_NEW
+}
+
+// ─── CUSTOMER PORTAL (Week 13 foundation) ────────────────────
+
+enum PortalUserStatus {
+  ACTIVE
+  DISABLED
+}
+
+/// Customer portal login identity — linked to a Party (customer).
+/// Credentials are issued by tenant staff after a public Get a Quote (or manually).
+model PortalUser {
+  id            String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String           @db.Uuid
+  party_id      String           @db.Uuid
+  email         String           @db.VarChar(255)
+  password_hash String           @db.Text
+  full_name     String           @db.VarChar(200)
+  phone         String?          @db.VarChar(30)
+  status        PortalUserStatus @default(ACTIVE)
+  last_login_at DateTime?        @db.Timestamptz
+  created_at    DateTime         @default(now()) @db.Timestamptz
+  updated_at    DateTime         @updatedAt @db.Timestamptz
+  created_by    String?          @db.Uuid
+  updated_by    String?          @db.Uuid
+  deleted_at    DateTime?        @db.Timestamptz
+
+  tenant   Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  party    Party           @relation(fields: [party_id], references: [id], onDelete: Cascade)
+  sessions PortalSession[]
+
+  @@unique([tenant_id, email])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, status])
+  @@map("portal_users")
+}
+
+model PortalSession {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String    @db.Uuid
+  portal_user_id     String    @db.Uuid
+  jti                String    @unique @db.VarChar(200)
+  refresh_token_hash String    @db.Text
+  ip_address         String?   @db.VarChar(45)
+  user_agent         String?   @db.Text
+  is_active          Boolean   @default(true)
+  expires_at         DateTime  @db.Timestamptz
+  last_used_at       DateTime  @default(now()) @db.Timestamptz
+  revoked_at         DateTime? @db.Timestamptz
+  revoked_reason     String?   @db.VarChar(100)
+  created_at         DateTime  @default(now()) @db.Timestamptz
+
+  portal_user PortalUser @relation(fields: [portal_user_id], references: [id], onDelete: Cascade)
+
+  @@index([portal_user_id])
+  @@index([tenant_id, is_active])
+  @@map("portal_sessions")
 }

@@ -7,6 +7,7 @@ import { AWB_STOCK_PERMISSIONS } from '../../modules/awb-stock/constants/awb-sto
 import { SEARCH_PERMISSIONS } from '../../modules/search/constants/search-permission.constants';
 import { INVOICES_PERMISSIONS } from '../../modules/invoices/constants/invoices-permission.constants';
 import { GL_PERMISSIONS } from '../../modules/gl/constants/gl-permission.constants';
+import { PORTAL_PERMISSIONS } from '../../modules/portal/constants/portal-permission.constants';
 
 export interface RoleCatalogEntry {
   /** Matches a UserRole enum value — kept 1:1 so User.role and the Role row it's assigned agree. */
@@ -42,6 +43,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(SEARCH_PERMISSIONS),
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),
+      ...Object.values(PORTAL_PERMISSIONS),
     ],
   },
   {
@@ -59,6 +61,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PARTIES_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.CREATE,
       PARTIES_PERMISSIONS.UPDATE,
+      PORTAL_PERMISSIONS.VIEW_USERS,
+      PORTAL_PERMISSIONS.MANAGE_USERS,
       QUOTATIONS_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.APPROVE,
       JOBS_PERMISSIONS.VIEW,
@@ -100,6 +104,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PARTIES_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.CREATE,
       PARTIES_PERMISSIONS.UPDATE,
+      PORTAL_PERMISSIONS.VIEW_USERS,
+      PORTAL_PERMISSIONS.MANAGE_USERS,
       QUOTATIONS_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.CREATE,
       QUOTATIONS_PERMISSIONS.UPDATE,
@@ -150,6 +156,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       USERS_PERMISSIONS.VIEW,
       MASTERS_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.VIEW,
+      PORTAL_PERMISSIONS.VIEW_USERS,
+      PORTAL_PERMISSIONS.MANAGE_USERS,
       QUOTATIONS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.CREATE,
