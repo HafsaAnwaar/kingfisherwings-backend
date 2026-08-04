@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+#!/bin/sh
 set -e
 
 echo "[entrypoint] Running prisma migrate deploy..."
