@@ -1603,7 +1603,8 @@ model Party {
   voucher_lines    VoucherLine[]
   payments         Payment[]
   cheques          Cheque[]
-  portal_users     PortalUser[]
+  portal_users        PortalUser[]
+  portal_permissions  PortalPermission[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -3158,6 +3159,21 @@ enum PortalUserStatus {
   DISABLED
 }
 
+enum PortalDocumentType {
+  HAWB
+  MAWB
+  HBL
+  MBL
+  INVOICE
+  CREDIT_NOTE
+  STATEMENT
+  CAN
+  DO
+  POD
+  PRE_ALERT
+  OTHER
+}
+
 /// Customer portal login identity — linked to a Party (customer).
 /// Credentials are issued by tenant staff after a public Get a Quote (or manually).
 model PortalUser {
@@ -3206,4 +3222,24 @@ model PortalSession {
   @@index([portal_user_id])
   @@index([tenant_id, is_active])
   @@map("portal_sessions")
+}
+
+/// Forwarder-configured document rights per customer party (CCP).
+model PortalPermission {
+  id            String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String             @db.Uuid
+  party_id      String             @db.Uuid
+  document_type PortalDocumentType
+  can_view      Boolean            @default(true)
+  can_download  Boolean            @default(false)
+  created_at    DateTime           @default(now()) @db.Timestamptz
+  updated_at    DateTime           @updatedAt @db.Timestamptz
+  created_by    String?            @db.Uuid
+  updated_by    String?            @db.Uuid
+
+  party Party @relation(fields: [party_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, party_id, document_type])
+  @@index([tenant_id, party_id])
+  @@map("portal_permissions")
 }

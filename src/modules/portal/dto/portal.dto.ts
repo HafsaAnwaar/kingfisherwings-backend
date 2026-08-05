@@ -85,4 +85,12 @@ export class PortalUserQueryDto {
   @IsOptional()
   @IsUUID()
   party_id?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Filter by Party.company_id — for company-scoped admin views within a tenant.',
+  })
+  @IsOptional()
+  @IsUUID()
+  company_id?: string;
 }
