@@ -77,6 +77,29 @@ export class StorageService {
     return fs.readFile(filePath);
   }
 
+  async readByStoredFile(
+    tenantId: string,
+    file: { file_name: string; file_url: string; s3_key?: string | null; mime_type?: string | null },
+  ): Promise<{ buffer: Buffer; mimeType: string; fileName: string }> {
+    if (file.s3_key && this.useS3 && this.s3 && this.s3Bucket) {
+      const result = await this.s3.getObject({ Bucket: this.s3Bucket, Key: file.s3_key }).promise();
+      return {
+        buffer: result.Body as Buffer,
+        mimeType: file.mime_type ?? 'application/pdf',
+        fileName: file.file_name,
+      };
+    }
+
+    const fromUrl = file.file_url.split('/').pop();
+    const filename = decodeURIComponent(fromUrl ?? file.file_name);
+    const buffer = await this.readBuffer(tenantId, filename);
+    return {
+      buffer,
+      mimeType: file.mime_type ?? 'application/pdf',
+      fileName: file.file_name,
+    };
+  }
+
   resolveLocalPath(tenantId: string, filename: string): string {
     // Reject path traversal / absolute paths — only a bare file name is allowed.
     const safeName = path.basename(filename.replace(/\\/g, '/'));

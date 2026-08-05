@@ -337,20 +337,29 @@ HAWB, MAWB, HBL, MBL, Invoice, Credit Note, Statement, CAN, DO, POD, Pre-alert, 
 
 ---
 
-### 5.13 Staff Portal Administration (ERP)
+### 5.13 Admin management of customers & portal users (ERP)
 
-**Purpose:** Forwarder controls portal identity, rights, and CCP follow-ups.
+**There is no separate “Customer Portal Admin.”**
 
-| Admin function | Description |
-|----------------|-------------|
-| Enable portal access on Party | Master switch |
-| Invite / disable portal users | Identity management |
-| Document rights matrix | Per customer, per document type |
-| Messages inbox | Read customer contact messages |
-| Disputes desk | Review and resolve |
-| Credit limit request desk | Approve or reject |
+Portal customers are managed inside the **Tenant Admin / staff Admin panel**, under the normal hierarchy:
 
-Staff permissions (conceptual): manage portal users, manage document permissions, view messages, manage disputes, manage credit requests.
+SuperAdmin → Company → Tenant → **Tenant Admin → Staff**  
+                ↳ **Customer Party → Portal Users**
+
+| Who | Manages |
+|-----|---------|
+| **Tenant Admin / CS / Sales** (staff JWT) | Customer Parties and their Portal Users for **this tenant only** |
+| **SuperAdmin** | Companies / Tenants — not day-to-day customer portal logins |
+| **Portal User** | Own portal login only — cannot manage other customers |
+
+Admin capabilities (tenant-scoped):
+- Enable portal access on a Party
+- Create / list / disable portal users
+- Reset portal passwords
+- (Later) document rights, disputes, credit requests — same Admin panel
+
+Isolation: Tenant A never sees Tenant B’s parties or portal users. Optional `company_id` filter supports company views inside a tenant.
+
 
 ---
 

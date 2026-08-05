@@ -933,6 +933,61 @@ export class QuotationsService {
     };
   }
 
+  /**
+   * Authenticated customer portal — binds enquiry to the logged-in Party.
+   * Creates a DRAFT quotation for staff to price; never exposes GP/cost to portal callers.
+   */
+  async createPortalQuoteRequest(
+    tenantId: string,
+    partyId: string,
+    dto: Omit<CreateOnlineQuoteDto, 'tenant_slug' | 'customer_id' | 'contact_email' | 'contact_name'>,
+    portalUserId?: string,
+  ) {
+    await this.assertPartyExists(tenantId, partyId, 'Customer');
+
+    const quotation = await this.create(
+      tenantId,
+      {
+        job_type: dto.job_type,
+        customer_id: partyId,
+        origin_port_id: dto.origin_port_id,
+        dest_port_id: dto.dest_port_id,
+        commodity: dto.commodity,
+        gross_weight: dto.gross_weight,
+        chargeable_weight: dto.chargeable_weight,
+        volume_cbm: dto.volume_cbm,
+        pieces: dto.pieces,
+        container_type_id: dto.container_type_id,
+        special_requirements: dto.special_requirements,
+        valid_until: dto.valid_until,
+        currency_code: dto.currency_code,
+        remarks: `Submitted via customer portal by user ${portalUserId ?? 'unknown'}.`,
+      },
+      portalUserId,
+    );
+
+    try {
+      await this.applyTariff(tenantId, quotation.id, portalUserId);
+    } catch {
+      // Best-effort — staff can price manually.
+    }
+
+    const refreshed = await this.findOne(tenantId, quotation.id);
+    const revenueLines = refreshed.lines.filter((line) => !line.is_cost);
+
+    return {
+      success: true,
+      message: 'Quote request received. Our sales team will follow up shortly.',
+      data: {
+        quotation_id: refreshed.id,
+        quotation_number: refreshed.quotation_number,
+        status: refreshed.status,
+        revenue_total: revenueLines.reduce((sum, line) => sum + Number(line.amount), 0),
+        line_count: revenueLines.length,
+      },
+    };
+  }
+
   // ============================================================
   // STATUS WORKFLOW
   // ============================================================

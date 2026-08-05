@@ -21,6 +21,7 @@ import {
   UpdatePortalUserStatusDto,
 } from './dto/portal.dto';
 import { CurrentPortalUser, PortalJwtPayload } from './interfaces/portal-auth.interfaces';
+import { PortalPermissionsService } from './portal-permissions.service';
 
 @Injectable()
 export class PortalService {
@@ -29,6 +30,7 @@ export class PortalService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly email: EmailService,
+    private readonly portalPermissions: PortalPermissionsService,
   ) {}
 
   // ─── Public portal auth ─────────────────────────────────────
@@ -274,6 +276,8 @@ export class PortalService {
       });
     });
 
+    await this.portalPermissions.seedDefaultsIfEmpty(tenantId, party.id, actorId);
+
     const shouldEmail = dto.send_email !== false;
     if (shouldEmail) {
       await this.sendCredentialsEmail(tenantId, {
@@ -306,6 +310,9 @@ export class PortalService {
       tenant_id: tenantId,
       deleted_at: null,
       ...(query.party_id ? { party_id: query.party_id } : {}),
+      ...(query.company_id
+        ? { party: { company_id: query.company_id, tenant_id: tenantId, deleted_at: null } }
+        : {}),
     };
 
     const rows = await this.prisma.portalUser.findMany({
@@ -320,7 +327,15 @@ export class PortalService {
         party_id: true,
         last_login_at: true,
         created_at: true,
-        party: { select: { id: true, code: true, name: true, portal_access: true } },
+        party: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            portal_access: true,
+            company_id: true,
+          },
+        },
       },
     });
 
@@ -332,8 +347,9 @@ export class PortalService {
     actorId: string,
     portalUserId: string,
     dto: UpdatePortalUserStatusDto,
+    partyId?: string,
   ) {
-    const user = await this.requirePortalUser(tenantId, portalUserId);
+    const user = await this.requirePortalUser(tenantId, portalUserId, partyId);
 
     const updated = await this.prisma.portalUser.update({
       where: { id: user.id },
@@ -363,8 +379,9 @@ export class PortalService {
     actorId: string,
     portalUserId: string,
     dto: ResetPortalPasswordDto,
+    partyId?: string,
   ) {
-    const user = await this.requirePortalUser(tenantId, portalUserId);
+    const user = await this.requirePortalUser(tenantId, portalUserId, partyId);
     const plainPassword = dto.password?.trim() || PasswordUtil.generateTemporaryPassword();
     const generated = !dto.password;
     const passwordHash = await PasswordUtil.hash(plainPassword);
@@ -406,9 +423,14 @@ export class PortalService {
 
   // ─── Internals ──────────────────────────────────────────────
 
-  private async requirePortalUser(tenantId: string, portalUserId: string) {
+  private async requirePortalUser(tenantId: string, portalUserId: string, partyId?: string) {
     const user = await this.prisma.portalUser.findFirst({
-      where: { id: portalUserId, tenant_id: tenantId, deleted_at: null },
+      where: {
+        id: portalUserId,
+        tenant_id: tenantId,
+        deleted_at: null,
+        ...(partyId ? { party_id: partyId } : {}),
+      },
     });
     if (!user) {
       throw new NotFoundException('Portal user not found.');
