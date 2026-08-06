@@ -824,6 +824,8 @@ model User {
 
   login_history LoginHistory[]
 
+  notifications Notification[]
+
   @@unique([tenant_id, email])
   @@index([tenant_id])
   @@index([tenant_id, status])
@@ -1603,8 +1605,11 @@ model Party {
   voucher_lines    VoucherLine[]
   payments         Payment[]
   cheques          Cheque[]
-  portal_users        PortalUser[]
-  portal_permissions  PortalPermission[]
+  portal_users             PortalUser[]
+  portal_permissions       PortalPermission[]
+  portal_messages          PortalMessage[]
+  portal_disputes          PortalDispute[]
+  credit_limit_requests    CreditLimitRequest[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -3195,6 +3200,10 @@ model PortalUser {
   tenant   Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   party    Party           @relation(fields: [party_id], references: [id], onDelete: Cascade)
   sessions PortalSession[]
+  messages PortalMessage[]
+  disputes PortalDispute[]
+  credit_limit_requests CreditLimitRequest[]
+  notifications Notification[]
 
   @@unique([tenant_id, email])
   @@index([tenant_id, party_id])
@@ -3242,4 +3251,129 @@ model PortalPermission {
   @@unique([tenant_id, party_id, document_type])
   @@index([tenant_id, party_id])
   @@map("portal_permissions")
+}
+
+enum PortalDisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum CreditLimitRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  INVOICE_OVERDUE
+  JOB_MILESTONE_UPDATED
+  QUOTATION_APPROVED
+  QUOTATION_REJECTED
+  PAYMENT_RECEIVED
+  PDC_MATURITY_APPROACHING
+  DOCUMENT_EXPIRY
+  CREDIT_LIMIT_EXCEEDED
+  PORTAL_MESSAGE
+  PORTAL_DISPUTE
+  CREDIT_LIMIT_REQUEST
+  QUOTATION_REQUEST
+}
+
+/// Customer → forwarder contact messages from the portal.
+model PortalMessage {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String    @db.Uuid
+  party_id         String    @db.Uuid
+  portal_user_id   String    @db.Uuid
+  subject          String    @db.VarChar(200)
+  body             String    @db.Text
+  job_id           String?   @db.Uuid
+  invoice_id       String?   @db.Uuid
+  attachment_path  String?   @db.VarChar(500)
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  read_by_staff_at DateTime? @db.Timestamptz
+
+  party        Party      @relation(fields: [party_id], references: [id], onDelete: Cascade)
+  portal_user  PortalUser @relation(fields: [portal_user_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, party_id, created_at])
+  @@index([tenant_id, read_by_staff_at])
+  @@map("portal_messages")
+}
+
+/// Customer invoice disputes raised from the portal (CCP).
+model PortalDispute {
+  id              String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String              @db.Uuid
+  party_id        String              @db.Uuid
+  portal_user_id  String              @db.Uuid
+  invoice_id      String              @db.Uuid
+  reason          String              @db.VarChar(200)
+  description     String              @db.Text
+  attachment_path String?             @db.VarChar(500)
+  status          PortalDisputeStatus @default(OPEN)
+  staff_notes     String?             @db.Text
+  resolved_at     DateTime?           @db.Timestamptz
+  resolved_by     String?             @db.Uuid
+  created_at      DateTime            @default(now()) @db.Timestamptz
+  updated_at      DateTime            @updatedAt @db.Timestamptz
+
+  party       Party      @relation(fields: [party_id], references: [id], onDelete: Cascade)
+  portal_user PortalUser @relation(fields: [portal_user_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, party_id, status])
+  @@index([tenant_id, invoice_id])
+  @@map("portal_disputes")
+}
+
+/// Customer requests to raise their credit limit (staff approves/rejects).
+model CreditLimitRequest {
+  id              String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String                   @db.Uuid
+  party_id        String                   @db.Uuid
+  portal_user_id  String                   @db.Uuid
+  requested_limit Decimal                  @db.Decimal(18, 2)
+  current_limit   Decimal?                 @db.Decimal(18, 2)
+  justification   String                   @db.Text
+  status          CreditLimitRequestStatus @default(PENDING)
+  reviewed_by     String?                  @db.Uuid
+  reviewed_at     DateTime?                @db.Timestamptz
+  review_notes    String?                  @db.Text
+  created_at      DateTime                 @default(now()) @db.Timestamptz
+  updated_at      DateTime                 @updatedAt @db.Timestamptz
+
+  party       Party      @relation(fields: [party_id], references: [id], onDelete: Cascade)
+  portal_user PortalUser @relation(fields: [portal_user_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, party_id, status])
+  @@map("credit_limit_requests")
+}
+
+/// In-app notifications for staff users and/or portal users.
+model Notification {
+  id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String           @db.Uuid
+  /// Staff ERP user. Null when notification is for a portal user.
+  user_id        String?          @db.Uuid
+  /// Portal user. Null when notification is for staff.
+  portal_user_id String?          @db.Uuid
+  type           NotificationType
+  title          String           @db.VarChar(200)
+  message        String           @db.Text
+  entity_type    String?          @db.VarChar(50)
+  entity_id      String?          @db.Uuid
+  link_path      String?          @db.VarChar(500)
+  is_read        Boolean          @default(false)
+  read_at        DateTime?        @db.Timestamptz
+  created_at     DateTime         @default(now()) @db.Timestamptz
+
+  user        User?       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  portal_user PortalUser? @relation(fields: [portal_user_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, user_id, is_read, created_at])
+  @@index([tenant_id, portal_user_id, is_read, created_at])
+  @@index([tenant_id, type])
+  @@map("notifications")
 }

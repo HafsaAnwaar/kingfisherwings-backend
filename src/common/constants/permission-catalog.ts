@@ -8,6 +8,7 @@ import { SEARCH_PERMISSION_CONSTANTS } from '../../modules/search/constants/sear
 import { INVOICES_PERMISSION_CONSTANTS } from '../../modules/invoices/constants/invoices-permission.constants';
 import { GL_PERMISSION_CONSTANTS } from '../../modules/gl/constants/gl-permission.constants';
 import { PORTAL_PERMISSION_CONSTANTS } from '../../modules/portal/constants/portal-permission.constants';
+import { NOTIFICATIONS_PERMISSION_CONSTANTS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface PermissionCatalogEntry {
   module: string;
@@ -75,5 +76,10 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: PORTAL_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${PORTAL_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(NOTIFICATIONS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: NOTIFICATIONS_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${NOTIFICATIONS_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
 ];

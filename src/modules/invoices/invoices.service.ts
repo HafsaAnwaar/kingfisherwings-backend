@@ -824,7 +824,7 @@ export class InvoicesService {
     const subtotal = lines.reduce((sum: number, l: InvoiceLine) => sum + Number(l.amount), 0);
     const taxAmount = lines.reduce((sum: number, l: InvoiceLine) => sum + Number(l.tax_amount), 0);
     const totalAmount = subtotal + taxAmount;
-    const invoice = await tx.invoice.findFirstOrThrow({ where: { id: invoiceId } });
+    const invoice = await tx.invoice.findFirstOrThrow({ where: { id: invoiceId, tenant_id: tenantId } });
 
     // Drafts / notes: balance tracks document total.
     // Posted customer/purchase invoices: preserve CN/DN deltas already on balance_due.

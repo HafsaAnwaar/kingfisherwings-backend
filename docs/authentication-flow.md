@@ -239,7 +239,8 @@ Routes marked `@Public()` skip JWT authentication:
 | `POST /auth/super-admin/signup` | Auth |
 | `POST /auth/super-admin/login` | Auth |
 | `POST /auth/refresh` | Auth |
-| `POST /tenants` | Tenants (tenant creation) |
+
+> **Correction:** `POST /tenants` is **not** public — `TenantsController` requires `@UseGuards(SuperAdminGuard)` on every route (a valid SuperAdmin bearer token). It was previously listed here in error.
 
 > **Note:** The active health controller at `/health` does not currently have `@Public()`. It may require authentication unless updated.
 

@@ -231,6 +231,11 @@ export class PdfService {
     return this.htmlToPdf(html);
   }
 
+  /** Generic HTML → PDF for portal statements and future customer docs. */
+  async renderHtmlToPdf(html: string): Promise<Buffer> {
+    return this.htmlToPdf(html);
+  }
+
   private async htmlToPdf(html: string): Promise<Buffer> {
     let browser: Browser | undefined;
     try {

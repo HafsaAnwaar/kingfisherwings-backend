@@ -8,6 +8,7 @@ import { SEARCH_PERMISSIONS } from '../../modules/search/constants/search-permis
 import { INVOICES_PERMISSIONS } from '../../modules/invoices/constants/invoices-permission.constants';
 import { GL_PERMISSIONS } from '../../modules/gl/constants/gl-permission.constants';
 import { PORTAL_PERMISSIONS } from '../../modules/portal/constants/portal-permission.constants';
+import { NOTIFICATIONS_PERMISSIONS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface RoleCatalogEntry {
   /** Matches a UserRole enum value — kept 1:1 so User.role and the Role row it's assigned agree. */
@@ -44,6 +45,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),
       ...Object.values(PORTAL_PERMISSIONS),
+      ...Object.values(NOTIFICATIONS_PERMISSIONS),
     ],
   },
   {
@@ -65,6 +67,9 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PORTAL_PERMISSIONS.MANAGE_USERS,
       PORTAL_PERMISSIONS.VIEW_PERMISSIONS,
       PORTAL_PERMISSIONS.MANAGE_PERMISSIONS,
+      PORTAL_PERMISSIONS.VIEW_MESSAGES,
+      PORTAL_PERMISSIONS.MANAGE_DISPUTES,
+      PORTAL_PERMISSIONS.MANAGE_CREDIT,
       QUOTATIONS_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.APPROVE,
       JOBS_PERMISSIONS.VIEW,
@@ -75,6 +80,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       AWB_STOCK_PERMISSIONS.VIEW,
       AWB_STOCK_PERMISSIONS.ALLOCATE,
       SEARCH_PERMISSIONS.VIEW,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
     ],
   },
   {
@@ -94,6 +100,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       AWB_STOCK_PERMISSIONS.ALLOCATE,
       AWB_STOCK_PERMISSIONS.VOID,
       SEARCH_PERMISSIONS.VIEW,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
     ],
   },
   {
@@ -110,6 +117,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PORTAL_PERMISSIONS.MANAGE_USERS,
       PORTAL_PERMISSIONS.VIEW_PERMISSIONS,
       PORTAL_PERMISSIONS.MANAGE_PERMISSIONS,
+      PORTAL_PERMISSIONS.VIEW_MESSAGES,
       QUOTATIONS_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.CREATE,
       QUOTATIONS_PERMISSIONS.UPDATE,
@@ -118,6 +126,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       QUOTATIONS_PERMISSIONS.CLOSE,
       JOBS_PERMISSIONS.VIEW,
       SEARCH_PERMISSIONS.VIEW,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
     ],
   },
   {
@@ -128,12 +137,16 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       MASTERS_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.VIEW,
       PARTIES_PERMISSIONS.MANAGE_CREDIT,
+      PORTAL_PERMISSIONS.VIEW_MESSAGES,
+      PORTAL_PERMISSIONS.MANAGE_DISPUTES,
+      PORTAL_PERMISSIONS.MANAGE_CREDIT,
       QUOTATIONS_PERMISSIONS.VIEW,
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),
       JOBS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.VIEW_GP,
       SEARCH_PERMISSIONS.VIEW,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
     ],
   },
   {
@@ -151,6 +164,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       AWB_STOCK_PERMISSIONS.VIEW,
       AWB_STOCK_PERMISSIONS.ALLOCATE,
       SEARCH_PERMISSIONS.VIEW,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
     ],
   },
   {
@@ -164,12 +178,15 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PORTAL_PERMISSIONS.MANAGE_USERS,
       PORTAL_PERMISSIONS.VIEW_PERMISSIONS,
       PORTAL_PERMISSIONS.MANAGE_PERMISSIONS,
+      PORTAL_PERMISSIONS.VIEW_MESSAGES,
+      PORTAL_PERMISSIONS.MANAGE_DISPUTES,
       QUOTATIONS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.CREATE,
       JOBS_PERMISSIONS.UPDATE,
       JOBS_PERMISSIONS.CLOSE,
       SEARCH_PERMISSIONS.VIEW,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
     ],
   },
   {
@@ -184,6 +201,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       JOBS_PERMISSIONS.CREATE,
       JOBS_PERMISSIONS.UPDATE,
       JOBS_PERMISSIONS.CLOSE,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
     ],
   },
   {

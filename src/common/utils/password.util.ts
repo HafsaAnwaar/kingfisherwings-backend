@@ -1,4 +1,5 @@
 import * as argon2 from 'argon2';
+import { randomInt } from 'crypto';
 
 export class PasswordUtil {
   static async hash(password: string): Promise<string> {
@@ -24,21 +25,21 @@ export class PasswordUtil {
     const special = '!@#$%^&*';
 
     const all = upper + lower + numbers + special;
+    const pick = (charset: string) => charset[randomInt(charset.length)];
 
-    let password = '';
-
-    password += upper[Math.floor(Math.random() * upper.length)];
-    password += lower[Math.floor(Math.random() * lower.length)];
-    password += numbers[Math.floor(Math.random() * numbers.length)];
-    password += special[Math.floor(Math.random() * special.length)];
-
-    while (password.length < length) {
-      password += all[Math.floor(Math.random() * all.length)];
+    const chars = [pick(upper), pick(lower), pick(numbers), pick(special)];
+    while (chars.length < length) {
+      chars.push(pick(all));
     }
 
-    return password
-      .split('')
-      .sort(() => Math.random() - 0.5)
-      .join('');
+    // Fisher-Yates shuffle using a CSPRNG (Math.random() is not
+    // cryptographically secure and this value backs 2FA backup codes
+    // and password-reset tokens).
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+
+    return chars.join('');
   }
 }
