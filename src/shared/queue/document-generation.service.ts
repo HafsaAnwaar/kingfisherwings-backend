@@ -131,23 +131,27 @@ export class DocumentGenerationService {
     requestedBy?: string,
     layoutVariant?: string,
   ) {
-    const task = await this.prisma.documentGenerationTask.create({
-      data: {
-        tenant_id: tenantId,
-        entity_type: 'QUOTATION',
-        quotation_id: quotationId,
-        pdf_mode: mode,
-        layout_variant: layoutVariant,
-        status: 'PENDING',
-        requested_by: requestedBy,
-      },
-    });
+    const task = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.documentGenerationTask.create({
+        data: {
+          tenant_id: tenantId,
+          entity_type: 'QUOTATION',
+          quotation_id: quotationId,
+          pdf_mode: mode,
+          layout_variant: layoutVariant,
+          status: 'PENDING',
+          requested_by: requestedBy,
+        },
+      }),
+    );
 
     const bullJob = await this.queue.add({ taskId: task.id, tenantId });
-    await this.prisma.documentGenerationTask.update({
-      where: { id: task.id },
-      data: { bull_job_id: String(bullJob.id) },
-    });
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.documentGenerationTask.update({
+        where: { id: task.id },
+        data: { bull_job_id: String(bullJob.id) },
+      }),
+    );
 
     return task;
   }
@@ -161,18 +165,20 @@ export class DocumentGenerationService {
     isOriginal = false,
     options?: SeaFclDocumentOptions,
   ) {
-    const task = await this.prisma.documentGenerationTask.create({
-      data: {
-        tenant_id: tenantId,
-        entity_type: 'JOB',
-        job_id: jobId,
-        document_type: documentType,
-        layout_variant: layoutVariant,
-        options: options ? (options as Prisma.InputJsonValue) : undefined,
-        status: 'PENDING',
-        requested_by: requestedBy,
-      },
-    });
+    const task = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.documentGenerationTask.create({
+        data: {
+          tenant_id: tenantId,
+          entity_type: 'JOB',
+          job_id: jobId,
+          document_type: documentType,
+          layout_variant: layoutVariant,
+          options: options ? (options as Prisma.InputJsonValue) : undefined,
+          status: 'PENDING',
+          requested_by: requestedBy,
+        },
+      }),
+    );
 
     const bullJob = await this.queue.add({
       taskId: task.id,
@@ -180,18 +186,22 @@ export class DocumentGenerationService {
       isOriginal,
     });
 
-    await this.prisma.documentGenerationTask.update({
-      where: { id: task.id },
-      data: { bull_job_id: String(bullJob.id) },
-    });
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.documentGenerationTask.update({
+        where: { id: task.id },
+        data: { bull_job_id: String(bullJob.id) },
+      }),
+    );
 
     return task;
   }
 
   async getTask(tenantId: string, taskId: string) {
-    const task = await this.prisma.documentGenerationTask.findFirst({
-      where: { id: taskId, tenant_id: tenantId },
-    });
+    const task = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.documentGenerationTask.findFirst({
+        where: { id: taskId, tenant_id: tenantId },
+      }),
+    );
 
     if (!task) {
       throw new NotFoundException('Document generation task not found.');
@@ -201,28 +211,34 @@ export class DocumentGenerationService {
   }
 
   async listTasks(tenantId: string, filters: { quotationId?: string; jobId?: string; status?: DocumentGenerationStatus }) {
-    return this.prisma.documentGenerationTask.findMany({
-      where: {
-        tenant_id: tenantId,
-        ...(filters.quotationId ? { quotation_id: filters.quotationId } : {}),
-        ...(filters.jobId ? { job_id: filters.jobId } : {}),
-        ...(filters.status ? { status: filters.status } : {}),
-      },
-      orderBy: { created_at: 'desc' },
-      take: 20,
-    });
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.documentGenerationTask.findMany({
+        where: {
+          tenant_id: tenantId,
+          ...(filters.quotationId ? { quotation_id: filters.quotationId } : {}),
+          ...(filters.jobId ? { job_id: filters.jobId } : {}),
+          ...(filters.status ? { status: filters.status } : {}),
+        },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+      }),
+    );
   }
 
   async processTask(taskId: string, tenantId: string, isOriginal = false) {
-    await this.prisma.documentGenerationTask.update({
-      where: { id: taskId },
-      data: { status: 'PROCESSING', started_at: new Date() },
-    });
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.documentGenerationTask.update({
+        where: { id: taskId },
+        data: { status: 'PROCESSING', started_at: new Date() },
+      }),
+    );
 
     try {
-      const task = await this.prisma.documentGenerationTask.findFirstOrThrow({
-        where: { id: taskId, tenant_id: tenantId },
-      });
+      const task = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.documentGenerationTask.findFirstOrThrow({
+          where: { id: taskId, tenant_id: tenantId },
+        }),
+      );
 
       let buffer: Buffer;
       let filename: string;
@@ -249,17 +265,19 @@ export class DocumentGenerationService {
 
       const stored = await this.storage.saveBuffer(tenantId, buffer, filename);
 
-      const completed = await this.prisma.documentGenerationTask.update({
-        where: { id: taskId },
-        data: {
-          status: 'COMPLETED',
-          file_url: stored.fileUrl,
-          s3_key: stored.s3Key,
-          file_name: filename,
-          file_size: stored.fileSize,
-          completed_at: new Date(),
-        },
-      });
+      const completed = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.documentGenerationTask.update({
+          where: { id: taskId },
+          data: {
+            status: 'COMPLETED',
+            file_url: stored.fileUrl,
+            s3_key: stored.s3Key,
+            file_name: filename,
+            file_size: stored.fileSize,
+            completed_at: new Date(),
+          },
+        }),
+      );
 
       if (task.entity_type === 'QUOTATION' && task.quotation_id && task.pdf_mode) {
         const pdfData =
@@ -275,31 +293,35 @@ export class DocumentGenerationService {
                 internal_pdf_generated_at: new Date(),
               };
 
-        await this.prisma.quotation.update({ where: { id: task.quotation_id }, data: pdfData });
+        await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.quotation.update({ where: { id: task.quotation_id! }, data: pdfData }),
+        );
       }
 
       if (task.entity_type === 'JOB' && task.job_id && task.document_type && task.requested_by) {
-        await this.prisma.jobDocument.create({
-          data: {
-            tenant_id: tenantId,
-            job_id: task.job_id,
-            document_type: task.document_type,
-            file_name: filename,
-            file_url: stored.fileUrl,
-            s3_key: stored.s3Key,
-            file_size: stored.fileSize,
-            mime_type: 'application/pdf',
-            version: 1,
-            is_original: isOriginal,
-            layout_variant: task.layout_variant,
-            generation_status: 'COMPLETED',
-            generated_at: new Date(),
-            generation_task_id: taskId,
-            uploaded_by: task.requested_by,
-            created_by: task.requested_by,
-            updated_by: task.requested_by,
-          },
-        });
+        await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.jobDocument.create({
+            data: {
+              tenant_id: tenantId,
+              job_id: task.job_id!,
+              document_type: task.document_type!,
+              file_name: filename,
+              file_url: stored.fileUrl,
+              s3_key: stored.s3Key,
+              file_size: stored.fileSize,
+              mime_type: 'application/pdf',
+              version: 1,
+              is_original: isOriginal,
+              layout_variant: task.layout_variant,
+              generation_status: 'COMPLETED',
+              generated_at: new Date(),
+              generation_task_id: taskId,
+              uploaded_by: task.requested_by!,
+              created_by: task.requested_by!,
+              updated_by: task.requested_by!,
+            },
+          }),
+        );
       }
 
       return completed;
@@ -307,10 +329,12 @@ export class DocumentGenerationService {
       const message = error instanceof Error ? error.message : 'Document generation failed';
       this.logger.error(`Task ${taskId} failed: ${message}`);
 
-      await this.prisma.documentGenerationTask.update({
-        where: { id: taskId },
-        data: { status: 'FAILED', error_message: message, completed_at: new Date() },
-      });
+      await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.documentGenerationTask.update({
+          where: { id: taskId },
+          data: { status: 'FAILED', error_message: message, completed_at: new Date() },
+        }),
+      );
 
       throw error;
     }

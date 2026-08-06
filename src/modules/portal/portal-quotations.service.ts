@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, QuotationStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import { QuotationsService } from '../quotations/quotations.service';
 import { PortalQuotationQueryDto, PortalQuotationRequestDto } from './dto/portal-quotation.dto';
 import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
@@ -12,10 +13,27 @@ export class PortalQuotationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quotations: QuotationsService,
+    private readonly notifications: NotificationEmitterService,
   ) {}
 
   async requestQuote(user: CurrentPortalUser, dto: PortalQuotationRequestDto) {
-    return this.quotations.createPortalQuoteRequest(user.tenantId, user.partyId, dto, user.id);
+    const result = await this.quotations.createPortalQuoteRequest(
+      user.tenantId,
+      user.partyId,
+      dto,
+      user.id,
+    );
+
+    await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
+      type: 'QUOTATION_REQUEST',
+      title: 'New portal quote request',
+      message: `${user.fullName} submitted a quote request (${result.data.quotation_number}).`,
+      entity_type: 'quotation',
+      entity_id: result.data.quotation_id,
+      link_path: `/quotations/${result.data.quotation_id}`,
+    });
+
+    return result;
   }
 
   async list(user: CurrentPortalUser, query: PortalQuotationQueryDto) {

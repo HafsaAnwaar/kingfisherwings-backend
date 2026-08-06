@@ -45,30 +45,34 @@ export class EmailService {
   }
 
   async send(options: SendEmailOptions) {
-    const log = await this.prisma.emailLog.create({
-      data: {
-        tenant_id: options.tenantId,
-        event_type: options.eventType,
-        to_email: options.to,
-        cc_email: options.cc,
-        subject: options.subject,
-        body: options.body,
-        status: 'PENDING',
-        attachment_url: options.attachmentPath,
-        attachment_name: options.attachmentName,
-        quotation_id: options.quotationId,
-        job_id: options.jobId,
-        job_document_id: options.jobDocumentId,
-        created_by: options.createdBy,
-      },
-    });
+    const log = await this.prisma.runWithTenant(options.tenantId, (tx) =>
+      tx.emailLog.create({
+        data: {
+          tenant_id: options.tenantId,
+          event_type: options.eventType,
+          to_email: options.to,
+          cc_email: options.cc,
+          subject: options.subject,
+          body: options.body,
+          status: 'PENDING',
+          attachment_url: options.attachmentPath,
+          attachment_name: options.attachmentName,
+          quotation_id: options.quotationId,
+          job_id: options.jobId,
+          job_document_id: options.jobDocumentId,
+          created_by: options.createdBy,
+        },
+      }),
+    );
 
     if (!this.transporter) {
       this.logger.warn(`SMTP not configured — email logged only (id=${log.id})`);
-      await this.prisma.emailLog.update({
-        where: { id: log.id },
-        data: { status: 'SENT', sent_at: new Date(), error_message: 'SMTP not configured — logged only.' },
-      });
+      await this.prisma.runWithTenant(options.tenantId, (tx) =>
+        tx.emailLog.update({
+          where: { id: log.id },
+          data: { status: 'SENT', sent_at: new Date(), error_message: 'SMTP not configured — logged only.' },
+        }),
+      );
       return log;
     }
 
@@ -89,26 +93,32 @@ export class EmailService {
         attachments,
       });
 
-      return this.prisma.emailLog.update({
-        where: { id: log.id },
-        data: { status: 'SENT', sent_at: new Date() },
-      });
+      return this.prisma.runWithTenant(options.tenantId, (tx) =>
+        tx.emailLog.update({
+          where: { id: log.id },
+          data: { status: 'SENT', sent_at: new Date() },
+        }),
+      );
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown email error';
       this.logger.error(`Email failed: ${message}`);
 
-      return this.prisma.emailLog.update({
-        where: { id: log.id },
-        data: { status: 'FAILED', error_message: message },
-      });
+      return this.prisma.runWithTenant(options.tenantId, (tx) =>
+        tx.emailLog.update({
+          where: { id: log.id },
+          data: { status: 'FAILED', error_message: message },
+        }),
+      );
     }
   }
 
   async listLogs(tenantId: string, filters: Prisma.EmailLogWhereInput = {}, limit = 50) {
-    return this.prisma.emailLog.findMany({
-      where: { tenant_id: tenantId, ...filters },
-      orderBy: { created_at: 'desc' },
-      take: limit,
-    });
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.emailLog.findMany({
+        where: { tenant_id: tenantId, ...filters },
+        orderBy: { created_at: 'desc' },
+        take: limit,
+      }),
+    );
   }
 }

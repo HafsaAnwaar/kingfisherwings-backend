@@ -15,6 +15,7 @@ import { Prisma, TenantStatus, UserStatus, User, Tenant } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordUtil } from '../../common/utils/password.util';
+import { TwoFactorCrypto } from '../../common/utils/two-factor-crypto.util';
 import { EmailService } from '../../shared/email/email.service';
 
 import { UsersService } from '../users/users.service';
@@ -1007,6 +1008,37 @@ export class AuthService {
     }
   }
 
+  private twoFactorEncryptionKey(): string {
+    const key = this.configService.get<string>('TWO_FACTOR_ENCRYPTION_KEY');
+    if (!key) {
+      throw new Error('TWO_FACTOR_ENCRYPTION_KEY must be configured.');
+    }
+    return key;
+  }
+
+  /** Backup codes are stored hashed (argon2); find the matching entry by verifying each. */
+  private async findBackupCodeIndex(hashedCodes: string[], candidate: string): Promise<number> {
+    for (let i = 0; i < hashedCodes.length; i++) {
+      try {
+        if (await PasswordUtil.verify(hashedCodes[i], candidate)) {
+          return i;
+        }
+      } catch {
+        // Not an argon2 hash (e.g. a pre-encryption-fix legacy value) — no match.
+      }
+    }
+    return -1;
+  }
+
+  /** Returns null instead of throwing on a legacy/corrupt (pre-encryption) stored value. */
+  private safeDecryptTwoFactorSecret(encrypted: string): string | null {
+    try {
+      return TwoFactorCrypto.decrypt(encrypted, this.twoFactorEncryptionKey());
+    } catch {
+      return null;
+    }
+  }
+
   private async assertTwoFactorIfRequired(
     tx: Prisma.TransactionClient,
     user: User,
@@ -1017,12 +1049,15 @@ export class AuthService {
     }
 
     if (dto.totp_code) {
-      const ok = speakeasy.totp.verify({
-        secret: user.two_factor_secret,
-        encoding: 'base32',
-        token: dto.totp_code,
-        window: 1,
-      });
+      const secret = this.safeDecryptTwoFactorSecret(user.two_factor_secret);
+      const ok = secret
+        ? speakeasy.totp.verify({
+            secret,
+            encoding: 'base32',
+            token: dto.totp_code,
+            window: 1,
+          })
+        : false;
       if (!ok) {
         throw new UnauthorizedException('Invalid two-factor authentication code.');
       }
@@ -1031,7 +1066,7 @@ export class AuthService {
 
     if (dto.backup_code) {
       const codes = user.two_factor_backup_codes ?? [];
-      const idx = codes.findIndex((c) => c === dto.backup_code);
+      const idx = await this.findBackupCodeIndex(codes, dto.backup_code);
       if (idx < 0) {
         throw new UnauthorizedException('Invalid backup code.');
       }
@@ -1141,7 +1176,10 @@ export class AuthService {
 
       await tx.user.update({
         where: { id: userId },
-        data: { two_factor_secret: secret.base32, two_factor_enabled: false },
+        data: {
+          two_factor_secret: TwoFactorCrypto.encrypt(secret.base32, this.twoFactorEncryptionKey()),
+          two_factor_enabled: false,
+        },
       });
 
       const otpauth = secret.otpauth_url ?? '';
@@ -1166,20 +1204,24 @@ export class AuthService {
         throw new BadRequestException('Call POST /auth/2fa/setup first.');
       }
 
-      const ok = speakeasy.totp.verify({
-        secret: user.two_factor_secret,
-        encoding: 'base32',
-        token: dto.code,
-        window: 1,
-      });
+      const secret = this.safeDecryptTwoFactorSecret(user.two_factor_secret);
+      const ok = secret
+        ? speakeasy.totp.verify({
+            secret,
+            encoding: 'base32',
+            token: dto.code,
+            window: 1,
+          })
+        : false;
       if (!ok) {
         throw new BadRequestException('Invalid TOTP code.');
       }
 
       const backupCodes = PasswordHelper.generateBackupCodes();
+      const hashedBackupCodes = await Promise.all(backupCodes.map((code) => PasswordUtil.hash(code)));
       await tx.user.update({
         where: { id: userId },
-        data: { two_factor_enabled: true, two_factor_backup_codes: backupCodes },
+        data: { two_factor_enabled: true, two_factor_backup_codes: hashedBackupCodes },
       });
 
       return {
@@ -1206,9 +1248,12 @@ export class AuthService {
         if (!dto.code) {
           throw new UnauthorizedException('Two-factor code required to disable 2FA.');
         }
-        const totpOk = user.two_factor_secret
+        const decryptedSecret = user.two_factor_secret
+          ? this.safeDecryptTwoFactorSecret(user.two_factor_secret)
+          : null;
+        const totpOk = decryptedSecret
           ? speakeasy.totp.verify({
-              secret: user.two_factor_secret,
+              secret: decryptedSecret,
               encoding: 'base32',
               token: dto.code,
               window: 1,
@@ -1216,7 +1261,8 @@ export class AuthService {
           : false;
         if (!totpOk) {
           const codes = user.two_factor_backup_codes ?? [];
-          if (!codes.includes(dto.code)) {
+          const idx = await this.findBackupCodeIndex(codes, dto.code);
+          if (idx < 0) {
             throw new UnauthorizedException('Invalid two-factor or backup code.');
           }
         }

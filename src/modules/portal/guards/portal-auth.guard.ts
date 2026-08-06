@@ -102,10 +102,12 @@ export class PortalAuthGuard implements CanActivate {
   }
 
   private portalAccessSecret(): string {
-    return (
+    const secret =
       this.config.get<string>('PORTAL_JWT_ACCESS_SECRET') ??
-      this.config.get<string>('JWT_ACCESS_SECRET') ??
-      'portal-dev-secret'
-    );
+      this.config.get<string>('JWT_ACCESS_SECRET');
+    if (!secret) {
+      throw new Error('PORTAL_JWT_ACCESS_SECRET or JWT_ACCESS_SECRET must be configured.');
+    }
+    return secret;
   }
 }

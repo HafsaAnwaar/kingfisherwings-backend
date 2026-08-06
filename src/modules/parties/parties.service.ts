@@ -566,7 +566,12 @@ export class PartiesService {
       'is_active',
     ];
     const escape = (v: unknown) => {
-      const s = v == null ? '' : String(v);
+      let s = v == null ? '' : String(v);
+      // Neutralize CSV/DDE formula injection (CWE-1236) for values that may
+      // originate from unauthenticated input (e.g. the public online-quote form).
+      if (/^[=+\-@\t\r]/.test(s)) {
+        s = `'${s}`;
+      }
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const lines = [headers.join(',')];
