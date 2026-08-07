@@ -236,6 +236,7 @@ enum EmailEventType {
   MILESTONE_STATUS
   USER_INVITE
   PORTAL_CREDENTIALS
+  PORTAL_INVITE
   WHATSAPP_OUTBOUND
   OTHER
 }
@@ -1700,6 +1701,8 @@ model Job {
 
   shipper_id        String?   @db.Uuid
   consignee_id      String?   @db.Uuid
+  /// Bill-to / paying customer — optional third ownership key for portal visibility.
+  billing_party_id  String?   @db.Uuid
   agent_id          String?   @db.Uuid
   salesperson_id    String?   @db.Uuid
   ops_user_id       String?   @db.Uuid
@@ -1767,6 +1770,7 @@ model Job {
   @@index([tenant_id, created_at(sort: Desc)])
   @@index([tenant_id, parent_job_id])
   @@index([tenant_id, company_id])
+  @@index([tenant_id, billing_party_id])
   @@map("jobs")
 }
 
@@ -3160,6 +3164,7 @@ enum SingleDevicePolicy {
 // ─── CUSTOMER PORTAL (Week 13 foundation) ────────────────────
 
 enum PortalUserStatus {
+  INVITED
   ACTIVE
   DISABLED
 }
@@ -3190,6 +3195,10 @@ model PortalUser {
   full_name     String           @db.VarChar(200)
   phone         String?          @db.VarChar(30)
   status        PortalUserStatus @default(ACTIVE)
+  invite_token  String?          @unique @db.VarChar(128)
+  invite_expires_at DateTime?    @db.Timestamptz
+  invited_at    DateTime?        @db.Timestamptz
+  activated_at  DateTime?        @db.Timestamptz
   last_login_at DateTime?        @db.Timestamptz
   created_at    DateTime         @default(now()) @db.Timestamptz
   updated_at    DateTime         @updatedAt @db.Timestamptz
@@ -3201,6 +3210,7 @@ model PortalUser {
   party    Party           @relation(fields: [party_id], references: [id], onDelete: Cascade)
   sessions PortalSession[]
   messages PortalMessage[]
+  message_replies PortalMessageReply[]
   disputes PortalDispute[]
   credit_limit_requests CreditLimitRequest[]
   notifications Notification[]
@@ -3297,10 +3307,31 @@ model PortalMessage {
 
   party        Party      @relation(fields: [party_id], references: [id], onDelete: Cascade)
   portal_user  PortalUser @relation(fields: [portal_user_id], references: [id], onDelete: Cascade)
+  replies      PortalMessageReply[]
 
   @@index([tenant_id, party_id, created_at])
   @@index([tenant_id, read_by_staff_at])
   @@map("portal_messages")
+}
+
+/// Threaded replies on a portal message (staff or customer follow-up).
+model PortalMessageReply {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String   @db.Uuid
+  message_id      String   @db.Uuid
+  body            String   @db.Text
+  /// Staff ERP user who replied (null when customer follow-up).
+  staff_user_id   String?  @db.Uuid
+  /// Portal user follow-up (null when staff reply).
+  portal_user_id  String?  @db.Uuid
+  attachment_path String?  @db.VarChar(500)
+  created_at      DateTime @default(now()) @db.Timestamptz
+
+  message     PortalMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  portal_user PortalUser?   @relation(fields: [portal_user_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, message_id, created_at])
+  @@map("portal_message_replies")
 }
 
 /// Customer invoice disputes raised from the portal (CCP).

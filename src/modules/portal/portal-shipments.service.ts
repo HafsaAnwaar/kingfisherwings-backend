@@ -537,10 +537,18 @@ export class PortalShipmentsService {
     };
   }
 
-  private partyRole(job: { shipper_id: string | null; consignee_id: string | null }, partyId: string) {
+  private partyRole(
+    job: {
+      shipper_id: string | null;
+      consignee_id: string | null;
+      billing_party_id: string | null;
+    },
+    partyId: string,
+  ) {
     const roles: string[] = [];
     if (job.shipper_id === partyId) roles.push('SHIPPER');
     if (job.consignee_id === partyId) roles.push('CONSIGNEE');
+    if (job.billing_party_id === partyId) roles.push('BILLING');
     return roles;
   }
 

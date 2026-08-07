@@ -20,6 +20,7 @@ import { PortalShipmentsController } from './portal-shipments.controller';
 import {
   PortalCreditController,
   PortalCreditNotesController,
+  PortalDebitNotesController,
   PortalInvoicesController,
   PortalPaymentsController,
 } from './portal-finance.controller';
@@ -61,6 +62,7 @@ import { PortalCcpService } from './portal-ccp.service';
     PortalQuotationsController,
     PortalInvoicesController,
     PortalCreditNotesController,
+    PortalDebitNotesController,
     PortalPaymentsController,
     PortalCreditController,
     PortalMessagesController,

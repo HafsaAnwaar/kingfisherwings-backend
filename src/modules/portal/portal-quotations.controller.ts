@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { Public } from '../../common/decorators/public.decorators';
 import { CurrentPortal } from './decorators/portal.decorators';
 import { PortalQuotationQueryDto, PortalQuotationRequestDto } from './dto/portal-quotation.dto';
@@ -43,6 +44,16 @@ export class PortalQuotationsController {
   })
   list(@CurrentPortal() user: CurrentPortalUser, @Query() query: PortalQuotationQueryDto) {
     return this.quotations.list(user, query);
+  }
+
+  @Get(':id/pdf')
+  @ApiOperation({ summary: 'Download customer-facing quotation PDF when generated' })
+  downloadPdf(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    return this.quotations.downloadPdf(user, id, res);
   }
 
   @Get(':id')

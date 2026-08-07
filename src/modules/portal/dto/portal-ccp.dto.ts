@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -34,6 +35,13 @@ export class CreatePortalMessageDto {
   @IsOptional()
   @IsUUID()
   invoice_id?: string;
+}
+
+export class PortalMessageReplyDto {
+  @ApiProperty({ example: 'Thanks — we will check and get back to you.' })
+  @IsString()
+  @MinLength(1)
+  body!: string;
 }
 
 export class PortalMessageQueryDto {
@@ -91,6 +99,14 @@ export class PortalDisputeQueryDto {
   status?: PortalDisputeStatus;
 }
 
+/** Staff desk list — includes optional party filter (whitelist-safe). */
+export class StaffDisputeQueryDto extends PortalDisputeQueryDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  party_id?: string;
+}
+
 export class CreateCreditLimitRequestDto {
   @ApiProperty({ example: 50000 })
   @Type(() => Number)
@@ -106,8 +122,8 @@ export class CreateCreditLimitRequestDto {
 
 export class ReviewPortalDisputeDto {
   @ApiProperty({ enum: ['UNDER_REVIEW', 'RESOLVED', 'REJECTED'] })
-  @IsEnum(PortalDisputeStatus)
-  status!: Extract<PortalDisputeStatus, 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED'>;
+  @IsIn(['UNDER_REVIEW', 'RESOLVED', 'REJECTED'])
+  status!: 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED';
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -117,8 +133,8 @@ export class ReviewPortalDisputeDto {
 
 export class ReviewCreditLimitRequestDto {
   @ApiProperty({ enum: ['APPROVED', 'REJECTED'] })
-  @IsEnum(CreditLimitRequestStatus)
-  status!: Extract<CreditLimitRequestStatus, 'APPROVED' | 'REJECTED'>;
+  @IsIn(['APPROVED', 'REJECTED'])
+  status!: 'APPROVED' | 'REJECTED';
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -158,5 +174,13 @@ export class StaffPortalInboxQueryDto {
 
   @ApiPropertyOptional({ description: 'Only unread by staff' })
   @IsOptional()
+  @IsString()
   unread_only?: string;
+}
+
+export class StaffCreditLimitRequestQueryDto extends StaffPortalInboxQueryDto {
+  @ApiPropertyOptional({ enum: CreditLimitRequestStatus })
+  @IsOptional()
+  @IsEnum(CreditLimitRequestStatus)
+  status?: CreditLimitRequestStatus;
 }

@@ -80,6 +80,27 @@ export class PortalCreditNotesController {
   }
 }
 
+@ApiTags('Portal Debit Notes')
+@ApiBearerAuth()
+@Public()
+@UseGuards(PortalAuthGuard)
+@Controller('portal/debit-notes')
+export class PortalDebitNotesController {
+  constructor(private readonly finance: PortalFinanceService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'List debit notes on my account' })
+  list(@CurrentPortal() user: CurrentPortalUser, @Query() query: PortalInvoiceQueryDto) {
+    return this.finance.listDebitNotes(user, query);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Debit note detail' })
+  detail(@CurrentPortal() user: CurrentPortalUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.finance.getInvoice(user, id);
+  }
+}
+
 @ApiTags('Portal Payments')
 @ApiBearerAuth()
 @Public()

@@ -21,6 +21,7 @@ import { GenerateQuotationPdfDto, SendQuotationEmailDto } from './dto/quotation-
 import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
 import { EmailService } from '../../shared/email/email.service';
 import { StorageService } from '../../shared/storage/storage.service';
+import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -56,6 +57,7 @@ export class QuotationsService {
     private readonly documentGeneration: DocumentGenerationService,
     private readonly emailService: EmailService,
     private readonly storage: StorageService,
+    private readonly notifications: NotificationEmitterService,
   ) {}
 
   // ============================================================
@@ -1032,11 +1034,15 @@ export class QuotationsService {
   }
 
   async approve(tenantId: string, id: string, actorId: string | undefined, dto: ApprovalDecisionDto): Promise<Quotation> {
-    return this.decide(tenantId, id, actorId, 'APPROVED', dto);
+    const updated = await this.decide(tenantId, id, actorId, 'APPROVED', dto);
+    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_APPROVED', 'Quotation approved');
+    return updated;
   }
 
   async reject(tenantId: string, id: string, actorId: string | undefined, dto: ApprovalDecisionDto): Promise<Quotation> {
-    return this.decide(tenantId, id, actorId, 'REJECTED', dto);
+    const updated = await this.decide(tenantId, id, actorId, 'REJECTED', dto);
+    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_REJECTED', 'Quotation rejected');
+    return updated;
   }
 
   private async decide(
@@ -1084,52 +1090,58 @@ export class QuotationsService {
   }
 
   async send(tenantId: string, id: string, actorId?: string): Promise<Quotation> {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
       if (quotation.status !== 'APPROVED') {
         throw new BadRequestException('Only an APPROVED quotation can be sent.');
       }
 
-      const updated = await tx.quotation.update({
+      const result = await tx.quotation.update({
         where: { id },
         data: { status: 'SENT', sent_at: new Date(), updated_by: actorId },
       });
 
       await this.recordStatusChange(tx, tenantId, id, quotation.status, 'SENT', actorId);
 
-      return updated;
+      return result;
     });
+
+    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_APPROVED', 'Quotation sent');
+    return updated;
   }
 
   async markWon(tenantId: string, id: string, actorId?: string): Promise<Quotation> {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
       if (quotation.status !== 'SENT') {
         throw new BadRequestException('Only a SENT quotation can be marked won.');
       }
 
-      const updated = await tx.quotation.update({
+      const result = await tx.quotation.update({
         where: { id },
         data: { status: 'WON', won_at: new Date(), updated_by: actorId },
       });
 
       await this.recordStatusChange(tx, tenantId, id, quotation.status, 'WON', actorId);
 
-      return updated;
+      return result;
     });
+
+    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_APPROVED', 'Quotation won');
+    return updated;
   }
 
   async markLost(tenantId: string, id: string, dto: MarkLostDto, actorId?: string): Promise<Quotation> {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
       if (quotation.status !== 'SENT') {
         throw new BadRequestException('Only a SENT quotation can be marked lost.');
       }
 
-      const updated = await tx.quotation.update({
+      const result = await tx.quotation.update({
         where: { id },
         data: {
           status: 'LOST',
@@ -1141,7 +1153,26 @@ export class QuotationsService {
 
       await this.recordStatusChange(tx, tenantId, id, quotation.status, 'LOST', actorId, dto.notes ?? dto.reason);
 
-      return updated;
+      return result;
+    });
+
+    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_REJECTED', 'Quotation lost');
+    return updated;
+  }
+
+  private async notifyCustomerQuotationStatus(
+    quotation: Quotation,
+    type: 'QUOTATION_APPROVED' | 'QUOTATION_REJECTED',
+    title: string,
+  ) {
+    if (!quotation.customer_id) return;
+    await this.notifications.notifyPartyPortalUsers(quotation.tenant_id, quotation.customer_id, {
+      type,
+      title,
+      message: `${title}: ${quotation.quotation_number}`,
+      entity_type: 'quotation',
+      entity_id: quotation.id,
+      link_path: `/portal/quotations/${quotation.id}`,
     });
   }
 

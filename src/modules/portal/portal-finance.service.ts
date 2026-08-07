@@ -34,13 +34,16 @@ export class PortalFinanceService {
       {
         ...query,
         party_id: user.partyId,
-        invoice_type: InvoiceType.CUSTOMER_INVOICE,
       },
-      InvoiceType.CUSTOMER_INVOICE,
     );
 
     const data = result.data
-      .filter((inv) => PORTAL_VISIBLE_INVOICE_STATUSES.includes(inv.status))
+      .filter(
+        (inv) =>
+          PORTAL_VISIBLE_INVOICE_STATUSES.includes(inv.status) &&
+          (inv.invoice_type === InvoiceType.CUSTOMER_INVOICE ||
+            inv.invoice_type === InvoiceType.DEBIT_NOTE),
+      )
       .map((inv) => this.toInvoiceListItem(inv));
 
     return {
@@ -48,6 +51,24 @@ export class PortalFinanceService {
       data,
       meta: result.meta,
     };
+  }
+
+  async listDebitNotes(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {
+    const result = await this.invoices.findAll(
+      user.tenantId,
+      {
+        ...query,
+        party_id: user.partyId,
+        invoice_type: InvoiceType.DEBIT_NOTE,
+      },
+      InvoiceType.DEBIT_NOTE,
+    );
+
+    const data = result.data
+      .filter((inv) => PORTAL_VISIBLE_INVOICE_STATUSES.includes(inv.status))
+      .map((inv) => this.toInvoiceListItem(inv));
+
+    return { success: true, data, meta: result.meta };
   }
 
   async listCreditNotes(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {

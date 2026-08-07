@@ -1,5 +1,22 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import 'multer';
 import { Public } from '../../common/decorators/public.decorators';
 import { RolesGuard } from '../users/guards/roles.guard';
 import { PermissionsGuard } from '../users/guards/permissions.guard';
@@ -13,13 +30,39 @@ import {
   CreatePortalMessageDto,
   PortalDisputeQueryDto,
   PortalMessageQueryDto,
+  PortalMessageReplyDto,
   ReviewCreditLimitRequestDto,
   ReviewPortalDisputeDto,
+  StaffCreditLimitRequestQueryDto,
+  StaffDisputeQueryDto,
   StaffPortalInboxQueryDto,
 } from './dto/portal-ccp.dto';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
 import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
 import { PortalCcpService } from './portal-ccp.service';
+
+const ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+const ATTACHMENT_MIME = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+]);
+
+function portalAttachmentInterceptor() {
+  return FileInterceptor('file', {
+    limits: { fileSize: ATTACHMENT_MAX_BYTES },
+    fileFilter: (_req, file, callback) => {
+      if (!ATTACHMENT_MIME.has(file.mimetype)) {
+        return callback(
+          new BadRequestException('Only PDF, JPEG, and PNG files are accepted.'),
+          false,
+        );
+      }
+      callback(null, true);
+    },
+  });
+}
 
 @ApiTags('Portal Messages')
 @ApiBearerAuth()
@@ -31,14 +74,52 @@ export class PortalMessagesController {
 
   @Post()
   @ApiOperation({ summary: 'Contact the forwarder' })
-  create(@CurrentPortal() user: CurrentPortalUser, @Body() dto: CreatePortalMessageDto) {
-    return this.ccp.createMessage(user, dto);
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @UseInterceptors(portalAttachmentInterceptor())
+  async create(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Body() dto: CreatePortalMessageDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const attachmentPath = await this.ccp.storeOptionalUpload(user.tenantId, file);
+    return this.ccp.createMessage(user, dto, attachmentPath);
   }
 
   @Get()
   @ApiOperation({ summary: 'List messages I sent' })
   list(@CurrentPortal() user: CurrentPortalUser, @Query() query: PortalMessageQueryDto) {
     return this.ccp.listMyMessages(user, query);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Message detail with replies' })
+  detail(@CurrentPortal() user: CurrentPortalUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.ccp.getMessageDetail(user, id);
+  }
+
+  @Get(':id/attachment')
+  @ApiOperation({ summary: 'Download message attachment' })
+  downloadAttachment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    return this.ccp.downloadMessageAttachment(user, id, res);
+  }
+
+  @Post(':id/replies')
+  @ApiOperation({ summary: 'Reply to a portal message thread' })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @ApiBody({ type: PortalMessageReplyDto })
+  @UseInterceptors(portalAttachmentInterceptor())
+  async reply(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PortalMessageReplyDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const attachmentPath = await this.ccp.storeOptionalUpload(user.tenantId, file);
+    return this.ccp.customerReplyToMessage(user, id, dto.body, attachmentPath);
   }
 }
 
@@ -52,14 +133,31 @@ export class PortalDisputesController {
 
   @Post()
   @ApiOperation({ summary: 'Raise an invoice dispute' })
-  create(@CurrentPortal() user: CurrentPortalUser, @Body() dto: CreatePortalDisputeDto) {
-    return this.ccp.createDispute(user, dto);
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @UseInterceptors(portalAttachmentInterceptor())
+  async create(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Body() dto: CreatePortalDisputeDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const attachmentPath = await this.ccp.storeOptionalUpload(user.tenantId, file);
+    return this.ccp.createDispute(user, dto, attachmentPath);
   }
 
   @Get()
   @ApiOperation({ summary: 'List my disputes' })
   list(@CurrentPortal() user: CurrentPortalUser, @Query() query: PortalDisputeQueryDto) {
     return this.ccp.listMyDisputes(user, query);
+  }
+
+  @Get(':id/attachment')
+  @ApiOperation({ summary: 'Download dispute attachment' })
+  downloadAttachment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    return this.ccp.downloadDisputeAttachment(user, id, res);
   }
 }
 
@@ -98,6 +196,33 @@ export class PortalAdminInboxController {
     return this.ccp.staffListMessages(tenantId, query);
   }
 
+  @Get('messages/:id')
+  @RequirePermissions(PORTAL_PERMISSIONS.VIEW_MESSAGES)
+  @ApiOperation({ summary: 'Staff message detail with replies' })
+  messageDetail(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ccp.staffGetMessageDetail(tenantId, id);
+  }
+
+  @Post('messages/:id/replies')
+  @RequirePermissions(PORTAL_PERMISSIONS.VIEW_MESSAGES)
+  @ApiOperation({ summary: 'Staff reply to a portal message' })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @ApiBody({ type: PortalMessageReplyDto })
+  @UseInterceptors(portalAttachmentInterceptor())
+  async staffReply(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PortalMessageReplyDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const attachmentPath = await this.ccp.storeOptionalUpload(tenantId, file);
+    return this.ccp.staffReplyToMessage(tenantId, actorId, id, dto.body, attachmentPath);
+  }
+
   @Post('messages/:id/read')
   @RequirePermissions(PORTAL_PERMISSIONS.VIEW_MESSAGES)
   @ApiOperation({ summary: 'Mark a portal message as read by staff' })
@@ -113,9 +238,19 @@ export class PortalAdminInboxController {
   @ApiOperation({ summary: 'List customer invoice disputes' })
   disputes(
     @CurrentUser('tenantId') tenantId: string,
-    @Query() query: PortalDisputeQueryDto & { party_id?: string },
+    @Query() query: StaffDisputeQueryDto,
   ) {
     return this.ccp.staffListDisputes(tenantId, query);
+  }
+
+  @Get('disputes/:id')
+  @RequirePermissions(PORTAL_PERMISSIONS.MANAGE_DISPUTES)
+  @ApiOperation({ summary: 'Get one customer invoice dispute' })
+  disputeDetail(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ccp.staffGetDispute(tenantId, id);
   }
 
   @Patch('disputes/:id')
@@ -135,13 +270,13 @@ export class PortalAdminInboxController {
   @ApiOperation({ summary: 'List credit limit increase requests' })
   creditRequests(
     @CurrentUser('tenantId') tenantId: string,
-    @Query() query: StaffPortalInboxQueryDto & { status?: string },
+    @Query() query: StaffCreditLimitRequestQueryDto,
   ) {
     return this.ccp.staffListCreditLimitRequests(tenantId, {
       page: query.page,
       limit: query.limit,
       party_id: query.party_id,
-      status: query.status as never,
+      status: query.status,
     });
   }
 

@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../common/decorators/public.decorators';
 import { CurrentPortal } from './decorators/portal.decorators';
-import { PortalLoginDto, PortalRefreshDto } from './dto/portal.dto';
+import { AcceptPortalInviteDto, PortalLoginDto, PortalRefreshDto } from './dto/portal.dto';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
 import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
 import { PortalService } from './portal.service';
@@ -28,6 +28,17 @@ export class PortalAuthController {
   ) {
     const ip = forwardedFor?.split(',')[0]?.trim();
     return this.portal.login(dto, { ip, userAgent });
+  }
+
+  @Public()
+  @Post('accept-invite')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Accept portal invite and set password',
+    description: 'Activates an INVITED portal user using the email invite token.',
+  })
+  acceptInvite(@Body() dto: AcceptPortalInviteDto) {
+    return this.portal.acceptInvite(dto);
   }
 
   @Public()

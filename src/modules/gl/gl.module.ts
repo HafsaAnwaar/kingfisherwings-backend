@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { OrganizationModule } from '../organization/organization.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { ChartOfAccountsController } from './chart-of-accounts.controller';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { VouchersController } from './vouchers.controller';
@@ -22,7 +23,7 @@ import { SavedReportsController } from './saved-reports.controller';
 import { SavedReportsService } from './saved-reports.service';
 
 @Module({
-  imports: [PrismaModule, OrganizationModule],
+  imports: [PrismaModule, OrganizationModule, NotificationsModule],
   controllers: [
     ChartOfAccountsController,
     VouchersController,
