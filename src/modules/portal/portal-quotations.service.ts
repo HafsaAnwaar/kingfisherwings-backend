@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, QuotationStatus } from '@prisma/client';
+import { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../shared/storage/storage.service';
 import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import { QuotationsService } from '../quotations/quotations.service';
 import { PortalQuotationQueryDto, PortalQuotationRequestDto } from './dto/portal-quotation.dto';
@@ -14,6 +16,7 @@ export class PortalQuotationsService {
     private readonly prisma: PrismaService,
     private readonly quotations: QuotationsService,
     private readonly notifications: NotificationEmitterService,
+    private readonly storage: StorageService,
   ) {}
 
   async requestQuote(user: CurrentPortalUser, dto: PortalQuotationRequestDto) {
@@ -211,10 +214,45 @@ export class PortalQuotationsService {
         lost_reason: quotation.lost_reason,
         converted_job_id: quotation.converted_job_id,
         customer_pdf_url: quotation.customer_pdf_url,
+        has_pdf: Boolean(quotation.customer_pdf_url),
         created_at: quotation.created_at,
         updated_at: quotation.updated_at,
       },
     };
+  }
+
+  async downloadPdf(user: CurrentPortalUser, quotationId: string, res: Response) {
+    const quotation = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
+      return tx.quotation.findFirst({
+        where: {
+          id: quotationId,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          ...this.baseOwnershipWhere(user.partyId),
+        },
+        select: {
+          id: true,
+          quotation_number: true,
+          customer_pdf_url: true,
+          customer_pdf_s3_key: true,
+        },
+      });
+    });
+
+    if (!quotation?.customer_pdf_url) {
+      throw new NotFoundException('Quotation PDF not available.');
+    }
+
+    const file = await this.storage.readByStoredFile(user.tenantId, {
+      file_name: `${quotation.quotation_number}.pdf`,
+      file_url: quotation.customer_pdf_url,
+      s3_key: quotation.customer_pdf_s3_key,
+      mime_type: 'application/pdf',
+    });
+
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.send(file.buffer);
   }
 
   private baseOwnershipWhere(partyId: string): Prisma.QuotationWhereInput {

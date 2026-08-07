@@ -8,7 +8,10 @@ import {
   PortalDisputeStatus,
   Prisma,
 } from '@prisma/client';
+import { Response } from 'express';
+import * as path from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../shared/storage/storage.service';
 import {
   CreateCreditLimitRequestDto,
   CreatePortalDisputeDto,
@@ -28,11 +31,16 @@ export class PortalCcpService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationEmitterService,
+    private readonly storage: StorageService,
   ) {}
 
   // ─── Messages ──────────────────────────────────────────────
 
-  async createMessage(user: CurrentPortalUser, dto: CreatePortalMessageDto) {
+  async createMessage(
+    user: CurrentPortalUser,
+    dto: CreatePortalMessageDto,
+    attachmentPath?: string,
+  ) {
     if (dto.job_id) await this.assertOwnedJob(user, dto.job_id);
     if (dto.invoice_id) await this.assertOwnedInvoice(user, dto.invoice_id);
 
@@ -46,6 +54,7 @@ export class PortalCcpService {
           body: dto.body.trim(),
           job_id: dto.job_id,
           invoice_id: dto.invoice_id,
+          attachment_path: attachmentPath ?? null,
         },
       }),
     );
@@ -95,6 +104,125 @@ export class PortalCcpService {
         totalPages: Math.ceil(total / query.limit) || 1,
       },
     };
+  }
+
+  async getMessageDetail(user: CurrentPortalUser, messageId: string) {
+    const message = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.portalMessage.findFirst({
+        where: {
+          id: messageId,
+          tenant_id: user.tenantId,
+          party_id: user.partyId,
+        },
+        include: {
+          replies: { orderBy: { created_at: 'asc' } },
+        },
+      }),
+    );
+    if (!message) throw new NotFoundException('Message not found.');
+
+    return {
+      success: true,
+      data: {
+        ...this.toMessage(message),
+        replies: message.replies.map((r) => this.toReply(r)),
+      },
+    };
+  }
+
+  async staffGetMessageDetail(tenantId: string, messageId: string) {
+    const message = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.portalMessage.findFirst({
+        where: { id: messageId, tenant_id: tenantId },
+        include: {
+          party: { select: { id: true, name: true, code: true } },
+          portal_user: { select: { id: true, email: true, full_name: true } },
+          replies: { orderBy: { created_at: 'asc' } },
+        },
+      }),
+    );
+    if (!message) throw new NotFoundException('Message not found.');
+
+    return { success: true, data: message };
+  }
+
+  async customerReplyToMessage(
+    user: CurrentPortalUser,
+    messageId: string,
+    body: string,
+    attachmentPath?: string,
+  ) {
+    const message = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.portalMessage.findFirst({
+        where: {
+          id: messageId,
+          tenant_id: user.tenantId,
+          party_id: user.partyId,
+        },
+      }),
+    );
+    if (!message) throw new NotFoundException('Message not found.');
+
+    const reply = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.portalMessageReply.create({
+        data: {
+          tenant_id: user.tenantId,
+          message_id: messageId,
+          body: body.trim(),
+          portal_user_id: user.id,
+          attachment_path: attachmentPath ?? null,
+        },
+      }),
+    );
+
+    await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
+      type: 'PORTAL_MESSAGE',
+      title: `Portal reply: ${message.subject}`,
+      message: `${user.fullName} replied on a portal message.`,
+      entity_type: 'portal_message',
+      entity_id: message.id,
+      link_path: `/portal-admin/messages/${message.id}`,
+    });
+
+    return { success: true, data: this.toReply(reply) };
+  }
+
+  async staffReplyToMessage(
+    tenantId: string,
+    actorId: string,
+    messageId: string,
+    body: string,
+    attachmentPath?: string,
+  ) {
+    const message = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.portalMessage.findFirst({
+        where: { id: messageId, tenant_id: tenantId },
+      }),
+    );
+    if (!message) throw new NotFoundException('Message not found.');
+
+    const reply = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.portalMessageReply.create({
+        data: {
+          tenant_id: tenantId,
+          message_id: messageId,
+          body: body.trim(),
+          staff_user_id: actorId,
+          attachment_path: attachmentPath ?? null,
+        },
+      }),
+    );
+
+    await this.notifications.notifyPortalUser(tenantId, message.portal_user_id, {
+      type: 'PORTAL_MESSAGE',
+      title: `Reply: ${message.subject}`,
+      message: 'Your forwarder replied to your message.',
+      entity_type: 'portal_message',
+      entity_id: message.id,
+      link_path: `/portal/messages/${message.id}`,
+    });
+
+    return { success: true, data: this.toReply(reply) };
   }
 
   async staffListMessages(tenantId: string, query: StaffPortalInboxQueryDto) {
@@ -150,9 +278,39 @@ export class PortalCcpService {
     return { success: true, data: this.toMessage(updated) };
   }
 
+  async downloadMessageAttachment(user: CurrentPortalUser, messageId: string, res: Response) {
+    const message = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.portalMessage.findFirst({
+        where: {
+          id: messageId,
+          tenant_id: user.tenantId,
+          party_id: user.partyId,
+        },
+      }),
+    );
+    if (!message?.attachment_path) throw new NotFoundException('Attachment not found.');
+
+    return this.streamAttachment(user.tenantId, message.attachment_path, res);
+  }
+
+  async staffDownloadMessageAttachment(tenantId: string, messageId: string, res: Response) {
+    const message = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.portalMessage.findFirst({
+        where: { id: messageId, tenant_id: tenantId },
+      }),
+    );
+    if (!message?.attachment_path) throw new NotFoundException('Attachment not found.');
+
+    return this.streamAttachment(tenantId, message.attachment_path, res);
+  }
+
   // ─── Disputes ──────────────────────────────────────────────
 
-  async createDispute(user: CurrentPortalUser, dto: CreatePortalDisputeDto) {
+  async createDispute(
+    user: CurrentPortalUser,
+    dto: CreatePortalDisputeDto,
+    attachmentPath?: string,
+  ) {
     await this.assertOwnedInvoice(user, dto.invoice_id);
 
     const open = await this.prisma.runWithTenant(user.tenantId, (tx) =>
@@ -178,6 +336,7 @@ export class PortalCcpService {
           invoice_id: dto.invoice_id,
           reason: dto.reason.trim(),
           description: dto.description.trim(),
+          attachment_path: attachmentPath ?? null,
         },
       }),
     );
@@ -225,7 +384,24 @@ export class PortalCcpService {
     };
   }
 
+  async downloadDisputeAttachment(user: CurrentPortalUser, disputeId: string, res: Response) {
+    const dispute = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.portalDispute.findFirst({
+        where: {
+          id: disputeId,
+          tenant_id: user.tenantId,
+          party_id: user.partyId,
+        },
+      }),
+    );
+    if (!dispute?.attachment_path) throw new NotFoundException('Attachment not found.');
+
+    return this.streamAttachment(user.tenantId, dispute.attachment_path, res);
+  }
+
   async staffListDisputes(tenantId: string, query: PortalDisputeQueryDto & { party_id?: string }) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
     const where: Prisma.PortalDisputeWhereInput = {
       tenant_id: tenantId,
       ...(query.party_id ? { party_id: query.party_id } : {}),
@@ -237,8 +413,8 @@ export class PortalCcpService {
         tx.portalDispute.findMany({
           where,
           orderBy: { created_at: 'desc' },
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
+          skip: (page - 1) * limit,
+          take: limit,
           include: {
             party: { select: { id: true, name: true, code: true } },
             portal_user: { select: { id: true, email: true, full_name: true } },
@@ -252,12 +428,43 @@ export class PortalCcpService {
       success: true,
       data: rows,
       meta: {
-        page: query.page,
-        limit: query.limit,
+        page,
+        limit,
         total,
-        totalPages: Math.ceil(total / query.limit) || 1,
+        totalPages: Math.ceil(total / limit) || 1,
       },
     };
+  }
+
+  async staffGetDispute(tenantId: string, id: string) {
+    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.portalDispute.findFirst({
+        where: { id, tenant_id: tenantId },
+        include: {
+          party: { select: { id: true, name: true, code: true } },
+          portal_user: { select: { id: true, email: true, full_name: true } },
+        },
+      }),
+    );
+
+    if (!row) throw new NotFoundException('Dispute not found.');
+
+    const invoice = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.findFirst({
+        where: { id: row.invoice_id, tenant_id: tenantId, deleted_at: null },
+        select: {
+          id: true,
+          invoice_number: true,
+          invoice_type: true,
+          status: true,
+          total_amount: true,
+          balance_due: true,
+          currency_code: true,
+        },
+      }),
+    );
+
+    return { success: true, data: { ...row, invoice } };
   }
 
   async staffReviewDispute(
@@ -448,6 +655,57 @@ export class PortalCcpService {
     return { success: true, data: updated };
   }
 
+  // ─── Attachments ───────────────────────────────────────────
+
+  async storeOptionalUpload(
+    tenantId: string,
+    file: Express.Multer.File | undefined,
+  ): Promise<string | undefined> {
+    if (!file) return undefined;
+    const stored = await this.storage.saveBuffer(
+      tenantId,
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+    );
+    // Prefer fileUrl (works for local basename parse); s3Key for S3 read path.
+    return stored.fileUrl || stored.s3Key;
+  }
+
+  private async streamAttachment(tenantId: string, attachmentPath: string, res: Response) {
+    const stored = this.resolveStoredFile(attachmentPath);
+    const file = await this.storage.readByStoredFile(tenantId, stored);
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.send(file.buffer);
+  }
+
+  private resolveStoredFile(attachmentPath: string): {
+    file_name: string;
+    file_url: string;
+    s3_key?: string | null;
+    mime_type?: string | null;
+  } {
+    const looksLikeUrl = /^https?:\/\//i.test(attachmentPath);
+    if (looksLikeUrl) {
+      const fileName = decodeURIComponent(attachmentPath.split('/').pop() || 'attachment');
+      const s3Match = attachmentPath.match(/\.amazonaws\.com\/(.+)$/);
+      return {
+        file_name: fileName,
+        file_url: attachmentPath,
+        s3_key: s3Match?.[1] ?? null,
+      };
+    }
+
+    // s3Key style (tenantId/timestamp-name) or bare local filename
+    const fileName = path.basename(attachmentPath);
+    return {
+      file_name: fileName,
+      file_url: attachmentPath,
+      s3_key: attachmentPath.includes('/') ? attachmentPath : null,
+    };
+  }
+
   // ─── Helpers ───────────────────────────────────────────────
 
   private toMessage(m: {
@@ -458,6 +716,7 @@ export class PortalCcpService {
     invoice_id: string | null;
     created_at: Date;
     read_by_staff_at: Date | null;
+    attachment_path?: string | null;
   }) {
     return {
       id: m.id,
@@ -467,6 +726,27 @@ export class PortalCcpService {
       invoice_id: m.invoice_id,
       created_at: m.created_at,
       read_by_staff_at: m.read_by_staff_at,
+      has_attachment: Boolean(m.attachment_path),
+    };
+  }
+
+  private toReply(r: {
+    id: string;
+    message_id: string;
+    body: string;
+    staff_user_id: string | null;
+    portal_user_id: string | null;
+    attachment_path: string | null;
+    created_at: Date;
+  }) {
+    return {
+      id: r.id,
+      message_id: r.message_id,
+      body: r.body,
+      staff_user_id: r.staff_user_id,
+      portal_user_id: r.portal_user_id,
+      has_attachment: Boolean(r.attachment_path),
+      created_at: r.created_at,
     };
   }
 

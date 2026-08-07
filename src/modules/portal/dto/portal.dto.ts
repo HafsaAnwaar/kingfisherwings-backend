@@ -57,12 +57,38 @@ export class CreatePortalUserDto {
   @IsOptional()
   @IsBoolean()
   send_email?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'When true, create as INVITED and email an accept-invite link instead of a temporary password.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  invite_mode?: boolean;
+}
+
+export class AcceptPortalInviteDto {
+  @ApiProperty({ description: 'Invite token from the email link.' })
+  @IsString()
+  @MinLength(16)
+  token!: string;
+
+  @ApiProperty({ description: 'New password to activate the portal account.' })
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(2, 200)
+  full_name?: string;
 }
 
 export class UpdatePortalUserStatusDto {
-  @ApiProperty({ enum: ['ACTIVE', 'DISABLED'] })
-  @IsIn(['ACTIVE', 'DISABLED'])
-  status!: 'ACTIVE' | 'DISABLED';
+  @ApiProperty({ enum: ['ACTIVE', 'DISABLED', 'INVITED'] })
+  @IsIn(['ACTIVE', 'DISABLED', 'INVITED'])
+  status!: 'ACTIVE' | 'DISABLED' | 'INVITED';
 }
 
 export class ResetPortalPasswordDto {

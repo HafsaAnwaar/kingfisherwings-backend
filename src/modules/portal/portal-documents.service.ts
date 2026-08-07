@@ -137,7 +137,9 @@ export class PortalDocumentsService {
           party_id: user.partyId,
           deleted_at: null,
           status: { in: PORTAL_INVOICE_STATUSES },
-          invoice_type: { in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.CREDIT_NOTE] },
+          invoice_type: {
+            in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.CREDIT_NOTE, InvoiceType.DEBIT_NOTE],
+          },
         },
       }),
     );
@@ -275,7 +277,9 @@ export class PortalDocumentsService {
           deleted_at: null,
           pdf_url: { not: null },
           status: { in: PORTAL_INVOICE_STATUSES },
-          invoice_type: { in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.CREDIT_NOTE] },
+          invoice_type: {
+            in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.CREDIT_NOTE, InvoiceType.DEBIT_NOTE],
+          },
         },
         orderBy: { created_at: 'desc' },
         select: {

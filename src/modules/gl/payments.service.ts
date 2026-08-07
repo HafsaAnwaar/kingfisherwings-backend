@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
+import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import { GlAutoPostService } from './gl-auto-post.service';
 import {
   CreatePaymentDto,
@@ -30,6 +31,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
     private readonly glAutoPost: GlAutoPostService,
+    private readonly notifications: NotificationEmitterService,
   ) {}
 
   async findAll(tenantId: string, query: PaymentQueryDto) {
@@ -366,7 +368,7 @@ export class PaymentsService {
       },
     );
 
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const posted = await this.prisma.runWithTenant(tenantId, async (tx) => {
       // Re-validate open balances at post time
       for (const alloc of payment.allocations) {
         const inv = await tx.invoice.findFirst({
@@ -503,6 +505,19 @@ export class PaymentsService {
         },
       });
     });
+
+    if (payment.direction === 'RECEIPT' && payment.party_id) {
+      await this.notifications.notifyPartyPortalUsers(tenantId, payment.party_id, {
+        type: 'PAYMENT_RECEIVED',
+        title: 'Payment received',
+        message: `We recorded payment ${payment.payment_number} for your account.`,
+        entity_type: 'payment',
+        entity_id: payment.id,
+        link_path: `/portal/payments`,
+      });
+    }
+
+    return posted;
   }
 
   async cancel(tenantId: string, id: string, actorId?: string) {

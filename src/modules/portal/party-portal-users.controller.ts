@@ -79,6 +79,18 @@ export class PartyPortalUsersController {
   ) {
     return this.portal.resetPassword(tenantId, actorId, id, dto, partyId);
   }
+
+  @Post(':partyId/portal-users/:id/resend-invite')
+  @RequirePermissions(PORTAL_PERMISSIONS.MANAGE_USERS)
+  @ApiOperation({ summary: 'Resend portal invite email with a fresh accept-invite token' })
+  resendInvite(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('partyId', ParseUUIDPipe) partyId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.portal.resendInvite(tenantId, actorId, id, partyId);
+  }
 }
 
 @ApiTags('Admin — Customer Portal Users')

@@ -1,24 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+type TenantResolveInput = {
+  tenantSlug?: string;
+  host?: string;
+};
+
 @Injectable()
 export class TrackService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async track(tenantSlug: string, ref: string) {
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { slug: tenantSlug, deleted_at: null, is_active: true },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        display_name: true,
-        logo_url: true,
-        primary_color: true,
-        website: true,
-      },
-    });
-
+  async track(ref: string, resolve: TenantResolveInput) {
+    const tenant = await this.resolveTenant(resolve, true);
     if (!tenant) {
       throw new NotFoundException('Shipment not found.');
     }
@@ -81,7 +74,6 @@ export class TrackService {
       }),
     );
 
-    // Same 404 for missing / wrong tenant — do not leak existence
     if (!job) {
       throw new NotFoundException('Shipment not found.');
     }
@@ -177,7 +169,6 @@ export class TrackService {
             voyage_number: job.sea_fcl_details?.voyage_number ?? null,
             vessel_name: vessel?.name ?? null,
           },
-          // Intentionally omitted: charges, GP, costs, internal notes, party PII
           milestones: job.milestones.map((m) => ({
             milestone: m.milestone,
             planned_date: m.planned_date,
@@ -190,19 +181,8 @@ export class TrackService {
     };
   }
 
-  async embedConfig(tenantSlug: string) {
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { slug: tenantSlug, deleted_at: null, is_active: true },
-      select: {
-        slug: true,
-        name: true,
-        display_name: true,
-        logo_url: true,
-        primary_color: true,
-        website: true,
-      },
-    });
-
+  async embedConfig(resolve: TenantResolveInput) {
+    const tenant = await this.resolveTenant(resolve, false);
     if (!tenant) {
       throw new NotFoundException('Tenant not found.');
     }
@@ -216,8 +196,104 @@ export class TrackService {
         primary_color: tenant.primary_color ?? '#0B3D5C',
         website: tenant.website,
         track_endpoint: '/track',
+        widget_script: `/track/widget.js?tenant_slug=${encodeURIComponent(tenant.slug)}`,
         placeholder: 'Enter job number, BL, or AWB',
       },
     };
+  }
+
+  async widgetScript(resolve: TenantResolveInput): Promise<string> {
+    const tenant = await this.resolveTenant(resolve, false);
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    const color = (tenant.primary_color ?? '#0B3D5C').replace(/'/g, '');
+    const name = (tenant.display_name ?? tenant.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const slug = tenant.slug;
+
+    return `(function(){
+  var SLUG='${slug}';
+  var COLOR='${color}';
+  var NAME='${name}';
+  var root=document.currentScript && document.currentScript.parentElement || document.body;
+  var box=document.createElement('div');
+  box.setAttribute('data-kf-track','1');
+  box.style.cssText='font-family:system-ui,sans-serif;max-width:480px;border:1px solid #ddd;padding:16px;border-radius:8px;';
+  box.innerHTML='<div style="font-weight:600;color:'+COLOR+';margin-bottom:8px;">'+NAME+' Track & Trace</div>'+
+    '<input id="kf-track-ref" placeholder="Job / BL / AWB" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;"/>'+
+    '<button id="kf-track-btn" style="background:'+COLOR+';color:#fff;border:0;padding:8px 14px;border-radius:4px;cursor:pointer;">Track</button>'+
+    '<pre id="kf-track-out" style="margin-top:12px;white-space:pre-wrap;font-size:12px;"></pre>';
+  root.appendChild(box);
+  function apiBase(){
+    var s=document.currentScript && document.currentScript.src;
+    if(s){ try { return new URL(s).origin; } catch(e){} }
+    return '';
+  }
+  document.getElementById('kf-track-btn').onclick=function(){
+    var ref=(document.getElementById('kf-track-ref').value||'').trim();
+    var out=document.getElementById('kf-track-out');
+    if(!ref){ out.textContent='Enter a reference.'; return; }
+    out.textContent='Loading…';
+    fetch(apiBase()+'/track?tenant_slug='+encodeURIComponent(SLUG)+'&ref='+encodeURIComponent(ref))
+      .then(function(r){ return r.json().then(function(j){ if(!r.ok) throw new Error(j.message||'Not found'); return j; }); })
+      .then(function(j){
+        var s=j.data && j.data.shipment;
+        if(!s){ out.textContent='No data'; return; }
+        out.textContent=s.job_number+' · '+s.status+'\\n'+
+          (s.origin&&s.origin.code?s.origin.code:'?')+' → '+(s.destination&&s.destination.code?s.destination.code:'?')+'\\n'+
+          (s.milestones||[]).map(function(m){ return (m.is_completed?'✓ ':'○ ')+m.milestone; }).join('\\n');
+      })
+      .catch(function(e){ out.textContent=e.message||'Error'; });
+  };
+})();`;
+  }
+
+  private async resolveTenant(resolve: TenantResolveInput, softNotFound: boolean) {
+    const slug = resolve.tenantSlug?.trim();
+    if (slug) {
+      return this.prisma.tenant.findFirst({
+        where: { slug, deleted_at: null, is_active: true },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          display_name: true,
+          logo_url: true,
+          primary_color: true,
+          website: true,
+          domain: true,
+        },
+      });
+    }
+
+    const domain = this.normalizeHost(resolve.host);
+    if (!domain) {
+      if (softNotFound) return null;
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    return this.prisma.tenant.findFirst({
+      where: {
+        deleted_at: null,
+        is_active: true,
+        OR: [{ domain: { equals: domain, mode: 'insensitive' } }, { domain: { equals: `www.${domain}`, mode: 'insensitive' } }],
+      },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        display_name: true,
+        logo_url: true,
+        primary_color: true,
+        website: true,
+        domain: true,
+      },
+    });
+  }
+
+  private normalizeHost(host?: string): string | null {
+    if (!host?.trim()) return null;
+    return host.trim().toLowerCase().replace(/:\d+$/, '').replace(/^www\./, '');
   }
 }

@@ -5,6 +5,7 @@ import { NumberGeneratorService } from '../organization/number-formats/number-ge
 import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
 import { EmailService } from '../../shared/email/email.service';
 import { WhatsAppService } from '../../shared/whatsapp/whatsapp.service';
+import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import { AIR_EXPORT_MILESTONES } from './constants/air-export-milestones';
 import { SEA_FCL_EXPORT_MILESTONES } from './constants/sea-fcl-export-milestones';
 import { SEA_FCL_IMPORT_MILESTONES } from './constants/sea-fcl-import-milestones';
@@ -59,6 +60,7 @@ export class JobsService {
     private readonly documentGeneration: DocumentGenerationService,
     private readonly emailService: EmailService,
     private readonly whatsApp: WhatsAppService,
+    private readonly notifications: NotificationEmitterService,
   ) {}
 
   // ============================================================
@@ -1223,7 +1225,7 @@ export class JobsService {
     dto: UpdateJobMilestoneDto,
     actorId?: string,
   ) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const milestone = await tx.jobMilestone.findFirst({
         where: { id: milestoneId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
       });
@@ -1234,7 +1236,7 @@ export class JobsService {
 
       const { planned_date, actual_date, ...rest } = dto;
 
-      const updated = await tx.jobMilestone.update({
+      return tx.jobMilestone.update({
         where: { id: milestoneId },
         data: {
           ...rest,
@@ -1243,14 +1245,15 @@ export class JobsService {
           updated_by: actorId,
         },
       });
-
-      if (actual_date) {
-        // Fire-and-forget status email (Week 6) — failure must not roll back milestone.
-        void this.notifyMilestoneStatus(tenantId, jobId, updated.milestone, actorId);
-      }
-
-      return updated;
     });
+
+    if (dto.actual_date) {
+      // Fire-and-forget status email (Week 6) — failure must not roll back milestone.
+      void this.notifyMilestoneStatus(tenantId, jobId, updated.milestone, actorId);
+      void this.notifyPortalMilestoneUpdated(tenantId, jobId, updated.milestone);
+    }
+
+    return updated;
   }
 
   async addCustomMilestone(tenantId: string, jobId: string, dto: CreateCustomMilestoneDto, actorId?: string) {
@@ -2018,6 +2021,41 @@ export class JobsService {
         body,
         jobId,
         createdBy: actorId,
+      });
+    }
+  }
+
+  private async notifyPortalMilestoneUpdated(
+    tenantId: string,
+    jobId: string,
+    milestoneName: string,
+  ) {
+    const job = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: {
+          id: true,
+          job_number: true,
+          shipper_id: true,
+          consignee_id: true,
+          billing_party_id: true,
+        },
+      }),
+    );
+    if (!job) return;
+
+    const partyIds = [...new Set(
+      [job.shipper_id, job.consignee_id, job.billing_party_id].filter(Boolean) as string[],
+    )];
+
+    for (const partyId of partyIds) {
+      await this.notifications.notifyPartyPortalUsers(tenantId, partyId, {
+        type: 'JOB_MILESTONE_UPDATED',
+        title: `Milestone updated: ${job.job_number}`,
+        message: `Milestone "${milestoneName}" was completed on shipment ${job.job_number}.`,
+        entity_type: 'job',
+        entity_id: job.id,
+        link_path: `/portal/shipments/${job.id}`,
       });
     }
   }
