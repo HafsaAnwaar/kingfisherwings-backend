@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { DocumentEntityType, DocumentGenerationStatus, DocumentType, Prisma, QuotationPdfMode } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationEmitterService } from '../../modules/notifications/notification-emitter.service';
 import { PdfService, SeaFclDocumentPdfData } from '../pdf/pdf.service';
 import { StorageService } from '../storage/storage.service';
 import { DOCUMENT_GENERATION_QUEUE, DocumentGenerationJobPayload } from './queue.constants';
@@ -121,6 +122,7 @@ export class DocumentGenerationService {
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
     private readonly storage: StorageService,
+    private readonly notifications: NotificationEmitterService,
     @InjectQueue(DOCUMENT_GENERATION_QUEUE) private readonly queue: Queue<DocumentGenerationJobPayload>,
   ) {}
 
@@ -299,7 +301,7 @@ export class DocumentGenerationService {
       }
 
       if (task.entity_type === 'JOB' && task.job_id && task.document_type && task.requested_by) {
-        await this.prisma.runWithTenant(tenantId, (tx) =>
+        const jobDocument = await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.jobDocument.create({
             data: {
               tenant_id: tenantId,
@@ -322,6 +324,8 @@ export class DocumentGenerationService {
             },
           }),
         );
+
+        await this.notifications.notifyPortalDocumentReadyForJob(tenantId, task.job_id, jobDocument);
       }
 
       return completed;

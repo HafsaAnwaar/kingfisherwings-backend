@@ -31,10 +31,13 @@ import {
   PortalMessagesController,
 } from './portal-ccp.controller';
 import { PortalNotificationsController } from './portal-notifications.controller';
+import { PortalPreferencesController } from './portal-preferences.controller';
+import { PortalDashboardController } from './portal-dashboard.controller';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
 import { PortalService } from './portal.service';
 import { PortalDocumentsService } from './portal-documents.service';
 import { PortalPermissionsService } from './portal-permissions.service';
+import { PortalPreferencesService } from './portal-preferences.service';
 import { PortalQuotationsService } from './portal-quotations.service';
 import { PortalShipmentsService } from './portal-shipments.service';
 import { PortalFinanceService } from './portal-finance.service';
@@ -70,6 +73,8 @@ import { PortalCcpService } from './portal-ccp.service';
     PortalCreditLimitRequestsController,
     PortalAdminInboxController,
     PortalNotificationsController,
+    PortalPreferencesController,
+    PortalDashboardController,
   ],
   providers: [
     PortalService,
@@ -79,6 +84,7 @@ import { PortalCcpService } from './portal-ccp.service';
     PortalDocumentsService,
     PortalFinanceService,
     PortalCcpService,
+    PortalPreferencesService,
     PortalAuthGuard,
   ],
   exports: [
@@ -89,6 +95,7 @@ import { PortalCcpService } from './portal-ccp.service';
     PortalDocumentsService,
     PortalFinanceService,
     PortalCcpService,
+    PortalPreferencesService,
     PortalAuthGuard,
   ],
 })

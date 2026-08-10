@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Public } from '../../common/decorators/public.decorators';
 import { CurrentPortal } from './decorators/portal.decorators';
-import { PortalQuotationQueryDto, PortalQuotationRequestDto } from './dto/portal-quotation.dto';
+import { PortalQuotationQueryDto, PortalQuotationRejectDto, PortalQuotationRequestDto } from './dto/portal-quotation.dto';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
 import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
 import { PortalQuotationsService } from './portal-quotations.service';
@@ -35,6 +35,28 @@ export class PortalQuotationsController {
   })
   request(@CurrentPortal() user: CurrentPortalUser, @Body() dto: PortalQuotationRequestDto) {
     return this.quotations.requestQuote(user, dto);
+  }
+
+  @Post(':id/accept')
+  @ApiOperation({
+    summary: 'Accept a SENT quotation',
+    description: 'Marks the quote WON for the customer Party. Only SENT quotes can be accepted.',
+  })
+  accept(@CurrentPortal() user: CurrentPortalUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.quotations.accept(user, id);
+  }
+
+  @Post(':id/reject')
+  @ApiOperation({
+    summary: 'Reject a SENT quotation',
+    description: 'Marks the quote LOST with a standard loss reason. Only SENT quotes can be rejected.',
+  })
+  reject(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PortalQuotationRejectDto,
+  ) {
+    return this.quotations.reject(user, id, dto);
   }
 
   @Get()

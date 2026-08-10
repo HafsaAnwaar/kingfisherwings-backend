@@ -12,7 +12,7 @@ import { PortalShipmentsService } from './portal-shipments.service';
 /**
  * Customer Portal — Shipments submodule.
  * All routes require portal JWT. Data is scoped to the caller's Party
- * (shipper OR consignee). Financial fields (charges, GP, costs) are never returned.
+ * (shipper OR consignee OR billing party). Financial fields (charges, GP, costs) are never returned.
  */
 @ApiTags('Portal Shipments')
 @ApiBearerAuth()
@@ -41,6 +41,19 @@ export class PortalShipmentsController {
   })
   lookup(@CurrentPortal() user: CurrentPortalUser, @Query() query: PortalShipmentLookupDto) {
     return this.shipments.lookupByRef(user, query.ref);
+  }
+
+  @Get('export.csv')
+  @ApiOperation({
+    summary: 'Export my shipments as CSV',
+    description: 'Same filters as the list endpoint. Capped at 5000 rows.',
+  })
+  exportCsv(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Query() query: PortalShipmentQueryDto,
+    @Res() res: Response,
+  ) {
+    return this.shipments.exportCsv(user, query, res);
   }
 
   @Get()

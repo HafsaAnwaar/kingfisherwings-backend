@@ -154,6 +154,17 @@ export class SchedulerService {
             });
             notified += 1;
           }
+
+          if (counts.size > 0) {
+            const totalOverdue = [...counts.values()].reduce((a, b) => a + b, 0);
+            await this.notifications.notifyFinanceStaff(tenant.id, {
+              type: 'INVOICE_OVERDUE',
+              title: 'Customer invoices overdue',
+              message: `${totalOverdue} overdue invoice(s) across ${counts.size} customer(s).`,
+              entity_type: 'invoice',
+              link_path: '/invoices?status=overdue',
+            });
+          }
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : 'Unknown error';
           this.logger.error(`Invoice overdue cron failed for tenant ${tenant.id}: ${message}`);
@@ -227,15 +238,14 @@ export class SchedulerService {
                 entity_id: cheque.id,
                 link_path: '/portal/payments',
               });
-            } else {
-              await this.notifications.notifyStaffOfPortalEvent(tenant.id, {
-                type: 'PDC_MATURITY_APPROACHING',
-                title: 'PDC maturity approaching',
-                message: msg,
-                entity_type: 'cheque',
-                entity_id: cheque.id,
-              });
             }
+            await this.notifications.notifyFinanceStaff(tenant.id, {
+              type: 'PDC_MATURITY_APPROACHING',
+              title: 'PDC maturity approaching',
+              message: msg,
+              entity_type: 'cheque',
+              entity_id: cheque.id,
+            });
             notified += 1;
           }
         } catch (error: unknown) {

@@ -12,7 +12,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
-import { Observable, from, interval, map, switchMap } from 'rxjs';
+import { Observable, concat, defer, from, interval, map, switchMap } from 'rxjs';
 import { Public } from '../../common/decorators/public.decorators';
 import { CurrentPortal } from './decorators/portal.decorators';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
@@ -59,13 +59,18 @@ export class PortalNotificationsController {
   }
 
   @Sse('stream')
-  @ApiOperation({ summary: 'SSE stream of portal unread notification count (polls every 15s)' })
+  @ApiOperation({ summary: 'SSE stream of portal unread notification count (immediate + every 15s)' })
   stream(@CurrentPortal() user: CurrentPortalUser): Observable<MessageEvent> {
-    return interval(15_000).pipe(
-      switchMap(() => from(this.notifications.unreadCountForPortal(user.tenantId, user.id))),
-      map((result) => ({
-        data: { unread_count: result.data.unread_count },
-      })),
+    const toEvent = (result: { data: { unread_count: number } }): MessageEvent => ({
+      data: { unread_count: result.data.unread_count },
+    });
+
+    const fetchCount = () =>
+      from(this.notifications.unreadCountForPortal(user.tenantId, user.id)).pipe(map(toEvent));
+
+    return concat(
+      defer(fetchCount),
+      interval(15_000).pipe(switchMap(() => fetchCount())),
     );
   }
 

@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Job, JobMilestone, JobStatus, Prisma } from '@prisma/client';
+import { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PortalShipmentQueryDto } from './dto/portal-shipment-query.dto';
+import { PORTAL_CSV_EXPORT_MAX_ROWS, toCsv } from './helpers/portal-csv.helper';
 import { portalJobOwnershipWhere } from './helpers/portal-ownership.helper';
 import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
 
@@ -113,6 +115,117 @@ export class PortalShipmentsService {
         totalPages: Math.ceil(total / query.limit) || 1,
       },
     };
+  }
+
+  async exportCsv(user: CurrentPortalUser, query: PortalShipmentQueryDto, res: Response) {
+    const where = this.buildWhere(user, query);
+
+    const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.job.findMany({
+        where,
+        take: PORTAL_CSV_EXPORT_MAX_ROWS,
+        orderBy: { created_at: query.order },
+        include: {
+          air_details: {
+            select: {
+              hawb_number: true,
+              mawb_number: true,
+              flight_number: true,
+              flight_date: true,
+              origin_airport_id: true,
+              dest_airport_id: true,
+              awb_type: true,
+              freight_type: true,
+            },
+          },
+          sea_fcl_details: {
+            select: {
+              voyage_number: true,
+              hbl_number: true,
+              mbl_number: true,
+              booking_number: true,
+              vessel_id: true,
+              etd: true,
+              eta: true,
+              sailed_at: true,
+              place_of_receipt: true,
+              place_of_delivery: true,
+              freight_terms: true,
+              transhipment_port: true,
+              containers: {
+                where: { deleted_at: null },
+                select: {
+                  id: true,
+                  container_number: true,
+                  seal_number: true,
+                  status: true,
+                  gross_weight: true,
+                  cbm: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+    );
+
+    const enriched = await this.attachLocations(user.tenantId, rows as PortalJobRow[]);
+    const items = enriched.map((job) => this.toListItem(job, user.partyId));
+
+    const headers = [
+      'job_number',
+      'job_type',
+      'status',
+      'role',
+      'etd',
+      'eta',
+      'commodity',
+      'pieces',
+      'gross_weight',
+      'chargeable_weight',
+      'volume_cbm',
+      'origin',
+      'destination',
+      'hawb_number',
+      'mawb_number',
+      'hbl_number',
+      'mbl_number',
+      'booking_number',
+      'flight_number',
+      'voyage_number',
+      'created_at',
+      'updated_at',
+    ];
+
+    const csvRows = items.map((item) => [
+      item.job_number,
+      item.job_type,
+      item.status,
+      (item.role ?? []).join('|'),
+      item.etd,
+      item.eta,
+      item.commodity,
+      item.pieces,
+      item.gross_weight,
+      item.chargeable_weight,
+      item.volume_cbm,
+      item.origin?.name ?? item.origin?.code ?? '',
+      item.destination?.name ?? item.destination?.code ?? '',
+      item.references.hawb_number,
+      item.references.mawb_number,
+      item.references.hbl_number,
+      item.references.mbl_number,
+      item.references.booking_number,
+      item.references.flight_number,
+      item.references.voyage_number,
+      item.created_at,
+      item.updated_at,
+    ]);
+
+    const csv = toCsv(headers, csvRows);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="shipments.csv"');
+    res.send(csv);
   }
 
   async summary(user: CurrentPortalUser) {

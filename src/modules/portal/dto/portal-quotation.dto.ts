@@ -11,6 +11,7 @@ import {
   IsUUID,
   Length,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { JobType, QuotationStatus } from '@prisma/client';
@@ -125,4 +126,26 @@ export class PortalQuotationRequestDto {
   @IsString()
   @Length(3, 3)
   currency_code!: string;
+}
+
+const PORTAL_LOSS_REASONS = [
+  'Competitor Rate',
+  'No Space',
+  'Cargo Type',
+  'No Longer Required',
+  'Booked Elsewhere',
+  'Price Too High',
+  'Other',
+] as const;
+
+export class PortalQuotationRejectDto {
+  @ApiProperty({ enum: PORTAL_LOSS_REASONS })
+  @IsIn([...PORTAL_LOSS_REASONS])
+  reason!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
 }

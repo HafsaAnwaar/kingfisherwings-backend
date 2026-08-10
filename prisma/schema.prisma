@@ -3214,11 +3214,30 @@ model PortalUser {
   disputes PortalDispute[]
   credit_limit_requests CreditLimitRequest[]
   notifications Notification[]
+  preference    PortalUserPreference?
 
   @@unique([tenant_id, email])
   @@index([tenant_id, party_id])
   @@index([tenant_id, status])
   @@map("portal_users")
+}
+
+/// Per portal-user notification and list preferences (Week 13.5).
+model PortalUserPreference {
+  id                         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id                  String   @db.Uuid
+  portal_user_id             String   @unique @db.Uuid
+  milestone_alerts_enabled   Boolean  @default(false)
+  document_alerts_enabled    Boolean  @default(true)
+  default_shipment_filters   Json?
+  default_invoice_filters    Json?
+  created_at                 DateTime @default(now()) @db.Timestamptz
+  updated_at                 DateTime @updatedAt @db.Timestamptz
+
+  portal_user PortalUser @relation(fields: [portal_user_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@map("portal_user_preferences")
 }
 
 model PortalSession {
@@ -3284,6 +3303,7 @@ enum NotificationType {
   PAYMENT_RECEIVED
   PDC_MATURITY_APPROACHING
   DOCUMENT_EXPIRY
+  DOCUMENT_READY
   CREDIT_LIMIT_EXCEEDED
   PORTAL_MESSAGE
   PORTAL_DISPUTE

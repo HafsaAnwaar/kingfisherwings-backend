@@ -86,7 +86,7 @@ export class PortalMessagesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List messages I sent' })
+  @ApiOperation({ summary: 'List party-shared portal messages' })
   list(@CurrentPortal() user: CurrentPortalUser, @Query() query: PortalMessageQueryDto) {
     return this.ccp.listMyMessages(user, query);
   }
@@ -158,6 +158,12 @@ export class PortalDisputesController {
     @Res() res: Response,
   ) {
     return this.ccp.downloadDisputeAttachment(user, id, res);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Dispute detail for my party' })
+  detail(@CurrentPortal() user: CurrentPortalUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.ccp.getMyDispute(user, id);
   }
 }
 
@@ -231,6 +237,17 @@ export class PortalAdminInboxController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.ccp.staffMarkMessageRead(tenantId, id);
+  }
+
+  @Get('messages/:id/attachment')
+  @RequirePermissions(PORTAL_PERMISSIONS.VIEW_MESSAGES)
+  @ApiOperation({ summary: 'Download a portal message attachment (staff)' })
+  staffDownloadMessageAttachment(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    return this.ccp.staffDownloadMessageAttachment(tenantId, id, res);
   }
 
   @Get('disputes')
