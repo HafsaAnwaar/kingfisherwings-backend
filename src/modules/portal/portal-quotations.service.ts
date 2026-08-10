@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, QuotationStatus } from '@prisma/client';
 import { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../../shared/storage/storage.service';
 import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import { QuotationsService } from '../quotations/quotations.service';
-import { PortalQuotationQueryDto, PortalQuotationRequestDto } from './dto/portal-quotation.dto';
+import {
+  PortalQuotationQueryDto,
+  PortalQuotationRejectDto,
+  PortalQuotationRequestDto,
+} from './dto/portal-quotation.dto';
 import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
 
 const PORTAL_CUSTOMER_REMARKS = ['customer portal', 'online quote'];
@@ -253,6 +257,70 @@ export class PortalQuotationsService {
     res.setHeader('Content-Type', file.mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
     res.send(file.buffer);
+  }
+
+  async accept(user: CurrentPortalUser, quotationId: string) {
+    const quotation = await this.getOwnedOrThrow(user, quotationId);
+    if (quotation.status !== 'SENT') {
+      throw new ConflictException('Only a SENT quotation can be accepted.');
+    }
+
+    const updated = await this.quotations.markWon(user.tenantId, quotationId, user.id);
+    return {
+      success: true,
+      message: 'Quotation accepted.',
+      data: {
+        id: updated.id,
+        quotation_number: updated.quotation_number,
+        status: updated.status,
+        won_at: updated.won_at,
+      },
+    };
+  }
+
+  async reject(user: CurrentPortalUser, quotationId: string, dto: PortalQuotationRejectDto) {
+    const quotation = await this.getOwnedOrThrow(user, quotationId);
+    if (quotation.status !== 'SENT') {
+      throw new ConflictException('Only a SENT quotation can be rejected.');
+    }
+
+    const updated = await this.quotations.markLost(
+      user.tenantId,
+      quotationId,
+      { reason: dto.reason, notes: dto.notes },
+      user.id,
+    );
+    return {
+      success: true,
+      message: 'Quotation rejected.',
+      data: {
+        id: updated.id,
+        quotation_number: updated.quotation_number,
+        status: updated.status,
+        lost_at: updated.lost_at,
+        lost_reason: updated.lost_reason,
+      },
+    };
+  }
+
+  private async getOwnedOrThrow(user: CurrentPortalUser, quotationId: string) {
+    const quotation = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.quotation.findFirst({
+        where: {
+          id: quotationId,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          ...this.baseOwnershipWhere(user.partyId),
+        },
+        select: {
+          id: true,
+          status: true,
+          quotation_number: true,
+        },
+      }),
+    );
+    if (!quotation) throw new NotFoundException('Quotation not found.');
+    return quotation;
   }
 
   private baseOwnershipWhere(partyId: string): Prisma.QuotationWhereInput {

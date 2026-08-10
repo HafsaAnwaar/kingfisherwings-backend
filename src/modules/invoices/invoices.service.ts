@@ -11,6 +11,7 @@ import { PdfService } from '../../shared/pdf/pdf.service';
 import { StorageService } from '../../shared/storage/storage.service';
 import { EmailService } from '../../shared/email/email.service';
 import { GlAutoPostService } from '../gl/gl-auto-post.service';
+import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import {
   CreateCreditNoteDto,
   CreateDebitNoteDto,
@@ -34,6 +35,7 @@ export class InvoicesService {
     private readonly storage: StorageService,
     private readonly emailService: EmailService,
     private readonly glAutoPost: GlAutoPostService,
+    private readonly notifications: NotificationEmitterService,
   ) {}
 
   async findAll(tenantId: string, query: InvoiceQueryDto, invoiceType?: InvoiceType) {
@@ -573,7 +575,81 @@ export class InvoicesService {
     });
 
     const gl = await this.glAutoPost.postInvoiceToGl(tenantId, id, actorId);
+
+    if (
+      posted.invoice_type === 'CUSTOMER_INVOICE' ||
+      posted.invoice_type === 'DEBIT_NOTE'
+    ) {
+      await this.checkAndNotifyCreditLimitExceeded(tenantId, posted.party_id, posted.id);
+    }
+
     return { ...posted, gl_auto_post: gl };
+  }
+
+  /**
+   * When posted customer AR exceeds the party's credit limit, alert finance + portal users.
+   */
+  private async checkAndNotifyCreditLimitExceeded(
+    tenantId: string,
+    partyId: string,
+    invoiceId: string,
+  ) {
+    try {
+      const party = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.party.findFirst({
+          where: { id: partyId, tenant_id: tenantId, deleted_at: null },
+          select: { id: true, name: true, code: true, credit_limit: true },
+        }),
+      );
+      if (!party?.credit_limit) return;
+
+      const limit = Number(party.credit_limit);
+      if (!(limit > 0)) return;
+
+      const openRows = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.invoice.findMany({
+          where: {
+            tenant_id: tenantId,
+            party_id: partyId,
+            deleted_at: null,
+            invoice_type: { in: ['CUSTOMER_INVOICE', 'DEBIT_NOTE', 'CREDIT_NOTE'] },
+            status: { in: ['POSTED', 'SENT', 'PARTIALLY_PAID'] },
+          },
+          select: { invoice_type: true, balance_due: true },
+        }),
+      );
+
+      const openAr = openRows.reduce((sum, row) => {
+        const bal = Number(row.balance_due);
+        return sum + (row.invoice_type === 'CREDIT_NOTE' ? -bal : bal);
+      }, 0);
+
+      if (openAr <= limit + 0.005) return;
+
+      const title = `Credit limit exceeded: ${party.code ?? party.name}`;
+      const message = `${party.name} open AR (${openAr.toFixed(2)}) exceeds credit limit (${limit.toFixed(2)}).`;
+
+      await this.notifications.notifyFinanceStaff(tenantId, {
+        type: 'CREDIT_LIMIT_EXCEEDED',
+        title,
+        message,
+        entity_type: 'invoice',
+        entity_id: invoiceId,
+        link_path: `/parties/${partyId}`,
+      });
+
+      await this.notifications.notifyPartyPortalUsers(tenantId, partyId, {
+        type: 'CREDIT_LIMIT_EXCEEDED',
+        title: 'Credit limit exceeded',
+        message:
+          'Your open balance exceeds your credit limit. Please contact your forwarder or request a limit increase.',
+        entity_type: 'invoice',
+        entity_id: invoiceId,
+        link_path: '/portal/credit/summary',
+      });
+    } catch {
+      // Best-effort — posting must not fail because of notification issues.
+    }
   }
 
   async send(tenantId: string, id: string, dto: SendInvoiceEmailDto, actorId?: string) {

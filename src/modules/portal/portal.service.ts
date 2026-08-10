@@ -216,12 +216,29 @@ export class PortalService {
           },
         },
         tenant: { select: { id: true, slug: true, name: true, display_name: true } },
+        preference: true,
       },
     });
 
     if (!user) {
       throw new NotFoundException('Portal user not found.');
     }
+
+    const preferences = user.preference
+      ? {
+          milestone_alerts_enabled: user.preference.milestone_alerts_enabled,
+          document_alerts_enabled: user.preference.document_alerts_enabled,
+          default_shipment_filters:
+            (user.preference.default_shipment_filters as Record<string, unknown> | null) ?? null,
+          default_invoice_filters:
+            (user.preference.default_invoice_filters as Record<string, unknown> | null) ?? null,
+        }
+      : {
+          milestone_alerts_enabled: false,
+          document_alerts_enabled: true,
+          default_shipment_filters: null,
+          default_invoice_filters: null,
+        };
 
     return {
       success: true,
@@ -234,6 +251,7 @@ export class PortalService {
         last_login_at: user.last_login_at,
         party: user.party,
         tenant: user.tenant,
+        preferences,
       },
     };
   }

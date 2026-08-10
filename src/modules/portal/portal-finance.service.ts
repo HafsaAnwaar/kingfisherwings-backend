@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { InvoiceStatus, InvoiceType, PortalDocumentType } from '@prisma/client';
+import { InvoiceStatus, InvoiceType, PortalDocumentType, Prisma } from '@prisma/client';
 import { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../../shared/storage/storage.service';
@@ -13,6 +13,7 @@ import {
   PortalPaymentQueryDto,
   PORTAL_VISIBLE_INVOICE_STATUSES,
 } from './dto/portal-finance.dto';
+import { PORTAL_CSV_EXPORT_MAX_ROWS, toCsv } from './helpers/portal-csv.helper';
 import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
 import { PortalPermissionsService } from './portal-permissions.service';
 
@@ -29,64 +30,178 @@ export class PortalFinanceService {
   ) {}
 
   async listInvoices(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {
-    const result = await this.invoices.findAll(
-      user.tenantId,
-      {
-        ...query,
-        party_id: user.partyId,
-      },
-    );
+    const where = this.buildPortalInvoiceWhere(user, query, [
+      InvoiceType.CUSTOMER_INVOICE,
+      InvoiceType.DEBIT_NOTE,
+    ]);
 
-    const data = result.data
-      .filter(
-        (inv) =>
-          PORTAL_VISIBLE_INVOICE_STATUSES.includes(inv.status) &&
-          (inv.invoice_type === InvoiceType.CUSTOMER_INVOICE ||
-            inv.invoice_type === InvoiceType.DEBIT_NOTE),
-      )
-      .map((inv) => this.toInvoiceListItem(inv));
+    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
+      Promise.all([
+        tx.invoice.findMany({
+          where,
+          skip: (query.page - 1) * query.limit,
+          take: query.limit,
+          orderBy: { invoice_date: 'desc' },
+          include: {
+            job: { select: { id: true, job_number: true } },
+          },
+        }),
+        tx.invoice.count({ where }),
+      ]),
+    );
 
     return {
       success: true,
-      data,
-      meta: result.meta,
+      data: rows.map((inv) => this.toInvoiceListItem(inv)),
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit) || 1,
+      },
     };
   }
 
-  async listDebitNotes(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {
-    const result = await this.invoices.findAll(
-      user.tenantId,
-      {
-        ...query,
-        party_id: user.partyId,
-        invoice_type: InvoiceType.DEBIT_NOTE,
-      },
+  async exportInvoicesCsv(user: CurrentPortalUser, query: PortalInvoiceQueryDto, res: Response) {
+    const where = this.buildPortalInvoiceWhere(user, query, [
+      InvoiceType.CUSTOMER_INVOICE,
       InvoiceType.DEBIT_NOTE,
+    ]);
+
+    const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.invoice.findMany({
+        where,
+        take: PORTAL_CSV_EXPORT_MAX_ROWS,
+        orderBy: { invoice_date: 'desc' },
+        include: {
+          job: { select: { id: true, job_number: true } },
+        },
+      }),
     );
 
-    const data = result.data
-      .filter((inv) => PORTAL_VISIBLE_INVOICE_STATUSES.includes(inv.status))
-      .map((inv) => this.toInvoiceListItem(inv));
+    const items = rows.map((inv) => this.toInvoiceListItem(inv));
 
-    return { success: true, data, meta: result.meta };
+    const headers = [
+      'invoice_number',
+      'invoice_type',
+      'status',
+      'invoice_date',
+      'due_date',
+      'currency_code',
+      'total_amount',
+      'amount_paid',
+      'balance_due',
+      'has_pdf',
+      'job_number',
+    ];
+
+    const csvRows = items.map((item) => [
+      item.invoice_number,
+      item.invoice_type,
+      item.status,
+      item.invoice_date,
+      item.due_date,
+      item.currency_code,
+      item.total_amount,
+      item.amount_paid,
+      item.balance_due,
+      item.has_pdf,
+      item.job?.job_number ?? '',
+    ]);
+
+    const csv = toCsv(headers, csvRows);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="invoices.csv"');
+    res.send(csv);
+  }
+
+  async listDebitNotes(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {
+    const where = this.buildPortalInvoiceWhere(user, query, [InvoiceType.DEBIT_NOTE]);
+    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
+      Promise.all([
+        tx.invoice.findMany({
+          where,
+          skip: (query.page - 1) * query.limit,
+          take: query.limit,
+          orderBy: { invoice_date: 'desc' },
+          include: { job: { select: { id: true, job_number: true } } },
+        }),
+        tx.invoice.count({ where }),
+      ]),
+    );
+
+    return {
+      success: true,
+      data: rows.map((inv) => this.toInvoiceListItem(inv)),
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit) || 1,
+      },
+    };
   }
 
   async listCreditNotes(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {
-    const result = await this.invoices.findAll(
-      user.tenantId,
-      {
-        ...query,
-        party_id: user.partyId,
-        invoice_type: InvoiceType.CREDIT_NOTE,
-      },
-      InvoiceType.CREDIT_NOTE,
+    const where = this.buildPortalInvoiceWhere(user, query, [InvoiceType.CREDIT_NOTE]);
+    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
+      Promise.all([
+        tx.invoice.findMany({
+          where,
+          skip: (query.page - 1) * query.limit,
+          take: query.limit,
+          orderBy: { invoice_date: 'desc' },
+          include: { job: { select: { id: true, job_number: true } } },
+        }),
+        tx.invoice.count({ where }),
+      ]),
     );
 
-    const data = result.data
-      .filter((inv) => PORTAL_VISIBLE_INVOICE_STATUSES.includes(inv.status))
-      .map((inv) => this.toInvoiceListItem(inv));
+    return {
+      success: true,
+      data: rows.map((inv) => this.toInvoiceListItem(inv)),
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit) || 1,
+      },
+    };
+  }
 
-    return { success: true, data, meta: result.meta };
+  private buildPortalInvoiceWhere(
+    user: CurrentPortalUser,
+    query: PortalInvoiceQueryDto,
+    types: InvoiceType[],
+  ): Prisma.InvoiceWhereInput {
+    const where: Prisma.InvoiceWhereInput = {
+      tenant_id: user.tenantId,
+      party_id: user.partyId,
+      deleted_at: null,
+      invoice_type: { in: types },
+      status: query.status
+        ? query.status
+        : { in: [...PORTAL_VISIBLE_INVOICE_STATUSES] },
+      ...(query.job_id ? { job_id: query.job_id } : {}),
+    };
+
+    if (query.from_date || query.to_date) {
+      where.invoice_date = {
+        ...(query.from_date ? { gte: new Date(query.from_date) } : {}),
+        ...(query.to_date ? { lte: new Date(query.to_date) } : {}),
+      };
+    }
+
+    if (query.search?.trim()) {
+      const q = query.search.trim();
+      where.OR = [
+        { invoice_number: { contains: q, mode: 'insensitive' } },
+        { lpo_number: { contains: q, mode: 'insensitive' } },
+        { remarks: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    return where;
   }
 
   async invoiceSummary(user: CurrentPortalUser) {

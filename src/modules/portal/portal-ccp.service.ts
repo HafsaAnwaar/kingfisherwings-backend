@@ -76,10 +76,10 @@ export class PortalCcpService {
   }
 
   async listMyMessages(user: CurrentPortalUser, query: PortalMessageQueryDto) {
+    // Party-shared inbox: all contacts at the same Party see the same threads.
     const where: Prisma.PortalMessageWhereInput = {
       tenant_id: user.tenantId,
       party_id: user.partyId,
-      portal_user_id: user.id,
     };
 
     const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
@@ -89,6 +89,9 @@ export class PortalCcpService {
           orderBy: { created_at: 'desc' },
           skip: (query.page - 1) * query.limit,
           take: query.limit,
+          include: {
+            portal_user: { select: { id: true, email: true, full_name: true } },
+          },
         }),
         tx.portalMessage.count({ where }),
       ]),
@@ -115,6 +118,7 @@ export class PortalCcpService {
           party_id: user.partyId,
         },
         include: {
+          portal_user: { select: { id: true, email: true, full_name: true } },
           replies: { orderBy: { created_at: 'asc' } },
         },
       }),
@@ -213,7 +217,7 @@ export class PortalCcpService {
       }),
     );
 
-    await this.notifications.notifyPortalUser(tenantId, message.portal_user_id, {
+    await this.notifications.notifyPartyPortalUsers(tenantId, message.party_id, {
       type: 'PORTAL_MESSAGE',
       title: `Reply: ${message.subject}`,
       message: 'Your forwarder replied to your message.',
@@ -382,6 +386,20 @@ export class PortalCcpService {
         totalPages: Math.ceil(total / query.limit) || 1,
       },
     };
+  }
+
+  async getMyDispute(user: CurrentPortalUser, disputeId: string) {
+    const dispute = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.portalDispute.findFirst({
+        where: {
+          id: disputeId,
+          tenant_id: user.tenantId,
+          party_id: user.partyId,
+        },
+      }),
+    );
+    if (!dispute) throw new NotFoundException('Dispute not found.');
+    return { success: true, data: dispute };
   }
 
   async downloadDisputeAttachment(user: CurrentPortalUser, disputeId: string, res: Response) {
@@ -717,6 +735,8 @@ export class PortalCcpService {
     created_at: Date;
     read_by_staff_at: Date | null;
     attachment_path?: string | null;
+    portal_user_id?: string;
+    portal_user?: { id: string; email: string; full_name: string } | null;
   }) {
     return {
       id: m.id,
@@ -727,6 +747,15 @@ export class PortalCcpService {
       created_at: m.created_at,
       read_by_staff_at: m.read_by_staff_at,
       has_attachment: Boolean(m.attachment_path),
+      author: m.portal_user
+        ? {
+            id: m.portal_user.id,
+            email: m.portal_user.email,
+            full_name: m.portal_user.full_name,
+          }
+        : m.portal_user_id
+          ? { id: m.portal_user_id, email: null, full_name: null }
+          : null,
     };
   }
 

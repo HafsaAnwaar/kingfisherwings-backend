@@ -48,6 +48,14 @@ export class CreateJobDto {
   @IsUUID()
   consignee_id?: string;
 
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Bill-to party for portal ownership / invoicing context.',
+  })
+  @IsOptional()
+  @IsUUID()
+  billing_party_id?: string;
+
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()

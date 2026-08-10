@@ -36,6 +36,19 @@ export class PortalInvoicesController {
     return this.finance.invoiceSummary(user);
   }
 
+  @Get('export.csv')
+  @ApiOperation({
+    summary: 'Export my invoices as CSV',
+    description: 'Same filters as the list endpoint. Capped at 5000 rows.',
+  })
+  exportCsv(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Query() query: PortalInvoiceQueryDto,
+    @Res() res: Response,
+  ) {
+    return this.finance.exportInvoicesCsv(user, query, res);
+  }
+
   @Get()
   @ApiOperation({ summary: 'List my customer invoices' })
   list(@CurrentPortal() user: CurrentPortalUser, @Query() query: PortalInvoiceQueryDto) {

@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bull';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import redisConfig from '../../config/redis.config';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { NotificationsModule } from '../../modules/notifications/notifications.module';
 import { PdfModule } from '../pdf/pdf.module';
 import { StorageModule } from '../storage/storage.module';
 import { DOCUMENT_GENERATION_QUEUE } from './queue.constants';
@@ -15,6 +16,7 @@ import { DocumentGenerationProcessor } from './document-generation.processor';
     PrismaModule,
     PdfModule,
     StorageModule,
+    NotificationsModule,
     BullModule.registerQueueAsync({
       name: DOCUMENT_GENERATION_QUEUE,
       imports: [ConfigModule.forFeature(redisConfig)],

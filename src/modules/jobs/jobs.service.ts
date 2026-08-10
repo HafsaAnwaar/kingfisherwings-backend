@@ -70,6 +70,7 @@ export class JobsService {
   async create(tenantId: string, dto: CreateJobDto, actorId?: string): Promise<Job> {
     await this.assertPartyExists(tenantId, dto.shipper_id, 'Shipper');
     await this.assertPartyExists(tenantId, dto.consignee_id, 'Consignee');
+    await this.assertPartyExists(tenantId, dto.billing_party_id, 'Billing party');
     await this.assertPartyExists(tenantId, dto.agent_id, 'Agent');
     await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
@@ -118,6 +119,7 @@ export class JobsService {
           parent_job_id: dto.parent_job_id,
           shipper_id: dto.shipper_id,
           consignee_id: dto.consignee_id,
+          billing_party_id: dto.billing_party_id,
           agent_id: dto.agent_id,
           salesperson_id: dto.salesperson_id,
           ops_user_id: dto.ops_user_id,
@@ -391,6 +393,7 @@ export class JobsService {
 
     if (dto.shipper_id) await this.assertPartyExists(tenantId, dto.shipper_id, 'Shipper');
     if (dto.consignee_id) await this.assertPartyExists(tenantId, dto.consignee_id, 'Consignee');
+    if (dto.billing_party_id) await this.assertPartyExists(tenantId, dto.billing_party_id, 'Billing party');
     if (dto.agent_id) await this.assertPartyExists(tenantId, dto.agent_id, 'Agent');
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -1555,7 +1558,7 @@ export class JobsService {
   }
 
   async addDocument(tenantId: string, jobId: string, dto: CreateJobDocumentDto, actorId: string) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const document = await this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getOrThrow(tx, tenantId, jobId);
 
       return tx.jobDocument.create({
@@ -1575,6 +1578,9 @@ export class JobsService {
         },
       });
     });
+
+    await this.notifications.notifyPortalDocumentReadyForJob(tenantId, jobId, document);
+    return document;
   }
 
   async updateDocument(
@@ -1613,7 +1619,7 @@ export class JobsService {
     dto: FinalizeJobDocumentDto,
     actorId?: string,
   ) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getOrThrow(tx, tenantId, jobId);
 
       const document = await tx.jobDocument.findFirst({
@@ -1630,7 +1636,7 @@ export class JobsService {
 
       const finalize = dto.is_finalized ?? true;
 
-      const updated = await tx.jobDocument.update({
+      const result = await tx.jobDocument.update({
         where: { id: documentId },
         data: {
           is_finalized: finalize,
@@ -1675,8 +1681,14 @@ export class JobsService {
         });
       }
 
-      return updated;
+      return result;
     });
+
+    if (updated.is_finalized) {
+      await this.notifications.notifyPortalDocumentReadyForJob(tenantId, jobId, updated);
+    }
+
+    return updated;
   }
 
   async removeDocument(tenantId: string, jobId: string, documentId: string, actorId?: string): Promise<void> {
@@ -1943,6 +1955,9 @@ export class JobsService {
         updated_by: actorId,
       },
     });
+
+    // Fire-and-forget after row update; portal/staff notify use separate transactions.
+    void this.notifyPortalMilestoneUpdated(tenantId, jobId, milestoneName);
   }
 
   private async assertContainerTypeExists(
@@ -2039,6 +2054,8 @@ export class JobsService {
           shipper_id: true,
           consignee_id: true,
           billing_party_id: true,
+          ops_user_id: true,
+          salesperson_id: true,
         },
       }),
     );
@@ -2049,7 +2066,7 @@ export class JobsService {
     )];
 
     for (const partyId of partyIds) {
-      await this.notifications.notifyPartyPortalUsers(tenantId, partyId, {
+      await this.notifications.notifyPartyPortalUsersMilestoneOptIn(tenantId, partyId, {
         type: 'JOB_MILESTONE_UPDATED',
         title: `Milestone updated: ${job.job_number}`,
         message: `Milestone "${milestoneName}" was completed on shipment ${job.job_number}.`,
@@ -2057,6 +2074,24 @@ export class JobsService {
         entity_id: job.id,
         link_path: `/portal/shipments/${job.id}`,
       });
+    }
+
+    const staffPayload = {
+      type: 'JOB_MILESTONE_UPDATED' as const,
+      title: `Milestone updated: ${job.job_number}`,
+      message: `Milestone "${milestoneName}" was completed on job ${job.job_number}.`,
+      entity_type: 'job',
+      entity_id: job.id,
+      link_path: `/jobs/${job.id}`,
+    };
+
+    await this.notifications.notifyOpsStaff(tenantId, staffPayload);
+
+    if (job.ops_user_id) {
+      await this.notifications.notifyStaffUser(tenantId, job.ops_user_id, staffPayload);
+    }
+    if (job.salesperson_id && job.salesperson_id !== job.ops_user_id) {
+      await this.notifications.notifyStaffUser(tenantId, job.salesperson_id, staffPayload);
     }
   }
 
