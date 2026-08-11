@@ -517,6 +517,17 @@ export class PaymentsService {
       });
     }
 
+    if (payment.direction === 'PAYMENT' && payment.party_id) {
+      await this.notifications.notifyPartyVendorUsers(tenantId, payment.party_id, {
+        type: 'VENDOR_PAYMENT_POSTED',
+        title: 'Payment posted',
+        message: `Payment ${payment.payment_number} was posted to your account.`,
+        entity_type: 'payment',
+        entity_id: payment.id,
+        link_path: `/vendor/payments`,
+      });
+    }
+
     return posted;
   }
 

@@ -8,6 +8,8 @@ import { SEARCH_PERMISSIONS } from '../../modules/search/constants/search-permis
 import { INVOICES_PERMISSIONS } from '../../modules/invoices/constants/invoices-permission.constants';
 import { GL_PERMISSIONS } from '../../modules/gl/constants/gl-permission.constants';
 import { PORTAL_PERMISSIONS } from '../../modules/portal/constants/portal-permission.constants';
+import { VENDOR_PERMISSIONS } from '../../modules/vendor/constants/vendor-permission.constants';
+import { CRM_PERMISSIONS } from '../../modules/crm/constants/crm-permission.constants';
 import { NOTIFICATIONS_PERMISSIONS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface RoleCatalogEntry {
@@ -45,6 +47,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),
       ...Object.values(PORTAL_PERMISSIONS),
+      ...Object.values(VENDOR_PERMISSIONS),
+      ...Object.values(CRM_PERMISSIONS),
       ...Object.values(NOTIFICATIONS_PERMISSIONS),
     ],
   },
@@ -118,12 +122,33 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PORTAL_PERMISSIONS.VIEW_PERMISSIONS,
       PORTAL_PERMISSIONS.MANAGE_PERMISSIONS,
       PORTAL_PERMISSIONS.VIEW_MESSAGES,
+      ...Object.values(CRM_PERMISSIONS),
       QUOTATIONS_PERMISSIONS.VIEW,
       QUOTATIONS_PERMISSIONS.CREATE,
       QUOTATIONS_PERMISSIONS.UPDATE,
       QUOTATIONS_PERMISSIONS.SUBMIT,
       QUOTATIONS_PERMISSIONS.SEND,
       QUOTATIONS_PERMISSIONS.CLOSE,
+      JOBS_PERMISSIONS.VIEW,
+      SEARCH_PERMISSIONS.VIEW,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
+    ],
+  },
+  {
+    code: 'SALES_EXECUTIVE',
+    name: 'Sales Executive',
+    permissions: [
+      USERS_PERMISSIONS.VIEW,
+      MASTERS_PERMISSIONS.VIEW,
+      PARTIES_PERMISSIONS.VIEW,
+      PARTIES_PERMISSIONS.CREATE,
+      PARTIES_PERMISSIONS.UPDATE,
+      ...Object.values(CRM_PERMISSIONS),
+      QUOTATIONS_PERMISSIONS.VIEW,
+      QUOTATIONS_PERMISSIONS.CREATE,
+      QUOTATIONS_PERMISSIONS.UPDATE,
+      QUOTATIONS_PERMISSIONS.SUBMIT,
+      QUOTATIONS_PERMISSIONS.SEND,
       JOBS_PERMISSIONS.VIEW,
       SEARCH_PERMISSIONS.VIEW,
       NOTIFICATIONS_PERMISSIONS.VIEW,
@@ -140,6 +165,11 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       PORTAL_PERMISSIONS.VIEW_MESSAGES,
       PORTAL_PERMISSIONS.MANAGE_DISPUTES,
       PORTAL_PERMISSIONS.MANAGE_CREDIT,
+      VENDOR_PERMISSIONS.VIEW_USERS,
+      VENDOR_PERMISSIONS.MANAGE_USERS,
+      VENDOR_PERMISSIONS.VIEW_PERMISSIONS,
+      VENDOR_PERMISSIONS.MANAGE_PERMISSIONS,
+      VENDOR_PERMISSIONS.MANAGE_DISPUTES,
       QUOTATIONS_PERMISSIONS.VIEW,
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),

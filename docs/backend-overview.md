@@ -216,6 +216,8 @@ There is no separate `entities/` folder for most modules. The Users module has a
 
 ## Related Documentation
 
+- [Decision log](./decision.md) — Why we chose libraries, patterns, and week-by-week product rules (Weeks 0–28)
+- [System flows](./flow.md) — Entry points, request pipeline, and domain execution paths
 - [Backend Patterns](./backend-patterns.md) — Detailed conventions and code patterns
 - [Module Template](./module-template.md) — Reusable blueprint for new modules
 - [Authentication Flow](./authentication-flow.md) — Login, JWT, sessions

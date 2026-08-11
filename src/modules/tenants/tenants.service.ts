@@ -257,14 +257,19 @@ export class TenantsService {
       let grantsAdded = 0;
 
       for (const roleEntry of ROLE_CATALOG) {
-        const role = roleByCode.get(roleEntry.code);
+        let role = roleByCode.get(roleEntry.code);
 
         if (!role) {
-          // A role added to ROLE_CATALOG after this tenant was created
-          // — same underlying issue, one level up. Out of scope for a
-          // permissions-only sync; flagged in the response instead of
-          // silently creating roles a tenant admin never asked for.
-          continue;
+          role = await tx.role.create({
+            data: {
+              tenant_id: tenantId,
+              code: roleEntry.code,
+              name: roleEntry.name,
+              is_system: true,
+              is_default: roleEntry.isDefault ?? false,
+            },
+          });
+          roleByCode.set(roleEntry.code, role);
         }
 
         const existingGrants = await tx.rolePermission.findMany({ where: { tenant_id: tenantId, role_id: role.id } });

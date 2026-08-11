@@ -8,6 +8,8 @@ import { SEARCH_PERMISSION_CONSTANTS } from '../../modules/search/constants/sear
 import { INVOICES_PERMISSION_CONSTANTS } from '../../modules/invoices/constants/invoices-permission.constants';
 import { GL_PERMISSION_CONSTANTS } from '../../modules/gl/constants/gl-permission.constants';
 import { PORTAL_PERMISSION_CONSTANTS } from '../../modules/portal/constants/portal-permission.constants';
+import { VENDOR_PERMISSION_CONSTANTS } from '../../modules/vendor/constants/vendor-permission.constants';
+import { CRM_PERMISSION_CONSTANTS } from '../../modules/crm/constants/crm-permission.constants';
 import { NOTIFICATIONS_PERMISSION_CONSTANTS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface PermissionCatalogEntry {
@@ -76,6 +78,16 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: PORTAL_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${PORTAL_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(VENDOR_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: VENDOR_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${VENDOR_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(CRM_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: CRM_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${CRM_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
   ...Object.values(NOTIFICATIONS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
     module: NOTIFICATIONS_PERMISSION_CONSTANTS.MODULE,

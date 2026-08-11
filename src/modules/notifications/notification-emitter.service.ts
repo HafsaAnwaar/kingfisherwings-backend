@@ -51,6 +51,70 @@ export class NotificationEmitterService {
     }
   }
 
+  async notifyVendorUser(
+    tenantId: string,
+    vendorUserId: string,
+    input: EmitNotificationInput,
+  ) {
+    try {
+      await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.notification.create({
+          data: {
+            tenant_id: tenantId,
+            vendor_user_id: vendorUserId,
+            type: input.type,
+            title: input.title,
+            message: input.message,
+            entity_type: input.entity_type,
+            entity_id: input.entity_id,
+            link_path: input.link_path,
+          },
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(`Failed to notify vendor user ${vendorUserId}: ${String(err)}`);
+    }
+  }
+
+  async notifyPartyVendorUsers(
+    tenantId: string,
+    partyId: string,
+    input: EmitNotificationInput,
+  ) {
+    try {
+      const users = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.vendorUser.findMany({
+          where: {
+            tenant_id: tenantId,
+            party_id: partyId,
+            status: 'ACTIVE',
+            deleted_at: null,
+          },
+          select: { id: true },
+        }),
+      );
+
+      if (!users.length) return;
+
+      await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.notification.createMany({
+          data: users.map((u) => ({
+            tenant_id: tenantId,
+            vendor_user_id: u.id,
+            type: input.type,
+            title: input.title,
+            message: input.message,
+            entity_type: input.entity_type,
+            entity_id: input.entity_id,
+            link_path: input.link_path,
+          })),
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(`Failed party vendor fan-out: ${String(err)}`);
+    }
+  }
+
   async notifyStaffUser(tenantId: string, userId: string, input: EmitNotificationInput) {
     try {
       await this.prisma.runWithTenant(tenantId, (tx) =>
