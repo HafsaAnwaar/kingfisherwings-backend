@@ -21,6 +21,8 @@ import { FilesModule } from './files/files.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { GlModule } from './modules/gl/gl.module';
 import { PortalModule } from './modules/portal/portal.module';
+import { VendorModule } from './modules/vendor/vendor.module';
+import { CrmModule } from './modules/crm/crm.module';
 import { TrackModule } from './modules/track/track.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
@@ -63,6 +65,8 @@ import { LocaleModule } from './common/locale/locale.module';
     InvoicesModule,
     GlModule,
     PortalModule,
+    VendorModule,
+    CrmModule,
     TrackModule,
     NotificationsModule,
   ],

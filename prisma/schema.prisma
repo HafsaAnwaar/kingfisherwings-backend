@@ -237,6 +237,10 @@ enum EmailEventType {
   USER_INVITE
   PORTAL_CREDENTIALS
   PORTAL_INVITE
+  VENDOR_CREDENTIALS
+  VENDOR_INVITE
+  CRM_CAMPAIGN
+  FOLLOW_UP_REMINDER
   WHATSAPP_OUTBOUND
   OTHER
 }
@@ -487,6 +491,7 @@ model Tenant {
   bank_accounts    TenantBankAccount[]
   companies        Company[]
   portal_users     PortalUser[]
+  vendor_users     VendorUser[]
 
   @@index([created_by_super_admin_id])
   @@map("tenants")
@@ -826,6 +831,11 @@ model User {
   login_history LoginHistory[]
 
   notifications Notification[]
+  assigned_leads       Lead[]              @relation("LeadAssignee")
+  call_logs            CallLog[]           @relation("CallLogOwner")
+  follow_ups           FollowUp[]          @relation("FollowUpOwner")
+  salesperson_budgets  SalespersonBudget[]
+  email_campaigns      EmailCampaign[]     @relation("CampaignCreator")
 
   @@unique([tenant_id, email])
   @@index([tenant_id])
@@ -1592,6 +1602,7 @@ model Party {
   // originally scaffolded model.
   credit_status          PartyCreditStatus @default(ACTIVE)
   portal_access          Boolean           @default(false)
+  vendor_portal_access   Boolean           @default(false)
   marketing_subscription Boolean           @default(true)
   iata_code              String?           @db.VarChar(10)
   scac_code              String?           @db.VarChar(10)
@@ -1611,6 +1622,14 @@ model Party {
   portal_messages          PortalMessage[]
   portal_disputes          PortalDispute[]
   credit_limit_requests    CreditLimitRequest[]
+  vendor_users             VendorUser[]
+  vendor_permissions       VendorPermission[]
+  vendor_disputes          VendorDispute[]
+  leads_converted          Lead[]              @relation("LeadConvertedParty")
+  call_logs                CallLog[]
+  follow_ups               FollowUp[]
+  enquiries                Enquiry[]
+  crm_subscribers          CrmSubscriber[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -3309,6 +3328,12 @@ enum NotificationType {
   PORTAL_DISPUTE
   CREDIT_LIMIT_REQUEST
   QUOTATION_REQUEST
+  VENDOR_INVOICE_SUBMITTED
+  VENDOR_PAYMENT_POSTED
+  VENDOR_DISPUTE
+  FOLLOW_UP_DUE
+  LEAD_ASSIGNED
+  CAMPAIGN_SENT
 }
 
 /// Customer → forwarder contact messages from the portal.
@@ -3406,10 +3431,11 @@ model CreditLimitRequest {
 model Notification {
   id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id      String           @db.Uuid
-  /// Staff ERP user. Null when notification is for a portal user.
+  /// Staff ERP user. Null when notification is for a portal/vendor user.
   user_id        String?          @db.Uuid
-  /// Portal user. Null when notification is for staff.
+  /// Portal user. Null when notification is for staff or vendor.
   portal_user_id String?          @db.Uuid
+  vendor_user_id String?          @db.Uuid
   type           NotificationType
   title          String           @db.VarChar(200)
   message        String           @db.Text
@@ -3422,9 +3448,422 @@ model Notification {
 
   user        User?       @relation(fields: [user_id], references: [id], onDelete: Cascade)
   portal_user PortalUser? @relation(fields: [portal_user_id], references: [id], onDelete: Cascade)
+  vendor_user VendorUser? @relation(fields: [vendor_user_id], references: [id], onDelete: Cascade)
 
   @@index([tenant_id, user_id, is_read, created_at])
   @@index([tenant_id, portal_user_id, is_read, created_at])
+  @@index([tenant_id, vendor_user_id, is_read, created_at])
   @@index([tenant_id, type])
   @@map("notifications")
+}
+
+// ─── VENDOR PAYMENT PORTAL (Week 14) ─────────────────────────
+
+enum VendorUserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum VendorDocumentType {
+  PURCHASE_INVOICE
+  REMITTANCE
+  CREDIT_NOTE
+  STATEMENT
+  TDS_CERTIFICATE
+}
+
+model VendorUser {
+  id                String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String           @db.Uuid
+  party_id          String           @db.Uuid
+  email             String           @db.VarChar(255)
+  password_hash     String           @db.Text
+  full_name         String           @db.VarChar(200)
+  phone             String?          @db.VarChar(30)
+  status            VendorUserStatus @default(ACTIVE)
+  invite_token      String?          @unique @db.VarChar(128)
+  invite_expires_at DateTime?        @db.Timestamptz
+  invited_at        DateTime?        @db.Timestamptz
+  activated_at      DateTime?        @db.Timestamptz
+  last_login_at     DateTime?        @db.Timestamptz
+  created_at        DateTime         @default(now()) @db.Timestamptz
+  updated_at        DateTime         @updatedAt @db.Timestamptz
+  created_by        String?          @db.Uuid
+  updated_by        String?          @db.Uuid
+  deleted_at        DateTime?        @db.Timestamptz
+
+  tenant        Tenant           @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  party         Party            @relation(fields: [party_id], references: [id], onDelete: Cascade)
+  sessions      VendorSession[]
+  disputes      VendorDispute[]
+  notifications Notification[]
+
+  @@unique([tenant_id, email])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, status])
+  @@map("vendor_users")
+}
+
+model VendorSession {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String    @db.Uuid
+  vendor_user_id     String    @db.Uuid
+  jti                String    @unique @db.VarChar(200)
+  refresh_token_hash String    @db.Text
+  ip_address         String?   @db.VarChar(45)
+  user_agent         String?   @db.Text
+  is_active          Boolean   @default(true)
+  expires_at         DateTime  @db.Timestamptz
+  last_used_at       DateTime  @default(now()) @db.Timestamptz
+  revoked_at         DateTime? @db.Timestamptz
+  revoked_reason     String?   @db.VarChar(100)
+  created_at         DateTime  @default(now()) @db.Timestamptz
+
+  vendor_user VendorUser @relation(fields: [vendor_user_id], references: [id], onDelete: Cascade)
+
+  @@index([vendor_user_id])
+  @@index([tenant_id, is_active])
+  @@map("vendor_sessions")
+}
+
+model VendorPermission {
+  id            String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String             @db.Uuid
+  party_id      String             @db.Uuid
+  document_type VendorDocumentType
+  can_view      Boolean            @default(true)
+  can_download  Boolean            @default(false)
+  created_at    DateTime           @default(now()) @db.Timestamptz
+  updated_at    DateTime           @updatedAt @db.Timestamptz
+  created_by    String?            @db.Uuid
+  updated_by    String?            @db.Uuid
+
+  party Party @relation(fields: [party_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, party_id, document_type])
+  @@index([tenant_id, party_id])
+  @@map("vendor_permissions")
+}
+
+model VendorDispute {
+  id              String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String              @db.Uuid
+  party_id        String              @db.Uuid
+  vendor_user_id  String              @db.Uuid
+  invoice_id      String              @db.Uuid
+  reason          String              @db.VarChar(200)
+  description     String              @db.Text
+  attachment_path String?             @db.VarChar(500)
+  status          PortalDisputeStatus @default(OPEN)
+  staff_notes     String?             @db.Text
+  resolved_at     DateTime?           @db.Timestamptz
+  resolved_by     String?             @db.Uuid
+  created_at      DateTime            @default(now()) @db.Timestamptz
+  updated_at      DateTime            @updatedAt @db.Timestamptz
+
+  party       Party      @relation(fields: [party_id], references: [id], onDelete: Cascade)
+  vendor_user VendorUser @relation(fields: [vendor_user_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, party_id, status])
+  @@index([tenant_id, invoice_id])
+  @@map("vendor_disputes")
+}
+
+// ─── CRM / SALES (Week 14) ───────────────────────────────────
+
+enum LeadSource {
+  REFERRAL
+  COLD_CALL
+  EMAIL
+  EXHIBITION
+  WEBSITE
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  QUALIFIED
+  PROPOSAL_SENT
+  WON
+  LOST
+  ON_HOLD
+}
+
+enum LeadPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum CallType {
+  VISIT
+  PHONE
+  VIDEO
+  EMAIL
+}
+
+enum CallPurpose {
+  PROSPECTING
+  FOLLOW_UP
+  COMPLAINT
+  RENEWAL
+  INTRODUCTION
+}
+
+enum CallOutcome {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+  QUOTATION_REQUESTED
+  COMPLAINT_RESOLVED
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum EnquiryStatus {
+  NEW
+  QUOTED
+  BOOKED
+  LOST
+  CANCELLED
+}
+
+enum BudgetPeriodType {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+model Lead {
+  id                    String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String       @db.Uuid
+  company_name          String       @db.VarChar(300)
+  contact_name          String       @db.VarChar(200)
+  email                 String?      @db.VarChar(255)
+  phone                 String?      @db.VarChar(30)
+  potential_volume      String?      @db.VarChar(200)
+  service_requirements  String?      @db.Text
+  source                LeadSource   @default(OTHER)
+  status                LeadStatus   @default(NEW)
+  assigned_salesperson_id String?    @db.Uuid
+  priority              LeadPriority @default(MEDIUM)
+  tags                  String[]     @db.Text
+  converted_party_id    String?      @db.Uuid
+  lost_reason           String?      @db.VarChar(300)
+  notes                 String?      @db.Text
+  created_at            DateTime     @default(now()) @db.Timestamptz
+  updated_at            DateTime     @updatedAt @db.Timestamptz
+  created_by            String?      @db.Uuid
+  updated_by            String?      @db.Uuid
+  deleted_at            DateTime?    @db.Timestamptz
+
+  assigned_salesperson User?         @relation("LeadAssignee", fields: [assigned_salesperson_id], references: [id], onDelete: SetNull)
+  converted_party      Party?        @relation("LeadConvertedParty", fields: [converted_party_id], references: [id], onDelete: SetNull)
+  activities           LeadActivity[]
+  call_logs            CallLog[]
+  follow_ups           FollowUp[]
+  enquiries            Enquiry[]
+
+  @@index([tenant_id, status])
+  @@index([tenant_id, assigned_salesperson_id])
+  @@index([tenant_id, source])
+  @@map("leads")
+}
+
+model LeadActivity {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String   @db.Uuid
+  lead_id     String   @db.Uuid
+  kind        String   @db.VarChar(50)
+  summary     String   @db.Text
+  created_by  String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  lead Lead @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, lead_id, created_at])
+  @@map("lead_activities")
+}
+
+model CallLog {
+  id                  String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String       @db.Uuid
+  owner_id            String       @db.Uuid
+  lead_id             String?      @db.Uuid
+  party_id            String?      @db.Uuid
+  date_time           DateTime     @db.Timestamptz
+  contact_person      String       @db.VarChar(200)
+  call_type           CallType
+  purpose             CallPurpose
+  discussion_summary  String       @db.Text
+  outcome             CallOutcome
+  next_action         String?      @db.VarChar(300)
+  next_followup_date  DateTime?    @db.Date
+  gps_latitude        Decimal?     @db.Decimal(10, 7)
+  gps_longitude       Decimal?     @db.Decimal(10, 7)
+  duration_minutes    Int?
+  attachment_path     String?      @db.VarChar(500)
+  created_at          DateTime     @default(now()) @db.Timestamptz
+  updated_at          DateTime     @updatedAt @db.Timestamptz
+  created_by          String?      @db.Uuid
+  deleted_at          DateTime?    @db.Timestamptz
+
+  owner User  @relation("CallLogOwner", fields: [owner_id], references: [id], onDelete: Cascade)
+  lead  Lead? @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  party Party? @relation(fields: [party_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, owner_id, date_time])
+  @@index([tenant_id, lead_id])
+  @@index([tenant_id, party_id])
+  @@map("call_logs")
+}
+
+model FollowUp {
+  id           String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String         @db.Uuid
+  owner_id     String         @db.Uuid
+  lead_id      String?        @db.Uuid
+  party_id     String?        @db.Uuid
+  enquiry_id   String?        @db.Uuid
+  due_date     DateTime       @db.Date
+  subject      String         @db.VarChar(200)
+  notes        String?        @db.Text
+  status       FollowUpStatus @default(PENDING)
+  completed_at DateTime?      @db.Timestamptz
+  reminder_sent_at DateTime?  @db.Timestamptz
+  created_at   DateTime       @default(now()) @db.Timestamptz
+  updated_at   DateTime       @updatedAt @db.Timestamptz
+  created_by   String?        @db.Uuid
+  deleted_at   DateTime?      @db.Timestamptz
+
+  owner   User     @relation("FollowUpOwner", fields: [owner_id], references: [id], onDelete: Cascade)
+  lead    Lead?    @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  party   Party?   @relation(fields: [party_id], references: [id], onDelete: SetNull)
+  enquiry Enquiry? @relation(fields: [enquiry_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, owner_id, due_date])
+  @@index([tenant_id, status, due_date])
+  @@map("follow_ups")
+}
+
+model Enquiry {
+  id                    String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String        @db.Uuid
+  lead_id               String?       @db.Uuid
+  party_id              String?       @db.Uuid
+  quotation_id          String?       @db.Uuid
+  salesperson_id        String?       @db.Uuid
+  service_type          JobType
+  origin_port_id        String?       @db.Uuid
+  dest_port_id          String?       @db.Uuid
+  cargo_details         String?       @db.Text
+  incoterms             String?       @db.VarChar(10)
+  special_requirements  String?       @db.Text
+  currency_code         String        @db.Char(3)
+  status                EnquiryStatus @default(NEW)
+  created_at            DateTime      @default(now()) @db.Timestamptz
+  updated_at            DateTime      @updatedAt @db.Timestamptz
+  created_by            String?       @db.Uuid
+  updated_by            String?       @db.Uuid
+  deleted_at            DateTime?     @db.Timestamptz
+
+  lead      Lead?     @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  party     Party?    @relation(fields: [party_id], references: [id], onDelete: SetNull)
+  follow_ups FollowUp[]
+
+  @@index([tenant_id, status])
+  @@index([tenant_id, salesperson_id])
+  @@index([tenant_id, quotation_id])
+  @@map("enquiries")
+}
+
+model SalespersonBudget {
+  id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String           @db.Uuid
+  salesperson_id String           @db.Uuid
+  period_type    BudgetPeriodType
+  period_start   DateTime         @db.Date
+  job_type       JobType?
+  target_amount  Decimal          @db.Decimal(18, 2)
+  target_volume  Int?
+  created_at     DateTime         @default(now()) @db.Timestamptz
+  updated_at     DateTime         @updatedAt @db.Timestamptz
+  created_by     String?          @db.Uuid
+
+  salesperson User @relation(fields: [salesperson_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, salesperson_id])
+  @@map("salesperson_budgets")
+}
+
+model CrmSubscriber {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  party_id     String?   @db.Uuid
+  email        String    @db.VarChar(255)
+  full_name    String?   @db.VarChar(200)
+  country_code String?   @db.Char(2)
+  tags         String[]  @db.Text
+  unsubscribed_at DateTime? @db.Timestamptz
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+
+  party Party? @relation(fields: [party_id], references: [id], onDelete: SetNull)
+
+  @@unique([tenant_id, email])
+  @@index([tenant_id, unsubscribed_at])
+  @@map("crm_subscribers")
+}
+
+model EmailCampaign {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String         @db.Uuid
+  name            String         @db.VarChar(200)
+  subject         String         @db.VarChar(300)
+  body            String         @db.Text
+  status          CampaignStatus @default(DRAFT)
+  scheduled_at    DateTime?      @db.Timestamptz
+  sent_at         DateTime?      @db.Timestamptz
+  filter_party_type String?      @db.VarChar(40)
+  filter_country    String?      @db.Char(2)
+  sent_count      Int            @default(0)
+  failed_count    Int            @default(0)
+  created_by      String?        @db.Uuid
+  created_at      DateTime       @default(now()) @db.Timestamptz
+  updated_at      DateTime       @updatedAt @db.Timestamptz
+  deleted_at      DateTime?      @db.Timestamptz
+
+  creator User? @relation("CampaignCreator", fields: [created_by], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, status])
+  @@map("email_campaigns")
+}
+
+model EmailCampaignTemplate {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String   @db.Uuid
+  name       String   @db.VarChar(200)
+  subject    String   @db.VarChar(300)
+  body       String   @db.Text
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+  created_by String?  @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@index([tenant_id])
+  @@map("email_campaign_templates")
 }

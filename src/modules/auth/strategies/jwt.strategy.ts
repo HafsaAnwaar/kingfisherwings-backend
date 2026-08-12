@@ -27,9 +27,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Invalid token type.');
     }
 
-    // Portal tokens must never satisfy staff / super-admin routes.
+    // Portal / vendor tokens must never satisfy staff / super-admin routes.
     if ((payload as { principal?: string }).principal === 'portal') {
       throw new UnauthorizedException('Portal tokens cannot access staff APIs.');
+    }
+    if ((payload as { principal?: string }).principal === 'vendor') {
+      throw new UnauthorizedException('Vendor tokens cannot access staff APIs.');
     }
 
     if (payload.principal === 'super_admin') {
