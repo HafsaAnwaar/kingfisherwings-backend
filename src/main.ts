@@ -22,13 +22,11 @@ function parseCorsOrigins(raw: string | undefined): string[] | undefined {
 
 function isSwaggerEnabled(config: ConfigService): boolean {
   const flag = config.get<string>('SWAGGER_ENABLED');
-  if (flag === 'true') {
-    return true;
-  }
   if (flag === 'false') {
     return false;
   }
-  return config.get<string>('NODE_ENV') !== 'production';
+  // Default on (dev + production). Opt out with SWAGGER_ENABLED=false on Render.
+  return true;
 }
 
 async function bootstrap() {
