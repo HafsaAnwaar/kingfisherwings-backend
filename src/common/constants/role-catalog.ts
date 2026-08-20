@@ -10,6 +10,7 @@ import { GL_PERMISSIONS } from '../../modules/gl/constants/gl-permission.constan
 import { PORTAL_PERMISSIONS } from '../../modules/portal/constants/portal-permission.constants';
 import { VENDOR_PERMISSIONS } from '../../modules/vendor/constants/vendor-permission.constants';
 import { CRM_PERMISSIONS } from '../../modules/crm/constants/crm-permission.constants';
+import { HR_PERMISSIONS } from '../../modules/hr/constants/hr-permission.constants';
 import { NOTIFICATIONS_PERMISSIONS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface RoleCatalogEntry {
@@ -49,6 +50,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(PORTAL_PERMISSIONS),
       ...Object.values(VENDOR_PERMISSIONS),
       ...Object.values(CRM_PERMISSIONS),
+      ...Object.values(HR_PERMISSIONS),
       ...Object.values(NOTIFICATIONS_PERMISSIONS),
     ],
   },
@@ -85,6 +87,18 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       AWB_STOCK_PERMISSIONS.ALLOCATE,
       SEARCH_PERMISSIONS.VIEW,
       NOTIFICATIONS_PERMISSIONS.VIEW,
+      HR_PERMISSIONS.VIEW,
+      HR_PERMISSIONS.APPROVE_LEAVE,
+    ],
+  },
+  {
+    code: 'HR_MANAGER',
+    name: 'HR Manager',
+    permissions: [
+      ...Object.values(HR_PERMISSIONS),
+      NOTIFICATIONS_PERMISSIONS.VIEW,
+      USERS_PERMISSIONS.VIEW,
+      MASTERS_PERMISSIONS.VIEW,
     ],
   },
   {
@@ -173,6 +187,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       QUOTATIONS_PERMISSIONS.VIEW,
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),
+      HR_PERMISSIONS.VIEW,
+      HR_PERMISSIONS.MANAGE_PAYROLL,
       JOBS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.VIEW_GP,
       SEARCH_PERMISSIONS.VIEW,

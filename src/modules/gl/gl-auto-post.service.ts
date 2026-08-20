@@ -391,4 +391,162 @@ export class GlAutoPostService {
       return this.requireAccount(tx, tenantId, 'TRADE_PAYABLE', '2100');
     });
   }
+
+  /**
+   * Post a finalized payroll run to GL (Ch.21 Week 16).
+   * Idempotent: skips if a voucher with payroll_run_id already exists.
+   */
+  async postPayrollRunToGl(
+    tenantId: string,
+    payrollRunId: string,
+    actorId?: string,
+  ): Promise<{ voucher_id: string | null; skipped: boolean; reason?: string }> {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const existing = await tx.voucher.findFirst({
+        where: {
+          tenant_id: tenantId,
+          payroll_run_id: payrollRunId,
+          deleted_at: null,
+          status: { in: ['POSTED', 'DRAFT'] },
+          reversal_of_id: null,
+        },
+      });
+      if (existing) {
+        return { voucher_id: existing.id, skipped: true, reason: 'Already posted to GL' };
+      }
+
+      const run = await tx.hrPayrollRun.findFirst({
+        where: { id: payrollRunId, tenant_id: tenantId, deleted_at: null },
+        include: { lines: true },
+      });
+      if (!run) {
+        throw new BadRequestException('Payroll run not found for GL posting.');
+      }
+      if (run.status === 'DRAFT') {
+        throw new BadRequestException('Payroll run must be finalized before GL posting.');
+      }
+
+      const settings = await tx.hrPayrollGlSetting.findFirst({
+        where: { tenant_id: tenantId, company_id: run.company_id },
+      });
+
+      const salaryExpense = settings?.salary_expense_account_id
+        ? await tx.chartOfAccount.findFirst({
+            where: { id: settings.salary_expense_account_id, tenant_id: tenantId, deleted_at: null },
+          })
+        : (await this.findAccount(tx, tenantId, 'EXPENSE', '6200')) ??
+          (await this.findAccount(tx, tenantId, 'EXPENSE', '6100'));
+
+      const payrollPayable = settings?.payroll_payable_account_id
+        ? await tx.chartOfAccount.findFirst({
+            where: { id: settings.payroll_payable_account_id, tenant_id: tenantId, deleted_at: null },
+          })
+        : (await this.findAccount(tx, tenantId, 'GENERAL', '2300')) ??
+          (await this.findAccount(tx, tenantId, 'TRADE_PAYABLE', '2100'));
+
+      if (!salaryExpense || !payrollPayable) {
+        return {
+          voucher_id: null,
+          skipped: true,
+          reason: 'Missing salary expense or payroll payable GL account.',
+        };
+      }
+
+      let deductionAccount = settings?.deduction_account_id
+        ? await tx.chartOfAccount.findFirst({
+            where: { id: settings.deduction_account_id, tenant_id: tenantId, deleted_at: null },
+          })
+        : null;
+
+      const grossTotal = run.lines.reduce((s, l) => s + Number(l.gross_pay), 0);
+      const netTotal = run.lines.reduce((s, l) => s + Number(l.net_pay), 0);
+      const deductionsTotal = run.lines.reduce((s, l) => s + Number(l.total_deductions), 0);
+
+      type LineDraft = { account_id: string; debit: number; credit: number; narration?: string };
+      const lines: LineDraft[] = [
+        {
+          account_id: salaryExpense.id,
+          debit: grossTotal,
+          credit: 0,
+          narration: `Payroll expense ${run.payroll_year}-${run.payroll_month}`,
+        },
+        {
+          account_id: payrollPayable.id,
+          debit: 0,
+          credit: netTotal,
+          narration: `Net payroll payable ${run.payroll_year}-${run.payroll_month}`,
+        },
+      ];
+
+      if (deductionsTotal > 0) {
+        if (!deductionAccount) {
+          deductionAccount = await this.findAccount(tx, tenantId, 'GENERAL', '2300');
+        }
+        if (deductionAccount) {
+          lines.push({
+            account_id: deductionAccount.id,
+            debit: 0,
+            credit: deductionsTotal,
+            narration: `Payroll deductions ${run.payroll_year}-${run.payroll_month}`,
+          });
+        } else {
+          lines[1].credit += deductionsTotal;
+        }
+      }
+
+      const debit = lines.reduce((s, l) => s + l.debit, 0);
+      const credit = lines.reduce((s, l) => s + l.credit, 0);
+      if (Math.abs(debit - credit) > 0.02) {
+        throw new BadRequestException(
+          `Payroll GL lines unbalanced (D ${debit} / C ${credit}).`,
+        );
+      }
+
+      const voucherNumber = await this.numberGenerator.generate(
+        tenantId,
+        DocumentNumberType.VOUCHER,
+        { extraSegment: VOUCHER_TYPE_PREFIX.JOURNAL ?? 'JV' },
+      );
+
+      const voucher = await tx.voucher.create({
+        data: {
+          tenant_id: tenantId,
+          voucher_number: voucherNumber,
+          voucher_type: 'JOURNAL',
+          status: 'POSTED',
+          voucher_date: run.period_end,
+          currency_code: run.currency_code,
+          exchange_rate: 1,
+          narration: `Payroll run ${run.payroll_year}-${String(run.payroll_month).padStart(2, '0')}`,
+          reference_number: `${run.payroll_year}-${run.payroll_month}`,
+          company_id: run.company_id,
+          payroll_run_id: payrollRunId,
+          total_debit: debit,
+          total_credit: credit,
+          posted_at: new Date(),
+          posted_by: actorId,
+          created_by: actorId,
+          updated_by: actorId,
+          lines: {
+            create: lines.map((l, idx) => ({
+              tenant_id: tenantId,
+              account_id: l.account_id,
+              line_no: idx + 1,
+              debit_amount: l.debit,
+              credit_amount: l.credit,
+              currency_code: run.currency_code,
+              exchange_rate: 1,
+              debit_base: l.debit,
+              credit_base: l.credit,
+              narration: l.narration,
+              created_by: actorId,
+              updated_by: actorId,
+            })),
+          },
+        },
+      });
+
+      return { voucher_id: voucher.id, skipped: false };
+    });
+  }
 }

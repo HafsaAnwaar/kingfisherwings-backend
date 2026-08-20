@@ -22,6 +22,7 @@ import { UsersService } from '../users/users.service';
 import { UserMapper } from '../users/mappers/user.mapper';
 import { UsersHelper } from '../users/helpers/users.helper';
 import { PasswordHelper } from '../users/helpers/password.helper';
+import { AUTH_2FA_LINKED } from './constants/auth-2fa.constants';
 import { ChangePasswordDto } from '../users/dto/change-password.dto';
 import { TenantChangePasswordDto } from './dto/tenant-change-password.dto';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
@@ -1058,6 +1059,10 @@ export class AuthService {
     user: User,
     dto: { totp_code?: string; backup_code?: string },
   ) {
+    if (!AUTH_2FA_LINKED) {
+      return;
+    }
+
     if (!user.two_factor_enabled || !user.two_factor_secret) {
       return;
     }

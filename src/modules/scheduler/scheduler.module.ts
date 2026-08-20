@@ -4,6 +4,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { QuotationsModule } from '../quotations/quotations.module';
 import { JobsModule } from '../jobs/jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { HrModule } from '../hr/hr.module';
 import { SchedulerService } from './scheduler.service';
 
 @Module({
@@ -13,6 +14,7 @@ import { SchedulerService } from './scheduler.service';
     QuotationsModule,
     JobsModule,
     NotificationsModule,
+    HrModule,
   ],
   providers: [SchedulerService],
 })

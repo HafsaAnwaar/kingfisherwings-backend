@@ -13,12 +13,13 @@ import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { isSuperAdmin, RequestPrincipal } from '../interfaces/request-with-user.interface';
-import { SessionCacheService } from '../session-cache.service';
+import { AUTH_2FA_LINKED } from '../constants/auth-2fa.constants';
 
 const TWO_FA_SETUP_PATHS = ['/auth/2fa/setup', '/auth/2fa/enable', '/auth/super-admin/2fa/setup', '/auth/super-admin/2fa/enable'];
 
 /**
- * When ADMIN_2FA_REQUIRED is true, tenant admins and super admins must
+ * Unlinked until product completion (`AUTH_2FA_LINKED`). When linked and
+ * ADMIN_2FA_REQUIRED is true, tenant admins and super admins must
  * enable 2FA before using ERP routes (setup endpoints remain reachable).
  */
 @Injectable()
@@ -31,7 +32,7 @@ export class MandatoryAdminTwoFactorGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    if (!this.isAdminTwoFactorRequired()) {
+    if (!AUTH_2FA_LINKED || !this.isAdminTwoFactorRequired()) {
       return true;
     }
 
