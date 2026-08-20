@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsDateString,
+  IsEmail,
   IsEnum,
   IsIn,
   IsInt,
@@ -179,6 +180,25 @@ export class CreateDamageReportDto {
   @IsOptional()
   @IsDateString()
   reported_at?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  damage_type?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  quantity_short?: number;
+
+  @ApiPropertyOptional({ type: [String], description: 'Email addresses to notify after report is saved' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsEmail({}, { each: true })
+  notify_to?: string[];
 }
 
 export class ReturnContainerDto {

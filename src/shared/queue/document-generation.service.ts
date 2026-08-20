@@ -431,9 +431,10 @@ export class DocumentGenerationService {
     }
 
     const useSeaFcl =
-      job.job_type === 'SEA_FCL_EXPORT' ||
-      job.job_type === 'SEA_FCL_IMPORT' ||
-      isSeaFclDocumentType(documentType);
+      job.job_type !== 'AIR_IMPORT' &&
+      (job.job_type === 'SEA_FCL_EXPORT' ||
+        job.job_type === 'SEA_FCL_IMPORT' ||
+        isSeaFclDocumentType(documentType));
 
     if (useSeaFcl && job.sea_fcl_details) {
       const data = await this.buildSeaFclPdfData(
@@ -449,7 +450,8 @@ export class DocumentGenerationService {
       return { buffer, filename };
     }
 
-    const [shipper, consignee, originPort, destPort, airline] = await this.prisma.runWithTenant(tenantId, async (tx) => {
+    const [shipper, consignee, originPort, destPort, airline, notifyParty] =
+      await this.prisma.runWithTenant(tenantId, async (tx) => {
       const s = job.shipper_id
         ? await tx.party.findFirst({ where: { id: job.shipper_id, tenant_id: tenantId } })
         : null;
@@ -466,8 +468,15 @@ export class DocumentGenerationService {
         job.air_details?.airline_id
           ? await tx.airline.findFirst({ where: { id: job.air_details.airline_id, tenant_id: tenantId } })
           : null;
-      return [s, c, o, d, a] as const;
+      const n =
+        job.air_details?.notify_party_id
+          ? await tx.party.findFirst({ where: { id: job.air_details.notify_party_id, tenant_id: tenantId } })
+          : null;
+      return [s, c, o, d, a, n] as const;
     });
+
+    const isAirImport = job.job_type === 'AIR_IMPORT';
+    const ad = job.air_details;
 
     const buffer = await this.pdfService.generateJobDocumentPdf({
       job_number: job.job_number,
@@ -479,9 +488,22 @@ export class DocumentGenerationService {
       gross_weight: job.gross_weight?.toString(),
       chargeable_weight: job.chargeable_weight?.toString(),
       pieces: job.pieces ?? undefined,
-      hawb_number: job.air_details?.hawb_number ?? undefined,
-      mawb_number: job.air_details?.mawb_number ?? undefined,
-      flight_number: job.air_details?.flight_number ?? undefined,
+      hawb_number: isAirImport
+        ? (ad?.hawb_number_from_origin_agent ?? ad?.hawb_number ?? undefined)
+        : (ad?.hawb_number ?? undefined),
+      mawb_number: isAirImport
+        ? (ad?.mawb_number_from_origin ?? ad?.mawb_number ?? undefined)
+        : (ad?.mawb_number ?? undefined),
+      origin_hawb_number: isAirImport ? (ad?.hawb_number_from_origin_agent ?? undefined) : undefined,
+      origin_mawb_number: isAirImport ? (ad?.mawb_number_from_origin ?? undefined) : undefined,
+      flight_number: isAirImport
+        ? (ad?.arrival_flight_number ?? ad?.flight_number ?? undefined)
+        : (ad?.flight_number ?? undefined),
+      arrival_flight_number: isAirImport ? (ad?.arrival_flight_number ?? undefined) : undefined,
+      actual_eta: ad?.actual_eta ? ad.actual_eta.toISOString().slice(0, 10) : undefined,
+      notify_party_name: notifyParty?.name,
+      delivery_address: ad?.delivery_address ?? undefined,
+      final_destination: ad?.final_destination ?? undefined,
       airline_name: airline?.name,
       origin: originPort?.name,
       destination: destPort?.name,

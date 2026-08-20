@@ -3,8 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ContainerStatus, Prisma } from '@prisma/client';
+import { ContainerStatus, DepositAlertBand, JobType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EmailService } from '../../shared/email/email.service';
+import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import {
   CalculateCfsStorageDto,
   CreateDamageReportDto,
@@ -20,12 +22,16 @@ import {
 
 @Injectable()
 export class SeaFclImportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+    private readonly notifications: NotificationEmitterService,
+  ) {}
 
-  // ── Free days / demurrage / detention ─────────────────────────────────────
+  // ── Free days / demurrage / detention (FCL only) ───────────────────────────
 
   async listFreeDays(tenantId: string, jobId: string) {
-    await this.assertImportJob(tenantId, jobId);
+    await this.assertFclImportJob(tenantId, jobId);
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.containerFreeDays.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
@@ -37,7 +43,7 @@ export class SeaFclImportService {
 
   async upsertFreeDays(tenantId: string, jobId: string, dto: UpsertContainerFreeDaysDto, actorId?: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getImportDetailOrThrow(tx, tenantId, jobId);
+      const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
 
       const data = {
@@ -71,7 +77,7 @@ export class SeaFclImportService {
   }
 
   async recalculateDemurrage(tenantId: string, jobId: string) {
-    await this.assertImportJob(tenantId, jobId);
+    await this.assertFclImportJob(tenantId, jobId);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const rows = await tx.containerFreeDays.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
@@ -203,7 +209,37 @@ export class SeaFclImportService {
 
   async updateCustomsStatus(tenantId: string, jobId: string, dto: UpdateCustomsStatusDto, actorId?: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.getImportDetailOrThrow(tx, tenantId, jobId);
+      const job = await this.getSharedImportJobOrThrow(tx, tenantId, jobId);
+
+      if (job.job_type === 'AIR_IMPORT') {
+        const updated = await tx.airJobDetail.update({
+          where: { job_id: jobId },
+          data: {
+            customs_status: dto.customs_status,
+            ...(dto.customs_clearance_date
+              ? { customs_clearance_date: new Date(dto.customs_clearance_date) }
+              : dto.customs_status === 'CLEARED' || dto.customs_status === 'RELEASED'
+                ? { customs_clearance_date: new Date() }
+                : {}),
+            updated_by: actorId,
+          },
+        });
+
+        if (dto.customs_status === 'FILED') {
+          await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_ENTRY_FILED', actorId);
+        }
+        if (dto.customs_status === 'CLEARED') {
+          await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_CLEARED', actorId);
+        }
+        if (dto.customs_status === 'RELEASED') {
+          await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_CLEARED', actorId);
+          await this.markMilestone(tx, tenantId, jobId, 'CARGO_RELEASED_FROM_CUSTOMS', actorId);
+        }
+
+        return updated;
+      }
+
+      await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       const updated = await tx.seaFclJobDetail.update({
         where: { job_id: jobId },
         data: {
@@ -238,7 +274,7 @@ export class SeaFclImportService {
     actorId?: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getImportDetailOrThrow(tx, tenantId, jobId);
+      const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       await this.assertContainerOnDetail(tx, tenantId, detail.id, containerId);
 
       const returnedAt = dto.returned_at ? new Date(dto.returned_at) : new Date();
@@ -271,15 +307,26 @@ export class SeaFclImportService {
 
   async createPartDelivery(tenantId: string, jobId: string, dto: CreatePartDeliveryDto, actorId?: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.getImportDetailOrThrow(tx, tenantId, jobId);
-      const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
+      const job = await this.getSharedImportJobOrThrow(tx, tenantId, jobId);
+
+      if (job.job_type === 'SEA_FCL_IMPORT' && dto.container_id) {
+        const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
+        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      }
+
       const previous = await tx.partDelivery.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
       });
       const deliveredSoFar = previous.reduce((s, p) => s + p.packages_delivered, 0) + dto.packages_delivered;
-      const totalPackages = job?.pieces ?? null;
-      const remaining =
-        totalPackages != null ? Math.max(totalPackages - deliveredSoFar, 0) : dto.packages_delivered >= 0 ? null : null;
+      const totalPackages = job.pieces ?? null;
+
+      if (totalPackages != null && deliveredSoFar > totalPackages) {
+        throw new BadRequestException(
+          `packages_delivered exceeds job pieces (${totalPackages} total, ${deliveredSoFar} after this release).`,
+        );
+      }
+
+      const remaining = totalPackages != null ? Math.max(totalPackages - deliveredSoFar, 0) : null;
 
       return tx.partDelivery.create({
         data: {
@@ -289,7 +336,7 @@ export class SeaFclImportService {
           consignee_id: dto.consignee_id,
           delivery_date: new Date(dto.delivery_date),
           packages_delivered: dto.packages_delivered,
-          quantity_remaining: totalPackages != null ? remaining : undefined,
+          quantity_remaining: remaining ?? undefined,
           remarks: dto.remarks,
           created_by: actorId,
           updated_by: actorId,
@@ -310,7 +357,13 @@ export class SeaFclImportService {
 
   async createPod(tenantId: string, jobId: string, dto: CreateProofOfDeliveryDto, actorId?: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.getImportDetailOrThrow(tx, tenantId, jobId);
+      const job = await this.getSharedImportJobOrThrow(tx, tenantId, jobId);
+
+      if (job.job_type === 'SEA_FCL_IMPORT' && dto.container_id) {
+        const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
+        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      }
+
       const pod = await tx.proofOfDelivery.create({
         data: {
           tenant_id: tenantId,
@@ -325,14 +378,21 @@ export class SeaFclImportService {
           updated_by: actorId,
         },
       });
-      await this.markMilestone(
-        tx,
-        tenantId,
-        jobId,
-        'CONTAINER_DELIVERED_TO_CONSIGNEE',
-        actorId,
-        new Date(dto.actual_delivery_date),
-      );
+
+      const deliveryDate = new Date(dto.actual_delivery_date);
+      if (job.job_type === 'AIR_IMPORT') {
+        await this.markMilestone(tx, tenantId, jobId, 'POD_RECEIVED', actorId, deliveryDate);
+        await this.markMilestone(tx, tenantId, jobId, 'DELIVERED_TO_CONSIGNEE', actorId, deliveryDate);
+      } else {
+        await this.markMilestone(
+          tx,
+          tenantId,
+          jobId,
+          'CONTAINER_DELIVERED_TO_CONSIGNEE',
+          actorId,
+          deliveryDate,
+        );
+      }
       return pod;
     });
   }
@@ -348,17 +408,23 @@ export class SeaFclImportService {
   }
 
   async createDamageReport(tenantId: string, jobId: string, dto: CreateDamageReportDto, actorId?: string) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getImportDetailOrThrow(tx, tenantId, jobId);
-      if (dto.container_id) {
+    const report = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await this.getSharedImportJobOrThrow(tx, tenantId, jobId);
+
+      if (job.job_type === 'SEA_FCL_IMPORT' && dto.container_id) {
+        const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
         await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
       }
+
       return tx.damageReport.create({
         data: {
           tenant_id: tenantId,
           job_id: jobId,
           container_id: dto.container_id,
           damage_description: dto.damage_description,
+          damage_type: dto.damage_type,
+          quantity_short: dto.quantity_short,
+          notify_to: dto.notify_to ?? [],
           photo_urls: dto.photo_urls ?? [],
           survey_report_number: dto.survey_report_number,
           reported_at: dto.reported_at ? new Date(dto.reported_at) : new Date(),
@@ -367,13 +433,38 @@ export class SeaFclImportService {
         },
       });
     });
+
+    if (dto.notify_to?.length) {
+      const job = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } }),
+      );
+      const subject = `Damage / short-landing report — ${job?.job_number ?? jobId}`;
+      const body = `<p>${dto.damage_description}</p>`;
+      for (const to of dto.notify_to) {
+        try {
+          await this.email.send({
+            tenantId,
+            eventType: 'OTHER',
+            to,
+            subject,
+            body,
+            jobId,
+            createdBy: actorId,
+          });
+        } catch {
+          // best-effort notify — do not fail the write
+        }
+      }
+    }
+
+    return report;
   }
 
   // ── Transhipment link + CFS storage ───────────────────────────────────────
 
   async linkTranshipment(tenantId: string, jobId: string, dto: LinkTranshipmentDto, actorId?: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.getImportDetailOrThrow(tx, tenantId, jobId);
+      await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       const exportJob = await tx.job.findFirst({
         where: { id: dto.export_job_id, tenant_id: tenantId, deleted_at: null, job_type: 'SEA_FCL_EXPORT' },
       });
@@ -389,7 +480,7 @@ export class SeaFclImportService {
 
   async calculateCfsStorage(tenantId: string, jobId: string, dto: CalculateCfsStorageDto) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getImportDetailOrThrow(tx, tenantId, jobId);
+      const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       const rate = Number(detail.cfs_storage_rate_per_day ?? 0);
       const start = detail.cfs_storage_start_date;
       if (!start || rate <= 0) {
@@ -413,6 +504,53 @@ export class SeaFclImportService {
         storage_amount: Math.round(days * rate * 10000) / 10000,
       };
     });
+  }
+
+  /** Daily cron — customs deposit expiry alerts (FCL + Air import). */
+  async processDepositExpiryAlerts(tenantId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + 90);
+
+    let notified = 0;
+
+    const deposits = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobDeposit.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          deposit_expiry_date: { not: null, lte: horizon },
+        },
+        include: { job: { select: { job_number: true } } },
+      }),
+    );
+
+    for (const deposit of deposits) {
+      const alert = this.depositExpiryAlert(deposit.deposit_expiry_date);
+      const band = this.toDepositAlertBand(alert.band);
+      if (band === 'OK' || band === 'NONE') continue;
+      if (deposit.last_alert_band === band) continue;
+
+      await this.notifications.notifyFinanceStaff(tenantId, {
+        type: 'CUSTOMS_DEPOSIT_EXPIRING',
+        title: 'Customs deposit expiry alert',
+        message: `Deposit on job ${deposit.job.job_number} expires in ${alert.days_remaining ?? '?'} day(s) (${band}).`,
+        entity_type: 'job',
+        entity_id: deposit.job_id,
+        link_path: `/jobs/${deposit.job_id}/deposits`,
+      });
+
+      await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.jobDeposit.update({
+          where: { id: deposit.id },
+          data: { last_alert_band: band, last_alerted_at: new Date() },
+        }),
+      );
+      notified += 1;
+    }
+
+    return notified;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -474,11 +612,33 @@ export class SeaFclImportService {
     return { days_remaining: days, band };
   }
 
-  private async assertImportJob(tenantId: string, jobId: string) {
-    await this.prisma.runWithTenant(tenantId, (tx) => this.getImportDetailOrThrow(tx, tenantId, jobId));
+  private toDepositAlertBand(band: string): DepositAlertBand {
+    const allowed: DepositAlertBand[] = ['NONE', 'OK', 'D90', 'D60', 'D30', 'D7', 'EXPIRED'];
+    return allowed.includes(band as DepositAlertBand) ? (band as DepositAlertBand) : 'OK';
   }
 
-  private async getImportDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
+  private isSharedImportJob(jobType: JobType): boolean {
+    return jobType === 'SEA_FCL_IMPORT' || jobType === 'AIR_IMPORT';
+  }
+
+  private async assertImportJob(tenantId: string, jobId: string) {
+    await this.prisma.runWithTenant(tenantId, (tx) => this.getSharedImportJobOrThrow(tx, tenantId, jobId));
+  }
+
+  private async assertFclImportJob(tenantId: string, jobId: string) {
+    await this.prisma.runWithTenant(tenantId, (tx) => this.getFclImportDetailOrThrow(tx, tenantId, jobId));
+  }
+
+  private async getSharedImportJobOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
+    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
+    if (!job) throw new NotFoundException('Job not found.');
+    if (!this.isSharedImportJob(job.job_type)) {
+      throw new BadRequestException('This endpoint requires an import job (SEA_FCL_IMPORT or AIR_IMPORT).');
+    }
+    return job;
+  }
+
+  private async getFclImportDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
     const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
     if (!job) throw new NotFoundException('Job not found.');
     if (job.job_type !== 'SEA_FCL_IMPORT') {
@@ -489,6 +649,10 @@ export class SeaFclImportService {
     });
     if (!detail) throw new NotFoundException('Sea FCL details not found for this job.');
     return detail;
+  }
+
+  private async getImportDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
+    return this.getFclImportDetailOrThrow(tx, tenantId, jobId);
   }
 
   private async assertContainerOnDetail(

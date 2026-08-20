@@ -24,6 +24,7 @@ import { RequirePermissions } from './decorators/permissions.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CurrentUser as CurrentUserType } from './interfaces/current-user.interface';
 import { isSuperAdminPrincipal } from '../../common/utils/principal.util';
+import { AllowSuperAdmin } from '../../common/decorators/allow-super-admin.decorator';
 
 import { USERS_PERMISSIONS } from './constants/permission.constants';
 
@@ -77,6 +78,7 @@ export class UsersController {
   }
 
   @Post()
+  @AllowSuperAdmin()
   @RequirePermissions(USERS_PERMISSIONS.CREATE)
   @ApiOperation({ summary: 'Create a user. Returns a system-generated temporary password.' })
   @ApiResponse({ status: HttpStatus.CREATED, type: UserResponse })

@@ -40,6 +40,8 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LoginMeta } from './interfaces/login-meta.interface';
 import { JwtPayload, UserJwtPayload, SuperAdminJwtPayload } from './interfaces/jwt-payload.interface';
 import { RequestPrincipal, isSuperAdmin } from './interfaces/request-with-user.interface';
+import { SessionCacheService } from './session-cache.service';
+import { generateInviteToken, hashInviteToken } from '../../common/utils/invite-token.util';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 30;
@@ -53,6 +55,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly emailService: EmailService,
+    private readonly sessionCache: SessionCacheService,
   ) {}
 
   // =====================================================
@@ -141,22 +144,7 @@ export class AuthService {
 
     this.assertTenantActive(tenant);
 
-    const passwordValid = await PasswordUtil.verify(tenant.password_hash, dto.password);
-
     return this.prisma.runWithTenant(tenant.id, async (tx) => {
-      if (!passwordValid) {
-        await this.recordLoginHistory(tx, {
-          tenant_id: tenant.id,
-          user_id: null,
-          email: tenant.email ?? tenant.slug,
-          meta,
-          success: false,
-          failure_reason: 'INVALID_TENANT_PASSWORD',
-        });
-
-        throw new UnauthorizedException('Invalid credentials.');
-      }
-
       const owner = await tx.user.findFirst({
         where: {
           tenant_id: tenant.id,
@@ -166,9 +154,30 @@ export class AuthService {
         orderBy: { created_at: 'asc' },
       });
 
+      if (owner?.locked_until && owner.locked_until > new Date()) {
+        throw new ForbiddenException('Account is temporarily locked due to failed login attempts.');
+      }
+
+      const passwordValid = await PasswordUtil.verify(tenant.password_hash, dto.password);
+
+      if (!passwordValid) {
+        if (owner) {
+          await this.handleFailedUserLogin(tx, owner.id, owner.failed_login_count);
+        }
+
+        await this.recordLoginHistory(tx, {
+          tenant_id: tenant.id,
+          user_id: owner?.id ?? null,
+          email: tenant.email ?? tenant.slug,
+          meta,
+          success: false,
+          failure_reason: 'INVALID_TENANT_PASSWORD',
+        });
+
+        throw new UnauthorizedException('Invalid credentials.');
+      }
+
       if (!owner) {
-        // Should never happen — TenantsService.create() always provisions
-        // the owner user atomically with the tenant.
         throw new NotFoundException(
           'This tenant has no admin user provisioned. Contact platform support.',
         );
@@ -177,6 +186,9 @@ export class AuthService {
       if (owner.status !== UserStatus.ACTIVE) {
         throw new ForbiddenException(`Tenant admin account is ${owner.status.toLowerCase()}.`);
       }
+
+      this.assertLoginRestrictions(owner, meta);
+      await this.assertTwoFactorIfRequired(tx, owner, dto);
 
       return this.completeUserLogin(tx, tenant, owner, dto, meta);
     });
@@ -486,11 +498,13 @@ export class AuthService {
         where: { super_admin_id: principal.id, jti: principal.sessionId, is_active: true },
         data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT' },
       });
+      await this.sessionCache.invalidateSuperAdminSession(principal.sessionId);
     } else {
       await this.prisma.session.updateMany({
         where: { user_id: principal.id, jti: principal.sessionId, is_active: true },
         data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT' },
       });
+      await this.sessionCache.invalidateStaffSession(principal.sessionId);
     }
 
     return { success: true, message: 'Logged out successfully.' };
@@ -1093,12 +1107,12 @@ export class AuthService {
         throw new NotFoundException('User not found.');
       }
 
-      const token = randomBytes(32).toString('hex');
+      const { token, hash } = generateInviteToken();
       const expiresAt = PasswordHelper.inviteTokenExpiry();
       await tx.user.update({
         where: { id: user.id },
         data: {
-          invite_token: token,
+          invite_token: hash,
           invite_expires_at: expiresAt,
           status: UserStatus.INVITED,
           updated_by: actorId,
@@ -1129,7 +1143,7 @@ export class AuthService {
     PasswordHelper.assertStrength(dto.password);
 
     const user = await this.prisma.user.findFirst({
-      where: { invite_token: dto.token, deleted_at: null },
+      where: { invite_token: hashInviteToken(dto.token), deleted_at: null },
     });
     if (!user || !user.invite_expires_at || user.invite_expires_at < new Date()) {
       throw new BadRequestException('Invite token is invalid or expired.');
@@ -1178,7 +1192,6 @@ export class AuthService {
         where: { id: userId },
         data: {
           two_factor_secret: TwoFactorCrypto.encrypt(secret.base32, this.twoFactorEncryptionKey()),
-          two_factor_enabled: false,
         },
       });
 

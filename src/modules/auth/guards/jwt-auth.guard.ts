@@ -7,6 +7,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 
+import { SKIP_STAFF_JWT_KEY } from '../../../common/decorators/skip-staff-jwt.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
@@ -27,6 +28,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     );
 
     if (isPublic) {
+      return true;
+    }
+
+    const skipStaffJwt = this.reflector.getAllAndOverride<boolean>(
+      SKIP_STAFF_JWT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (skipStaffJwt) {
       return true;
     }
 

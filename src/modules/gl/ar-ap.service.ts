@@ -3,6 +3,8 @@ import { InvoiceType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AgingQueryDto } from './dto/ar-ap.dto';
 
+const STATEMENT_ROW_CAP = 500;
+
 type AgingBucket = 'current' | 'days_1_30' | 'days_31_60' | 'days_61_90' | 'days_90_plus';
 
 @Injectable()
@@ -39,6 +41,7 @@ export class ArApService {
           ...(query.company_id ? { company_id: query.company_id } : {}),
         },
         orderBy: { invoice_date: 'asc' },
+        take: STATEMENT_ROW_CAP,
         select: {
           id: true,
           invoice_number: true,
@@ -62,6 +65,7 @@ export class ArApService {
           direction: side === 'AR' ? 'RECEIPT' : 'PAYMENT',
         },
         orderBy: { payment_date: 'asc' },
+        take: STATEMENT_ROW_CAP,
         select: {
           id: true,
           payment_number: true,
@@ -87,6 +91,7 @@ export class ArApService {
           invoice_count: invoices.length,
           open_balance: openBalance,
           advances_unallocated: payments.reduce((s, p) => s + Number(p.unallocated_amount), 0),
+          truncated: invoices.length >= STATEMENT_ROW_CAP || payments.length >= STATEMENT_ROW_CAP,
         },
       };
     });

@@ -15,7 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import 'multer';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { RolesGuard } from '../users/guards/roles.guard';
 import { PermissionsGuard } from '../users/guards/permissions.guard';
 import { RequirePermissions } from '../users/decorators/permissions.decorator';
@@ -36,7 +36,7 @@ const ATTACHMENT_MIME = new Set(['application/pdf', 'image/jpeg', 'image/jpg', '
 
 @ApiTags('Vendor Disputes')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(VendorAuthGuard)
 @Controller('vendor/disputes')
 export class VendorDisputesController {

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { CurrentPortal } from './decorators/portal.decorators';
 import { UpdatePortalPreferencesDto } from './dto/portal-preferences.dto';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
@@ -9,7 +9,7 @@ import { PortalPreferencesService } from './portal-preferences.service';
 
 @ApiTags('Portal Preferences')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/preferences')
 export class PortalPreferencesController {

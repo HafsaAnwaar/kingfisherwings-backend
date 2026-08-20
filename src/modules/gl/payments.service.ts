@@ -12,6 +12,7 @@ import {
   VoucherType,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { lockInvoiceRow, lockPaymentRow } from '../../common/utils/row-lock.util';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
 import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import { GlAutoPostService } from './gl-auto-post.service';
@@ -369,15 +370,21 @@ export class PaymentsService {
     );
 
     const posted = await this.prisma.runWithTenant(tenantId, async (tx) => {
-      // Re-validate open balances at post time
-      for (const alloc of payment.allocations) {
-        const inv = await tx.invoice.findFirst({
-          where: { id: alloc.invoice_id, tenant_id: tenantId, deleted_at: null },
-        });
+      const lockedPayment = await lockPaymentRow(tx, tenantId, id);
+      if (!lockedPayment || lockedPayment.status !== 'DRAFT') {
+        throw new BadRequestException('Only draft payments can be posted.');
+      }
+
+      const sortedAllocations = [...payment.allocations].sort((a, b) =>
+        a.invoice_id.localeCompare(b.invoice_id),
+      );
+
+      for (const alloc of sortedAllocations) {
+        const inv = await lockInvoiceRow(tx, tenantId, alloc.invoice_id);
         if (!inv) throw new BadRequestException(`Invoice ${alloc.invoice_id} not found.`);
         if (Number(alloc.amount) - Number(inv.balance_due) > 0.0001) {
           throw new BadRequestException(
-            `Allocation ${alloc.amount} exceeds balance due ${inv.balance_due} on ${inv.invoice_number}.`,
+            `Allocation ${alloc.amount} exceeds balance due ${inv.balance_due} on invoice.`,
           );
         }
       }

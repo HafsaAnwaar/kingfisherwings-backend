@@ -1,7 +1,7 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { CurrentPortal } from './decorators/portal.decorators';
 import { PortalDocumentQueryDto } from './dto/portal-document-query.dto';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
@@ -16,7 +16,7 @@ import { PortalPermissionsService } from './portal-permissions.service';
  */
 @ApiTags('Portal Documents')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/documents')
 export class PortalDocumentsController {

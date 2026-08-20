@@ -34,7 +34,7 @@ This report follows the **same chapter order and section numbering** as the Fres
 | 6 | Sales & CRM | ~5% | **Not started** |
 | 7 | Quotation Module | ~90% | **Done** |
 | 8 | Air Export Operations | ~90% | **Done** |
-| 9 | Air Import Operations | ~15% | **Not started** (job type stub) |
+| 9 | Air Import Operations | ~85% | **Done** (backend APIs, PDFs, crons; no UI) |
 | 10 | Sea FCL Export | ~90% | **Done** |
 | 11 | Sea FCL Import | ~90% | **Done** |
 | 12 | Sea LCL Export | ~5% | **Not started** |
@@ -415,12 +415,12 @@ Receipt ranges, allocate, used, void, transfer branch, low stock report/alert: *
 
 | Section | Status | Notes |
 |---------|--------|-------|
-| 9.1 Booking & job creation | **S** / **N** | `AIR_IMPORT` enum; no auto detail/milestones service |
-| 9.2 Documents (Pre-CAN, CAN, DO, POD, etc.) | **N** for air import (sea import docs exist separately) |
-| 9.3 Milestones | **N** |
-| 9.4 Special features (deposit, transhipment, storage, damage…) | **N** for air (those features exist on **Sea FCL Import**) |
+| 9.1 Booking & job creation | **D** | `AIR_IMPORT` + extended `AirJobDetail`; 16 milestones seeded; quote convert |
+| 9.2 Documents (Pre-CAN, CAN, DO, POD, etc.) | **D** | Per-job-type allowlist; air-shaped PDF payload; CAN/DO email + schedule |
+| 9.3 Milestones | **D** | 16 seeded; auto-complete subset (booking, MAWB, CAN/DO, customs, POD) |
+| 9.4 Special features (deposit, transhipment, storage, damage…) | **D** | Reuses FCL import child tables + air-only customs exams / storage invoice / transhipment |
 
-**Chapter 9 overall: ~15% — Not started.**
+**Chapter 9 overall: ~85% — Done (backend).** UI deferred.
 
 ---
 
@@ -756,7 +756,7 @@ Single DB + RLS + JWT + RBAC + Prisma + Puppeteer + Nodemailer + S3/local: **D**
 | Spec phase | Weeks | Spec modules | Backend reality |
 |------------|-------|--------------|-----------------|
 | Phase 1 Foundation | 1–3 | Auth, multi-tenancy, masters, quotation | **Done** |
-| Phase 2 Core Ops | 4–7 | Air Ex/Im, Sea FCL, docs | Air Export + Sea FCL Ex/Im **Done**; **Air Import Missing** |
+| Phase 2 Core Ops | 4–7 | Air Ex/Im, Sea FCL, docs | Air Export + **Air Import** + Sea FCL Ex/Im **Done** |
 | Phase 3 Finance | 8–12 | Full accounting | **Invoicing Partial**; GL/AR/AP/Reports **Missing** |
 | Phase 4 Secondary | 13–14 | LCL, Land, HR, WMS, CRM, MIS | **Mostly Missing** |
 | Phase 5 SaaS Launch | 15–16 | Stripe, API docs, hardening, deploy | **Partial** (Swagger/auth hardening started; Stripe **N**) |
@@ -786,7 +786,7 @@ Process guidance — **F** (not a product feature).
 
 ### Not implemented (major)
 - CRM / leads / enquiry / call sheets / email campaigns  
-- Air Import module  
+- ~~Air Import module~~ **Done (Week 15 backend)**  
 - Sea LCL Export/Import  
 - Land & Courier full modules  
 - Chart of Accounts, vouchers, GL, bank recon, cheques/PDC  

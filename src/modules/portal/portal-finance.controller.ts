@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { CurrentPortal } from './decorators/portal.decorators';
 import {
   PortalCreditAgingQueryDto,
@@ -24,7 +24,7 @@ import { PortalFinanceService } from './portal-finance.service';
 
 @ApiTags('Portal Invoices')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/invoices')
 export class PortalInvoicesController {
@@ -74,7 +74,7 @@ export class PortalInvoicesController {
 
 @ApiTags('Portal Credit Notes')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/credit-notes')
 export class PortalCreditNotesController {
@@ -95,7 +95,7 @@ export class PortalCreditNotesController {
 
 @ApiTags('Portal Debit Notes')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/debit-notes')
 export class PortalDebitNotesController {
@@ -116,7 +116,7 @@ export class PortalDebitNotesController {
 
 @ApiTags('Portal Payments')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/payments')
 export class PortalPaymentsController {
@@ -131,7 +131,7 @@ export class PortalPaymentsController {
 
 @ApiTags('Portal Credit (CCP)')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/credit')
 export class PortalCreditController {

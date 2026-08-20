@@ -8,14 +8,15 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { AuthenticatedRequest } from '../interfaces/current-user.interface';
+import { ALLOW_SUPER_ADMIN_KEY } from '../../../common/decorators/allow-super-admin.decorator';
 import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
 
 /**
  * Requires request.user to be populated by the Auth module's
  * JwtAuthGuard, which must run before this guard in the guard chain.
- * Fails closed if absent. SuperAdmin bypasses role checks.
- * Routes marked @Public() are skipped so public widgets work under
+ * Fails closed if absent. SuperAdmin is allowed only on @AllowSuperAdmin()
+ * routes. Routes marked @Public() are skipped so public widgets work under
  * controller-level @UseGuards(RolesGuard, ...).
  */
 @Injectable()
@@ -47,8 +48,19 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required.');
     }
 
-    if (isSuperAdminPrincipal(user)) {
+    const allowSuperAdmin = this.reflector.getAllAndOverride<boolean>(ALLOW_SUPER_ADMIN_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isSuperAdminPrincipal(user) && allowSuperAdmin) {
       return true;
+    }
+
+    if (isSuperAdminPrincipal(user)) {
+      throw new ForbiddenException(
+        'Platform admin tokens cannot access tenant ERP APIs. Use /tenants for platform operations.',
+      );
     }
 
     const authorized = requiredRoles.includes(user.role);

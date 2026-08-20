@@ -1,8 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { CampaignStatus, PartyType, Prisma } from '@prisma/client';
 import { parse } from 'csv-parse/sync';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../../shared/email/email.service';
+import { EMAIL_CAMPAIGN_QUEUE } from '../../shared/queue/queue.constants';
 import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 import { CurrentUser } from '../users/interfaces/current-user.interface';
 import { CreateCampaignDto, CreateCampaignTemplateDto, CreateSubscriberDto } from './dto/crm.dto';
@@ -13,6 +16,7 @@ export class CrmEmailService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly notifications: NotificationEmitterService,
+    @InjectQueue(EMAIL_CAMPAIGN_QUEUE) private readonly campaignQueue: Queue,
   ) {}
 
   async createSubscriber(user: CurrentUser, dto: CreateSubscriberDto) {
@@ -163,7 +167,11 @@ export class CrmEmailService {
     if (campaign.status === 'SENT' || campaign.status === 'SENDING') {
       throw new BadRequestException('Campaign has already been sent.');
     }
-    return this.dispatchCampaign(user.tenantId, campaign.id, user.id);
+    const result = await this.dispatchCampaign(user.tenantId, campaign.id, user.id);
+    if (!result) {
+      throw new BadRequestException('Campaign is already being sent or has been sent.');
+    }
+    return result;
   }
 
   async processScheduledCampaigns() {
@@ -185,85 +193,49 @@ export class CrmEmailService {
         }),
       );
       for (const campaign of due) {
-        await this.dispatchCampaign(tenant.id, campaign.id, campaign.created_by ?? undefined);
-        sent += 1;
+        const result = await this.dispatchCampaign(tenant.id, campaign.id, campaign.created_by ?? undefined);
+        if (result) {
+          sent += 1;
+        }
       }
     }
     return sent;
   }
 
   private async dispatchCampaign(tenantId: string, campaignId: string, actorId?: string) {
-    const campaign = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.emailCampaign.update({
-        where: { id: campaignId },
+    const claimed = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.emailCampaign.updateMany({
+        where: {
+          id: campaignId,
+          tenant_id: tenantId,
+          deleted_at: null,
+          status: { in: [CampaignStatus.DRAFT, CampaignStatus.SCHEDULED] },
+        },
         data: { status: CampaignStatus.SENDING },
       }),
     );
 
-    const subscribers = await this.resolveRecipients(tenantId, campaign);
-    let sentCount = 0;
-    let failedCount = 0;
-
-    for (const sub of subscribers) {
-      const log = await this.email.send({
-        tenantId,
-        eventType: 'CRM_CAMPAIGN',
-        to: sub.email,
-        subject: campaign.subject,
-        body: campaign.body,
-        createdBy: actorId,
-      });
-      if (log.status === 'SENT') sentCount += 1;
-      else failedCount += 1;
+    if (claimed.count === 0) {
+      return null;
     }
 
-    const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.emailCampaign.update({
-        where: { id: campaignId },
-        data: {
-          status: CampaignStatus.SENT,
-          sent_at: new Date(),
-          sent_count: sentCount,
-          failed_count: failedCount,
-        },
+    const campaign = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.emailCampaign.findFirst({
+        where: { id: campaignId, tenant_id: tenantId, deleted_at: null },
       }),
     );
 
-    if (actorId) {
-      await this.notifications.notifyStaffUser(tenantId, actorId, {
-        type: 'CAMPAIGN_SENT',
-        title: 'Campaign sent',
-        message: `${campaign.name}: ${sentCount} sent, ${failedCount} failed.`,
-        entity_type: 'email_campaign',
-        entity_id: campaign.id,
-        link_path: `/crm/campaigns/${campaign.id}`,
-      });
+    if (!campaign) {
+      return null;
     }
 
-    return { success: true, data: updated };
-  }
-
-  private async resolveRecipients(
-    tenantId: string,
-    campaign: { filter_party_type: string | null; filter_country: string | null },
-  ) {
-    const where: Prisma.CrmSubscriberWhereInput = {
-      tenant_id: tenantId,
-      unsubscribed_at: null,
-      ...(campaign.filter_country ? { country_code: campaign.filter_country } : {}),
-    };
-
-    if (campaign.filter_party_type) {
-      where.party = { party_type: campaign.filter_party_type as PartyType };
-    }
-
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.crmSubscriber.findMany({
-        where,
-        select: { id: true, email: true },
-        take: 5000,
-      }),
+    await this.campaignQueue.add(
+      'dispatch-batch',
+      { tenantId, campaignId, actorId, offset: 0, batchSize: 50 },
+      { jobId: `${campaignId}:0`, removeOnComplete: true },
     );
+
+    return { success: true, data: campaign, message: 'Campaign dispatch queued.' };
   }
 
   private async requireCampaign(tenantId: string, id: string) {

@@ -8,12 +8,14 @@ import { JwtPayload } from '../interfaces/jwt-payload.interface';
 import { RequestPrincipal } from '../interfaces/request-with-user.interface';
 import { CurrentUser } from '../../users/interfaces/current-user.interface';
 import { CurrentSuperAdmin } from '../interfaces/current-super-admin.interface';
+import { SessionCacheService } from '../session-cache.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly sessionCache: SessionCacheService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -27,7 +29,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Invalid token type.');
     }
 
-    // Portal / vendor tokens must never satisfy staff / super-admin routes.
     if ((payload as { principal?: string }).principal === 'portal') {
       throw new UnauthorizedException('Portal tokens cannot access staff APIs.');
     }
@@ -42,28 +43,40 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     return this.validateUser(payload);
   }
 
-  /**
-   * Trusts the token's embedded RBAC claims (tenantId/branchId/roleId/
-   * role/permissions) for the lifetime of the access token, but still
-   * verifies the underlying session hasn't been revoked, so logout /
-   * force-logout / password-change session revocation take effect
-   * immediately instead of waiting for the access token to expire.
-   */
-  /**
-   * Trusts the token's embedded RBAC claims (tenantId/branchId/roleId/
-   * role/permissions) for the lifetime of the access token, but still
-   * verifies the underlying session hasn't been revoked, so logout /
-   * force-logout / password-change session revocation take effect
-   * immediately instead of waiting for the access token to expire.
-   *
-   * Also re-checks the tenant's own active status on every request —
-   * not just at login. Without this, a Super Admin deactivating a
-   * tenant wouldn't actually cut off access: anyone already holding a
-   * valid access token could keep using the system until it expired
-   * naturally. This is what makes "Super Admin manages tenant access"
-   * actually true in real time, not just at the next login.
-   */
   private async validateUser(payload: Extract<JwtPayload, { principal: 'user' }>): Promise<CurrentUser> {
+    const cached = await this.sessionCache.getStaffSession(payload.sessionId);
+    if (cached && cached.userId === payload.sub && cached.tenantId === payload.tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: cached.tenantId },
+        select: {
+          is_active: true,
+          status: true,
+          deleted_at: true,
+          country_code: true,
+          base_currency: true,
+          timezone: true,
+        },
+      });
+      const activeTenantStatuses = ['ACTIVE', 'TRIAL'];
+      if (!tenant || tenant.deleted_at || !tenant.is_active || !activeTenantStatuses.includes(tenant.status)) {
+        throw new UnauthorizedException('This account is not active.');
+      }
+      return {
+        id: payload.sub,
+        tenantId: payload.tenantId,
+        countryCode: tenant.country_code,
+        preferredCountryCode: null,
+        baseCurrency: tenant.base_currency,
+        timezone: tenant.timezone,
+        branchId: payload.branchId,
+        roleId: payload.roleId,
+        role: payload.role,
+        sessionId: payload.sessionId,
+        email: payload.email,
+        permissions: payload.permissions,
+      };
+    }
+
     const session = await this.prisma.session.findUnique({
       where: { jti: payload.sessionId },
       include: { user: true },
@@ -95,6 +108,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('This account is not active.');
     }
 
+    await this.sessionCache.setStaffSession(payload.sessionId, {
+      userId: payload.sub,
+      tenantId: payload.tenantId,
+      role: payload.role,
+      twoFactorEnabled: session.user.two_factor_enabled,
+    });
+
     return {
       id: payload.sub,
       tenantId: payload.tenantId,
@@ -114,6 +134,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   private async validateSuperAdmin(
     payload: Extract<JwtPayload, { principal: 'super_admin' }>,
   ): Promise<CurrentSuperAdmin> {
+    const cached = await this.sessionCache.getSuperAdminSession(payload.sessionId);
+    if (cached && cached.superAdminId === payload.sub) {
+      return {
+        principal: 'super_admin',
+        id: payload.sub,
+        email: payload.email,
+        sessionId: payload.sessionId,
+      };
+    }
+
     const session = await this.prisma.superAdminSession.findUnique({
       where: { jti: payload.sessionId },
       include: { super_admin: true },
@@ -126,6 +156,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (!session.super_admin || session.super_admin.deleted_at || !session.super_admin.is_active) {
       throw new UnauthorizedException('Account is no longer active.');
     }
+
+    await this.sessionCache.setSuperAdminSession(payload.sessionId, {
+      superAdminId: payload.sub,
+      twoFactorEnabled: session.super_admin.two_factor_enabled ?? false,
+    });
 
     return {
       principal: 'super_admin',

@@ -79,7 +79,7 @@ SuperAdmin
 
 **LOCKED:** CRM never creates Jobs. Enquiry convert → quotation only. Vendor invoice submit → **DRAFT** `PURCHASE_INVOICE`; staff posts via `POST /purchase-invoices/:id/post`.
 
-**LOCKED (this phase):** Backend-only. No UI. No customer payment gateway. No WhatsApp CRM. No real TDS certificates (India Phase 3). No Week 15 Air Import until that week.
+**LOCKED (this phase):** Backend-only. No UI. No customer payment gateway. No WhatsApp CRM. No real TDS certificates (India Phase 3). Week 15 Air Import backend shipped (Ch.9).
 
 ---
 
@@ -473,11 +473,11 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 
 | Topic | Status | Decision / question |
 |-------|--------|---------------------|
-| Same `Job` + air import detail fields | **LOCKED** | Do not create `AirImportJob`. Follow FCL import pattern. |
-| Documents: pre-CAN, CAN, DO, POD, freight manifest/certificate | **LOCKED** | Reuse document-generation queue + Puppeteer. |
-| Customs deposit / storage invoicing | **LOCKED** | Reuse invoice + payment-request patterns; no new GL path. |
-| Transhipment / damage report | **LOCKED** | Job fields + PDFs, same as FCL import. |
-| Depth vs Week 9 FCL import | **OPEN** | Which of 16 milestones are auto vs manual. |
+| Same `Job` + air import detail fields | **SHIPPED** | `AirJobDetail` extended; no `AirImportJob` table. |
+| Documents: pre-CAN, CAN, DO, POD, freight manifest/certificate | **SHIPPED** | Document allowlist + air-shaped PDF payload via existing queue. |
+| Customs deposit / storage invoicing | **SHIPPED** | Shared deposits table; DRAFT storage invoice via `InvoicesService.createStorageDraftFromJobCharge`. |
+| Transhipment / damage report | **SHIPPED** | Air transhipment to `AIR_EXPORT` \| `SEA_FCL_EXPORT`; damage notify emails. |
+| 16 milestones auto vs manual | **SHIPPED** | All 16 seeded at create; auto-complete subset per plan (BOOKING_CREATED, MAWB_RECEIVED, CAN/DO, customs trio, POD). |
 
 ### Week 16 — HR (Ch.21)
 

@@ -204,6 +204,28 @@ enum DepositType {
   PORT
 }
 
+enum StorageRateBasis {
+  KG
+  CBM
+}
+
+enum CustomsExaminationResult {
+  HELD
+  RELEASED
+  SEIZED
+  QUERY
+}
+
+enum DepositAlertBand {
+  NONE
+  OK
+  D90
+  D60
+  D30
+  D7
+  EXPIRED
+}
+
 enum TenantStatus {
   TRIAL
   ACTIVE
@@ -1700,6 +1722,8 @@ model Job {
   tenant_id     String    @db.Uuid
   company_id    String?   @db.Uuid
   job_number    String    @db.VarChar(30)
+  /// Public tracking token (unguessable) for GET /track — not the sequential job number alone.
+  tracking_token String   @unique @default(dbgenerated("replace(gen_random_uuid()::text, '-', '')")) @db.VarChar(64)
   job_type      JobType
   status        JobStatus @default(ENQUIRY)
   branch_id     String?   @db.Uuid
@@ -1780,6 +1804,7 @@ model Job {
   part_deliveries  PartDelivery[]
   proofs_of_delivery ProofOfDelivery[]
   damage_reports   DamageReport[]
+  customs_examinations JobCustomsExamination[]
 
   @@unique([tenant_id, job_number])
   @@index([tenant_id])
@@ -1814,15 +1839,44 @@ model AirJobDetail {
   /// IATA standard is 167 (kg per CBM) unless overridden.
   conversion_factor Decimal @default(167) @db.Decimal(6, 2)
 
+  /// Week 15 — Air Import (Ch.9.1)
+  mawb_number_from_origin       String?                 @db.VarChar(50)
+  hawb_number_from_origin_agent String?                 @db.VarChar(50)
+  arrival_flight_number         String?                 @db.VarChar(20)
+  actual_eta                    DateTime?               @db.Timestamptz
+  agent_at_origin_id            String?                 @db.Uuid
+  notify_party_id               String?                 @db.Uuid
+  delivery_address              String?                 @db.Text
+  final_destination             String?                 @db.VarChar(200)
+  customs_value                 Decimal?                @db.Decimal(18, 4)
+  dg_details                    String?                 @db.Text
+  special_handling_notes        String?                 @db.Text
+  customs_entry_number          String?                 @db.VarChar(100)
+  customs_duty_amount           Decimal?                @db.Decimal(18, 4)
+  customs_tax_amount            Decimal?                @db.Decimal(18, 4)
+  customs_clearance_date        DateTime?               @db.Timestamptz
+  customs_status                CustomsClearanceStatus  @default(PENDING)
+  customs_broker_id             String?                 @db.Uuid
+  storage_start_date            DateTime?               @db.Date
+  storage_free_days             Int                     @default(0)
+  storage_rate                  Decimal?                @db.Decimal(18, 4)
+  storage_rate_basis            StorageRateBasis?
+  storage_invoice_id            String?                 @db.Uuid
+  linked_export_job_id          String?                 @db.Uuid
+  originating_branch_id         String?                 @db.Uuid
+
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
   created_by String?   @db.Uuid
   updated_by String?   @db.Uuid
   deleted_at DateTime? @db.Timestamptz
 
-  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  job             Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  storage_invoice Invoice? @relation("AirImportStorageInvoice", fields: [storage_invoice_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id])
+  @@index([tenant_id, mawb_number_from_origin])
+  @@index([tenant_id, hawb_number_from_origin_agent])
   @@map("air_job_details")
 }
 
@@ -1960,6 +2014,8 @@ model JobDeposit {
   deposit_receipt_number String? @db.VarChar(100)
   deposit_expiry_date DateTime? @db.Date
   remarks           String?     @db.Text
+  last_alert_band   DepositAlertBand?
+  last_alerted_at   DateTime?   @db.Timestamptz
   created_at        DateTime    @default(now()) @db.Timestamptz
   updated_at        DateTime    @updatedAt @db.Timestamptz
   created_by        String?     @db.Uuid
@@ -1972,6 +2028,28 @@ model JobDeposit {
   @@index([tenant_id, job_id])
   @@index([tenant_id, deposit_expiry_date])
   @@map("job_deposits")
+}
+
+model JobCustomsExamination {
+  id                String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String                   @db.Uuid
+  job_id            String                   @db.Uuid
+  examination_date  DateTime                 @db.Date
+  examining_officer String?                  @db.VarChar(200)
+  items_examined    String?                  @db.Text
+  result            CustomsExaminationResult
+  remarks           String?                  @db.Text
+  created_at        DateTime                 @default(now()) @db.Timestamptz
+  updated_at        DateTime                 @updatedAt @db.Timestamptz
+  created_by        String?                  @db.Uuid
+  updated_by        String?                  @db.Uuid
+  deleted_at        DateTime?                @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("job_customs_examinations")
 }
 
 model PartDelivery {
@@ -2026,6 +2104,9 @@ model DamageReport {
   job_id               String    @db.Uuid
   container_id         String?   @db.Uuid
   damage_description   String    @db.Text
+  damage_type          String?   @db.VarChar(100)
+  quantity_short       Int?
+  notify_to            String[]  @default([]) @db.Text
   photo_urls           String[]  @db.Text
   survey_report_number String?   @db.VarChar(100)
   reported_at          DateTime  @default(now()) @db.Timestamptz
@@ -2585,6 +2666,7 @@ model EmailLog {
   quotation_id        String?        @db.Uuid
   job_id              String?        @db.Uuid
   job_document_id     String?        @db.Uuid
+  scheduled_at          DateTime?      @db.Timestamptz
   sent_at             DateTime?      @db.Timestamptz
   created_by          String?        @db.Uuid
   created_at          DateTime       @default(now()) @db.Timestamptz
@@ -2691,6 +2773,7 @@ model Invoice {
   payment_requests PaymentRequest[]
   vouchers         Voucher[]
   payment_allocations PaymentAllocation[]
+  air_import_storage_for AirJobDetail[] @relation("AirImportStorageInvoice")
 
   @@unique([tenant_id, invoice_number])
   @@index([tenant_id])
@@ -3138,6 +3221,10 @@ model SuperAdmin {
   last_login_at      DateTime? @db.Timestamptz
   last_login_ip      String?   @db.VarChar(45)
 
+  two_factor_enabled      Boolean  @default(false)
+  two_factor_secret       String?  @db.Text
+  two_factor_backup_codes String[] @default([]) @db.Text
+
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
   deleted_at DateTime? @db.Timestamptz
@@ -3334,6 +3421,7 @@ enum NotificationType {
   FOLLOW_UP_DUE
   LEAD_ASSIGNED
   CAMPAIGN_SENT
+  CUSTOMS_DEPOSIT_EXPIRING
 }
 
 /// Customer → forwarder contact messages from the portal.

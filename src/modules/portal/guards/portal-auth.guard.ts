@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { resolvePortalAccessSecret } from '../../../common/utils/jwt-secrets.util';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CurrentPortalUser, PortalJwtPayload } from '../interfaces/portal-auth.interfaces';
@@ -102,12 +103,6 @@ export class PortalAuthGuard implements CanActivate {
   }
 
   private portalAccessSecret(): string {
-    const secret =
-      this.config.get<string>('PORTAL_JWT_ACCESS_SECRET') ??
-      this.config.get<string>('JWT_ACCESS_SECRET');
-    if (!secret) {
-      throw new Error('PORTAL_JWT_ACCESS_SECRET or JWT_ACCESS_SECRET must be configured.');
-    }
-    return secret;
+    return resolvePortalAccessSecret(this.config);
   }
 }

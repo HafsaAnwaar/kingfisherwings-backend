@@ -16,7 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import 'multer';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { CurrentVendor } from './decorators/vendor.decorators';
 import { VendorInvoiceQueryDto, VendorSubmitInvoiceDto } from './dto/vendor-finance.dto';
 import { VendorAuthGuard } from './guards/vendor-auth.guard';
@@ -28,7 +28,7 @@ const PDF_MIME = new Set(['application/pdf']);
 
 @ApiTags('Vendor Invoices')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(VendorAuthGuard)
 @Controller('vendor/invoices')
 export class VendorInvoicesController {
@@ -97,7 +97,7 @@ export class VendorInvoicesController {
 
 @ApiTags('Vendor Payments')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(VendorAuthGuard)
 @Controller('vendor')
 export class VendorPaymentsController {

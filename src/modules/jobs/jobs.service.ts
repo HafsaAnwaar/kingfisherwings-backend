@@ -6,9 +6,9 @@ import { DocumentGenerationService } from '../../shared/queue/document-generatio
 import { EmailService } from '../../shared/email/email.service';
 import { WhatsAppService } from '../../shared/whatsapp/whatsapp.service';
 import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { AIR_EXPORT_MILESTONES } from './constants/air-export-milestones';
-import { SEA_FCL_EXPORT_MILESTONES } from './constants/sea-fcl-export-milestones';
-import { SEA_FCL_IMPORT_MILESTONES } from './constants/sea-fcl-import-milestones';
+import { assertDocumentAllowedForJobType } from './constants/job-document-allowlist';
+import { AIR_IMPORT_MAWB_RECEIVED_MILESTONE } from './constants/air-import-milestones';
+import { seedJobTypeExtras } from './utils/job-type-seed.util';
 
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { UpdateAirJobDetailDto } from './dto/air-job-detail.dto';
@@ -68,45 +68,50 @@ export class JobsService {
   // ============================================================
 
   async create(tenantId: string, dto: CreateJobDto, actorId?: string): Promise<Job> {
-    await this.assertPartyExists(tenantId, dto.shipper_id, 'Shipper');
-    await this.assertPartyExists(tenantId, dto.consignee_id, 'Consignee');
-    await this.assertPartyExists(tenantId, dto.billing_party_id, 'Billing party');
-    await this.assertPartyExists(tenantId, dto.agent_id, 'Agent');
-    await this.assertCompanyExists(tenantId, dto.company_id);
-    await this.assertBranchExists(tenantId, dto.branch_id);
-    await this.assertDepartmentExists(tenantId, dto.department_id);
-    await this.assertPortExists(tenantId, dto.origin_port_id, 'Origin port');
-    await this.assertPortExists(tenantId, dto.dest_port_id, 'Destination port');
-
-    let parentJob: Job | null = null;
-
-    if (dto.parent_job_id) {
-      parentJob = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.job.findFirst({ where: { id: dto.parent_job_id, tenant_id: tenantId, deleted_at: null } }),
-      );
-
-      if (!parentJob) {
-        throw new NotFoundException('Parent (master) job not found.');
-      }
-
-      if (parentJob.parent_job_id) {
-        throw new BadRequestException(
-          'A house job cannot itself be the parent of another house job — only one level of consolidation is supported.',
-        );
-      }
-
-      if (parentJob.job_type !== dto.job_type) {
-        throw new BadRequestException('A house job must be the same job_type as its master.');
-      }
-    }
-
-    const branchCode = await this.resolveBranchCode(tenantId, dto.branch_id);
-    const jobNumber = await this.numberGenerator.generate(tenantId, 'JOB_NUMBER', {
-      extraSegment: JOB_TYPE_CODE[dto.job_type],
-      branchCode,
-    });
-
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.assertPartyExistsTx(tx, tenantId, dto.shipper_id, 'Shipper');
+      await this.assertPartyExistsTx(tx, tenantId, dto.consignee_id, 'Consignee');
+      await this.assertPartyExistsTx(tx, tenantId, dto.billing_party_id, 'Billing party');
+      await this.assertPartyExistsTx(tx, tenantId, dto.agent_id, 'Agent');
+      await this.assertCompanyExistsTx(tx, tenantId, dto.company_id);
+      await this.assertBranchExistsTx(tx, tenantId, dto.branch_id);
+      await this.assertDepartmentExistsTx(tx, tenantId, dto.department_id);
+      await this.assertPortExistsTx(tx, tenantId, dto.origin_port_id, 'Origin port');
+      await this.assertPortExistsTx(tx, tenantId, dto.dest_port_id, 'Destination port');
+
+      let parentJob: Job | null = null;
+
+      if (dto.parent_job_id) {
+        parentJob = await tx.job.findFirst({
+          where: { id: dto.parent_job_id, tenant_id: tenantId, deleted_at: null },
+        });
+
+        if (!parentJob) {
+          throw new NotFoundException('Parent (master) job not found.');
+        }
+
+        if (parentJob.parent_job_id) {
+          throw new BadRequestException(
+            'A house job cannot itself be the parent of another house job — only one level of consolidation is supported.',
+          );
+        }
+
+        if (parentJob.job_type !== dto.job_type) {
+          throw new BadRequestException('A house job must be the same job_type as its master.');
+        }
+      }
+
+      const branchCode = dto.branch_id
+        ? (await tx.branch.findFirst({
+            where: { id: dto.branch_id, tenant_id: tenantId, deleted_at: null },
+          }))?.code
+        : undefined;
+
+      const jobNumber = await this.numberGenerator.generate(tenantId, 'JOB_NUMBER', {
+        extraSegment: JOB_TYPE_CODE[dto.job_type],
+        branchCode,
+      });
+
       const job = await tx.job.create({
         data: {
           tenant_id: tenantId,
@@ -146,63 +151,11 @@ export class JobsService {
         },
       });
 
-      // Air Export gets its detail row + the full 15-milestone taxonomy
-      // seeded immediately — matches spec Ch.8.5 exactly.
-      if (dto.job_type === 'AIR_EXPORT') {
-        await tx.airJobDetail.create({
-          data: { tenant_id: tenantId, job_id: job.id, created_by: actorId, updated_by: actorId },
-        });
-
-        await tx.jobMilestone.createMany({
-          data: AIR_EXPORT_MILESTONES.map((milestone) => ({
-            tenant_id: tenantId,
-            job_id: job.id,
-            milestone,
-            created_by: actorId,
-            updated_by: actorId,
-          })),
-        });
-      }
-
-      if (dto.job_type === 'SEA_FCL_EXPORT' || dto.job_type === 'SEA_FCL_IMPORT') {
-        await tx.seaFclJobDetail.create({
-          data: { tenant_id: tenantId, job_id: job.id, created_by: actorId, updated_by: actorId },
-        });
-      }
-
-      // Sea FCL Export gets the Ch.10.3 16-milestone taxonomy at create.
-      if (dto.job_type === 'SEA_FCL_EXPORT') {
-        await tx.jobMilestone.createMany({
-          data: SEA_FCL_EXPORT_MILESTONES.map((milestone) => ({
-            tenant_id: tenantId,
-            job_id: job.id,
-            milestone,
-            created_by: actorId,
-            updated_by: actorId,
-          })),
-        });
-      }
-
-      // Sea FCL Import gets the Ch.11.2 14-milestone taxonomy at create.
-      if (dto.job_type === 'SEA_FCL_IMPORT') {
-        await tx.jobMilestone.createMany({
-          data: SEA_FCL_IMPORT_MILESTONES.map((milestone) => ({
-            tenant_id: tenantId,
-            job_id: job.id,
-            milestone,
-            created_by: actorId,
-            updated_by: actorId,
-          })),
-        });
-      }
+      await seedJobTypeExtras(tx, tenantId, job.id, dto.job_type, actorId);
 
       return job;
     });
   }
-
-  // ============================================================
-  // READ
-  // ============================================================
 
   async findAll(tenantId: string, query: JobQueryDto) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -482,6 +435,31 @@ export class JobsService {
       if (!exists) throw new NotFoundException('Airline not found.');
     }
 
+    for (const partyId of [dto.agent_at_origin_id, dto.notify_party_id, dto.customs_broker_id]) {
+      if (partyId) await this.assertPartyExists(tenantId, partyId, 'Party');
+    }
+
+    if (dto.origin_airport_id) {
+      const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.airport.findFirst({ where: { id: dto.origin_airport_id, tenant_id: tenantId, deleted_at: null } }),
+      );
+      if (!exists) throw new NotFoundException('Origin airport not found.');
+    }
+
+    if (dto.dest_airport_id) {
+      const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.airport.findFirst({ where: { id: dto.dest_airport_id, tenant_id: tenantId, deleted_at: null } }),
+      );
+      if (!exists) throw new NotFoundException('Destination airport not found.');
+    }
+
+    if (dto.originating_branch_id) {
+      const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.branch.findFirst({ where: { id: dto.originating_branch_id, tenant_id: tenantId, deleted_at: null } }),
+      );
+      if (!exists) throw new NotFoundException('Originating branch not found.');
+    }
+
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
 
@@ -489,16 +467,52 @@ export class JobsService {
         throw new NotFoundException('Job not found.');
       }
 
-      if (job.job_type !== 'AIR_EXPORT') {
-        throw new BadRequestException('This job is not an Air Export job.');
+      if (job.job_type !== 'AIR_EXPORT' && job.job_type !== 'AIR_IMPORT') {
+        throw new BadRequestException('This job is not an Air Export or Air Import job.');
       }
 
-      const { flight_date, ...rest } = dto;
+      const detail = await tx.airJobDetail.findFirst({ where: { job_id: jobId, tenant_id: tenantId } });
+      if (!detail) {
+        throw new NotFoundException('Air job details not found.');
+      }
 
-      return tx.airJobDetail.update({
+      const {
+        flight_date,
+        actual_eta,
+        customs_clearance_date,
+        storage_start_date,
+        mawb_number_from_origin,
+        ...rest
+      } = dto;
+
+      const updated = await tx.airJobDetail.update({
         where: { job_id: jobId },
-        data: { ...rest, ...(flight_date ? { flight_date: new Date(flight_date) } : {}), updated_by: actorId },
+        data: {
+          ...rest,
+          ...(flight_date ? { flight_date: new Date(flight_date) } : {}),
+          ...(actual_eta ? { actual_eta: new Date(actual_eta) } : {}),
+          ...(customs_clearance_date ? { customs_clearance_date: new Date(customs_clearance_date) } : {}),
+          ...(storage_start_date ? { storage_start_date: new Date(storage_start_date) } : {}),
+          updated_by: actorId,
+        },
       });
+
+      if (
+        job.job_type === 'AIR_IMPORT' &&
+        mawb_number_from_origin?.trim() &&
+        !detail.mawb_number_from_origin?.trim()
+      ) {
+        await this.markMilestoneIfPresent(
+          tx,
+          tenantId,
+          jobId,
+          AIR_IMPORT_MAWB_RECEIVED_MILESTONE,
+          new Date(),
+          actorId,
+        );
+      }
+
+      return updated;
     });
   }
 
@@ -1725,7 +1739,8 @@ export class JobsService {
     dto: GenerateJobDocumentDto,
     actorId?: string,
   ) {
-    await this.findOne(tenantId, jobId);
+    const job = await this.findOne(tenantId, jobId);
+    assertDocumentAllowedForJobType(job.job_type, documentType);
 
     const options = {
       bl_id: dto.bl_id,
@@ -2287,6 +2302,60 @@ export class JobsService {
     if (!exists) {
       throw new NotFoundException('Charge code not found.');
     }
+  }
+
+  private async assertPartyExistsTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    partyId: string | undefined,
+    label: string,
+  ): Promise<void> {
+    if (!partyId) return;
+    const exists = await tx.party.findFirst({ where: { id: partyId, tenant_id: tenantId, deleted_at: null } });
+    if (!exists) throw new NotFoundException(`${label} not found.`);
+  }
+
+  private async assertCompanyExistsTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    companyId?: string,
+  ): Promise<void> {
+    if (!companyId) return;
+    const exists = await tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } });
+    if (!exists) throw new NotFoundException('Company not found.');
+  }
+
+  private async assertBranchExistsTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    branchId?: string,
+  ): Promise<void> {
+    if (!branchId) return;
+    const exists = await tx.branch.findFirst({ where: { id: branchId, tenant_id: tenantId, deleted_at: null } });
+    if (!exists) throw new NotFoundException('Branch not found.');
+  }
+
+  private async assertDepartmentExistsTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    departmentId?: string,
+  ): Promise<void> {
+    if (!departmentId) return;
+    const exists = await tx.department.findFirst({
+      where: { id: departmentId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!exists) throw new NotFoundException('Department not found.');
+  }
+
+  private async assertPortExistsTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    portId: string | undefined,
+    label: string,
+  ): Promise<void> {
+    if (!portId) return;
+    const exists = await tx.port.findFirst({ where: { id: portId, tenant_id: tenantId, deleted_at: null } });
+    if (!exists) throw new NotFoundException(`${label} not found.`);
   }
 
   private async assertPartyExists(tenantId: string, partyId: string | undefined, label: string): Promise<void> {

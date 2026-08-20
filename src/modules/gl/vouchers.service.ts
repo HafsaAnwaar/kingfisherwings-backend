@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { DocumentNumberType, Prisma, VoucherType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { lockVoucherRow } from '../../common/utils/row-lock.util';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
 import {
   CreateVoucherDto,
@@ -272,8 +273,13 @@ export class VouchersService {
       throw new BadRequestException('Voucher totals must be greater than zero.');
     }
 
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.voucher.update({
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const locked = await lockVoucherRow(tx, tenantId, id);
+      if (!locked || locked.status !== 'DRAFT') {
+        throw new BadRequestException('Only draft vouchers can be posted.');
+      }
+
+      return tx.voucher.update({
         where: { id },
         data: {
           status: 'POSTED',
@@ -282,8 +288,8 @@ export class VouchersService {
           updated_by: actorId,
         },
         include: { lines: { where: { deleted_at: null }, orderBy: { line_no: 'asc' } } },
-      }),
-    );
+      });
+    });
   }
 
   async reverse(tenantId: string, id: string, actorId?: string) {

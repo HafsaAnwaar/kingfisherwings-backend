@@ -2,7 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { S3 } from 'aws-sdk';
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface StoredFile {
   fileUrl: string;
@@ -17,20 +22,27 @@ export class StorageService {
   private readonly root: string;
   private readonly publicBaseUrl: string;
   private readonly useS3: boolean;
-  private s3?: S3;
+  private s3?: S3Client;
   private s3Bucket?: string;
+  private readonly presignSeconds: number;
 
   constructor(private readonly config: ConfigService) {
     this.root = this.config.get<string>('storage.root')!;
     this.publicBaseUrl = this.config.get<string>('storage.publicBaseUrl')!;
     this.useS3 = this.config.get<boolean>('storage.useS3') ?? false;
     this.s3Bucket = this.config.get<string>('storage.s3Bucket');
+    this.presignSeconds = this.config.get<number>('storage.presignedUrlExpires') ?? 3600;
 
     if (this.useS3 && this.s3Bucket) {
-      this.s3 = new S3({
+      this.s3 = new S3Client({
         region: this.config.get<string>('storage.s3Region'),
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        credentials:
+          process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+            ? {
+                accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+              }
+            : undefined,
       });
     }
   }
@@ -48,16 +60,17 @@ export class StorageService {
     const s3Key = `${tenantId}/${Date.now()}-${safeName}`;
 
     if (this.useS3 && this.s3 && this.s3Bucket) {
-      await this.s3
-        .putObject({
+      await this.s3.send(
+        new PutObjectCommand({
           Bucket: this.s3Bucket,
           Key: s3Key,
           Body: buffer,
           ContentType: mimeType,
-        })
-        .promise();
+          ServerSideEncryption: 'AES256',
+        }),
+      );
 
-      const fileUrl = `https://${this.s3Bucket}.s3.amazonaws.com/${s3Key}`;
+      const fileUrl = await this.presignedGetUrl(s3Key);
       return { fileUrl, s3Key, fileSize: buffer.length, mimeType };
     }
 
@@ -72,6 +85,17 @@ export class StorageService {
     return { fileUrl, s3Key, fileSize: buffer.length, mimeType };
   }
 
+  async presignedGetUrl(s3Key: string): Promise<string> {
+    if (!this.s3 || !this.s3Bucket) {
+      throw new Error('S3 is not configured.');
+    }
+    return getSignedUrl(
+      this.s3,
+      new GetObjectCommand({ Bucket: this.s3Bucket, Key: s3Key }),
+      { expiresIn: this.presignSeconds },
+    );
+  }
+
   async readBuffer(tenantId: string, filename: string): Promise<Buffer> {
     const filePath = this.resolveLocalPath(tenantId, filename);
     return fs.readFile(filePath);
@@ -82,9 +106,16 @@ export class StorageService {
     file: { file_name: string; file_url: string; s3_key?: string | null; mime_type?: string | null },
   ): Promise<{ buffer: Buffer; mimeType: string; fileName: string }> {
     if (file.s3_key && this.useS3 && this.s3 && this.s3Bucket) {
-      const result = await this.s3.getObject({ Bucket: this.s3Bucket, Key: file.s3_key }).promise();
+      const result = await this.s3.send(
+        new GetObjectCommand({ Bucket: this.s3Bucket, Key: file.s3_key }),
+      );
+      const body = result.Body;
+      const buffer =
+        body instanceof Buffer
+          ? body
+          : Buffer.from(await (body as { transformToByteArray(): Promise<Uint8Array> }).transformToByteArray());
       return {
-        buffer: result.Body as Buffer,
+        buffer,
         mimeType: file.mime_type ?? 'application/pdf',
         fileName: file.file_name,
       };
@@ -101,7 +132,6 @@ export class StorageService {
   }
 
   resolveLocalPath(tenantId: string, filename: string): string {
-    // Reject path traversal / absolute paths — only a bare file name is allowed.
     const safeName = path.basename(filename.replace(/\\/g, '/'));
     if (
       !safeName ||
