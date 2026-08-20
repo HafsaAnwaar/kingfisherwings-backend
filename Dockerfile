@@ -59,10 +59,12 @@ RUN if [ ! -x /usr/bin/chromium ] && [ -x /usr/bin/chromium-browser ]; then \
     test -x /usr/bin/chromium
 
 # Apply migrations then start (DATABASE_URL must be set at runtime by host/Render)
+COPY --chown=nestjs:nodejs docker/render-predeploy.sh /app/docker/render-predeploy.sh
 # entrypoint uses DIRECT_URL or strips -pooler for prisma migrate deploy (Neon advisory lock)
 COPY --chown=nestjs:nodejs docker/entrypoint.sh /app/entrypoint.sh
 # Strip Windows CRLF if present — otherwise Linux reports "Exec format error"
-RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+RUN sed -i 's/\r$//' /app/entrypoint.sh /app/docker/render-predeploy.sh && \
+    chmod +x /app/entrypoint.sh /app/docker/render-predeploy.sh
 
 USER nestjs
 
