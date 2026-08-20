@@ -13,6 +13,7 @@ import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { isSuperAdmin, RequestPrincipal } from '../interfaces/request-with-user.interface';
+import { SessionCacheService } from '../session-cache.service';
 import { AUTH_2FA_LINKED } from '../constants/auth-2fa.constants';
 
 const TWO_FA_SETUP_PATHS = ['/auth/2fa/setup', '/auth/2fa/enable', '/auth/super-admin/2fa/setup', '/auth/super-admin/2fa/enable'];
