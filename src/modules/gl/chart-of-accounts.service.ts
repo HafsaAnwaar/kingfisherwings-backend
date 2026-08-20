@@ -45,6 +45,8 @@ const DEFAULT_COA: DefaultAccountSeed[] = [
   { account_code: '5100', account_name: 'Freight Cost', account_group: 'EXPENSES', account_type: 'COST_OF_SALES', account_sub_type: 'EXPENSE', sort_order: 51 },
   { account_code: '6000', account_name: 'Operating Expenses', account_group: 'EXPENSES', account_type: 'EXPENSE', account_sub_type: 'EXPENSE', is_header: true, is_postable: false, sort_order: 60 },
   { account_code: '6100', account_name: 'General & Admin Expenses', account_group: 'EXPENSES', account_type: 'EXPENSE', account_sub_type: 'EXPENSE', sort_order: 61 },
+  { account_code: '6200', account_name: 'Salaries & Wages', account_group: 'EXPENSES', account_type: 'EXPENSE', account_sub_type: 'EXPENSE', sort_order: 62 },
+  { account_code: '2300', account_name: 'Payroll Payable', account_group: 'LIABILITIES', account_type: 'CURRENT_LIABILITY', account_sub_type: 'GENERAL', sort_order: 23 },
 ];
 
 @Injectable()

@@ -16,12 +16,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { TenantChangePasswordDto } from './dto/tenant-change-password.dto';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
-import {
-  AcceptInviteDto,
-  DisableTwoFactorDto,
-  InviteUserDto,
-  TotpVerifyDto,
-} from './dto/invite-2fa.dto';
+import { AcceptInviteDto, InviteUserDto } from './dto/invite-2fa.dto';
 
 import { Public } from './decorators/public.decorator';
 import { AllowSuperAdmin } from '../../common/decorators/allow-super-admin.decorator';
@@ -233,37 +228,7 @@ export class AuthController {
     return this.authService.acceptInvite(dto);
   }
 
-  @ApiBearerAuth()
-  @Post('2fa/setup')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Generate TOTP secret + QR for the current user' })
-  setup2fa(@CurrentUser('tenantId') tenantId: string, @CurrentUser('id') userId: string) {
-    return this.authService.setupTwoFactor(tenantId, userId);
-  }
-
-  @ApiBearerAuth()
-  @Post('2fa/enable')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Enable 2FA after verifying a TOTP code from the authenticator app' })
-  enable2fa(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') userId: string,
-    @Body() dto: TotpVerifyDto,
-  ) {
-    return this.authService.enableTwoFactor(tenantId, userId, dto);
-  }
-
-  @ApiBearerAuth()
-  @Post('2fa/disable')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Disable 2FA (password + optional TOTP/backup code)' })
-  disable2fa(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') userId: string,
-    @Body() dto: DisableTwoFactorDto,
-  ) {
-    return this.authService.disableTwoFactor(tenantId, userId, dto);
-  }
+  // POST /auth/2fa/* lives on AuthTwoFactorController — unlinked while AUTH_2FA_LINKED is false.
 
   // =====================================================
   // PRIVATE HELPERS

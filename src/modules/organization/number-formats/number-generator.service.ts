@@ -89,6 +89,7 @@ export class NumberGeneratorService {
       JOB_NUMBER: 'JOB',
       VOUCHER: 'JV',
       PAYMENT: 'PAY',
+      EMPLOYEE_CODE: 'EMP',
     };
     return map[documentType] ?? 'DOC';
   }

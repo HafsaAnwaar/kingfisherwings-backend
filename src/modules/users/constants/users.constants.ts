@@ -28,7 +28,6 @@ export const DEFAULT_SORT_FIELD = 'created_at';
 export const DEFAULT_SORT_ORDER = 'desc';
 
 export const USER_SEARCH_FIELDS = [
-  'employee_code',
   'first_name',
   'last_name',
   'full_name',
@@ -39,7 +38,6 @@ export const USER_SEARCH_FIELDS = [
 export const USER_SELECT_FIELDS = {
   id: true,
   tenant_id: true,
-  employee_code: true,
   first_name: true,
   last_name: true,
   full_name: true,
@@ -54,7 +52,6 @@ export const USER_SELECT_FIELDS = {
 } as const;
 
 export const USER_SORT_FIELDS = [
-  'employee_code',
   'first_name',
   'last_name',
   'email',

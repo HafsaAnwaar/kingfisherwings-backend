@@ -6,6 +6,7 @@ import { SeaFclImportService } from '../jobs/sea-fcl-import.service';
 import { JobsService } from '../jobs/jobs.service';
 import { AirImportService } from '../jobs/air-import.service';
 import { NotificationEmitterService } from '../notifications/notification-emitter.service';
+import { HrCronService } from '../hr/hr-cron.service';
 
 @Injectable()
 export class SchedulerService {
@@ -17,6 +18,8 @@ export class SchedulerService {
   private pdcMaturityRunning = false;
   private depositExpiryRunning = false;
   private importNoticeRunning = false;
+  private hrDocumentExpiryRunning = false;
+  private hrMissingTimesheetRunning = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -25,6 +28,7 @@ export class SchedulerService {
     private readonly jobsService: JobsService,
     private readonly airImport: AirImportService,
     private readonly notifications: NotificationEmitterService,
+    private readonly hrCron: HrCronService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
@@ -360,6 +364,76 @@ export class SchedulerService {
       }
     } finally {
       this.importNoticeRunning = false;
+    }
+  }
+
+  /** Week 16 — HR document / dependent visa expiry alerts (90/60/30/7 bands). */
+  @Cron('45 2 * * *')
+  async handleHrDocumentExpiry() {
+    if (this.hrDocumentExpiryRunning) {
+      this.logger.warn('HR document expiry cron skipped — previous run still in progress.');
+      return;
+    }
+
+    this.hrDocumentExpiryRunning = true;
+    this.logger.log('Starting daily HR document expiry cron.');
+
+    try {
+      const tenants = await this.listActiveTenantsOrSkip('HR document expiry');
+      if (!tenants) return;
+
+      let total = 0;
+      for (const tenant of tenants) {
+        try {
+          const notified = await this.hrCron.processDocumentExpiry(tenant.id);
+          total += notified;
+          if (notified > 0) {
+            this.logger.log(`Tenant ${tenant.name}: ${notified} HR document expiry alert(s).`);
+          }
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          this.logger.error(`HR document expiry cron failed for tenant ${tenant.id}: ${message}`);
+        }
+      }
+
+      this.logger.log(`HR document expiry cron complete — ${total} notification(s).`);
+    } finally {
+      this.hrDocumentExpiryRunning = false;
+    }
+  }
+
+  /** Week 16 — missing timesheets for previous working day. */
+  @Cron('0 8 * * *')
+  async handleHrMissingTimesheets() {
+    if (this.hrMissingTimesheetRunning) {
+      this.logger.warn('HR missing timesheet cron skipped — previous run still in progress.');
+      return;
+    }
+
+    this.hrMissingTimesheetRunning = true;
+    this.logger.log('Starting daily HR missing timesheet cron.');
+
+    try {
+      const tenants = await this.listActiveTenantsOrSkip('HR missing timesheets');
+      if (!tenants) return;
+
+      let total = 0;
+      for (const tenant of tenants) {
+        try {
+          const count = await this.hrCron.processMissingTimesheets(tenant.id);
+          total += count;
+          if (count > 0) {
+            this.logger.log(`Tenant ${tenant.name}: ${count} missing timesheet alert(s).`);
+          }
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          this.logger.error(`HR missing timesheet cron failed for tenant ${tenant.id}: ${message}`);
+        }
+      }
+
+      this.logger.log(`HR missing timesheet cron complete — ${total} employee(s) flagged.`);
+    } finally {
+      this.hrMissingTimesheetRunning = false;
     }
   }
 

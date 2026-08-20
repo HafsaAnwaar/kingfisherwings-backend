@@ -143,6 +143,23 @@ SuperAdmin
 | **Why** | Standard TOTP + backup codes without a hosted IdP. Enough for staff login hardening. |
 | **Deferred** | WebAuthn / hardware keys (Week 23 hardening if required). |
 
+#### Tenant Admin / SuperAdmin mandatory enforcement
+
+| Decision | Why |
+|----------|-----|
+| 2FA APIs **unlinked** until product completion | Implementation stays in-repo (`AuthTwoFactorController`, `AuthService` 2FA methods, `MandatoryAdminTwoFactorGuard`). Flip `AUTH_2FA_LINKED` in [`src/modules/auth/constants/auth-2fa.constants.ts`](../src/modules/auth/constants/auth-2fa.constants.ts) to re-register routes + login TOTP + the global guard. |
+| `ADMIN_2FA_REQUIRED` | Still the intended production switch **after** 2FA is re-linked. Currently unused because the guard is not registered. |
+| Allowed enrolment endpoints | When re-linked, the guard exempts `/auth/2fa/setup` and `/auth/2fa/enable`. |
+| Access failure mode (when linked) | HTTP `403` / `REQUIRES_2FA_SETUP` until 2FA is enabled. |
+
+**Deferred access flow (re-enable at go-live):**
+1. Login (`POST /auth/login` or `POST /auth/tenant-login` or `POST /auth/super-admin/login`).
+2. `POST /auth/2fa/setup` to generate the TOTP secret + QR.
+3. Scan QR, then `POST /auth/2fa/enable` with `{ code }`.
+4. Retry the ERP/admin API call that was blocked.
+
+**Current behaviour:** password login only; `/auth/2fa/*` is not mounted (404).
+
 ### 1.8 Helmet + Throttler + compression
 
 | | |
@@ -359,7 +376,8 @@ Portal finance and vendor finance call `InvoicesService` / `PaymentsService` / `
 | Embed permissions in access JWT | Avoid a DB hit for every permission check; session row still validated every request. |
 | Session `jti` in JWT | Immediate revoke on logout / password change. |
 | IP / MAC / office-hours / lockout / password history | Ch.3 security without an external IdP. |
-| TOTP optional per user | Freight ops need 2FA; not forced on every tenant on day one. |
+| TOTP optional per user | Implemented; **unlinked** until go-live (`AUTH_2FA_LINKED = false`). |
+| Mandatory admin 2FA when required | Guard + `/auth/2fa/*` stay in code; not registered. Re-link via `AUTH_2FA_LINKED`. |
 | Invite + accept-invite | Staff are provisioned; they do not self-signup into a tenant. |
 
 ### Week 2 — Users, parties, masters, organization
@@ -483,10 +501,14 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 
 | Topic | Status | Decision / question |
 |-------|--------|---------------------|
-| Employees are **not** `User` rows by default | **LOCKED** (proposed) | HR employee master can link to a `User` optionally. Payroll must not require a login. |
-| WPS / gratuity / leave | **OPEN** | UAE WPS file format and gratuity formula source of truth. |
-| HR letters via Puppeteer | **LOCKED** (proposed) | Same PDF stack. |
-| SuperAdmin vs Tenant Admin | **LOCKED** | SuperAdmin does not run payroll. Tenant Admin / HR Manager only. |
+| Employees are **not** `User` rows by default | **SHIPPED** | `HrEmployee` is payroll source of truth; optional `user_id` link. Codes minted via `DocumentNumberType.EMPLOYEE_CODE`. |
+| Leave types | **SHIPPED** | Enum: Annual, Sick, Unpaid, Maternity/Paternity, Emergency, Hajj. Entitlements per `staff_grade`. Business days exclude weekends (Fri–Sat in GCC) and `holidays`. |
+| Document expiry | **SHIPPED** | 10 types; cron bands 90/60/30/7 via `NotificationType.DOCUMENT_EXPIRY`. |
+| WPS / gratuity | **SHIPPED** | UAE SIF CSV from finalized run; company `wps_employer_mol_id`. Gratuity: 21 days/year first 5 years, 30 after, basic only, unpaid leave excluded. |
+| Payroll GL | **SHIPPED** | Idempotent JOURNAL via `GlAutoPostService.postPayrollRunToGl`; COA 6200 / 2300. |
+| Self-service | **SHIPPED** | `hr.view_self` read-only; HR/Manager writes. SuperAdmin cannot run payroll. |
+| HR letters | **SHIPPED** | 10 Puppeteer HTML templates via `PdfService.renderHtmlToPdf`. |
+| HR_MANAGER role | **SHIPPED** | Added to `ROLE_CATALOG`. Existing tenants: `POST /tenants/:id/sync-permissions`. |
 
 ### Week 17 — WMS (Ch.22)
 

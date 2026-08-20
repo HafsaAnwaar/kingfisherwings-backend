@@ -10,6 +10,7 @@ import { GL_PERMISSION_CONSTANTS } from '../../modules/gl/constants/gl-permissio
 import { PORTAL_PERMISSION_CONSTANTS } from '../../modules/portal/constants/portal-permission.constants';
 import { VENDOR_PERMISSION_CONSTANTS } from '../../modules/vendor/constants/vendor-permission.constants';
 import { CRM_PERMISSION_CONSTANTS } from '../../modules/crm/constants/crm-permission.constants';
+import { HR_PERMISSION_CONSTANTS } from '../../modules/hr/constants/hr-permission.constants';
 import { NOTIFICATIONS_PERMISSION_CONSTANTS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface PermissionCatalogEntry {
@@ -88,6 +89,11 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: CRM_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${CRM_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(HR_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: HR_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${HR_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
   ...Object.values(NOTIFICATIONS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
     module: NOTIFICATIONS_PERMISSION_CONSTANTS.MODULE,

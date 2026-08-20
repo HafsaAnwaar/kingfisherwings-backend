@@ -150,12 +150,12 @@ POST /auth/tenant-login { tenant_slug, password }
 ### 3.3 Staff
 
 ```
-POST /auth/login { tenant_slug, email, password, totp_code? }
+POST /auth/login { tenant_slug, email, password }
   → Tenant by slug (ACTIVE/TRIAL)
   → User by email
   → Argon2id verify
   → lockout / IP / MAC / office hours
-  → 2FA if enabled
+  → 2FA skipped while AUTH_2FA_LINKED is false
   → resolveRbac() → permissions[]
   → Session row (jti)
   → access + refresh JWT
@@ -500,14 +500,30 @@ Use these as the intended execution shape when those weeks start. Details still 
 
 *(Moved to §8 — shipped.)*
 
-### Week 16 — HR
+### Week 16 — HR (Ch.21) — shipped
+
+Staff ERP only (`JwtAuthGuard` + `hr.*` permissions). SuperAdmin tokens are rejected on `/hr/*`.
 
 ```
-/hr/employees, leave, payroll, letters
-  → Tenant Admin / HR Manager
-  → optional link employee → User
-  → expiry cron (reuse document-expiry notification pattern)
+POST /hr/employees
+  → NumberGenerator EMPLOYEE_CODE
+  → HrEmployee (optional user_id)
+
+POST /hr/leave-requests → PATCH .../approve
+  → business days (GCC Fri–Sat + Holiday)
+  → leave_balances
+
+POST /hr/payroll-runs → /generate → /finalize → /wps-export → /post-gl
+  → JOURNAL voucher (idempotent payroll_run_id)
+
+Daily crons (scheduler):
+  02:45 document expiry 90/60/30/7 → DOCUMENT_EXPIRY
+  08:00 missing timesheets → TIMESHEET_MISSING
 ```
+
+Key routes: `/hr/employees`, `/hr/leave-policies`, `/hr/leave-requests`, `/hr/leave-calendar`, `/hr/document-expiry/report`, `/hr/payroll-runs`, `/hr/loans`, `/hr/advances`, `/hr/timesheets`, `/hr/attendance/clock-in`, `/hr/evaluation-templates`, `/hr/letters/generate`.
+
+Existing tenants must run `POST /tenants/:id/sync-permissions` so `hr.*` and `HR_MANAGER` exist.
 
 ### Week 17 — WMS
 
@@ -571,6 +587,7 @@ Performance (cache, queue scale) → OWASP → integration tests (quote→GL, RL
 | Portal admin | `portal.manage_users`, `portal.manage_disputes`, … | Tenant Admin, CS, Branch, Sales (subset) |
 | Vendor admin | `vendor.manage_users`, `vendor.manage_permissions`, `vendor.manage_disputes` | Tenant Admin, Finance Manager |
 | CRM | `crm.view/create/update/delete` | Tenant Admin, Sales Manager, Sales Executive |
+| HR | `hr.view`, `hr.manage_employees`, `hr.manage_payroll`, `hr.view_self` | Tenant Admin, HR Manager; Finance payroll; Branch approve leave |
 | Notifications | `notifications.view` | Most staff |
 
 Executives: CRM services call `salespersonScope()` — if role is `SALES_EXECUTIVE`, force `assigned_salesperson_id` / `owner_id` = current user.

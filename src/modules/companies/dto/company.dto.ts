@@ -67,6 +67,18 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @ApiPropertyOptional({ description: 'UAE WPS employer MOL / EDR ID' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 30)
+  wps_employer_mol_id?: string;
+
+  @ApiPropertyOptional({ description: 'UAE WPS agent / bank routing code' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  wps_agent_routing_code?: string;
 }
 
 export class UpdateCompanyDto extends PartialType(CreateCompanyDto) {}

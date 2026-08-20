@@ -46,7 +46,7 @@ This report follows the **same chapter order and section numbering** as the Fres
 | 18 | Accounting — Invoicing & Credit Notes | ~65% | **Partial** — core invoices Yes; 25+ formats / e-invoice / debit note thin |
 | 19 | Accounting — AR, AP & Banking | ~20% | **Partial** — bank master + payment request; no AR/AP ledgers/recon/CCP/VPP |
 | 20 | Accounting — Financial Reports | ~10% | **Not started** (job P&L only) |
-| 21 | HR Module | ~0% | **Not started** |
+| 21 | HR Module | ~90% | **Done** (backend) — employee, leave, payroll/WPS, loans, timesheets, evals, letters |
 | 22 | Warehouse Management (WMS) | ~5% | **Warehouse master only** |
 | 23 | MIS Reports & Dashboards | ~15% | **Partial** — quote analytics; no management dashboard |
 | 24 | Customer & Vendor Portals | ~5% | **Flag only** (`portal_access`) |
@@ -59,9 +59,9 @@ This report follows the **same chapter order and section numbering** as the Fres
 
 | Band | Chapters | Est. backend % of full Fresa Gold surface |
 |------|----------|-------------------------------------------|
-| Strong | 3, 4, 7, 8, 10, 11 (+ parts of 5, 16, 18) | Core forwarding Phase-1 path |
+| Strong | 3, 4, 7, 8, 10, 11, 21 (+ parts of 5, 16, 18) | Core forwarding Phase-1 path + HR |
 | Thin / next | 2, 5, 9, 16 residual, 18–19, 23, 25, 27–28 | |
-| Missing | 6, 12–15, 17, 20–22, 24, 26 | |
+| Missing | 6, 12–15, 17, 20, 22, 24, 26 | |
 
 **Rough overall backend feature coverage vs full 28-chapter spec: ~38–42%.**  
 **Coverage of Phase-1 critical path (Auth → Masters → Quote → Air Export → Sea FCL Ex/Im → Ops Invoicing): ~80–85%.**
@@ -616,18 +616,16 @@ Create from job / standalone, approve/reject/mark-paid: **D**. Amount-bracket mu
 
 | Section | Status |
 |---------|--------|
-| 21.1 Employee Master | **N** |
-| 21.2 Document Expiry Alerts | **N** |
-| 21.3 Leave Management | **N** |
-| 21.4 Payroll (WPS, payslips, EOS gratuity) | **N** |
-| 21.5 Loans & Advances | **N** |
-| 21.6 Timesheet | **N** |
-| 21.7 Performance Evaluation | **N** |
-| 21.8 HR Documents & Letters | **N** |
+| 21.1 Employee Master | **S** |
+| 21.2 Document Expiry Alerts | **S** |
+| 21.3 Leave Management | **S** |
+| 21.4 Payroll (WPS, payslips, EOS gratuity) | **S** (backend; UI Phase 4) |
+| 21.5 Loans & Advances | **S** |
+| 21.6 Timesheet | **S** (manual attendance; biometric deferred) |
+| 21.7 Performance Evaluation | **S** |
+| 21.8 HR Documents & Letters | **S** |
 
-Designation master exists for org hierarchy (**P** for HR support data only).
-
-**Chapter 21 overall: ~0% — Not started.**
+**Chapter 21 overall: ~90% — Shipped (backend).** Self-service UI and biometric attendance remain out of scope.
 
 ---
 
