@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-# Prisma Migrate needs a direct Postgres session (pg_advisory_lock). Neon's *-pooler*
-# host cannot acquire it → P1002. Use DIRECT_URL, or derive by stripping "-pooler".
+# Prisma Migrate needs a direct Postgres session. Neon's *-pooler* host cannot run
+# pg_advisory_lock (P1002). Use DIRECT_URL or strip "-pooler" from DATABASE_URL.
 resolve_migrate_database_url() {
   if [ -n "$DIRECT_URL" ]; then
     printf '%s' "$DIRECT_URL"
@@ -19,8 +19,13 @@ resolve_migrate_database_url() {
 }
 
 sanitize_pg_url() {
-  # channel_binding=require is libpq-only and can break node/pg + Prisma CLI on Alpine.
-  printf '%s' "$1" | sed 's/[?&]channel_binding=[^&]*//g' | sed 's/?&/?/' | sed 's/[?&]$//'
+  url="$1"
+  url="$(printf '%s' "$url" | sed 's/[?&]channel_binding=[^&]*//g' | sed 's/?&/?/' | sed 's/[?&]$//')"
+  case "$url" in
+    *connect_timeout=*) printf '%s' "$url" ;;
+    *\?*) printf '%s' "${url}&connect_timeout=30" ;;
+    *) printf '%s' "${url}?connect_timeout=30" ;;
+  esac
 }
 
 run_migrate_deploy() {
@@ -30,20 +35,24 @@ run_migrate_deploy() {
   echo "[entrypoint] migrate target host: $(printf '%s' "$migrate_url" | sed -E 's|^[^@]+@([^/:?]+).*|\1|')"
 
   attempt=1
-  max_attempts="${PRISMA_MIGRATE_MAX_ATTEMPTS:-5}"
+  max_attempts="${PRISMA_MIGRATE_MAX_ATTEMPTS:-3}"
   while [ "$attempt" -le "$max_attempts" ]; do
     echo "[entrypoint] Running prisma migrate deploy (attempt ${attempt}/${max_attempts})..."
-    if DATABASE_URL="$migrate_url" npx prisma migrate deploy; then
+    # Render rolling deploys can run two entrypoints at once; advisory lock then times out.
+    # Safe on Render (WEB_CONCURRENCY=1): only one migrate should win via _prisma_migrations.
+    if DATABASE_URL="$migrate_url" PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy; then
       echo "[entrypoint] Migrations applied."
       return 0
     fi
     if [ "$attempt" -eq "$max_attempts" ]; then
       echo "[entrypoint] ERROR: prisma migrate deploy failed after ${max_attempts} attempts." >&2
-      echo "[entrypoint] Set DIRECT_URL on Render (Neon direct host, no -pooler) if this persists." >&2
+      echo "[entrypoint] Tip: run migrations once via Render Pre-Deploy Command:" >&2
+      echo "[entrypoint]   /bin/sh /app/docker/render-predeploy.sh" >&2
+      echo "[entrypoint] Or apply locally: DIRECT_URL=<neon-direct> npx prisma migrate deploy" >&2
       return 1
     fi
-    delay=$((attempt * 5))
-    echo "[entrypoint] Migrate failed — retrying in ${delay}s (Neon wake / advisory lock)..."
+    delay=$((attempt * 8))
+    echo "[entrypoint] Migrate failed — retrying in ${delay}s..."
     sleep "$delay"
     attempt=$((attempt + 1))
   done
