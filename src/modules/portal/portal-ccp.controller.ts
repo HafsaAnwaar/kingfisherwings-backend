@@ -17,7 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import 'multer';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { RolesGuard } from '../users/guards/roles.guard';
 import { PermissionsGuard } from '../users/guards/permissions.guard';
 import { RequirePermissions } from '../users/decorators/permissions.decorator';
@@ -66,7 +66,7 @@ function portalAttachmentInterceptor() {
 
 @ApiTags('Portal Messages')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/messages')
 export class PortalMessagesController {
@@ -125,7 +125,7 @@ export class PortalMessagesController {
 
 @ApiTags('Portal Disputes')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/disputes')
 export class PortalDisputesController {
@@ -169,7 +169,7 @@ export class PortalDisputesController {
 
 @ApiTags('Portal Credit Requests')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/credit/limit-requests')
 export class PortalCreditLimitRequestsController {

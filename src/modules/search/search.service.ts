@@ -71,11 +71,11 @@ export class SearchService {
           OR: [
             { job_number: { contains: term, mode: 'insensitive' } },
             { commodity: { contains: term, mode: 'insensitive' } },
-            { notes: { contains: term, mode: 'insensitive' } },
-            { customer_remarks: { contains: term, mode: 'insensitive' } },
             { hs_code: { contains: term, mode: 'insensitive' } },
             { air_details: { hawb_number: { contains: term, mode: 'insensitive' } } },
             { air_details: { mawb_number: { contains: term, mode: 'insensitive' } } },
+            { air_details: { hawb_number_from_origin_agent: { contains: term, mode: 'insensitive' } } },
+            { air_details: { mawb_number_from_origin: { contains: term, mode: 'insensitive' } } },
             { sea_fcl_details: { hbl_number: { contains: term, mode: 'insensitive' } } },
             { sea_fcl_details: { mbl_number: { contains: term, mode: 'insensitive' } } },
             { sea_fcl_details: { booking_number: { contains: term, mode: 'insensitive' } } },
@@ -159,7 +159,14 @@ export class SearchService {
           commodity: true,
           shipper_id: true,
           consignee_id: true,
-          air_details: { select: { hawb_number: true, mawb_number: true } },
+          air_details: {
+            select: {
+              hawb_number: true,
+              mawb_number: true,
+              hawb_number_from_origin_agent: true,
+              mawb_number_from_origin: true,
+            },
+          },
           sea_fcl_details: { select: { hbl_number: true, mbl_number: true, booking_number: true } },
         },
         take: limit,
@@ -188,6 +195,8 @@ export class SearchService {
         (j.shipper_id && partyNameById.get(j.shipper_id)) ||
         (j.consignee_id && partyNameById.get(j.consignee_id));
       const docRef =
+        j.air_details?.hawb_number_from_origin_agent ??
+        j.air_details?.mawb_number_from_origin ??
         j.air_details?.hawb_number ??
         j.air_details?.mawb_number ??
         j.sea_fcl_details?.hbl_number ??

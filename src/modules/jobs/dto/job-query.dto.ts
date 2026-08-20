@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { JobStatus, JobType } from '@prisma/client';
+import { PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT } from '../../../common/dto/pagination.dto';
 
 export class JobQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -11,12 +12,13 @@ export class JobQueryDto {
   @Min(1)
   page: number = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 200 })
+  @ApiPropertyOptional({ default: PAGINATION_DEFAULT_LIMIT, minimum: 1, maximum: PAGINATION_MAX_LIMIT })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
   @Min(1)
-  limit: number = 20;
+  @Max(PAGINATION_MAX_LIMIT)
+  limit: number = PAGINATION_DEFAULT_LIMIT;
 
   @ApiPropertyOptional({ description: 'Matches job_number, commodity.' })
   @IsOptional()

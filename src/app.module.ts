@@ -1,9 +1,12 @@
+import './load-env';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './shared/redis/redis.module';
+import { RedisThrottlerStorage } from './shared/redis/redis-throttler.storage';
 import { HealthModule } from './health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { CompaniesModule } from './modules/companies/companies.module';
@@ -39,13 +42,15 @@ import { LocaleModule } from './common/locale/locale.module';
       isGlobal: true,
       load: [redisConfig, smtpConfig, storageConfig],
     }),
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: 60_000,
-        limit: 120,
-      },
-    ]),
+    RedisModule,
+    ThrottlerModule.forRootAsync({
+      imports: [RedisModule, ConfigModule],
+      inject: [ConfigService, RedisThrottlerStorage],
+      useFactory: (config: ConfigService, storage: RedisThrottlerStorage) => ({
+        throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }],
+        ...(config.get<boolean>('redis.enabled') !== false ? { storage } : {}),
+      }),
+    }),
     LocaleModule,
     PrismaModule,
     HealthModule,

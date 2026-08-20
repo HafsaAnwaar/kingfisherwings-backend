@@ -7,18 +7,24 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from '../../prisma/prisma.module';
+import { RedisModule } from '../../shared/redis/redis.module';
 import { UsersModule } from '../users';
 import { EmailModule } from '../../shared/email/email.module';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthCronService } from './auth-cron.service';
+import { SessionCacheService } from './session-cache.service';
 
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { TenantStaffGuard } from './guards/tenant-staff.guard';
+import { MandatoryAdminTwoFactorGuard } from './guards/mandatory-admin-two-factor.guard';
 
 @Module({
   imports: [
     PrismaModule,
+    RedisModule,
     UsersModule,
     EmailModule,
     PassportModule,
@@ -38,17 +44,23 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
   providers: [
     AuthService,
+    AuthCronService,
+    SessionCacheService,
     JwtStrategy,
-
-    // Registers JwtAuthGuard globally — every route requires auth
-    // unless marked with @Public(). Health and the tenant-creation
-    // endpoint are explicitly marked @Public() for that reason.
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
+    {
+      provide: APP_GUARD,
+      useClass: TenantStaffGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: MandatoryAdminTwoFactorGuard,
+    },
   ],
 
-  exports: [AuthService],
+  exports: [AuthService, SessionCacheService],
 })
 export class AuthModule {}

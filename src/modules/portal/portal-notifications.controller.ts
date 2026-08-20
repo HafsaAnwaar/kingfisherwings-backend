@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiOperation, ApiPropertyOptional, ApiTags } from '@nest
 import { Transform } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 import { Observable, concat, defer, from, interval, map, switchMap } from 'rxjs';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { CurrentPortal } from './decorators/portal.decorators';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
 import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
@@ -42,7 +42,7 @@ class PortalNotificationQueryDto {
 
 @ApiTags('Portal Notifications')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/notifications')
 export class PortalNotificationsController {

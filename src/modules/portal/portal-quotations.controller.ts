@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { CurrentPortal } from './decorators/portal.decorators';
 import { PortalQuotationQueryDto, PortalQuotationRejectDto, PortalQuotationRequestDto } from './dto/portal-quotation.dto';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
@@ -15,7 +15,7 @@ import { PortalQuotationsService } from './portal-quotations.service';
  */
 @ApiTags('Portal Quotations')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/quotations')
 export class PortalQuotationsController {

@@ -18,4 +18,14 @@ export class TenantLoginDto {
   @IsOptional()
   @IsString()
   device_name?: string;
+
+  @ApiProperty({ required: false, description: 'TOTP code when two-factor authentication is enabled on the tenant admin account.' })
+  @IsOptional()
+  @IsString()
+  totp_code?: string;
+
+  @ApiProperty({ required: false, description: 'One-time backup code as alternative to TOTP.' })
+  @IsOptional()
+  @IsString()
+  backup_code?: string;
 }

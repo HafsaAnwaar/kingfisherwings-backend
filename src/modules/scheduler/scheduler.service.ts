@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService, isTransientDbError } from '../../prisma/prisma.service';
 import { QuotationsService } from '../quotations/quotations.service';
 import { SeaFclImportService } from '../jobs/sea-fcl-import.service';
 import { JobsService } from '../jobs/jobs.service';
+import { AirImportService } from '../jobs/air-import.service';
 import { NotificationEmitterService } from '../notifications/notification-emitter.service';
 
 @Injectable()
@@ -14,12 +15,15 @@ export class SchedulerService {
   private preAlertRunning = false;
   private invoiceOverdueRunning = false;
   private pdcMaturityRunning = false;
+  private depositExpiryRunning = false;
+  private importNoticeRunning = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly quotationsService: QuotationsService,
     private readonly seaFclImport: SeaFclImportService,
     private readonly jobsService: JobsService,
+    private readonly airImport: AirImportService,
     private readonly notifications: NotificationEmitterService,
   ) {}
 
@@ -34,10 +38,8 @@ export class SchedulerService {
     this.logger.log('Starting daily quotation expiry cron.');
 
     try {
-      const tenants = await this.prisma.tenant.findMany({
-        where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
-        select: { id: true, name: true },
-      });
+      const tenants = await this.listActiveTenantsOrSkip('quotation expiry');
+      if (!tenants) return;
 
       let totalExpired = 0;
 
@@ -74,10 +76,8 @@ export class SchedulerService {
     this.logger.log('Starting daily demurrage/detention recalculation cron.');
 
     try {
-      const tenants = await this.prisma.tenant.findMany({
-        where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
-        select: { id: true, name: true },
-      });
+      const tenants = await this.listActiveTenantsOrSkip('demurrage recalc');
+      if (!tenants) return;
 
       let total = 0;
       for (const tenant of tenants) {
@@ -111,10 +111,8 @@ export class SchedulerService {
     this.logger.log('Starting daily invoice overdue notification cron.');
 
     try {
-      const tenants = await this.prisma.tenant.findMany({
-        where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
-        select: { id: true, name: true },
-      });
+      const tenants = await this.listActiveTenantsOrSkip('invoice overdue');
+      if (!tenants) return;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -189,10 +187,8 @@ export class SchedulerService {
     this.logger.log('Starting daily PDC maturity notification cron.');
 
     try {
-      const tenants = await this.prisma.tenant.findMany({
-        where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
-        select: { id: true, name: true },
-      });
+      const tenants = await this.listActiveTenantsOrSkip('PDC maturity');
+      if (!tenants) return;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -271,10 +267,8 @@ export class SchedulerService {
     this.preAlertRunning = true;
 
     try {
-      const tenants = await this.prisma.tenant.findMany({
-        where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
-        select: { id: true, name: true },
-      });
+      const tenants = await this.listActiveTenantsOrSkip('scheduled pre-alerts');
+      if (!tenants) return;
 
       let total = 0;
       for (const tenant of tenants) {
@@ -295,6 +289,91 @@ export class SchedulerService {
       }
     } finally {
       this.preAlertRunning = false;
+    }
+  }
+
+  /** Week 15 — customs deposit expiry alerts (FCL + Air import, 90/60/30 bands). */
+  @Cron('30 2 * * *')
+  async handleDepositExpiryAlerts() {
+    if (this.depositExpiryRunning) {
+      this.logger.warn('Deposit expiry cron skipped — previous run still in progress.');
+      return;
+    }
+
+    this.depositExpiryRunning = true;
+    this.logger.log('Starting daily customs deposit expiry cron.');
+
+    try {
+      const tenants = await this.listActiveTenantsOrSkip('deposit expiry');
+      if (!tenants) return;
+
+      let total = 0;
+      for (const tenant of tenants) {
+        try {
+          const notified = await this.seaFclImport.processDepositExpiryAlerts(tenant.id);
+          total += notified;
+          if (notified > 0) {
+            this.logger.log(`Tenant ${tenant.name}: ${notified} deposit expiry alert(s).`);
+          }
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          this.logger.error(`Deposit expiry cron failed for tenant ${tenant.id}: ${message}`);
+        }
+      }
+
+      this.logger.log(`Deposit expiry cron complete — ${total} notification(s).`);
+    } finally {
+      this.depositExpiryRunning = false;
+    }
+  }
+
+  /** Week 15 — deliver scheduled CAN/DO import notice emails. */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async handleScheduledImportNotices() {
+    if (this.importNoticeRunning) {
+      this.logger.warn('Import notice cron skipped — previous run still in progress.');
+      return;
+    }
+
+    this.importNoticeRunning = true;
+
+    try {
+      const tenants = await this.listActiveTenantsOrSkip('scheduled import notices');
+      if (!tenants) return;
+
+      let total = 0;
+      for (const tenant of tenants) {
+        try {
+          const result = await this.airImport.processScheduledImportNotices(tenant.id);
+          total += result.sent;
+          if (result.sent > 0) {
+            this.logger.log(`Tenant ${tenant.name}: sent ${result.sent} scheduled import notice(s).`);
+          }
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          this.logger.error(`Scheduled import notice failed for tenant ${tenant.id}: ${message}`);
+        }
+      }
+
+      if (total > 0) {
+        this.logger.log(`Import notice scheduler complete — ${total} email(s) sent.`);
+      }
+    } finally {
+      this.importNoticeRunning = false;
+    }
+  }
+
+  private async listActiveTenantsOrSkip(jobName: string) {
+    try {
+      return await this.prisma.listActiveTenants();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (isTransientDbError(error)) {
+        this.logger.warn(`${jobName} skipped — database unreachable (${message}). Will retry next tick.`);
+        return null;
+      }
+      this.logger.error(`${jobName} failed listing tenants: ${message}`);
+      return null;
     }
   }
 }

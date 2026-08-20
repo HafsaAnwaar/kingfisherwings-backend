@@ -28,6 +28,7 @@ import { TenantQueryDto } from './dto/tenant-query.dto';
 
 import { SuperAdminGuard } from '../auth/guards/super-admin.guard';
 import { CurrentSuperAdminUser } from '../auth/decorators/current-super-admin.decorator';
+import { AllowSuperAdmin } from '../../common/decorators/allow-super-admin.decorator';
 
 /**
  * Platform-admin-only: every route here requires a SuperAdmin token
@@ -36,6 +37,7 @@ import { CurrentSuperAdminUser } from '../auth/decorators/current-super-admin.de
  */
 @ApiTags('Tenants (Super Admin)')
 @ApiBearerAuth()
+@AllowSuperAdmin()
 @UseGuards(SuperAdminGuard)
 @Controller('tenants')
 export class TenantsController {

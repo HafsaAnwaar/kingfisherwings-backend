@@ -406,6 +406,23 @@ export class CrmActivityService {
         }),
       );
       for (const item of due) {
+        const claimed = await this.prisma.runWithTenant(tenant.id, (tx) =>
+          tx.followUp.updateMany({
+            where: {
+              id: item.id,
+              tenant_id: tenant.id,
+              deleted_at: null,
+              status: 'PENDING',
+              reminder_sent_at: null,
+            },
+            data: { reminder_sent_at: new Date() },
+          }),
+        );
+
+        if (claimed.count === 0) {
+          continue;
+        }
+
         await this.notifications.notifyStaffUser(tenant.id, item.owner_id, {
           type: 'FOLLOW_UP_DUE',
           title: 'Follow-up due',
@@ -414,12 +431,6 @@ export class CrmActivityService {
           entity_id: item.id,
           link_path: `/crm/follow-ups/${item.id}`,
         });
-        await this.prisma.runWithTenant(tenant.id, (tx) =>
-          tx.followUp.update({
-            where: { id: item.id },
-            data: { reminder_sent_at: new Date() },
-          }),
-        );
         notified += 1;
       }
     }

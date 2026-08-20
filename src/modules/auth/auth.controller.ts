@@ -24,6 +24,7 @@ import {
 } from './dto/invite-2fa.dto';
 
 import { Public } from './decorators/public.decorator';
+import { AllowSuperAdmin } from '../../common/decorators/allow-super-admin.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 
 import { RolesGuard } from '../users/guards/roles.guard';
@@ -42,7 +43,7 @@ export class AuthController {
   // =====================================================
 
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Staff login: tenant slug + email + password' })
@@ -55,7 +56,7 @@ export class AuthController {
   // =====================================================
 
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
   @Post('tenant-login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Tenant admin login: tenant slug + the tenant's own password" })
@@ -81,7 +82,7 @@ export class AuthController {
   // =====================================================
 
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
   @Post('super-admin/login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Platform super admin login' })
@@ -107,6 +108,7 @@ export class AuthController {
   // =====================================================
 
   @ApiBearerAuth()
+  @AllowSuperAdmin()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Revoke the current session' })
@@ -119,6 +121,7 @@ export class AuthController {
   // =====================================================
 
   @ApiBearerAuth()
+  @AllowSuperAdmin()
   @Get('sessions')
   @ApiOperation({ summary: "List the authenticated user's own active sessions" })
   listSessions(@CurrentUser('id') userId: string) {
@@ -126,6 +129,7 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @AllowSuperAdmin()
   @Post('sessions/:sessionId/revoke')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Revoke one of the authenticated user's own sessions" })
@@ -134,6 +138,7 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @AllowSuperAdmin()
   @Post('logout-all')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Log out of every device (revokes all active sessions)' })
@@ -146,6 +151,7 @@ export class AuthController {
   // =====================================================
 
   @ApiBearerAuth()
+  @AllowSuperAdmin()
   @Get('me')
   @ApiOperation({ summary: 'Get the authenticated principal (user, tenant owner, or super admin)' })
   me(@Req() req: RequestWithUser) {
@@ -153,6 +159,7 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @AllowSuperAdmin()
   @Patch('me')
   @ApiOperation({
     summary: 'Update own profile after login (preferred country, phone, locale)',

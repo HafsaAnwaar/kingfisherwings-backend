@@ -39,7 +39,7 @@ export class MisService {
         quotesWon,
         quotesTotal,
         pdcDue,
-        periodJobs,
+        periodJobTotals,
         recentJobs,
       ] = await Promise.all([
         tx.job.count({
@@ -61,7 +61,7 @@ export class MisService {
           },
           _count: { _all: true },
         }),
-        tx.invoice.findMany({
+        tx.invoice.aggregate({
           where: {
             tenant_id: tenantId,
             deleted_at: null,
@@ -71,7 +71,8 @@ export class MisService {
             due_date: { lt: to },
             ...companyFilter,
           },
-          select: { balance_due: true },
+          _sum: { balance_due: true },
+          _count: { _all: true },
         }),
         tx.quotation.count({
           where: {
@@ -107,7 +108,7 @@ export class MisService {
             due_date: { lte: addDays(to, 30) },
           },
         }),
-        tx.job.findMany({
+        tx.job.aggregate({
           where: {
             tenant_id: tenantId,
             deleted_at: null,
@@ -115,11 +116,8 @@ export class MisService {
             ...companyFilter,
             ...branchFilter,
           },
-          select: {
-            revenue_total: true,
-            cost_total: true,
-            gp_amount: true,
-          },
+          _sum: { revenue_total: true, cost_total: true, gp_amount: true },
+          _count: { _all: true },
         }),
         tx.job.findMany({
           where: {
@@ -140,10 +138,10 @@ export class MisService {
         }),
       ]);
 
-      const sales = periodJobs.reduce((s, j) => s + Number(j.revenue_total), 0);
-      const cost = periodJobs.reduce((s, j) => s + Number(j.cost_total), 0);
-      const gp = periodJobs.reduce((s, j) => s + Number(j.gp_amount), 0);
-      const overdueAmount = overdueInvoices.reduce((s, i) => s + Number(i.balance_due), 0);
+      const sales = Number(periodJobTotals._sum.revenue_total ?? 0);
+      const cost = Number(periodJobTotals._sum.cost_total ?? 0);
+      const gp = Number(periodJobTotals._sum.gp_amount ?? 0);
+      const overdueAmount = Number(overdueInvoices._sum.balance_due ?? 0);
       const conversionRate = quotesTotal > 0 ? (quotesWon / quotesTotal) * 100 : 0;
 
       const bankAccounts = await tx.chartOfAccount.findMany({
@@ -189,7 +187,7 @@ export class MisService {
             count: j._count._all,
           })),
           overdue_ar: {
-            count: overdueInvoices.length,
+            count: overdueInvoices._count._all,
             amount: round2(overdueAmount),
           },
           quotations_open: quotesOpen,

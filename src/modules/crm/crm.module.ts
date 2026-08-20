@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { EmailModule } from '../../shared/email/email.module';
+import { QueueModule } from '../../shared/queue/queue.module';
 import { PartiesModule } from '../parties/parties.module';
 import { QuotationsModule } from '../quotations/quotations.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -24,6 +25,7 @@ import { CrmLeadsService } from './crm-leads.service';
     ScheduleModule,
     PrismaModule,
     EmailModule,
+    QueueModule,
     PartiesModule,
     QuotationsModule,
     NotificationsModule,

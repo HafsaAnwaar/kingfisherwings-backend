@@ -10,6 +10,7 @@ import { Prisma, Quotation, QuotationStatus, JobType, QuotationPdfMode } from '@
 import { PrismaService } from '../../prisma/prisma.service';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
 import { TariffsService } from './tariffs/tariffs.service';
+import { seedJobTypeExtras } from '../jobs/utils/job-type-seed.util';
 
 import { CreateQuotationDto, UpdateQuotationDto } from './dto/quotation.dto';
 import { CreateQuotationLineDto, UpdateQuotationLineDto } from './dto/quotation-line.dto';
@@ -1371,7 +1372,9 @@ export class QuotationsService {
         });
       }
 
-      // Re-fetch inside this transaction — the quotation object from
+      await seedJobTypeExtras(tx, tenantId, job.id, quotation.job_type, actorId);
+
+      // Re-fetch inside this transaction
       // Phase 1 came from a different (already-closed) transaction, and
       // Prisma requires status_history's FK write to target a row
       // visible in *this* one (it is — same committed row — but we

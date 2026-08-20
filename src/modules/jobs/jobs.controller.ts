@@ -60,6 +60,13 @@ import { RequirePermissions } from '../users/decorators/permissions.decorator';
 import { CurrentUser } from '../users/decorators/current-user.decorator';
 import { JOBS_PERMISSIONS } from './constants/jobs-permission.constants';
 import { SeaFclImportService } from './sea-fcl-import.service';
+import { AirImportService } from './air-import.service';
+import {
+  AirStorageCalculationQueryDto,
+  CreateCustomsExaminationDto,
+  LinkAirTranshipmentDto,
+  SendImportNoticeDto,
+} from './dto/air-import.dto';
 
 @ApiTags('Jobs')
 @ApiBearerAuth()
@@ -69,6 +76,7 @@ export class JobsController {
   constructor(
     private readonly service: JobsService,
     private readonly seaFclImport: SeaFclImportService,
+    private readonly airImport: AirImportService,
   ) {}
 
   @Get()
@@ -235,7 +243,7 @@ export class JobsController {
 
   @Patch(':id/air-details')
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: 'Update Air Export-specific booking fields (airline, HAWB/MAWB, flight, AWB type, freight type)' })
+  @ApiOperation({ summary: 'Update Air Export / Air Import booking fields' })
   updateAirDetails(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('id') actorId: string,
@@ -1282,5 +1290,84 @@ export class JobsController {
     @Body() dto: GenerateJobDocumentDto,
   ) {
     return this.service.generateDocument(tenantId, id, 'PROOF_OF_DELIVERY', dto, actorId);
+  }
+
+  // ── Week 15 — Air Import (Ch.9) ───────────────────────────────────────────
+
+  @Get(':id/customs-examinations')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List customs examination records (AIR_IMPORT)' })
+  listCustomsExaminations(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.airImport.listCustomsExaminations(tenantId, id);
+  }
+
+  @Post(':id/customs-examinations')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record a customs examination (AIR_IMPORT)' })
+  createCustomsExamination(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateCustomsExaminationDto,
+  ) {
+    return this.airImport.createCustomsExamination(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/storage-calculation')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Calculate air import storage charges (AIR_IMPORT)' })
+  calculateAirStorage(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: AirStorageCalculationQueryDto,
+  ) {
+    return this.airImport.calculateStorage(tenantId, id, query);
+  }
+
+  @Post(':id/storage-invoice')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Create DRAFT storage invoice from air import calculator (AIR_IMPORT)' })
+  createAirStorageInvoice(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.airImport.createStorageInvoice(tenantId, id, actorId);
+  }
+
+  @Post(':id/air-transhipment-link')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Link AIR_IMPORT job to outbound AIR_EXPORT or SEA_FCL_EXPORT job' })
+  linkAirTranshipment(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LinkAirTranshipmentDto,
+  ) {
+    return this.airImport.linkTranshipment(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/import-notices/can/send')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Email CAN PDF to consignee (AIR_IMPORT)' })
+  sendCanNotice(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SendImportNoticeDto,
+  ) {
+    return this.airImport.sendImportNotice(tenantId, id, 'CAN', dto, actorId);
+  }
+
+  @Post(':id/import-notices/do/send')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Email Delivery Order PDF to consignee (AIR_IMPORT)' })
+  sendDoNotice(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SendImportNoticeDto,
+  ) {
+    return this.airImport.sendImportNotice(tenantId, id, 'DELIVERY_ORDER', dto, actorId);
   }
 }

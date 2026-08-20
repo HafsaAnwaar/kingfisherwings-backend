@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   Min,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
@@ -25,6 +26,7 @@ export class QueryUserDto {
   @Transform(({ value }) => Number(value))
   @IsInt()
   @Min(1)
+  @Max(USERS_CONSTANTS.MAX_LIMIT)
   limit: number = USERS_CONSTANTS.DEFAULT_LIMIT;
 
   @ApiPropertyOptional({ description: 'Matches first name, last name, email, or phone.' })

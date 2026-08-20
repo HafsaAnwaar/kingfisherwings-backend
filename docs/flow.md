@@ -474,19 +474,31 @@ Portals never call voucher or bank-recon endpoints.
 
 ---
 
-## 8. Future week flows (planned, not built)
+## 8. Week 15 — Air Import (Ch.9) — implemented
+
+```
+POST /jobs job_type=AIR_IMPORT
+  → air_job_details row + 16 milestones (BOOKING_CREATED auto)
+PATCH /jobs/:id/air-details          (AIR_EXPORT | AIR_IMPORT)
+Shared import ops (FCL + Air): deposits, part-delivery, POD, damage, customs-status
+GET/POST /jobs/:id/customs-examinations   (AIR_IMPORT only)
+GET /jobs/:id/storage-calculation
+POST /jobs/:id/storage-invoice       → DRAFT CUSTOMER_INVOICE (no auto-post)
+POST /jobs/:id/air-transhipment-link → AIR_EXPORT | SEA_FCL_EXPORT
+POST /jobs/:id/import-notices/can/send | /do/send  (+ scheduled_at via EmailLog cron)
+Document allowlist per job_type; CAN/DO queue marks CAN_SENT / DO_ISSUED milestones
+Daily cron: customs deposit expiry bands 90/60/30 (CUSTOMS_DEPOSIT_EXPIRING)
+```
+
+---
+
+## 9. Future week flows (planned, not built)
 
 Use these as the intended execution shape when those weeks start. Details still **OPEN** are in [decision.md](./decision.md) §4.
 
 ### Week 15 — Air Import
 
-```
-POST /jobs job_type=AIR_IMPORT
-  → air import details, 16 milestones, customs deposit
-  → documents: pre-CAN, CAN, DO, POD, manifests
-  → storage invoice via InvoicesService (DRAFT)
-  → same portal visibility rules if billing/shipper/consignee match
-```
+*(Moved to §8 — shipped.)*
 
 ### Week 16 — HR
 

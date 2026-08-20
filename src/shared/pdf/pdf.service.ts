@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import * as Handlebars from 'handlebars';
 import * as fs from 'fs';
 import puppeteer, { type Browser, type PuppeteerLaunchOptions } from 'puppeteer';
@@ -47,6 +47,14 @@ export interface JobDocumentPdfData {
   origin?: string;
   destination?: string;
   is_original?: boolean;
+  /** Air import (Ch.9) — origin agent references and delivery */
+  origin_hawb_number?: string;
+  origin_mawb_number?: string;
+  arrival_flight_number?: string;
+  actual_eta?: string;
+  notify_party_name?: string;
+  delivery_address?: string;
+  final_destination?: string;
 }
 
 export interface SeaFclDocumentPdfData {
@@ -156,8 +164,27 @@ export interface InvoicePdfData {
 }
 
 @Injectable()
-export class PdfService {
+export class PdfService implements OnModuleDestroy {
   private readonly logger = new Logger(PdfService.name);
+  private browserPromise: Promise<Browser> | null = null;
+
+  async onModuleDestroy() {
+    if (this.browserPromise) {
+      const browser = await this.browserPromise.catch(() => null);
+      await browser?.close().catch(() => undefined);
+      this.browserPromise = null;
+    }
+  }
+
+  private async getBrowser(): Promise<Browser> {
+    if (!this.browserPromise) {
+      this.browserPromise = puppeteer.launch(this.buildLaunchOptions()).catch((err) => {
+        this.browserPromise = null;
+        throw err;
+      });
+    }
+    return this.browserPromise;
+  }
 
   async generateQuotationPdf(data: QuotationPdfData, mode: QuotationPdfMode): Promise<Buffer> {
     const showCosts = mode === 'INTERNAL';
@@ -237,10 +264,10 @@ export class PdfService {
   }
 
   private async htmlToPdf(html: string): Promise<Buffer> {
-    let browser: Browser | undefined;
+    let page;
     try {
-      browser = await puppeteer.launch(this.buildLaunchOptions());
-      const page = await browser.newPage();
+      const browser = await this.getBrowser();
+      page = await browser.newPage();
       await page.setContent(html, {
         waitUntil: 'domcontentloaded',
         timeout: Number(process.env.PUPPETEER_TIMEOUT ?? 30_000),
@@ -254,14 +281,17 @@ export class PdfService {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`PDF generation failed: ${message}`);
+      if (this.browserPromise) {
+        const browser = await this.browserPromise.catch(() => null);
+        await browser?.close().catch(() => undefined);
+        this.browserPromise = null;
+      }
       throw new ServiceUnavailableException(
         `PDF generation is unavailable. ${message}. ` +
           'Set PUPPETEER_EXECUTABLE_PATH to a Chromium binary (see docs/PDF_SETUP_GUIDE.md).',
       );
     } finally {
-      if (browser) {
-        await browser.close().catch(() => undefined);
-      }
+      await page?.close().catch(() => undefined);
     }
   }
 
@@ -382,7 +412,13 @@ const JOB_DOCUMENT_TEMPLATE = `
     <tr><td class="label">Chg Wt</td><td>{{chargeable_weight}}</td></tr>
     <tr><td class="label">HAWB</td><td>{{hawb_number}}</td></tr>
     <tr><td class="label">MAWB</td><td>{{mawb_number}}</td></tr>
-    <tr><td class="label">Flight</td><td>{{flight_number}}</td></tr>
+    {{#if origin_hawb_number}}<tr><td class="label">Origin HAWB</td><td>{{origin_hawb_number}}</td></tr>{{/if}}
+    {{#if origin_mawb_number}}<tr><td class="label">Origin MAWB</td><td>{{origin_mawb_number}}</td></tr>{{/if}}
+    <tr><td class="label">Flight</td><td>{{flight_number}}{{#if arrival_flight_number}} / Arrival {{arrival_flight_number}}{{/if}}</td></tr>
+    {{#if actual_eta}}<tr><td class="label">Actual ETA</td><td>{{actual_eta}}</td></tr>{{/if}}
+    {{#if notify_party_name}}<tr><td class="label">Notify</td><td>{{notify_party_name}}</td></tr>{{/if}}
+    {{#if delivery_address}}<tr><td class="label">Delivery Address</td><td>{{delivery_address}}</td></tr>{{/if}}
+    {{#if final_destination}}<tr><td class="label">Final Destination</td><td>{{final_destination}}</td></tr>{{/if}}
     <tr><td class="label">Airline</td><td>{{airline_name}}</td></tr>
   </table>
 </body>

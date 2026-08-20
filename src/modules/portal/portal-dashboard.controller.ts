@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Public } from '../../common/decorators/public.decorators';
+import { SkipStaffJwt } from '../../common/decorators/skip-staff-jwt.decorator';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CurrentPortal } from './decorators/portal.decorators';
 import { PortalAuthGuard } from './guards/portal-auth.guard';
@@ -12,7 +12,7 @@ import { PortalShipmentsService } from './portal-shipments.service';
 
 @ApiTags('Portal Dashboard')
 @ApiBearerAuth()
-@Public()
+@SkipStaffJwt()
 @UseGuards(PortalAuthGuard)
 @Controller('portal/dashboard')
 export class PortalDashboardController {

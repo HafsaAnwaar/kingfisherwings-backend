@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Invoice, InvoiceLine, InvoiceStatus, InvoiceType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { lockInvoiceRow } from '../../common/utils/row-lock.util';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
 import { PdfService } from '../../shared/pdf/pdf.service';
 import { StorageService } from '../../shared/storage/storage.service';
@@ -245,6 +246,96 @@ export class InvoicesService {
 
       return this.recalculateAndReturn(tx, tenantId, invoice.id);
     });
+  }
+
+  /** Air import storage — single charge DRAFT invoice (must run inside caller transaction). */
+  async createStorageDraftFromJobCharge(
+    tenantId: string,
+    jobId: string,
+    jobChargeId: string,
+    partyId: string,
+    actorId: string | undefined,
+    tx: Prisma.TransactionClient,
+  ) {
+    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
+    if (!job) throw new NotFoundException('Job not found.');
+
+    const charge = await tx.jobCharge.findFirst({
+      where: {
+        id: jobChargeId,
+        job_id: jobId,
+        tenant_id: tenantId,
+        deleted_at: null,
+        is_invoiced: false,
+        is_billable: true,
+        is_cost: false,
+      },
+    });
+    if (!charge) throw new NotFoundException('Storage charge not found or already invoiced.');
+
+    const invoiceNumber = await this.numberGenerator.generate(tenantId, 'INVOICE');
+    const defaultTax = await tx.taxRate.findFirst({
+      where: { tenant_id: tenantId, deleted_at: null, is_active: true, is_default: true },
+      orderBy: { effective_from: 'desc' },
+    });
+    const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
+
+    const chargeAmount = Number(charge.amount);
+    const chargeTax = Number(charge.tax_amount);
+    const lineTaxRate =
+      chargeAmount > 0 && chargeTax > 0
+        ? Math.round((chargeTax / chargeAmount) * 10000) / 100
+        : chargeTax > 0
+          ? defaultVatRate
+          : 0;
+
+    const invoice = await tx.invoice.create({
+      data: {
+        tenant_id: tenantId,
+        company_id: job.company_id,
+        invoice_number: invoiceNumber,
+        invoice_type: 'CUSTOMER_INVOICE',
+        status: 'DRAFT',
+        job_id: jobId,
+        party_id: partyId,
+        branch_id: job.branch_id,
+        department_id: job.department_id,
+        currency_code: charge.currency_code,
+        exchange_rate: charge.exchange_rate,
+        vat_rate: defaultVatRate,
+        remarks: 'Air import storage charges',
+        created_by: actorId,
+        updated_by: actorId,
+      },
+    });
+
+    await tx.invoiceLine.create({
+      data: {
+        tenant_id: tenantId,
+        invoice_id: invoice.id,
+        job_id: jobId,
+        job_charge_id: charge.id,
+        charge_code_id: charge.charge_code_id,
+        description: charge.description,
+        quantity: charge.quantity,
+        unit_price: charge.unit_price,
+        amount: charge.amount,
+        tax_rate_id: charge.tax_rate_id,
+        tax_rate: lineTaxRate,
+        tax_amount: charge.tax_amount,
+        is_taxable: chargeTax > 0,
+        sort_order: 0,
+        created_by: actorId,
+        updated_by: actorId,
+      },
+    });
+
+    await tx.jobCharge.update({
+      where: { id: charge.id },
+      data: { is_invoiced: true, updated_by: actorId },
+    });
+
+    return this.recalculateAndReturn(tx, tenantId, invoice.id);
   }
 
   async createCreditNote(tenantId: string, dto: CreateCreditNoteDto, actorId?: string) {
@@ -514,6 +605,11 @@ export class InvoicesService {
     }
 
     const posted = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const locked = await lockInvoiceRow(tx, tenantId, id);
+      if (!locked || locked.status !== 'DRAFT') {
+        throw new BadRequestException('Only draft invoices can be posted.');
+      }
+
       const updated = await tx.invoice.update({
         where: { id },
         data: {
@@ -526,18 +622,11 @@ export class InvoicesService {
         include: { lines: { where: { deleted_at: null } }, party: true },
       });
 
-      // Credit note reduces original AR; debit note increases it.
       if (
         invoice.credited_invoice_id &&
         (invoice.invoice_type === 'CREDIT_NOTE' || invoice.invoice_type === 'DEBIT_NOTE')
       ) {
-        const original = await tx.invoice.findFirst({
-          where: {
-            id: invoice.credited_invoice_id,
-            tenant_id: tenantId,
-            deleted_at: null,
-          },
-        });
+        const original = await lockInvoiceRow(tx, tenantId, invoice.credited_invoice_id);
         if (original) {
           const delta = Number(invoice.total_amount);
           if (invoice.invoice_type === 'CREDIT_NOTE' && delta > Number(original.balance_due) + 0.005) {
@@ -549,15 +638,19 @@ export class InvoicesService {
           const nextBalance = Math.max(0, Number(original.balance_due) + signed);
           const amountPaid = Number(original.amount_paid);
           const total = Number(original.total_amount);
-          let status = original.status;
+          let status = original.status as InvoiceStatus;
           if (['POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'].includes(original.status)) {
             if (nextBalance <= 0 && amountPaid >= total) {
-              status = 'PAID';
+              status = InvoiceStatus.PAID;
             } else if (nextBalance <= 0) {
-              // Fully credited — treat as paid/settled for AR aging
-              status = 'PAID';
+              status = InvoiceStatus.PAID;
             } else if (amountPaid > 0 || invoice.invoice_type === 'CREDIT_NOTE') {
-              status = nextBalance < total ? 'PARTIALLY_PAID' : original.status === 'PAID' ? 'PARTIALLY_PAID' : original.status;
+              status =
+                nextBalance < total
+                  ? InvoiceStatus.PARTIALLY_PAID
+                  : original.status === 'PAID'
+                    ? InvoiceStatus.PARTIALLY_PAID
+                    : (original.status as InvoiceStatus);
             }
           }
           await tx.invoice.update({

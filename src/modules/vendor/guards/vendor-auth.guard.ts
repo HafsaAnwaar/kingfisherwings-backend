@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { resolveVendorAccessSecret } from '../../../common/utils/jwt-secrets.util';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CurrentVendorUser, VendorJwtPayload } from '../interfaces/vendor-auth.interfaces';
@@ -97,12 +98,6 @@ export class VendorAuthGuard implements CanActivate {
   }
 
   private vendorAccessSecret(): string {
-    const secret =
-      this.config.get<string>('VENDOR_JWT_ACCESS_SECRET') ??
-      this.config.get<string>('JWT_ACCESS_SECRET');
-    if (!secret) {
-      throw new Error('VENDOR_JWT_ACCESS_SECRET or JWT_ACCESS_SECRET must be configured.');
-    }
-    return secret;
+    return resolveVendorAccessSecret(this.config);
   }
 }

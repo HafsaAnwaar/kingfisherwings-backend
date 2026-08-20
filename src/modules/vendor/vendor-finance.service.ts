@@ -116,7 +116,11 @@ export class VendorFinanceService {
 
   async downloadInvoicePdf(user: CurrentVendorUser, id: string, res: Response) {
     const invoice = await this.invoices.findOne(user.tenantId, id);
-    if (invoice.party_id !== user.partyId || !invoice.pdf_url) {
+    if (
+      invoice.party_id !== user.partyId ||
+      invoice.invoice_type !== InvoiceType.PURCHASE_INVOICE ||
+      !invoice.pdf_url
+    ) {
       throw new NotFoundException('Invoice PDF not available.');
     }
     const file = await this.storage.readByStoredFile(user.tenantId, {
