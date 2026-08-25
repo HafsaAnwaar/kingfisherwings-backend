@@ -338,6 +338,63 @@ export class InvoicesService {
     return this.recalculateAndReturn(tx, tenantId, invoice.id);
   }
 
+  /** WMS storage — DRAFT customer invoice created inside the caller's transaction. */
+  async createWmsStorageDraft(
+    tenantId: string,
+    params: {
+      partyId: string;
+      companyId?: string | null;
+      currencyCode: string;
+      remarks?: string;
+      lines: Array<{ description: string; quantity: number; unitPrice: number; amount: number }>;
+      actorId?: string;
+    },
+    tx: Prisma.TransactionClient,
+  ) {
+    if (!params.lines.length) throw new BadRequestException('Storage invoice requires at least one line.');
+    const invoiceNumber = await this.numberGenerator.generate(tenantId, 'INVOICE');
+    const defaultTax = await tx.taxRate.findFirst({
+      where: { tenant_id: tenantId, deleted_at: null, is_active: true, is_default: true },
+      orderBy: { effective_from: 'desc' },
+    });
+    const taxRate = defaultTax ? Number(defaultTax.rate) : 5;
+    const invoice = await tx.invoice.create({
+      data: {
+        tenant_id: tenantId,
+        company_id: params.companyId,
+        invoice_number: invoiceNumber,
+        invoice_type: 'CUSTOMER_INVOICE',
+        status: 'DRAFT',
+        party_id: params.partyId,
+        currency_code: params.currencyCode.toUpperCase(),
+        exchange_rate: 1,
+        vat_rate: taxRate,
+        remarks: params.remarks,
+        created_by: params.actorId,
+        updated_by: params.actorId,
+      },
+    });
+
+    await tx.invoiceLine.createMany({
+      data: params.lines.map((line, index) => ({
+        tenant_id: tenantId,
+        invoice_id: invoice.id,
+        description: line.description,
+        quantity: line.quantity,
+        unit_price: line.unitPrice,
+        amount: line.amount,
+        tax_rate_id: defaultTax?.id,
+        tax_rate: taxRate,
+        tax_amount: Math.round(line.amount * taxRate * 100) / 10000,
+        is_taxable: taxRate > 0,
+        sort_order: index,
+        created_by: params.actorId,
+        updated_by: params.actorId,
+      })),
+    });
+    return this.recalculateAndReturn(tx, tenantId, invoice.id);
+  }
+
   async createCreditNote(tenantId: string, dto: CreateCreditNoteDto, actorId?: string) {
     const original = await this.findOne(tenantId, dto.credited_invoice_id);
 

@@ -11,6 +11,7 @@ import { PORTAL_PERMISSIONS } from '../../modules/portal/constants/portal-permis
 import { VENDOR_PERMISSIONS } from '../../modules/vendor/constants/vendor-permission.constants';
 import { CRM_PERMISSIONS } from '../../modules/crm/constants/crm-permission.constants';
 import { HR_PERMISSIONS } from '../../modules/hr/constants/hr-permission.constants';
+import { WMS_PERMISSIONS } from '../../modules/wms/constants/wms-permission.constants';
 import { NOTIFICATIONS_PERMISSIONS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface RoleCatalogEntry {
@@ -51,6 +52,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(VENDOR_PERMISSIONS),
       ...Object.values(CRM_PERMISSIONS),
       ...Object.values(HR_PERMISSIONS),
+      ...Object.values(WMS_PERMISSIONS),
       ...Object.values(NOTIFICATIONS_PERMISSIONS),
     ],
   },
@@ -89,6 +91,12 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       NOTIFICATIONS_PERMISSIONS.VIEW,
       HR_PERMISSIONS.VIEW,
       HR_PERMISSIONS.APPROVE_LEAVE,
+      WMS_PERMISSIONS.VIEW,
+      WMS_PERMISSIONS.VIEW_REPORTS,
+      WMS_PERMISSIONS.MANAGE_GRN,
+      WMS_PERMISSIONS.MANAGE_GDO,
+      WMS_PERMISSIONS.MANAGE_STOCK,
+      WMS_PERMISSIONS.MANAGE_TRANSFERS,
     ],
   },
   {
@@ -119,6 +127,14 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       AWB_STOCK_PERMISSIONS.VOID,
       SEARCH_PERMISSIONS.VIEW,
       NOTIFICATIONS_PERMISSIONS.VIEW,
+      WMS_PERMISSIONS.VIEW,
+      WMS_PERMISSIONS.VIEW_REPORTS,
+      WMS_PERMISSIONS.MANAGE_ASN,
+      WMS_PERMISSIONS.MANAGE_GRN,
+      WMS_PERMISSIONS.MANAGE_GDO,
+      WMS_PERMISSIONS.MANAGE_STOCK,
+      WMS_PERMISSIONS.MANAGE_TRANSFERS,
+      WMS_PERMISSIONS.MANAGE_STORAGE,
     ],
   },
   {
@@ -189,6 +205,9 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(GL_PERMISSIONS),
       HR_PERMISSIONS.VIEW,
       HR_PERMISSIONS.MANAGE_PAYROLL,
+      WMS_PERMISSIONS.VIEW,
+      WMS_PERMISSIONS.MANAGE_STORAGE,
+      WMS_PERMISSIONS.VIEW_REPORTS,
       JOBS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.VIEW_GP,
       SEARCH_PERMISSIONS.VIEW,
@@ -248,6 +267,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       JOBS_PERMISSIONS.UPDATE,
       JOBS_PERMISSIONS.CLOSE,
       NOTIFICATIONS_PERMISSIONS.VIEW,
+      ...Object.values(WMS_PERMISSIONS),
     ],
   },
   {

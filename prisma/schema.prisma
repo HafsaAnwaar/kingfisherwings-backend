@@ -631,6 +631,7 @@ enum DocumentNumberType {
   BOOKING
   GRN
   GDO
+  ASN
   PURCHASE_INVOICE
   PAYMENT
   EMPLOYEE_CODE
@@ -1597,9 +1598,355 @@ model Warehouse {
   updated_by   String?   @db.Uuid
   deleted_at   DateTime? @db.Timestamptz
 
+  asns              WmsAsn[]
+  grns              WmsGrn[]
+  gdos              WmsGdo[]
+  lots              WmsStockLot[]
+  movements         WmsStockMovement[]
+  transfers_from    WmsStockTransfer[] @relation("WmsTransferFrom")
+  transfers_to      WmsStockTransfer[] @relation("WmsTransferTo")
+  storage_charges   WmsStorageCharge[]
+
   @@unique([tenant_id, code])
   @@index([tenant_id])
   @@map("warehouses")
+}
+
+// ─── WEEK 17 WMS (Ch.22) ─────────────────────────────────────
+
+enum WmsValuationMethod {
+  FIFO
+  LIFO
+}
+
+enum WmsDocumentStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum WmsAsnStatus {
+  DRAFT
+  CONFIRMED
+  RECEIVED
+  CANCELLED
+}
+
+enum WmsMovementType {
+  GRN_IN
+  GDO_OUT
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT
+}
+
+enum WmsStorageChargeStatus {
+  OPEN
+  INVOICED
+  WAIVED
+}
+
+model WmsSettings {
+  id                 String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String             @unique @db.Uuid
+  valuation_method   WmsValuationMethod @default(FIFO)
+  default_free_days  Int                @default(7)
+  default_storage_rate Decimal          @default(0) @db.Decimal(18, 4)
+  default_currency   String             @default("AED") @db.Char(3)
+  created_at         DateTime           @default(now()) @db.Timestamptz
+  updated_at         DateTime           @updatedAt @db.Timestamptz
+  updated_by         String?            @db.Uuid
+
+  @@map("wms_settings")
+}
+
+model WmsItem {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  code                 String    @db.VarChar(40)
+  name                 String    @db.VarChar(200)
+  description          String?   @db.Text
+  uom_code             String?   @db.VarChar(20)
+  low_stock_threshold  Decimal?  @db.Decimal(18, 4)
+  is_active            Boolean   @default(true)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+  created_by           String?   @db.Uuid
+  updated_by           String?   @db.Uuid
+  deleted_at           DateTime? @db.Timestamptz
+
+  asn_lines      WmsAsnLine[]
+  grn_lines      WmsGrnLine[]
+  gdo_lines      WmsGdoLine[]
+  lots           WmsStockLot[]
+  movements      WmsStockMovement[]
+  transfer_lines WmsStockTransferLine[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("wms_items")
+}
+
+model WmsAsn {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String       @db.Uuid
+  asn_number      String       @db.VarChar(40)
+  warehouse_id    String       @db.Uuid
+  party_id        String?      @db.Uuid
+  job_id          String?      @db.Uuid
+  expected_at     DateTime?    @db.Timestamptz
+  status          WmsAsnStatus @default(DRAFT)
+  remarks         String?      @db.Text
+  created_at      DateTime     @default(now()) @db.Timestamptz
+  updated_at      DateTime     @updatedAt @db.Timestamptz
+  created_by      String?      @db.Uuid
+  updated_by      String?      @db.Uuid
+  deleted_at      DateTime?    @db.Timestamptz
+
+  warehouse Warehouse @relation(fields: [warehouse_id], references: [id])
+  lines     WmsAsnLine[]
+  grns      WmsGrn[]
+
+  @@unique([tenant_id, asn_number])
+  @@index([tenant_id, status])
+  @@index([tenant_id, warehouse_id])
+  @@map("wms_asns")
+}
+
+model WmsAsnLine {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String   @db.Uuid
+  asn_id     String   @db.Uuid
+  item_id    String   @db.Uuid
+  quantity   Decimal  @db.Decimal(18, 4)
+  cbm        Decimal? @db.Decimal(18, 4)
+  remarks    String?  @db.VarChar(500)
+  sort_order Int      @default(0)
+
+  asn  WmsAsn  @relation(fields: [asn_id], references: [id], onDelete: Cascade)
+  item WmsItem @relation(fields: [item_id], references: [id])
+
+  @@index([tenant_id, asn_id])
+  @@map("wms_asn_lines")
+}
+
+model WmsGrn {
+  id            String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String            @db.Uuid
+  grn_number    String            @db.VarChar(40)
+  warehouse_id  String            @db.Uuid
+  party_id      String?           @db.Uuid
+  job_id        String?           @db.Uuid
+  asn_id        String?           @db.Uuid
+  received_at   DateTime          @default(now()) @db.Timestamptz
+  status        WmsDocumentStatus @default(DRAFT)
+  remarks       String?           @db.Text
+  posted_at     DateTime?         @db.Timestamptz
+  created_at    DateTime          @default(now()) @db.Timestamptz
+  updated_at    DateTime          @updatedAt @db.Timestamptz
+  created_by    String?           @db.Uuid
+  updated_by    String?           @db.Uuid
+  deleted_at    DateTime?         @db.Timestamptz
+
+  warehouse Warehouse   @relation(fields: [warehouse_id], references: [id])
+  asn       WmsAsn?     @relation(fields: [asn_id], references: [id])
+  lines     WmsGrnLine[]
+
+  @@unique([tenant_id, grn_number])
+  @@index([tenant_id, status])
+  @@index([tenant_id, warehouse_id])
+  @@map("wms_grns")
+}
+
+model WmsGrnLine {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String   @db.Uuid
+  grn_id       String   @db.Uuid
+  item_id      String   @db.Uuid
+  quantity     Decimal  @db.Decimal(18, 4)
+  unit_cost    Decimal  @default(0) @db.Decimal(18, 4)
+  cbm          Decimal? @db.Decimal(18, 4)
+  batch_code   String?  @db.VarChar(60)
+  remarks      String?  @db.VarChar(500)
+  sort_order   Int      @default(0)
+
+  grn  WmsGrn  @relation(fields: [grn_id], references: [id], onDelete: Cascade)
+  item WmsItem @relation(fields: [item_id], references: [id])
+  lot  WmsStockLot?
+
+  @@index([tenant_id, grn_id])
+  @@map("wms_grn_lines")
+}
+
+model WmsGdo {
+  id            String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String            @db.Uuid
+  gdo_number    String            @db.VarChar(40)
+  warehouse_id  String            @db.Uuid
+  party_id      String?           @db.Uuid
+  job_id        String?           @db.Uuid
+  delivered_at  DateTime          @default(now()) @db.Timestamptz
+  status        WmsDocumentStatus @default(DRAFT)
+  remarks       String?           @db.Text
+  posted_at     DateTime?         @db.Timestamptz
+  created_at    DateTime          @default(now()) @db.Timestamptz
+  updated_at    DateTime          @updatedAt @db.Timestamptz
+  created_by    String?           @db.Uuid
+  updated_by    String?           @db.Uuid
+  deleted_at    DateTime?         @db.Timestamptz
+
+  warehouse Warehouse   @relation(fields: [warehouse_id], references: [id])
+  lines     WmsGdoLine[]
+
+  @@unique([tenant_id, gdo_number])
+  @@index([tenant_id, status])
+  @@index([tenant_id, warehouse_id])
+  @@map("wms_gdos")
+}
+
+model WmsGdoLine {
+  id         String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String  @db.Uuid
+  gdo_id     String  @db.Uuid
+  item_id    String  @db.Uuid
+  quantity   Decimal @db.Decimal(18, 4)
+  remarks    String? @db.VarChar(500)
+  sort_order Int     @default(0)
+
+  gdo  WmsGdo  @relation(fields: [gdo_id], references: [id], onDelete: Cascade)
+  item WmsItem @relation(fields: [item_id], references: [id])
+
+  @@index([tenant_id, gdo_id])
+  @@map("wms_gdo_lines")
+}
+
+model WmsStockLot {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String    @db.Uuid
+  warehouse_id    String    @db.Uuid
+  item_id         String    @db.Uuid
+  grn_line_id     String?   @unique @db.Uuid
+  party_id        String?   @db.Uuid
+  job_id          String?   @db.Uuid
+  batch_code      String?   @db.VarChar(60)
+  qty_received    Decimal   @db.Decimal(18, 4)
+  qty_remaining   Decimal   @db.Decimal(18, 4)
+  unit_cost       Decimal   @default(0) @db.Decimal(18, 4)
+  cbm_per_unit    Decimal?  @db.Decimal(18, 6)
+  received_at     DateTime  @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+  deleted_at      DateTime? @db.Timestamptz
+
+  warehouse Warehouse  @relation(fields: [warehouse_id], references: [id])
+  item      WmsItem    @relation(fields: [item_id], references: [id])
+  grn_line  WmsGrnLine? @relation(fields: [grn_line_id], references: [id])
+  movements WmsStockMovement[]
+  storage_charges WmsStorageCharge[]
+
+  @@index([tenant_id, warehouse_id, item_id])
+  @@index([tenant_id, item_id, received_at])
+  @@index([tenant_id, party_id])
+  @@map("wms_stock_lots")
+}
+
+model WmsStockMovement {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String          @db.Uuid
+  warehouse_id  String          @db.Uuid
+  item_id       String          @db.Uuid
+  lot_id        String?         @db.Uuid
+  movement_type WmsMovementType
+  quantity      Decimal         @db.Decimal(18, 4)
+  unit_cost     Decimal         @default(0) @db.Decimal(18, 4)
+  reference_type String?        @db.VarChar(30)
+  reference_id   String?        @db.Uuid
+  remarks       String?         @db.Text
+  moved_at      DateTime        @default(now()) @db.Timestamptz
+  created_at    DateTime        @default(now()) @db.Timestamptz
+  created_by    String?         @db.Uuid
+
+  warehouse Warehouse   @relation(fields: [warehouse_id], references: [id])
+  item      WmsItem     @relation(fields: [item_id], references: [id])
+  lot       WmsStockLot? @relation(fields: [lot_id], references: [id])
+
+  @@index([tenant_id, warehouse_id, item_id])
+  @@index([tenant_id, moved_at])
+  @@index([tenant_id, reference_type, reference_id])
+  @@map("wms_stock_movements")
+}
+
+model WmsStockTransfer {
+  id                   String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String            @db.Uuid
+  transfer_number      String            @db.VarChar(40)
+  from_warehouse_id    String            @db.Uuid
+  to_warehouse_id      String            @db.Uuid
+  status               WmsDocumentStatus @default(DRAFT)
+  remarks              String?           @db.Text
+  posted_at            DateTime?         @db.Timestamptz
+  created_at           DateTime          @default(now()) @db.Timestamptz
+  updated_at           DateTime          @updatedAt @db.Timestamptz
+  created_by           String?           @db.Uuid
+  updated_by           String?           @db.Uuid
+  deleted_at           DateTime?         @db.Timestamptz
+
+  from_warehouse Warehouse @relation("WmsTransferFrom", fields: [from_warehouse_id], references: [id])
+  to_warehouse   Warehouse @relation("WmsTransferTo", fields: [to_warehouse_id], references: [id])
+  lines          WmsStockTransferLine[]
+
+  @@unique([tenant_id, transfer_number])
+  @@index([tenant_id, status])
+  @@map("wms_stock_transfers")
+}
+
+model WmsStockTransferLine {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String  @db.Uuid
+  transfer_id String  @db.Uuid
+  item_id     String  @db.Uuid
+  quantity    Decimal @db.Decimal(18, 4)
+  sort_order  Int     @default(0)
+
+  transfer WmsStockTransfer @relation(fields: [transfer_id], references: [id], onDelete: Cascade)
+  item     WmsItem          @relation(fields: [item_id], references: [id])
+
+  @@index([tenant_id, transfer_id])
+  @@map("wms_stock_transfer_lines")
+}
+
+model WmsStorageCharge {
+  id              String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String                 @db.Uuid
+  warehouse_id    String                 @db.Uuid
+  party_id        String                 @db.Uuid
+  lot_id          String?                @db.Uuid
+  item_id         String?                @db.Uuid
+  period_from     DateTime               @db.Date
+  period_to       DateTime               @db.Date
+  free_days       Int                    @default(0)
+  chargeable_days Int                    @default(0)
+  quantity        Decimal                @db.Decimal(18, 4)
+  cbm             Decimal?               @db.Decimal(18, 4)
+  rate_per_day    Decimal                @db.Decimal(18, 4)
+  amount          Decimal                @db.Decimal(18, 4)
+  currency_code   String                 @db.Char(3)
+  status          WmsStorageChargeStatus @default(OPEN)
+  invoice_id      String?                @db.Uuid
+  remarks         String?                @db.Text
+  created_at      DateTime               @default(now()) @db.Timestamptz
+  updated_at      DateTime               @updatedAt @db.Timestamptz
+  created_by      String?                @db.Uuid
+  updated_by      String?                @db.Uuid
+  deleted_at      DateTime?              @db.Timestamptz
+
+  warehouse Warehouse    @relation(fields: [warehouse_id], references: [id])
+  lot       WmsStockLot? @relation(fields: [lot_id], references: [id])
+  invoice   Invoice?     @relation("WmsStorageInvoice", fields: [invoice_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, party_id, status])
+  @@index([tenant_id, warehouse_id])
+  @@map("wms_storage_charges")
 }
 
 // ─── PARTIES ─────────────────────────────────────────────────
@@ -2786,6 +3133,7 @@ model Invoice {
   vouchers         Voucher[]
   payment_allocations PaymentAllocation[]
   air_import_storage_for AirJobDetail[] @relation("AirImportStorageInvoice")
+  wms_storage_charges    WmsStorageCharge[] @relation("WmsStorageInvoice")
 
   @@unique([tenant_id, invoice_number])
   @@index([tenant_id])
@@ -3441,6 +3789,7 @@ enum NotificationType {
   CAMPAIGN_SENT
   CUSTOMS_DEPOSIT_EXPIRING
   TIMESHEET_MISSING
+  WMS_LOW_STOCK
 }
 
 /// Customer → forwarder contact messages from the portal.

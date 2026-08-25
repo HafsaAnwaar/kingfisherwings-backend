@@ -514,10 +514,22 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 
 | Topic | Status | Decision / question |
 |-------|--------|---------------------|
-| Warehouse master already exists | **LOCKED** | Extend; do not replace `masters/warehouses`. |
-| GRN/GDO + stock ledger | **OPEN** | FIFO vs LIFO default per tenant. |
-| Storage invoicing | **LOCKED** (proposed) | Create DRAFT invoices via `InvoicesService`; staff post. |
-| WMS is staff ERP | **LOCKED** | Not a portal. |
+| Warehouse master already exists | **SHIPPED** | Extend via FKs only; do **not** replace `masters/warehouses`. Locations stay on `Warehouse`. |
+| Item / SKU master | **SHIPPED** | New `WmsItem` (tenant-unique `code`). Not Party, not free-text commodity. Optional `uom_code`, `low_stock_threshold`. |
+| Valuation FIFO vs LIFO | **SHIPPED** | Default **FIFO** per tenant in `WmsSettings.valuation_method`. Tenant Admin may switch to LIFO; applies to **new GDO posts** (existing lots keep receipt date ordering). |
+| GRN | **SHIPPED** | Draft → Post. Post creates `WmsStockLot` + `GRN_IN` ledger rows. Codes via `DocumentNumberType.GRN`. Optional `party_id` (owner/customer), `job_id`, `asn_id`. |
+| GDO | **SHIPPED** | Draft → Post. Post consumes lots by FIFO/LIFO; insufficient stock → `400`. Codes via `DocumentNumberType.GDO`. |
+| Stock transfers | **SHIPPED** | Posted transfer = TRANSFER_OUT + TRANSFER_IN movements; destination gets new lot(s) preserving remaining qty/cost. |
+| Adjustments | **SHIPPED** | Signed qty adjustment with reason; creates/consumes lots; audit on `WmsStockMovement`. |
+| ASN | **SHIPPED** | Lightweight expected inbound (`WmsAsn` + lines). GRN may reference ASN; receiving ASN marks `RECEIVED`. |
+| Storage invoicing | **SHIPPED** | `WmsStorageCharge` calculated from lot receipt date × free days × rate (CBM or unit). Creates **DRAFT** `CUSTOMER_INVOICE` via `InvoicesService.createWmsStorageDraft` (no auto-post). Staff posts invoice as usual. |
+| Storage rate basis | **SHIPPED** | Per charge: `PER_DAY` × qty (or CBM if set). Defaults from `WmsSettings` (free_days, rate, currency). |
+| Stock reports | **SHIPPED** | On-hand by warehouse/item, movements, low-stock, lot aging. No separate report-builder product. |
+| Low-stock cron | **SHIPPED** | Daily: items where on-hand ≤ `low_stock_threshold` → `NotificationType.WMS_LOW_STOCK`. |
+| WMS is staff ERP | **SHIPPED** | `JwtAuthGuard` + `wms.*` permissions. Not portal/vendor. SuperAdmin blocked like HR. |
+| Role | **SHIPPED** | Existing `WAREHOUSE_STAFF` seeded with WMS perms; `TENANT_ADMIN` / `OPERATIONS_MANAGER` / `BRANCH_MANAGER` get appropriate subsets. |
+| CFS link for LCL (Week 18) | **LOCKED** | Week 18 may reference WMS lots/storage charges; Week 17 does not invent LCL job types. |
+| Out of scope Week 17 | **LOCKED** | Portal warehouse views; barcode scan hardware console (sea residual); full 12 Fresa WMS print reports as separate PDFs (API JSON reports first); multi-bin/location inside warehouse (single warehouse location grain). |
 
 ### Week 18 — Sea LCL Export + Import (Ch.12–13)
 
@@ -525,7 +537,7 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 |-------|--------|---------------------|
 | Same `Job` + LCL detail + house/master consolidation | **LOCKED** | Follow FCL house/master, do not fork job service. |
 | Cost prorate across houses | **LOCKED** (proposed) | Same prorate helper as air/FCL charges. |
-| CFS storage per consignment | **OPEN** | Link to WMS Week 17 or job-level storage charges only. |
+| CFS storage per consignment | **LOCKED** (proposed) | Prefer link to Week 17 WMS storage charges when cargo sits in tenant warehouse; else job-level storage charge only. |
 
 ### Week 19 — Land / Trucking + Courier (Ch.14–15)
 
@@ -598,7 +610,7 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 | Staff vs customer vs vendor | Three JWT principals | Locked rules |
 | Quotes | One pipeline | Week 3, 14 |
 | Jobs | One `Job` + mode details | Weeks 4–9, 15, 18–19 |
-| Money | Invoice post + GL auto-post; portals never post | Weeks 10–14 |
+| Money | Invoice post + GL auto-post; portals never post; WMS storage = DRAFT only | Weeks 10–14, 17 |
 | PDF | Puppeteer + queue | §1.10–1.11 |
 | Email | Nodemailer + EmailLog | §1.12 |
 | CRM | Staff only | Week 14 |

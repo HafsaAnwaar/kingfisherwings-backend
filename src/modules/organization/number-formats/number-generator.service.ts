@@ -90,6 +90,9 @@ export class NumberGeneratorService {
       VOUCHER: 'JV',
       PAYMENT: 'PAY',
       EMPLOYEE_CODE: 'EMP',
+      GRN: 'GRN',
+      GDO: 'GDO',
+      ASN: 'ASN',
     };
     return map[documentType] ?? 'DOC';
   }
