@@ -47,7 +47,7 @@ This report follows the **same chapter order and section numbering** as the Fres
 | 19 | Accounting — AR, AP & Banking | ~20% | **Partial** — bank master + payment request; no AR/AP ledgers/recon/CCP/VPP |
 | 20 | Accounting — Financial Reports | ~10% | **Not started** (job P&L only) |
 | 21 | HR Module | ~90% | **Done** (backend) — employee, leave, payroll/WPS, loans, timesheets, evals, letters |
-| 22 | Warehouse Management (WMS) | ~5% | **Warehouse master only** |
+| 22 | Warehouse Management (WMS) | ~90% | **Done** (backend) — GRN/GDO/stock/FIFO-LIFO/transfers/storage DRAFT invoice; PDF report pack Partial |
 | 23 | MIS Reports & Dashboards | ~15% | **Partial** — quote analytics; no management dashboard |
 | 24 | Customer & Vendor Portals | ~5% | **Flag only** (`portal_access`) |
 | 25 | EDI, API & Integration | ~20% | **Partial** — SMTP, PDF queue, WhatsApp stub, online-quote; no EDI gateways |
@@ -633,16 +633,16 @@ Create from job / standalone, approve/reject/mark-paid: **D**. Amount-bracket mu
 
 | Section | Status |
 |---------|--------|
-| 22.1 Overview | **N** |
-| 22.2 GRN | **N** (enum type may exist) |
-| 22.3 GDO | **N** |
-| 22.4 Stock Management (FIFO/LIFO, transfers…) | **N** |
-| 22.5 WMS Reports | **N** |
-| 22.6 Storage Calculation & Invoicing | **P** — CFS storage calc on FCL import only |
+| 22.1 Overview | **D** — `WmsModule` staff ERP; extends `masters/warehouses` |
+| 22.2 GRN | **D** — draft/post/cancel; lots + ledger |
+| 22.3 GDO | **D** — draft/post/cancel; FIFO/LIFO consume |
+| 22.4 Stock Management (FIFO/LIFO, transfers…) | **D** — settings, transfers, adjustments, on-hand/movements/aging |
+| 22.5 WMS Reports | **P** — JSON reports (on-hand, movements, low-stock, lot aging); full Fresa PDF report pack deferred |
+| 22.6 Storage Calculation & Invoicing | **D** — `WmsStorageCharge` + DRAFT invoice via `InvoicesService.createWmsStorageDraft` |
 
-Warehouse master: **D**.
+Warehouse master: **D**. ASN: **D**. Low-stock cron: **D** (`WMS_LOW_STOCK`).
 
-**Chapter 22 overall: ~5% — Not started.**
+**Chapter 22 overall: ~90% — Done (backend).**
 
 ---
 

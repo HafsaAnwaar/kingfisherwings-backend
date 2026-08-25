@@ -66,15 +66,15 @@ Backend repo state assessed against implemented modules (`src/app.module.ts`, co
 | **14** | 24, 6 | **Done** | Vendor portal (VPP) + CRM (leads, calls, enquiries, follow-ups, campaigns) |
 | **15** | 9 | **Done** | Air Import backend (milestones, CAN/DO, customs, storage invoice, transhipment, damage) |
 | **16** | 21 | **Done** | HR backend (employees, leave, payroll/WPS, loans, timesheets, evaluations, letters) |
+| **17** | 22 | **Done** | WMS: items, ASN, GRN/GDO, FIFO/LIFO stock ledger, transfers, adjustments, storage DRAFT invoices, low-stock cron |
 
 ### What's next
 
-1. **Week 17** — WMS (GRN/GDO, stock ledger, storage invoicing).
-2. **Week 18** — Sea LCL Export + Import (largest remaining sea gap vs Fresa Sea Freight manual).
-3. Existing tenants: `POST /tenants/:id/sync-permissions` after each new module catalog.
+1. **Week 18** — Sea LCL Export + Import (largest remaining sea gap vs Fresa Sea Freight manual).
+2. Existing tenants: `POST /tenants/:id/sync-permissions` after each new module catalog.
 
 **Phase 1 MVP target (per 28-week PDF):** Air Export + Sea FCL Export/Import + Full Finance + MIS Dashboard (through Week 12) — **backend complete**.  
-**Phase 2 progress:** Weeks 13–16 **backend complete**; Weeks 17–21 remaining.
+**Phase 2 progress:** Weeks 13–17 **backend complete**; Weeks 18–21 remaining.
 
 ---
 
@@ -258,7 +258,7 @@ Fresa “Organization” ≈ our **Party** (+ org profile for the tenant company
 | 14 | Vendor Portal + CRM | **Done** | WhatsApp CRM deferred |
 | 15 | Air Import | **Done** | UI deferred |
 | 16 | HR | **Done** | UI deferred |
-| **17** | **WMS** | **Not started** | GRN/GDO, FIFO/LIFO, stock, storage invoice, WMS reports |
+| **17** | **WMS** | **Done** | GRN/GDO, FIFO/LIFO, stock, storage DRAFT invoice, ASN, low-stock cron |
 | **18** | **Sea LCL Ex+Im** | **Not started** | **Primary Fresa Sea gap** — full LCL consoles + docs |
 | **19** | Land + Courier | **Not started** | Completes 8 operation modes |
 | **20 / 20B** | NVOCC | **Not started** | Voyages, space, NVOCC HBL, voyage P&L |

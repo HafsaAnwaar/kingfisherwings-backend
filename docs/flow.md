@@ -525,13 +525,29 @@ Key routes: `/hr/employees`, `/hr/leave-policies`, `/hr/leave-requests`, `/hr/le
 
 Existing tenants must run `POST /tenants/:id/sync-permissions` so `hr.*` and `HR_MANAGER` exist.
 
-### Week 17 — WMS
+### Week 17 — WMS (Ch.22) — shipped
+
+Staff ERP only (`wms.*` permissions). SuperAdmin tokens rejected on `/wms/*` via TenantStaffGuard.
 
 ```
-/warehouses /grn /gdo /stock
-  → ledger + storage invoice DRAFT
-  → staff only
+PUT /wms/settings { valuation_method: FIFO|LIFO, free_days, rate, currency }
+POST /wms/items
+POST /wms/asns → POST /wms/asns/:id/confirm
+POST /wms/grns → POST /wms/grns/:id/post
+  → WmsStockLot + GRN_IN movements (ASN → RECEIVED)
+POST /wms/gdos → POST /wms/gdos/:id/post
+  → consume lots FIFO/LIFO
+POST /wms/transfers → POST /wms/transfers/:id/post
+POST /wms/stock/adjust
+GET  /wms/stock/on-hand | /movements | /low-stock | /lot-aging
+POST /wms/storage/calculate → OPEN WmsStorageCharge rows
+POST /wms/storage/invoice { charge_ids }
+  → DRAFT CUSTOMER_INVOICE via InvoicesService.createWmsStorageDraft (staff posts)
+
+Daily cron 08:00: low stock → NotificationType.WMS_LOW_STOCK
 ```
+
+Existing tenants: `POST /tenants/:id/sync-permissions` for `wms.*` and `WAREHOUSE_STAFF` role refresh.
 
 ### Week 18 — LCL
 
@@ -587,6 +603,7 @@ Performance (cache, queue scale) → OWASP → integration tests (quote→GL, RL
 | Portal admin | `portal.manage_users`, `portal.manage_disputes`, … | Tenant Admin, CS, Branch, Sales (subset) |
 | Vendor admin | `vendor.manage_users`, `vendor.manage_permissions`, `vendor.manage_disputes` | Tenant Admin, Finance Manager |
 | CRM | `crm.view/create/update/delete` | Tenant Admin, Sales Manager, Sales Executive |
+| WMS | `wms.view`, `wms.manage_grn/gdo/stock/storage`, `wms.view_reports` | Warehouse Staff, Ops, Tenant Admin, Finance (storage) |
 | HR | `hr.view`, `hr.manage_employees`, `hr.manage_payroll`, `hr.view_self` | Tenant Admin, HR Manager; Finance payroll; Branch approve leave |
 | Notifications | `notifications.view` | Most staff |
 
