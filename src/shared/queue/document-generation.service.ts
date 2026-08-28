@@ -618,6 +618,7 @@ export class DocumentGenerationService {
       CUSTOMS_TRANSIT: 'Customs Transit Document',
       DELIVERY_NOTE: 'Delivery Note',
       COURIER_REPORT: 'Courier Report',
+      NVOCC_LOAD_LIST: 'NVOCC Load List',
       CUSTOMS_ENTRY: 'Customs Declaration',
       BOOKING_CONFIRMATION: 'Booking Confirmation',
     };

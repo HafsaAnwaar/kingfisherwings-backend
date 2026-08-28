@@ -13,6 +13,7 @@ import { CRM_PERMISSIONS } from '../../modules/crm/constants/crm-permission.cons
 import { HR_PERMISSIONS } from '../../modules/hr/constants/hr-permission.constants';
 import { WMS_PERMISSIONS } from '../../modules/wms/constants/wms-permission.constants';
 import { TRANSPORT_PERMISSIONS } from '../../modules/transport/constants/transport-permission.constants';
+import { NVOCC_PERMISSIONS } from '../../modules/nvocc/constants/nvocc-permission.constants';
 import { NOTIFICATIONS_PERMISSIONS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface RoleCatalogEntry {
@@ -55,6 +56,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(HR_PERMISSIONS),
       ...Object.values(WMS_PERMISSIONS),
       ...Object.values(TRANSPORT_PERMISSIONS),
+      ...Object.values(NVOCC_PERMISSIONS),
       ...Object.values(NOTIFICATIONS_PERMISSIONS),
     ],
   },
@@ -101,6 +103,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       WMS_PERMISSIONS.MANAGE_TRANSFERS,
       TRANSPORT_PERMISSIONS.VIEW,
       TRANSPORT_PERMISSIONS.MANAGE,
+      NVOCC_PERMISSIONS.VIEW,
+      NVOCC_PERMISSIONS.MANAGE,
     ],
   },
   {
@@ -141,6 +145,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       WMS_PERMISSIONS.MANAGE_STORAGE,
       TRANSPORT_PERMISSIONS.VIEW,
       TRANSPORT_PERMISSIONS.MANAGE,
+      NVOCC_PERMISSIONS.VIEW,
+      NVOCC_PERMISSIONS.MANAGE,
     ],
   },
   {
@@ -168,6 +174,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       JOBS_PERMISSIONS.VIEW,
       SEARCH_PERMISSIONS.VIEW,
       NOTIFICATIONS_PERMISSIONS.VIEW,
+      NVOCC_PERMISSIONS.VIEW,
+      NVOCC_PERMISSIONS.MANAGE,
     ],
   },
   {
@@ -238,6 +246,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       NOTIFICATIONS_PERMISSIONS.VIEW,
       TRANSPORT_PERMISSIONS.VIEW,
       TRANSPORT_PERMISSIONS.MANAGE,
+      NVOCC_PERMISSIONS.VIEW,
+      NVOCC_PERMISSIONS.MANAGE,
     ],
   },
   {

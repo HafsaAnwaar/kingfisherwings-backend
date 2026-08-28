@@ -11,6 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
 import { TariffsService } from './tariffs/tariffs.service';
 import { seedJobTypeExtras } from '../jobs/utils/job-type-seed.util';
+import { mintTrackingToken } from '../jobs/utils/tracking-token.util';
 
 import { CreateQuotationDto, UpdateQuotationDto } from './dto/quotation.dto';
 import { CreateQuotationLineDto, UpdateQuotationLineDto } from './dto/quotation-line.dto';
@@ -1324,6 +1325,7 @@ export class QuotationsService {
         data: {
           tenant_id: tenantId,
           job_number: jobNumber,
+          tracking_token: mintTrackingToken(),
           job_type: quotation.job_type,
           status: 'BOOKING_CONFIRMED',
           created_from_quote_id: id,

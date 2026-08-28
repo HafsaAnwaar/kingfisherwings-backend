@@ -1,0 +1,8 @@
+export const NVOCC_LOSS_REASONS = [
+  'COMPETITOR_RATE',
+  'NO_SPACE',
+  'CARGO_TYPE',
+  'NO_LONGER_REQUIRED',
+  'BOOKED_ELSEWHERE',
+  'PRICE_TOO_HIGH',
+] as const;
