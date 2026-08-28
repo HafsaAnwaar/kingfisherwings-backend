@@ -73,11 +73,69 @@ const SEA_FCL_IMPORT_DOCUMENTS: DocumentType[] = [
   'ARRIVAL_NOTICE',
 ];
 
+const SEA_LCL_EXPORT_DOCUMENTS: DocumentType[] = [
+  'HBL',
+  'MBL',
+  'SHIPPING_INSTRUCTION',
+  'STUFFING_REPORT',
+  'CARGO_MANIFEST',
+  'FREIGHT_MANIFEST',
+  'PACKING_LIST',
+  'PRE_ALERT',
+  'BOOKING_CONFIRMATION',
+  'JOB_CARD',
+  'JOB_PNL',
+  'PROFORMA_INVOICE',
+  'FREIGHT_CERTIFICATE',
+  'SAILING_CONFIRMATION',
+];
+
+const SEA_LCL_IMPORT_DOCUMENTS: DocumentType[] = [
+  'PRE_CAN',
+  'CAN',
+  'EXCHANGE_LETTER',
+  'UNDERTAKE_LETTER',
+  'DELIVERY_ORDER',
+  'TRANSPORT_REQUEST',
+  'PROOF_OF_DELIVERY',
+  'SHIPPING_ADVICE',
+  'CARGO_MANIFEST',
+  'ARRIVAL_NOTICE',
+  'JOB_CARD',
+];
+
+const LAND_DOCUMENTS: DocumentType[] = [
+  'JOB_CARD',
+  'JOB_PNL',
+  'TRANSPORT_REQUEST',
+  'DELIVERY_ORDER',
+  'PROOF_OF_DELIVERY',
+  'CARGO_MANIFEST',
+  'PROFORMA_INVOICE',
+  'CUSTOMS_TRANSIT',
+  'CROSS_BORDER_DECLARATION',
+];
+
+const COURIER_DOCUMENTS: DocumentType[] = [
+  'JOB_CARD',
+  'BOOKING_CONFIRMATION',
+  'BARCODE_LABEL',
+  'DELIVERY_NOTE',
+  'PROFORMA_INVOICE',
+  'PROOF_OF_DELIVERY',
+  'CUSTOMS_ENTRY',
+  'COURIER_REPORT',
+];
+
 const ALLOWLIST: Partial<Record<JobType, DocumentType[]>> = {
   AIR_EXPORT: AIR_EXPORT_DOCUMENTS,
   AIR_IMPORT: AIR_IMPORT_DOCUMENTS,
   SEA_FCL_EXPORT: SEA_FCL_EXPORT_DOCUMENTS,
   SEA_FCL_IMPORT: SEA_FCL_IMPORT_DOCUMENTS,
+  SEA_LCL_EXPORT: SEA_LCL_EXPORT_DOCUMENTS,
+  SEA_LCL_IMPORT: SEA_LCL_IMPORT_DOCUMENTS,
+  LAND: LAND_DOCUMENTS,
+  COURIER: COURIER_DOCUMENTS,
 };
 
 export function assertDocumentAllowedForJobType(jobType: JobType, documentType: DocumentType): void {
@@ -90,6 +148,30 @@ export function assertDocumentAllowedForJobType(jobType: JobType, documentType: 
       `Document type ${documentType} is not allowed for ${jobType} jobs.`,
     );
   }
+}
+
+export function isSeaLclDocumentType(documentType: DocumentType): boolean {
+  return [
+    'HBL',
+    'MBL',
+    'SHIPPING_INSTRUCTION',
+    'STUFFING_REPORT',
+    'CARGO_MANIFEST',
+    'FREIGHT_MANIFEST',
+    'PACKING_LIST',
+    'PRE_ALERT',
+    'BOOKING_CONFIRMATION',
+    'SAILING_CONFIRMATION',
+    'PRE_CAN',
+    'CAN',
+    'EXCHANGE_LETTER',
+    'UNDERTAKE_LETTER',
+    'DELIVERY_ORDER',
+    'TRANSPORT_REQUEST',
+    'PROOF_OF_DELIVERY',
+    'SHIPPING_ADVICE',
+    'ARRIVAL_NOTICE',
+  ].includes(documentType);
 }
 
 export function isSeaFclDocumentType(documentType: DocumentType): boolean {

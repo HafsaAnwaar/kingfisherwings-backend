@@ -115,4 +115,19 @@ export class JobQueryDto {
   @IsOptional()
   @IsUUID()
   container_type_id?: string;
+
+  @ApiPropertyOptional({ description: 'Filter LAND jobs by vehicle number' })
+  @IsOptional()
+  @IsString()
+  vehicle_number?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Filter LAND jobs by trucker' })
+  @IsOptional()
+  @IsUUID()
+  trucker_id?: string;
+
+  @ApiPropertyOptional({ description: 'Filter COURIER jobs by tracking number' })
+  @IsOptional()
+  @IsString()
+  tracking_number?: string;
 }

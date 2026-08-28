@@ -188,6 +188,10 @@ enum DocumentType {
   CONSIGNEE_LABEL
   JOB_COSTING
   FREIGHT_CERTIFICATE
+  CROSS_BORDER_DECLARATION
+  CUSTOMS_TRANSIT
+  DELIVERY_NOTE
+  COURIER_REPORT
   OTHER
 }
 
@@ -207,6 +211,39 @@ enum DepositType {
 enum StorageRateBasis {
   KG
   CBM
+}
+
+enum LandVehicleType {
+  TRUCK
+  TRAILER
+  VAN
+}
+
+enum CourierServiceType {
+  EXPRESS
+  STANDARD
+  ECONOMY
+}
+
+enum CourierLabelFormat {
+  A4_4UP
+  A4_6UP
+  A4_8UP
+  THERMAL
+}
+
+enum TransportRequestType {
+  PICKUP
+  DELIVERY
+}
+
+enum TransportRequestStatus {
+  CREATED
+  ASSIGNED
+  PICKUP_CONFIRMED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
 }
 
 enum CustomsExaminationResult {
@@ -635,6 +672,7 @@ enum DocumentNumberType {
   PURCHASE_INVOICE
   PAYMENT
   EMPLOYEE_CODE
+  TRANSPORT_REQUEST
 }
 
 enum DocumentNumberResetFrequency {
@@ -1577,9 +1615,36 @@ model Trucker {
   updated_by     String?   @db.Uuid
   deleted_at     DateTime? @db.Timestamptz
 
+  land_details         LandJobDetail[]
+  transport_requests   TransportRequest[]
+
   @@unique([tenant_id, code])
   @@index([tenant_id])
   @@map("truckers")
+}
+
+/// Week 19 — Courier vendor master (FedEx / DHL / UPS / local).
+model CourierVendor {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String    @db.Uuid
+  name                  String    @db.VarChar(200)
+  code                  String    @db.VarChar(20)
+  country_code          String?   @db.Char(2)
+  phone                 String?   @db.VarChar(30)
+  email                 String?   @db.VarChar(255)
+  tracking_url_template String?   @db.VarChar(500)
+  is_active             Boolean   @default(true)
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  courier_details CourierJobDetail[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@map("courier_vendors")
 }
 
 model Warehouse {
@@ -1606,6 +1671,7 @@ model Warehouse {
   transfers_from    WmsStockTransfer[] @relation("WmsTransferFrom")
   transfers_to      WmsStockTransfer[] @relation("WmsTransferTo")
   storage_charges   WmsStorageCharge[]
+  sea_lcl_details   SeaLclJobDetail[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -1943,6 +2009,7 @@ model WmsStorageCharge {
   warehouse Warehouse    @relation(fields: [warehouse_id], references: [id])
   lot       WmsStockLot? @relation(fields: [lot_id], references: [id])
   invoice   Invoice?     @relation("WmsStorageInvoice", fields: [invoice_id], references: [id], onDelete: SetNull)
+  sea_lcl_jobs SeaLclJobDetail[]
 
   @@index([tenant_id, party_id, status])
   @@index([tenant_id, warehouse_id])
@@ -2143,6 +2210,9 @@ model Job {
   house_jobs      Job[]            @relation("JobHierarchy")
   air_details      AirJobDetail?
   sea_fcl_details  SeaFclJobDetail?
+  sea_lcl_details  SeaLclJobDetail?
+  land_details     LandJobDetail?
+  courier_details  CourierJobDetail?
   charges          JobCharge[]
   milestones       JobMilestone[]
   documents        JobDocument[]
@@ -2164,6 +2234,8 @@ model Job {
   damage_reports   DamageReport[]
   customs_examinations JobCustomsExamination[]
   hr_timesheets        HrTimesheet[]
+  transport_requests   TransportRequest[]
+  courier_checkpoints  CourierDeliveryCheckpoint[]
 
   @@unique([tenant_id, job_number])
   @@index([tenant_id])
@@ -2297,6 +2369,204 @@ model SeaFclJobDetail {
 
   @@index([tenant_id])
   @@map("sea_fcl_job_details")
+}
+
+/// Week 18 — Sea LCL Export + Import (Ch.12–13). One row per SEA_LCL_* job.
+model SeaLclJobDetail {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  job_id               String    @unique @db.Uuid
+  shipping_line_id     String?   @db.Uuid
+  vessel_id            String?   @db.Uuid
+  voyage_number        String?   @db.VarChar(50)
+  hbl_number           String?   @db.VarChar(50)
+  mbl_number           String?   @db.VarChar(50)
+  booking_number       String?   @db.VarChar(50)
+  carrier_booking_ref  String?   @db.VarChar(50)
+  place_of_receipt     String?   @db.VarChar(200)
+  place_of_delivery    String?   @db.VarChar(200)
+  etd                  DateTime? @db.Timestamptz
+  eta                  DateTime? @db.Timestamptz
+  sailed_at            DateTime? @db.Timestamptz
+  port_of_loading_id   String?   @db.Uuid
+  port_of_discharge_id String?   @db.Uuid
+  incoterms            String?   @db.VarChar(10)
+  bl_type              String?   @db.VarChar(30)
+  freight_terms        String?   @db.VarChar(30)
+  transhipment_port    String?   @db.VarChar(200)
+  cfs_warehouse_id     String?   @db.Uuid
+  consolidation_number String?   @db.VarChar(50)
+  si_cutoff            DateTime? @db.Timestamptz
+  si_submitted_at      DateTime? @db.Timestamptz
+  si_version           Int?
+
+  /// Import-side fields (Ch.13)
+  mbl_number_from_line        String?                @db.VarChar(50)
+  hbl_number_from_agent       String?                @db.VarChar(50)
+  actual_eta                  DateTime?              @db.Timestamptz
+  customs_entry_number        String?                @db.VarChar(100)
+  customs_examination_details String?                @db.Text
+  customs_duty_amount         Decimal?               @db.Decimal(18, 4)
+  customs_tax_amount          Decimal?               @db.Decimal(18, 4)
+  customs_clearance_date      DateTime?              @db.Timestamptz
+  customs_status              CustomsClearanceStatus @default(PENDING)
+  customs_broker_id           String?                @db.Uuid
+  linked_export_job_id        String?                @db.Uuid
+  cfs_storage_rate_per_day    Decimal?               @db.Decimal(18, 4)
+  cfs_storage_start_date      DateTime?              @db.Date
+  cfs_storage_free_days       Int                    @default(0)
+  storage_rate_basis          StorageRateBasis?
+  storage_invoice_id          String?                @db.Uuid
+  wms_storage_charge_id       String?                @db.Uuid
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime?  @db.Timestamptz
+
+  job                Job               @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  cfs_warehouse      Warehouse?        @relation(fields: [cfs_warehouse_id], references: [id], onDelete: SetNull)
+  storage_invoice    Invoice?          @relation("SeaLclImportStorageInvoice", fields: [storage_invoice_id], references: [id], onDelete: SetNull)
+  wms_storage_charge WmsStorageCharge? @relation(fields: [wms_storage_charge_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([tenant_id, consolidation_number])
+  @@map("sea_lcl_job_details")
+}
+
+/// Week 19 — Land / Trucking (Ch.14). One row per LAND job.
+model LandJobDetail {
+  id                            String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id                     String           @db.Uuid
+  job_id                        String           @unique @db.Uuid
+  trucker_id                    String?          @db.Uuid
+  vehicle_type                  LandVehicleType?
+  vehicle_number                String?          @db.VarChar(40)
+  driver_name                   String?          @db.VarChar(200)
+  driver_license                String?          @db.VarChar(50)
+  origin_city_country           String?          @db.VarChar(200)
+  destination_city_country      String?          @db.VarChar(200)
+  etd                           DateTime?        @db.Timestamptz
+  eta                           DateTime?        @db.Timestamptz
+  incoterms                     String?          @db.VarChar(10)
+  freight_terms                 String?          @db.VarChar(30)
+  cross_border_docs_required    Boolean          @default(false)
+  border_origin_country         String?          @db.Char(2)
+  border_destination_country    String?          @db.Char(2)
+  border_declaration_number     String?          @db.VarChar(100)
+  border_commodity              String?          @db.VarChar(500)
+  border_hs_code                String?          @db.VarChar(12)
+  border_declared_value         Decimal?         @db.Decimal(18, 4)
+  created_at                    DateTime         @default(now()) @db.Timestamptz
+  updated_at                    DateTime         @updatedAt @db.Timestamptz
+  created_by                    String?          @db.Uuid
+  updated_by                    String?          @db.Uuid
+  deleted_at                    DateTime?        @db.Timestamptz
+
+  job     Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  trucker Trucker? @relation(fields: [trucker_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([tenant_id, vehicle_number])
+  @@map("land_job_details")
+}
+
+/// Week 19 — Courier (Ch.15). One row per COURIER job.
+model CourierJobDetail {
+  id                   String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String              @db.Uuid
+  job_id               String              @unique @db.Uuid
+  courier_vendor_id    String?             @db.Uuid
+  service_type         CourierServiceType?
+  tracking_number      String?             @db.VarChar(80)
+  barcode_value        String?             @db.VarChar(80)
+  length_cm            Decimal?            @db.Decimal(10, 2)
+  width_cm             Decimal?            @db.Decimal(10, 2)
+  height_cm            Decimal?            @db.Decimal(10, 2)
+  pickup_address       String?             @db.Text
+  delivery_address     String?             @db.Text
+  label_format         CourierLabelFormat?
+  linked_export_job_id String?             @db.Uuid
+  linked_import_job_id String?             @db.Uuid
+  created_at           DateTime            @default(now()) @db.Timestamptz
+  updated_at           DateTime            @updatedAt @db.Timestamptz
+  created_by           String?             @db.Uuid
+  updated_by           String?             @db.Uuid
+  deleted_at           DateTime?           @db.Timestamptz
+
+  job            Job            @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  courier_vendor CourierVendor? @relation(fields: [courier_vendor_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([tenant_id, tracking_number])
+  @@index([tenant_id, barcode_value])
+  @@map("courier_job_details")
+}
+
+/// Week 19 — Transport request shared across all job types (Ch.14.3).
+model TransportRequest {
+  id                           String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id                    String                  @db.Uuid
+  job_id                       String                  @db.Uuid
+  request_number               String                  @db.VarChar(40)
+  request_type                 TransportRequestType
+  status                       TransportRequestStatus  @default(CREATED)
+  pickup_address               String?                 @db.Text
+  delivery_address             String?                 @db.Text
+  scheduled_pickup_datetime    DateTime?               @db.Timestamptz
+  scheduled_delivery_datetime  DateTime?               @db.Timestamptz
+  actual_pickup_datetime       DateTime?               @db.Timestamptz
+  actual_delivery_datetime     DateTime?               @db.Timestamptz
+  assigned_trucker_id          String?                 @db.Uuid
+  vehicle_type                 LandVehicleType?
+  vehicle_number               String?                 @db.VarChar(40)
+  driver_name                  String?                 @db.VarChar(200)
+  driver_license               String?                 @db.VarChar(50)
+  cargo_details                String?                 @db.Text
+  distance_km                  Decimal?                @db.Decimal(10, 2)
+  zip_distance_id              String?                 @db.Uuid
+  transport_cost_amount        Decimal?                @db.Decimal(18, 4)
+  job_charge_id                String?                 @unique @db.Uuid
+  created_at                   DateTime                @default(now()) @db.Timestamptz
+  updated_at                   DateTime                @updatedAt @db.Timestamptz
+  created_by                   String?                 @db.Uuid
+  updated_by                   String?                 @db.Uuid
+  deleted_at                   DateTime?               @db.Timestamptz
+
+  job           Job          @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  trucker       Trucker?     @relation(fields: [assigned_trucker_id], references: [id], onDelete: SetNull)
+  zip_distance  ZipDistance? @relation(fields: [zip_distance_id], references: [id], onDelete: SetNull)
+  job_charge    JobCharge?   @relation(fields: [job_charge_id], references: [id], onDelete: SetNull)
+
+  @@unique([tenant_id, request_number])
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, status])
+  @@map("transport_requests")
+}
+
+model CourierDeliveryCheckpoint {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String    @db.Uuid
+  job_id          String    @db.Uuid
+  checkpoint      String    @db.VarChar(100)
+  scanned_at      DateTime  @default(now()) @db.Timestamptz
+  barcode_scanned String?   @db.VarChar(80)
+  location        String?   @db.VarChar(200)
+  notes           String?   @db.Text
+  scanned_by      String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+  created_by      String?   @db.Uuid
+  updated_by      String?   @db.Uuid
+  deleted_at      DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@map("courier_delivery_checkpoints")
 }
 
 model JobContainer {
@@ -2617,6 +2887,7 @@ model JobCharge {
 
   job          Job          @relation(fields: [job_id], references: [id], onDelete: Cascade)
   invoice_line InvoiceLine?
+  transport_request TransportRequest?
 
   @@index([tenant_id])
   @@index([tenant_id, job_id])
@@ -2944,6 +3215,8 @@ model ZipDistance {
   updated_by String?   @db.Uuid
   deleted_at DateTime? @db.Timestamptz
 
+  transport_requests TransportRequest[]
+
   @@unique([tenant_id, from_zip, to_zip])
   @@index([tenant_id])
   @@map("zip_distances")
@@ -3133,6 +3406,7 @@ model Invoice {
   vouchers         Voucher[]
   payment_allocations PaymentAllocation[]
   air_import_storage_for AirJobDetail[] @relation("AirImportStorageInvoice")
+  sea_lcl_import_storage_for SeaLclJobDetail[] @relation("SeaLclImportStorageInvoice")
   wms_storage_charges    WmsStorageCharge[] @relation("WmsStorageInvoice")
 
   @@unique([tenant_id, invoice_number])

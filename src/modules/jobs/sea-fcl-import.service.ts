@@ -239,6 +239,28 @@ export class SeaFclImportService {
         return updated;
       }
 
+      if (job.job_type === 'SEA_LCL_IMPORT') {
+        await this.getLclImportDetailOrThrow(tx, tenantId, jobId);
+        const updated = await tx.seaLclJobDetail.update({
+          where: { job_id: jobId },
+          data: {
+            customs_status: dto.customs_status,
+            ...(dto.customs_clearance_date
+              ? { customs_clearance_date: new Date(dto.customs_clearance_date) }
+              : dto.customs_status === 'CLEARED' || dto.customs_status === 'RELEASED'
+                ? { customs_clearance_date: new Date() }
+                : {}),
+            updated_by: actorId,
+          },
+        });
+
+        if (dto.customs_status === 'CLEARED' || dto.customs_status === 'RELEASED') {
+          await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_CLEARED', actorId);
+        }
+
+        return updated;
+      }
+
       await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       const updated = await tx.seaFclJobDetail.update({
         where: { job_id: jobId },
@@ -383,6 +405,8 @@ export class SeaFclImportService {
       if (job.job_type === 'AIR_IMPORT') {
         await this.markMilestone(tx, tenantId, jobId, 'POD_RECEIVED', actorId, deliveryDate);
         await this.markMilestone(tx, tenantId, jobId, 'DELIVERED_TO_CONSIGNEE', actorId, deliveryDate);
+      } else if (job.job_type === 'SEA_LCL_IMPORT') {
+        await this.markMilestone(tx, tenantId, jobId, 'CARGO_DELIVERED', actorId, deliveryDate);
       } else {
         await this.markMilestone(
           tx,
@@ -618,7 +642,7 @@ export class SeaFclImportService {
   }
 
   private isSharedImportJob(jobType: JobType): boolean {
-    return jobType === 'SEA_FCL_IMPORT' || jobType === 'AIR_IMPORT';
+    return jobType === 'SEA_FCL_IMPORT' || jobType === 'AIR_IMPORT' || jobType === 'SEA_LCL_IMPORT';
   }
 
   private async assertImportJob(tenantId: string, jobId: string) {
@@ -633,9 +657,22 @@ export class SeaFclImportService {
     const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
     if (!job) throw new NotFoundException('Job not found.');
     if (!this.isSharedImportJob(job.job_type)) {
-      throw new BadRequestException('This endpoint requires an import job (SEA_FCL_IMPORT or AIR_IMPORT).');
+      throw new BadRequestException('This endpoint requires an import job (SEA_FCL_IMPORT, SEA_LCL_IMPORT, or AIR_IMPORT).');
     }
     return job;
+  }
+
+  private async getLclImportDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
+    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
+    if (!job) throw new NotFoundException('Job not found.');
+    if (job.job_type !== 'SEA_LCL_IMPORT') {
+      throw new BadRequestException('This endpoint requires a SEA_LCL_IMPORT job.');
+    }
+    const detail = await tx.seaLclJobDetail.findFirst({
+      where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!detail) throw new NotFoundException('Sea LCL details not found for this job.');
+    return detail;
   }
 
   private async getFclImportDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
