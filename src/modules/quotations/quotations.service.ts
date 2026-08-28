@@ -1340,6 +1340,8 @@ export class QuotationsService {
           chargeable_weight: quotation.chargeable_weight,
           volume_cbm: quotation.volume_cbm,
           pieces: quotation.pieces,
+          container_type_id: quotation.container_type_id,
+          container_count: quotation.container_count,
           incoterms: quotation.incoterm,
           is_dg: quotation.is_dg,
           dg_class: quotation.dg_class,

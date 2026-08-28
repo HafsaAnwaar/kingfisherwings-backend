@@ -19,6 +19,13 @@ import { JobsService } from './jobs.service';
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { UpdateAirJobDetailDto } from './dto/air-job-detail.dto';
 import { UpdateSeaFclJobDetailDto, SubmitSiDto, SubmitVgmDto } from './dto/sea-fcl-job-detail.dto';
+import { SubmitLclSiDto, UpdateSeaLclJobDetailDto } from './dto/sea-lcl-job-detail.dto';
+import {
+  AttachLclHouseDto,
+  LclCfsStorageCalculationDto,
+  LinkLclTranshipmentDto,
+  LinkLclWmsStorageDto,
+} from './dto/sea-lcl.dto';
 import { CreateJobChargeDto, UpdateJobChargeDto } from './dto/job-charge.dto';
 import { UpdateJobMilestoneDto, CreateCustomMilestoneDto } from './dto/job-milestone.dto';
 import { CreateJobNoteDto, UpdateJobNoteDto } from './dto/job-note.dto';
@@ -61,6 +68,26 @@ import { CurrentUser } from '../users/decorators/current-user.decorator';
 import { JOBS_PERMISSIONS } from './constants/jobs-permission.constants';
 import { SeaFclImportService } from './sea-fcl-import.service';
 import { AirImportService } from './air-import.service';
+import { SeaLclService } from './sea-lcl.service';
+import { SeaLclImportService } from './sea-lcl-import.service';
+import { LandService } from './land.service';
+import { CourierService } from './courier.service';
+import { TransportService } from '../transport/transport.service';
+import {
+  AssignLandTruckerDto,
+  CreateLandPodDto,
+  RecordLandBorderCrossingDto,
+  RecordLandPickupDto,
+  UpdateLandJobDetailDto,
+} from './dto/land-job-detail.dto';
+import {
+  ConfirmCourierBookingDto,
+  CreateCourierPodDto,
+  LinkCourierJobDto,
+  ScanCourierCheckpointDto,
+  UpdateCourierJobDetailDto,
+} from './dto/courier-job-detail.dto';
+import { CreateTransportRequestDto } from '../transport/dto/transport-request.dto';
 import {
   AirStorageCalculationQueryDto,
   CreateCustomsExaminationDto,
@@ -77,6 +104,11 @@ export class JobsController {
     private readonly service: JobsService,
     private readonly seaFclImport: SeaFclImportService,
     private readonly airImport: AirImportService,
+    private readonly seaLcl: SeaLclService,
+    private readonly seaLclImport: SeaLclImportService,
+    private readonly land: LandService,
+    private readonly courier: CourierService,
+    private readonly transport: TransportService,
   ) {}
 
   @Get()
@@ -162,7 +194,7 @@ export class JobsController {
 
   @Get(':id/cargo')
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'List FCL cargo lines on a job' })
+  @ApiOperation({ summary: 'List cargo lines on a Sea FCL or Sea LCL job' })
   listCargo(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
     return this.service.listCargo(tenantId, id);
   }
@@ -287,6 +319,330 @@ export class JobsController {
     @Body() dto: SubmitVgmDto,
   ) {
     return this.service.submitVgm(tenantId, id, dto, actorId);
+  }
+
+  @Patch(':id/sea-lcl-details')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Update Sea LCL-specific booking fields (CFS, consolidation, BL, customs, storage)' })
+  updateSeaLclDetails(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSeaLclJobDetailDto,
+  ) {
+    return this.service.updateSeaLclDetails(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/sea-lcl-details/si-submission')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record LCL SI submission and mark SI_SUBMITTED milestone' })
+  submitLclSi(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SubmitLclSiDto,
+  ) {
+    return this.service.submitLclSi(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/lcl-consolidation')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'LCL master consolidation summary — house totals by weight/CBM/pieces' })
+  getLclConsolidation(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.seaLcl.getConsolidation(tenantId, id);
+  }
+
+  @Post(':id/lcl/attach-house')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Attach an existing house LCL job under this master MBL' })
+  attachLclHouse(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AttachLclHouseDto,
+  ) {
+    return this.seaLcl.attachHouse(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/lcl/detach-house/:houseJobId')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Detach a house LCL job from this master' })
+  detachLclHouse(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('houseJobId', ParseUUIDPipe) houseJobId: string,
+  ) {
+    return this.seaLcl.detachHouse(tenantId, id, houseJobId, actorId);
+  }
+
+  @Post(':id/lcl/milestones/cargo-received-at-cfs')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Mark CARGO_RECEIVED_AT_CFS on LCL export house/master' })
+  markLclCargoReceivedAtCfs(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.seaLcl.markCargoReceivedAtCfs(tenantId, id, actorId);
+  }
+
+  @Post(':id/lcl/milestones/consolidation-started')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Mark CONSOLIDATION_STARTED on LCL export master' })
+  markLclConsolidationStarted(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.seaLcl.markConsolidationStarted(tenantId, id, actorId);
+  }
+
+  @Post(':id/lcl/milestones/cfs-stuffing-completed')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Mark CFS_STUFFING_COMPLETED on LCL export job' })
+  markLclCfsStuffingCompleted(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.seaLcl.markCfsStuffingCompleted(tenantId, id, actorId);
+  }
+
+  @Post(':id/lcl/milestones/cfs-devanning-completed')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Mark CFS_DEVANNING_COMPLETED on LCL import job' })
+  markLclCfsDevanningCompleted(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.seaLcl.markCfsDevanningCompleted(tenantId, id, actorId);
+  }
+
+  @Post(':id/lcl/transhipment-link')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Link LCL Import job to an outbound SEA_LCL_EXPORT or SEA_FCL_EXPORT job' })
+  linkLclTranshipment(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LinkLclTranshipmentDto,
+  ) {
+    return this.seaLclImport.linkTranshipment(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/lcl/wms-storage-link')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Link Week 17 WMS storage charge to LCL import job for CFS billing' })
+  linkLclWmsStorage(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LinkLclWmsStorageDto,
+  ) {
+    return this.seaLclImport.linkWmsStorageCharge(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/lcl/cfs-storage/calculate')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Calculate LCL CFS storage from sea-lcl-details or linked WMS charge' })
+  calculateLclCfsStorage(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LclCfsStorageCalculationDto,
+  ) {
+    return this.seaLclImport.calculateCfsStorage(tenantId, id, dto);
+  }
+
+  @Post(':id/lcl/cfs-storage-invoice')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Create DRAFT CFS storage invoice for LCL import job' })
+  createLclCfsStorageInvoice(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.seaLclImport.createCfsStorageInvoice(tenantId, id, actorId);
+  }
+
+  @Patch(':id/land-details')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Update Land / trucking booking fields' })
+  updateLandDetails(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateLandJobDetailDto,
+  ) {
+    return this.land.updateDetails(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/land/assign-trucker')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Assign a trucker to a LAND job and mark PICKUP_SCHEDULED' })
+  assignLandTrucker(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignLandTruckerDto,
+  ) {
+    return this.land.assignTrucker(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/land/pickup')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record land cargo pickup' })
+  recordLandPickup(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RecordLandPickupDto,
+  ) {
+    return this.land.recordPickup(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/land/border-crossing')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record land border crossing / customs cleared at border' })
+  recordLandBorderCrossing(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RecordLandBorderCrossingDto,
+  ) {
+    return this.land.recordBorderCrossing(tenantId, id, dto, actorId);
+  }
+
+  @Patch(':id/land/cross-border')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Upsert cross-border declaration fields on a LAND job' })
+  upsertLandCrossBorder(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateLandJobDetailDto,
+  ) {
+    return this.land.upsertCrossBorder(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/land/pod')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record LAND proof of delivery' })
+  createLandPod(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateLandPodDto,
+  ) {
+    return this.land.createPod(tenantId, id, dto, actorId);
+  }
+
+  @Patch(':id/courier-details')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Update Courier booking fields' })
+  updateCourierDetails(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCourierJobDetailDto,
+  ) {
+    return this.courier.updateDetails(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/courier/confirm-booking')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Confirm courier booking and generate tracking / barcode' })
+  confirmCourierBooking(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ConfirmCourierBookingDto,
+  ) {
+    return this.courier.confirmBooking(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/courier/checkpoints')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List courier delivery checkpoints' })
+  listCourierCheckpoints(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.courier.listCheckpoints(tenantId, id);
+  }
+
+  @Post(':id/courier/scan-checkpoint')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Scan a courier barcode / checkpoint and update milestones' })
+  scanCourierCheckpoint(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ScanCourierCheckpointDto,
+  ) {
+    return this.courier.scanCheckpoint(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/courier/link-export')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Link this courier job to an outbound COURIER job' })
+  linkCourierExport(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LinkCourierJobDto,
+  ) {
+    return this.courier.linkExport(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/courier/link-import')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Link this courier job to an inbound COURIER job' })
+  linkCourierImport(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LinkCourierJobDto,
+  ) {
+    return this.courier.linkImport(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/courier/pod')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Record COURIER proof of delivery' })
+  createCourierPod(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateCourierPodDto,
+  ) {
+    return this.courier.createPod(tenantId, id, dto, actorId);
+  }
+
+  @Post(':id/transport-requests')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Create a transport request on any job type' })
+  createTransportRequest(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateTransportRequestDto,
+  ) {
+    return this.transport.createForJob(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/transport-requests')
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List transport requests for a job' })
+  listTransportRequests(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.transport.listForJob(tenantId, id);
   }
 
   @Patch(':id/milestones/:milestoneId')
@@ -804,6 +1160,54 @@ export class JobsController {
     return this.service.generateDocument(tenantId, id, 'BARCODE_LABEL', dto, actorId);
   }
 
+  @Post(':id/documents/cross-border-declaration')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Cross-Border Declaration PDF (LAND)' })
+  generateCrossBorderDeclaration(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'CROSS_BORDER_DECLARATION', dto, actorId);
+  }
+
+  @Post(':id/documents/customs-transit')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Customs Transit Document PDF (LAND)' })
+  generateCustomsTransit(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'CUSTOMS_TRANSIT', dto, actorId);
+  }
+
+  @Post(':id/documents/delivery-note')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Delivery Note PDF (COURIER)' })
+  generateDeliveryNote(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'DELIVERY_NOTE', dto, actorId);
+  }
+
+  @Post(':id/documents/courier-report')
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Queue Courier Report PDF' })
+  generateCourierReport(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(tenantId, id, 'COURIER_REPORT', dto, actorId);
+  }
+
   @Post(':id/documents/consignee-label')
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({ summary: 'Queue consignee label PDF' })
@@ -906,7 +1310,7 @@ export class JobsController {
 
   @Post(':id/cargo')
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: 'Add an FCL cargo line (optionally assigned to a container)' })
+  @ApiOperation({ summary: 'Add a cargo line on Sea FCL (optional container) or Sea LCL job' })
   addCargo(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('id') actorId: string,

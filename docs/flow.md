@@ -549,31 +549,66 @@ Daily cron 08:00: low stock → NotificationType.WMS_LOW_STOCK
 
 Existing tenants: `POST /tenants/:id/sync-permissions` for `wms.*` and `WAREHOUSE_STAFF` role refresh.
 
-### Week 18 — LCL
+### Week 18 — Sea LCL Export + Import (Ch.12–13) — shipped
+
+Extends the existing `Job` spine — no new permissions (`jobs.view` / `jobs.update`).
 
 ```
-Job LCL + house/master consolidation
-  → prorate costs
-  → LCL document set via existing PDF queue
+POST /jobs { job_type: SEA_LCL_EXPORT | SEA_LCL_IMPORT }
+  → SeaLclJobDetail + 14 export / 11 import milestones (BOOKING_CREATED auto-done)
+
+PATCH /jobs/:id/sea-lcl-details
+POST  /jobs/:id/sea-lcl-details/si-submission
+GET   /jobs/:id/lcl-consolidation          (master totals)
+POST  /jobs/:id/lcl/attach-house
+POST  /jobs/:id/lcl/detach-house/:houseJobId
+POST  /jobs/:id/lcl/milestones/*           (CFS receive, consolidation, stuffing, devanning)
+POST  /jobs/:id/lcl/transhipment-link
+POST  /jobs/:id/lcl/wms-storage-link       (optional Week 17 WMS charge)
+POST  /jobs/:id/lcl/cfs-storage/calculate
+POST  /jobs/:id/lcl/cfs-storage-invoice    → DRAFT invoice
+
+GET/POST/PATCH/DELETE /jobs/:id/cargo      (LCL + FCL; LCL has no container_id)
+POST /jobs/:id/prorate-cost/:chargeCodeId  (LCL prorates by CBM)
+POST /jobs/:id/documents/*                 (allowlist per SEA_LCL_* type)
+POST /jobs/:id/pre-alert                   (SEA_LCL_EXPORT)
+
+SEA_LCL_IMPORT also uses shared import routes:
+  deposits, POD, part-delivery, customs-status, pre-can/can/do docs, etc.
 ```
 
-### Week 19 — Land + Courier
+### Week 19 — Land / Trucking + Courier (Ch.14–15) — shipped
+
+Completes all 8 operation modes on the `Job` spine. Tenant-wide TR list uses `transport.view` / `transport.manage`.
 
 ```
-Job LAND | COURIER
-  → transport requests / barcode labels
-  → tracking fields (public /track may extend)
+POST /jobs { job_type: LAND | COURIER }
+  → LandJobDetail / CourierJobDetail + milestones (BOOKING_CREATED auto-done)
+
+PATCH /jobs/:id/land-details
+POST  /jobs/:id/land/assign-trucker | pickup | border-crossing | pod
+PATCH /jobs/:id/land/cross-border
+
+PATCH /jobs/:id/courier-details
+POST  /jobs/:id/courier/confirm-booking   → tracking_number + barcode_value
+POST  /jobs/:id/courier/scan-checkpoint
+GET   /jobs/:id/courier/checkpoints
+POST  /jobs/:id/courier/link-export | link-import | pod
+
+POST  /jobs/:id/transport-requests
+GET   /jobs/:id/transport-requests
+GET   /transport-requests
+POST  /transport-requests/:id/assign | confirm-pickup | in-transit | delivered | cancel
+POST  /transport-requests/:id/record-cost
+POST  /transport-requests/:id/documents/transport-request
+
+GET/POST/PATCH/DELETE /masters/courier-vendors
+GET /track?ref=vehicle|tracking|barcode
 ```
 
-### Week 20 — NVOCC
+Existing tenants: `POST /tenants/:id/sync-permissions` for `transport.view` / `transport.manage`.
 
-```
-/nvocc/voyages → enquiries → send-rate → bookings → load-list
-  → convert booking → Job
-  → NVOCC HBL / CAN / DO / voyage P&L
-```
-
-CRM `/crm/enquiries` stays sales-side. Do not merge the two enquiry tables.
+### Week 20 / 20B — NVOCC (next)
 
 ### Week 21 — Public API / EDI / Stripe
 
@@ -604,6 +639,7 @@ Performance (cache, queue scale) → OWASP → integration tests (quote→GL, RL
 | Vendor admin | `vendor.manage_users`, `vendor.manage_permissions`, `vendor.manage_disputes` | Tenant Admin, Finance Manager |
 | CRM | `crm.view/create/update/delete` | Tenant Admin, Sales Manager, Sales Executive |
 | WMS | `wms.view`, `wms.manage_grn/gdo/stock/storage`, `wms.view_reports` | Warehouse Staff, Ops, Tenant Admin, Finance (storage) |
+| Transport | `transport.view`, `transport.manage` | Tenant Admin, Branch Manager, Operations, Documentation |
 | HR | `hr.view`, `hr.manage_employees`, `hr.manage_payroll`, `hr.view_self` | Tenant Admin, HR Manager; Finance payroll; Branch approve leave |
 | Notifications | `notifications.view` | Most staff |
 

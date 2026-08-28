@@ -11,6 +11,11 @@ import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
 import { SeaFclImportService } from './sea-fcl-import.service';
 import { AirImportService } from './air-import.service';
+import { SeaLclService } from './sea-lcl.service';
+import { SeaLclImportService } from './sea-lcl-import.service';
+import { LandService } from './land.service';
+import { CourierService } from './courier.service';
+import { TransportModule } from '../transport/transport.module';
 
 @Module({
   imports: [
@@ -22,9 +27,26 @@ import { AirImportService } from './air-import.service';
     NotificationsModule,
     InvoicesModule,
     StorageModule,
+    TransportModule,
   ],
   controllers: [JobsController],
-  providers: [JobsService, SeaFclImportService, AirImportService],
-  exports: [JobsService, SeaFclImportService, AirImportService],
+  providers: [
+    JobsService,
+    SeaFclImportService,
+    AirImportService,
+    SeaLclService,
+    SeaLclImportService,
+    LandService,
+    CourierService,
+  ],
+  exports: [
+    JobsService,
+    SeaFclImportService,
+    AirImportService,
+    SeaLclService,
+    SeaLclImportService,
+    LandService,
+    CourierService,
+  ],
 })
 export class JobsModule {}

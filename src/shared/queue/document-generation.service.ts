@@ -614,6 +614,12 @@ export class DocumentGenerationService {
       FREIGHT_CERTIFICATE: 'Freight Certificate',
       HAWB: 'House Air Waybill (HAWB)',
       MAWB: 'Master Air Waybill (MAWB)',
+      CROSS_BORDER_DECLARATION: 'Cross-Border Declaration',
+      CUSTOMS_TRANSIT: 'Customs Transit Document',
+      DELIVERY_NOTE: 'Delivery Note',
+      COURIER_REPORT: 'Courier Report',
+      CUSTOMS_ENTRY: 'Customs Declaration',
+      BOOKING_CONFIRMATION: 'Booking Confirmation',
     };
 
     const houseJob = job.house_jobs[0];

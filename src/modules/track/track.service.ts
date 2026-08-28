@@ -36,6 +36,9 @@ export class TrackService {
             { sea_fcl_details: { hbl_number: { equals: q, mode: 'insensitive' } } },
             { sea_fcl_details: { mbl_number: { equals: q, mode: 'insensitive' } } },
             { sea_fcl_details: { booking_number: { equals: q, mode: 'insensitive' } } },
+            { land_details: { vehicle_number: { equals: q, mode: 'insensitive' } } },
+            { courier_details: { tracking_number: { equals: q, mode: 'insensitive' } } },
+            { courier_details: { barcode_value: { equals: q, mode: 'insensitive' } } },
           ],
         },
         include: {
@@ -65,6 +68,26 @@ export class TrackService {
               sailed_at: true,
               place_of_receipt: true,
               place_of_delivery: true,
+            },
+          },
+          land_details: {
+            select: {
+              vehicle_number: true,
+              vehicle_type: true,
+              driver_name: true,
+              origin_city_country: true,
+              destination_city_country: true,
+              etd: true,
+              eta: true,
+            },
+          },
+          courier_details: {
+            select: {
+              tracking_number: true,
+              barcode_value: true,
+              service_type: true,
+              pickup_address: true,
+              delivery_address: true,
             },
           },
           milestones: {
@@ -142,8 +165,8 @@ export class TrackService {
           job_number: job.job_number,
           job_type: job.job_type,
           status: job.status,
-          etd: job.etd ?? job.sea_fcl_details?.etd ?? null,
-          eta: job.eta ?? job.sea_fcl_details?.eta ?? null,
+          etd: job.etd ?? job.sea_fcl_details?.etd ?? job.land_details?.etd ?? null,
+          eta: job.eta ?? job.sea_fcl_details?.eta ?? job.land_details?.eta ?? null,
           commodity: job.commodity,
           pieces: job.pieces,
           gross_weight: job.gross_weight,
@@ -155,7 +178,11 @@ export class TrackService {
                   code: originAirport.iata_code,
                   country_code: originAirport.country_code,
                 }
-              : null,
+              : job.land_details?.origin_city_country
+                ? { name: job.land_details.origin_city_country, code: null, country_code: null }
+                : job.courier_details?.pickup_address
+                  ? { name: job.courier_details.pickup_address, code: null, country_code: null }
+                  : null,
           destination: destPort
             ? { name: destPort.name, code: destPort.un_locode, country_code: destPort.country_code }
             : destAirport
@@ -164,7 +191,11 @@ export class TrackService {
                   code: destAirport.iata_code,
                   country_code: destAirport.country_code,
                 }
-              : null,
+              : job.land_details?.destination_city_country
+                ? { name: job.land_details.destination_city_country, code: null, country_code: null }
+                : job.courier_details?.delivery_address
+                  ? { name: job.courier_details.delivery_address, code: null, country_code: null }
+                  : null,
           references: {
             hawb_number: job.air_details?.hawb_number ?? null,
             mawb_number: job.air_details?.mawb_number ?? null,
@@ -177,6 +208,11 @@ export class TrackService {
             actual_eta: job.air_details?.actual_eta ?? null,
             voyage_number: job.sea_fcl_details?.voyage_number ?? null,
             vessel_name: vessel?.name ?? null,
+            vehicle_number: job.land_details?.vehicle_number ?? null,
+            driver_name: job.land_details?.driver_name ?? null,
+            tracking_number: job.courier_details?.tracking_number ?? null,
+            barcode_value: job.courier_details?.barcode_value ?? null,
+            courier_service_type: job.courier_details?.service_type ?? null,
           },
           milestones: job.milestones.map((m) => ({
             milestone: m.milestone,

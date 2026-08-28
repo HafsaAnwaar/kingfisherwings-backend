@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DocumentNumberFormat, DocumentNumberType } from '@prisma/client';
+import { DocumentNumberFormat, DocumentNumberType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 export interface GenerateNumberOptions {
@@ -25,8 +25,9 @@ export class NumberGeneratorService {
     tenantId: string,
     documentType: DocumentNumberType,
     options: GenerateNumberOptions = {},
+    existingTx?: Prisma.TransactionClient,
   ): Promise<string> {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const mint = async (tx: Prisma.TransactionClient) => {
       let format = await tx.documentNumberFormat.findFirst({
         where: { tenant_id: tenantId, document_type: documentType, is_active: true },
       });
@@ -76,7 +77,13 @@ export class NumberGeneratorService {
       });
 
       return this.assemble(format, sequence.last_sequence, now, branchCode, options.extraSegment);
-    });
+    };
+
+    if (existingTx) {
+      return mint(existingTx);
+    }
+
+    return this.prisma.runWithTenant(tenantId, mint);
   }
 
   private defaultPrefix(documentType: DocumentNumberType): string {
@@ -93,6 +100,7 @@ export class NumberGeneratorService {
       GRN: 'GRN',
       GDO: 'GDO',
       ASN: 'ASN',
+      TRANSPORT_REQUEST: 'TR',
     };
     return map[documentType] ?? 'DOC';
   }

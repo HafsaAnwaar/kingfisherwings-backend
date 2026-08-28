@@ -28,6 +28,7 @@ import { VendorModule } from './modules/vendor/vendor.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { HrModule } from './modules/hr/hr.module';
 import { WmsModule } from './modules/wms/wms.module';
+import { TransportModule } from './modules/transport/transport.module';
 import { TrackModule } from './modules/track/track.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
@@ -78,6 +79,7 @@ import { LocaleModule } from './common/locale/locale.module';
     TrackModule,
     NotificationsModule,
     WmsModule,
+    TransportModule,
   ],
   providers: [
     {

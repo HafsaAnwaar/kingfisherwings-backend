@@ -39,8 +39,8 @@ This report follows the **same chapter order and section numbering** as the Fres
 | 11 | Sea FCL Import | ~90% | **Done** |
 | 12 | Sea LCL Export | ~5% | **Not started** |
 | 13 | Sea LCL Import | ~5% | **Not started** |
-| 14 | Land / Trucking | ~10% | **Schema/master only** |
-| 15 | Courier | ~5% | **Not started** |
+| 14 | Land / Trucking | ~90% | **Backend shipped (Week 19)** |
+| 15 | Courier | ~85% | **Backend shipped (Week 19)** |
 | 16 | Documentation & Document Generation | ~75% | **Mostly Done** for Air+FCL; LCL/land/courier docs Missing |
 | 17 | Accounting — GL & Vouchers | ~0% | **Not started** |
 | 18 | Accounting — Invoicing & Credit Notes | ~65% | **Partial** — core invoices Yes; 25+ formats / e-invoice / debit note thin |
@@ -113,7 +113,7 @@ FreightSaas targets the same domain (freight forwarding ERP SaaS). **D** as prod
 | Business type | Status | Notes |
 |---------------|--------|-------|
 | Freight Forwarders (Air & Sea) | **D** | Air export + Sea FCL |
-| NVOCC Operators | **S** | JobType enum only |
+| NVOCC Operators | **N** | Week 20 planned |
 | IATA Cargo Agents | **P** | IATA/AWB stock Yes; agent portal No |
 | CFS / CFS Operators | **P** | Party type + CFS calc on FCL import |
 | Customs Brokers | **S** | Party type |
@@ -493,11 +493,11 @@ JobType `SEA_LCL_EXPORT` enum + job number prefix only (**S**).
 
 | Section | Status |
 |---------|--------|
-| 14.1 Land Job Creation | **S** — JobType + trucker master |
-| 14.2 Land Documents | **N** |
-| 14.3 Transport Request Management | **P** — transport-request PDF exists in import context; no full land TR module |
+| 14.1 Land Job Creation | **D** — LandJobDetail, trucker assignment, milestones |
+| 14.2 Land Documents | **D** — 9-type allowlist + cross-border / transit PDFs |
+| 14.3 Transport Request Management | **D** — TransportRequest aggregate, status workflow, cost line |
 
-**Chapter 14 overall: ~10% — Schema / partial.**
+**Chapter 14 overall: ~90% — Backend shipped (Week 19).**
 
 ---
 
@@ -505,10 +505,10 @@ JobType `SEA_LCL_EXPORT` enum + job number prefix only (**S**).
 
 | Section | Status |
 |---------|--------|
-| 15.1 Overview (booking, tracking, barcode, vendors) | **N** |
-| 15.2 Documents | **N** (generic barcode label on air exists) |
+| 15.1 Overview (booking, tracking, barcode, vendors) | **D** — CourierJobDetail, CourierVendor, checkpoints, public track |
+| 15.2 Documents | **D** — 8-type allowlist including barcode label, delivery note, courier report |
 
-**Chapter 15 overall: ~5% — Not started.**
+**Chapter 15 overall: ~85% — Backend shipped (Week 19).**
 
 ---
 

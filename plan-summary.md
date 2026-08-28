@@ -67,14 +67,17 @@ Backend repo state assessed against implemented modules (`src/app.module.ts`, co
 | **15** | 9 | **Done** | Air Import backend (milestones, CAN/DO, customs, storage invoice, transhipment, damage) |
 | **16** | 21 | **Done** | HR backend (employees, leave, payroll/WPS, loans, timesheets, evaluations, letters) |
 | **17** | 22 | **Done** | WMS: items, ASN, GRN/GDO, FIFO/LIFO stock ledger, transfers, adjustments, storage DRAFT invoices, low-stock cron |
+| **18** | 12–13 | **Done** | Sea LCL Export + Import: SeaLclJobDetail, house/master consolidation, milestones, documents, CFS storage, WMS link, prorate by CBM |
+| **19** | 14–15 | **Done** | Land/Trucking + Courier: LandJobDetail, CourierJobDetail, transport requests, courier vendors, barcode checkpoints, public track |
 
 ### What's next
 
-1. **Week 18** — Sea LCL Export + Import (largest remaining sea gap vs Fresa Sea Freight manual).
-2. Existing tenants: `POST /tenants/:id/sync-permissions` after each new module catalog.
+1. **Week 20** — NVOCC (voyages, enquiries, bookings, load list, tariffs).
+2. **Week 21** — Admin, EDI, public API, Stripe.
+3. Existing tenants: `POST /tenants/:id/sync-permissions` after each new module catalog.
 
 **Phase 1 MVP target (per 28-week PDF):** Air Export + Sea FCL Export/Import + Full Finance + MIS Dashboard (through Week 12) — **backend complete**.  
-**Phase 2 progress:** Weeks 13–17 **backend complete**; Weeks 18–21 remaining.
+**Phase 2 progress:** Weeks 13–19 **backend complete**; Weeks 20–21 remaining.
 
 ---
 
@@ -259,8 +262,8 @@ Fresa “Organization” ≈ our **Party** (+ org profile for the tenant company
 | 15 | Air Import | **Done** | UI deferred |
 | 16 | HR | **Done** | UI deferred |
 | **17** | **WMS** | **Done** | GRN/GDO, FIFO/LIFO, stock, storage DRAFT invoice, ASN, low-stock cron |
-| **18** | **Sea LCL Ex+Im** | **Not started** | **Primary Fresa Sea gap** — full LCL consoles + docs |
-| **19** | Land + Courier | **Not started** | Completes 8 operation modes |
+| **18** | **Sea LCL Ex+Im** | **Done** | House/master consolidation, milestones, documents, CFS storage |
+| **19** | Land + Courier | **Done** | LandJobDetail, CourierJobDetail, transport requests, courier vendors |
 | **20 / 20B** | NVOCC | **Not started** | Voyages, space, NVOCC HBL, voyage P&L |
 | **21** | Admin / EDI / Public API / Stripe | **Not started** | EDI gateways, `/api/v1`, webhooks, Stripe SaaS, Ch.2 settings depth |
 | 22–23 | Performance / OWASP | **Not started** | Non-functional |

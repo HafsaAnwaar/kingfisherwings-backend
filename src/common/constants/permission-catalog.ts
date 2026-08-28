@@ -12,6 +12,7 @@ import { VENDOR_PERMISSION_CONSTANTS } from '../../modules/vendor/constants/vend
 import { CRM_PERMISSION_CONSTANTS } from '../../modules/crm/constants/crm-permission.constants';
 import { HR_PERMISSION_CONSTANTS } from '../../modules/hr/constants/hr-permission.constants';
 import { WMS_PERMISSION_CONSTANTS } from '../../modules/wms/constants/wms-permission.constants';
+import { TRANSPORT_PERMISSION_CONSTANTS } from '../../modules/transport/constants/transport-permission.constants';
 import { NOTIFICATIONS_PERMISSION_CONSTANTS } from '../../modules/notifications/constants/notifications-permission.constants';
 
 export interface PermissionCatalogEntry {
@@ -100,6 +101,11 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: WMS_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${WMS_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(TRANSPORT_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: TRANSPORT_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${TRANSPORT_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
   ...Object.values(NOTIFICATIONS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
     module: NOTIFICATIONS_PERMISSION_CONSTANTS.MODULE,

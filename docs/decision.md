@@ -2,7 +2,7 @@
 
 > **Living document.** Record *why* we chose a library, pattern, or product rule — not just *what* shipped.  
 > Update this file whenever a decision is locked, reversed, or deferred. Do **not** duplicate API catalogs here; see [flow.md](./flow.md) for execution paths.  
-> **Current implementation horizon:** Weeks 0–14 complete (backend). Weeks 15–28 are planned.
+> **Current implementation horizon:** Weeks 0–19 complete (backend). Weeks 20–28 are planned.
 
 **Product:** KingFisher Wings ERP (package `fresa-gold-backend`)  
 **Spec sources:** Fresa Gold Complete Feature Specification · 28-Week Plan · Ch.1–28  
@@ -533,19 +533,30 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 
 ### Week 18 — Sea LCL Export + Import (Ch.12–13)
 
-| Topic | Status | Decision / question |
-|-------|--------|---------------------|
-| Same `Job` + LCL detail + house/master consolidation | **LOCKED** | Follow FCL house/master, do not fork job service. |
-| Cost prorate across houses | **LOCKED** (proposed) | Same prorate helper as air/FCL charges. |
-| CFS storage per consignment | **LOCKED** (proposed) | Prefer link to Week 17 WMS storage charges when cargo sits in tenant warehouse; else job-level storage charge only. |
+| Topic | Status | Decision |
+|-------|--------|----------|
+| Same `Job` + `SeaLclJobDetail` + house/master | **SHIPPED** | Reuse FCL consolidation pattern (`parent_job_id`, one-level only). Job numbers `LE` / `LI`. Detail row seeded on create. |
+| Milestones | **SHIPPED** | Export: 14 (`BOOKING_CREATED` … `JOB_CLOSED`). Import: 11. `BOOKING_CREATED` auto-completed on create. |
+| Cost prorate across houses | **SHIPPED** | `POST /jobs/:id/prorate-cost/:chargeCodeId` — LCL uses `volume_cbm`, then chargeable/gross weight, then equal split. |
+| LCL cargo | **SHIPPED** | Reuse `JobCargo` on job (no container assignment for LCL). Shared `/jobs/:id/cargo` CRUD. |
+| Documents | **SHIPPED** | Export allowlist (14 types): HBL, MBL, SI, STUFFING_REPORT, manifests, packing list, pre-alert, etc. Import (11): PRE_CAN, CAN, DO, POD, etc. Reuse existing `DocumentType` enum. |
+| CFS storage per consignment | **SHIPPED** | Job-level: `cfs_storage_*` + `storage_rate_basis` (CBM default). Optional `wms_storage_charge_id` link to Week 17 WMS. `POST …/lcl/cfs-storage/calculate` and `…/lcl/cfs-storage-invoice`. |
+| Attach/detach house | **SHIPPED** | `POST /jobs/:id/lcl/attach-house`, `POST /jobs/:id/lcl/detach-house/:houseJobId`. Consolidation summary: `GET /jobs/:id/lcl-consolidation`. |
+| Import shared ops | **SHIPPED** | `SEA_LCL_IMPORT` included in shared import endpoints (deposits, POD, part delivery, customs exams via existing routes). |
+| Permissions | **SHIPPED** | Reuses existing `jobs.view` / `jobs.update` — no new permission catalog entries. |
+| Out of scope Week 18 | **LOCKED** | NVOCC slot booking; automated CFS EDI; separate LCL microservice. |
 
 ### Week 19 — Land / Trucking + Courier (Ch.14–15)
 
-| Topic | Status | Decision / question |
-|-------|--------|---------------------|
-| Still `Job` + mode-specific details | **LOCKED** | Completes “all 8 operation modes” on one job spine. |
-| Transport requests | **OPEN** | New aggregate vs job milestone + document. |
-| Courier barcodes | **LOCKED** (proposed) | Reuse Week 5 label/QR pipeline. |
+| Topic | Status | Decision |
+|-------|--------|----------|
+| Same `Job` + mode-specific details | **SHIPPED** | `LandJobDetail` / `CourierJobDetail` 1:1 with `Job`. Completes all 8 operation modes on one spine. Job prefixes `LD` / `CR`. |
+| Transport requests | **SHIPPED** | New `TransportRequest` aggregate shared across **all** job types. Status: `CREATED → ASSIGNED → PICKUP_CONFIRMED → IN_TRANSIT → DELIVERED` (or `CANCELLED`). Numbered via `DocumentNumberType.TRANSPORT_REQUEST`. |
+| Courier vendors | **SHIPPED** | New `CourierVendor` master (FedEx/DHL/UPS/local). Not a `PartyType`. |
+| Courier barcodes | **SHIPPED** | Reuse Week 5 `BARCODE_LABEL` PDF queue. Booking confirm generates `tracking_number` + `barcode_value`. `CourierDeliveryCheckpoint` for scans. |
+| Cross-border / courier docs | **SHIPPED** | New `DocumentType`: `CROSS_BORDER_DECLARATION`, `CUSTOMS_TRANSIT`, `DELIVERY_NOTE`, `COURIER_REPORT`. |
+| Permissions | **SHIPPED** | Land/courier job ops reuse `jobs.view` / `jobs.update`. Tenant-wide TR list uses `transport.view` / `transport.manage`. |
+| Out of scope Week 19 | **LOCKED** | GPS/telematics; live carrier APIs (FedEx/DHL); UI; portal land/courier views. |
 
 ### Week 20 / 20B — NVOCC
 

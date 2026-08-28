@@ -76,4 +76,5 @@ export type SeaFclDocumentOptions = {
   proxy_forwarder_address?: string;
   transhipment_port?: string;
   is_express_release?: boolean;
+  transport_request_id?: string;
 };
