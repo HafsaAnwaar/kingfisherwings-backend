@@ -101,6 +101,9 @@ export class NumberGeneratorService {
       GDO: 'GDO',
       ASN: 'ASN',
       TRANSPORT_REQUEST: 'TR',
+      NVOCC_VOYAGE: 'VYG',
+      NVOCC_ENQUIRY: 'NEQ',
+      NVOCC_BOOKING: 'NBK',
     };
     return map[documentType] ?? 'DOC';
   }

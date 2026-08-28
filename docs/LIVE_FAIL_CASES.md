@@ -1,455 +1,455 @@
 # LIVE FAIL Cases — One Per API
 
 **Base URL:** `https://kingfisherwings.onrender.com`
-**Run ID:** 1784282902909
-**When:** 2026-07-17T10:18:47.828Z
+**Run ID:** 1787902145904
+**When:** 2026-08-28T07:30:11.114Z
 **OpenAPI APIs:** 441
 
 Every OpenAPI operation appears exactly once. Live execution result is shown when available.
 
 | # | Method | Path | Live result | HTTP |
 |---|--------|------|-------------|------|
-| 1 | GET | `/locale/defaults` | EXECUTED_FAIL (API did not reject as expected) | 200 |
-| 2 | GET | `/locale/{countryCode}` | EXECUTED_FAIL (API did not reject as expected) | 200 |
-| 3 | GET | `/health` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 4 | POST | `/tenants` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 5 | GET | `/tenants` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 6 | GET | `/tenants/statistics` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 7 | POST | `/tenants/sync-permissions` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 8 | POST | `/tenants/{id}/sync-permissions` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 9 | GET | `/tenants/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 10 | PATCH | `/tenants/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 11 | DELETE | `/tenants/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 12 | PATCH | `/tenants/{id}/restore` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 13 | PATCH | `/tenants/{id}/activate` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 14 | PATCH | `/tenants/{id}/deactivate` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 15 | GET | `/companies` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 16 | POST | `/companies` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 17 | GET | `/companies/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 18 | PATCH | `/companies/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 19 | DELETE | `/companies/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 20 | GET | `/users` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 21 | POST | `/users` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 22 | GET | `/users/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 23 | PATCH | `/users/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 24 | DELETE | `/users/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 25 | PATCH | `/users/{id}/status` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 26 | POST | `/users/bulk` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 27 | POST | `/users/{id}/restore` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 28 | POST | `/users/me/change-password` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 29 | POST | `/users/{id}/admin-reset-password` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 30 | POST | `/users/{id}/force-logout` | EXECUTED_PASS (API correctly rejected) | 401 |
+| 1 | GET | `/locale/defaults` | PUBLIC_USE_BAD_BODY | 400 |
+| 2 | GET | `/locale/{countryCode}` | PUBLIC_USE_BAD_BODY | 400 |
+| 3 | GET | `/health` | PUBLIC_USE_BAD_BODY | 400 |
+| 4 | POST | `/tenants` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 5 | GET | `/tenants` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 6 | GET | `/tenants/statistics` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 7 | POST | `/tenants/sync-permissions` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 8 | POST | `/tenants/{id}/sync-permissions` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 9 | GET | `/tenants/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 10 | PATCH | `/tenants/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 11 | DELETE | `/tenants/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 12 | PATCH | `/tenants/{id}/restore` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 13 | PATCH | `/tenants/{id}/activate` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 14 | PATCH | `/tenants/{id}/deactivate` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 15 | GET | `/companies` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 16 | POST | `/companies` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 17 | GET | `/companies/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 18 | PATCH | `/companies/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 19 | DELETE | `/companies/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 20 | GET | `/users` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 21 | POST | `/users` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 22 | GET | `/users/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 23 | PATCH | `/users/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 24 | DELETE | `/users/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 25 | PATCH | `/users/{id}/status` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 26 | POST | `/users/bulk` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 27 | POST | `/users/{id}/restore` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 28 | POST | `/users/me/change-password` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 29 | POST | `/users/{id}/admin-reset-password` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 30 | POST | `/users/{id}/force-logout` | EXECUTED_FAIL (API did not reject as expected) | 429 |
 | 31 | POST | `/auth/login` | PUBLIC_USE_BAD_BODY | 400 |
 | 32 | POST | `/auth/tenant-login` | PUBLIC_USE_BAD_BODY | 400 |
 | 33 | POST | `/auth/super-admin/signup` | PUBLIC_USE_BAD_BODY | 400 |
-| 34 | POST | `/auth/super-admin/login` | EXECUTED_PASS (API correctly rejected) | 401 |
+| 34 | POST | `/auth/super-admin/login` | PUBLIC_USE_BAD_BODY | 400 |
 | 35 | POST | `/auth/refresh` | PUBLIC_USE_BAD_BODY | 400 |
-| 36 | POST | `/auth/logout` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 37 | GET | `/auth/sessions` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 38 | POST | `/auth/sessions/{sessionId}/revoke` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 39 | POST | `/auth/logout-all` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 40 | GET | `/auth/me` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 41 | PATCH | `/auth/me` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 42 | POST | `/auth/change-password` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 43 | POST | `/auth/tenant/change-password` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 44 | POST | `/auth/invite` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 45 | POST | `/auth/accept-invite` | EXECUTED_PASS (API correctly rejected) | 400 |
-| 46 | POST | `/auth/2fa/setup` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 47 | POST | `/auth/2fa/enable` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 48 | POST | `/auth/2fa/disable` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 49 | GET | `/masters/countries` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 50 | POST | `/masters/countries` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 51 | GET | `/masters/countries/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 52 | PATCH | `/masters/countries/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 53 | DELETE | `/masters/countries/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 54 | GET | `/masters/currencies` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 55 | POST | `/masters/currencies` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 56 | GET | `/masters/currencies/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 57 | PATCH | `/masters/currencies/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 58 | DELETE | `/masters/currencies/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 59 | GET | `/masters/exchange-rates` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 60 | POST | `/masters/exchange-rates` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 61 | GET | `/masters/exchange-rates/latest/{currencyId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 62 | GET | `/masters/ports` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 63 | POST | `/masters/ports` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 64 | GET | `/masters/ports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 65 | PATCH | `/masters/ports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 66 | DELETE | `/masters/ports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 67 | GET | `/masters/airports` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 68 | POST | `/masters/airports` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 69 | GET | `/masters/airports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 70 | PATCH | `/masters/airports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 71 | DELETE | `/masters/airports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 72 | GET | `/masters/container-types` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 73 | POST | `/masters/container-types` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 74 | GET | `/masters/container-types/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 75 | PATCH | `/masters/container-types/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 76 | DELETE | `/masters/container-types/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 77 | GET | `/masters/hs-codes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 78 | POST | `/masters/hs-codes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 79 | GET | `/masters/hs-codes/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 80 | PATCH | `/masters/hs-codes/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 81 | DELETE | `/masters/hs-codes/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 82 | GET | `/masters/airlines` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 83 | POST | `/masters/airlines` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 84 | GET | `/masters/airlines/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 85 | PATCH | `/masters/airlines/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 86 | DELETE | `/masters/airlines/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 87 | GET | `/masters/shipping-lines` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 88 | POST | `/masters/shipping-lines` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 89 | GET | `/masters/shipping-lines/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 90 | PATCH | `/masters/shipping-lines/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 91 | DELETE | `/masters/shipping-lines/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 92 | GET | `/masters/vessels` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 93 | POST | `/masters/vessels` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 94 | GET | `/masters/vessels/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 95 | PATCH | `/masters/vessels/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 96 | DELETE | `/masters/vessels/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 97 | GET | `/vessels/{id}/schedules` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 98 | POST | `/vessels/{id}/schedules` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 99 | PATCH | `/vessels/{id}/schedules/{scheduleId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 100 | DELETE | `/vessels/{id}/schedules/{scheduleId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 101 | GET | `/masters/truckers` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 102 | POST | `/masters/truckers` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 103 | GET | `/masters/truckers/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 104 | PATCH | `/masters/truckers/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 105 | DELETE | `/masters/truckers/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 106 | GET | `/masters/warehouses` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 107 | POST | `/masters/warehouses` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 108 | GET | `/masters/warehouses/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 109 | PATCH | `/masters/warehouses/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 110 | DELETE | `/masters/warehouses/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 111 | GET | `/masters/charge-codes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 112 | POST | `/masters/charge-codes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 113 | GET | `/masters/charge-codes/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 114 | PATCH | `/masters/charge-codes/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 115 | DELETE | `/masters/charge-codes/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 116 | GET | `/masters/banks` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 117 | POST | `/masters/banks` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 118 | GET | `/masters/banks/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 119 | PATCH | `/masters/banks/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 120 | DELETE | `/masters/banks/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 121 | GET | `/masters/holidays` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 122 | POST | `/masters/holidays` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 123 | GET | `/masters/holidays/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 124 | PATCH | `/masters/holidays/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 125 | DELETE | `/masters/holidays/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 126 | GET | `/masters/units-of-measure` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 127 | POST | `/masters/units-of-measure` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 128 | GET | `/masters/units-of-measure/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 129 | PATCH | `/masters/units-of-measure/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 130 | DELETE | `/masters/units-of-measure/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 131 | GET | `/masters/tax-rates` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 132 | POST | `/masters/tax-rates` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 133 | GET | `/masters/tax-rates/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 134 | PATCH | `/masters/tax-rates/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 135 | DELETE | `/masters/tax-rates/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 136 | GET | `/masters/branches` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 137 | POST | `/masters/branches` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 138 | GET | `/masters/branches/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 139 | PATCH | `/masters/branches/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 140 | DELETE | `/masters/branches/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 141 | GET | `/masters/departments` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 142 | POST | `/masters/departments` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 143 | GET | `/masters/departments/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 144 | PATCH | `/masters/departments/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 145 | DELETE | `/masters/departments/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 146 | GET | `/masters/designations` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 147 | POST | `/masters/designations` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 148 | GET | `/masters/designations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 149 | PATCH | `/masters/designations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 150 | DELETE | `/masters/designations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 151 | GET | `/parties` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 152 | POST | `/parties` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 153 | GET | `/parties/export` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 154 | GET | `/parties/{id}/history` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 155 | GET | `/parties/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 156 | PATCH | `/parties/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 157 | DELETE | `/parties/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 158 | POST | `/parties/import` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 159 | PATCH | `/parties/{id}/credit-status` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 160 | POST | `/parties/{id}/contacts` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 161 | PATCH | `/parties/{id}/contacts/{contactId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 162 | DELETE | `/parties/{id}/contacts/{contactId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 163 | POST | `/parties/{id}/addresses` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 164 | PATCH | `/parties/{id}/addresses/{addressId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 165 | DELETE | `/parties/{id}/addresses/{addressId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 166 | GET | `/organization/profile` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 167 | PATCH | `/organization/profile` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 168 | GET | `/organization/bank-accounts` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 169 | POST | `/organization/bank-accounts` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 170 | GET | `/organization/bank-accounts/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 171 | PATCH | `/organization/bank-accounts/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 172 | DELETE | `/organization/bank-accounts/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 173 | GET | `/organization/number-formats` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 174 | POST | `/organization/number-formats` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 175 | GET | `/organization/number-formats/{documentType}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 176 | PATCH | `/organization/number-formats/{documentType}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 177 | GET | `/organization/number-formats/{documentType}/preview` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 178 | GET | `/quotations/tariffs` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 179 | POST | `/quotations/tariffs` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 180 | GET | `/quotations/tariffs/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 181 | PATCH | `/quotations/tariffs/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 182 | DELETE | `/quotations/tariffs/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 183 | GET | `/quotations/zip-distances` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 184 | POST | `/quotations/zip-distances` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 185 | GET | `/quotations/zip-distances/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 186 | PATCH | `/quotations/zip-distances/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 187 | DELETE | `/quotations/zip-distances/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 188 | GET | `/quotations` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 189 | POST | `/quotations` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 190 | GET | `/quotations/reports/chargewise` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 191 | GET | `/quotations/reports/analytics` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 192 | GET | `/quotations/reports/analytics/conversion` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 193 | GET | `/quotations/reports/analytics/lost-reasons` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 194 | GET | `/quotations/reports/analytics/response-time` | EXECUTED_PASS (API correctly rejected) | 401 |
+| 36 | POST | `/auth/logout` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 37 | GET | `/auth/sessions` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 38 | POST | `/auth/sessions/{sessionId}/revoke` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 39 | POST | `/auth/logout-all` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 40 | GET | `/auth/me` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 41 | PATCH | `/auth/me` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 42 | POST | `/auth/change-password` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 43 | POST | `/auth/tenant/change-password` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 44 | POST | `/auth/invite` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 45 | POST | `/auth/accept-invite` | PUBLIC_USE_BAD_BODY | 400 |
+| 46 | POST | `/auth/2fa/setup` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 47 | POST | `/auth/2fa/enable` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 48 | POST | `/auth/2fa/disable` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 49 | GET | `/masters/countries` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 50 | POST | `/masters/countries` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 51 | GET | `/masters/countries/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 52 | PATCH | `/masters/countries/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 53 | DELETE | `/masters/countries/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 54 | GET | `/masters/currencies` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 55 | POST | `/masters/currencies` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 56 | GET | `/masters/currencies/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 57 | PATCH | `/masters/currencies/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 58 | DELETE | `/masters/currencies/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 59 | GET | `/masters/exchange-rates` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 60 | POST | `/masters/exchange-rates` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 61 | GET | `/masters/exchange-rates/latest/{currencyId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 62 | GET | `/masters/ports` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 63 | POST | `/masters/ports` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 64 | GET | `/masters/ports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 65 | PATCH | `/masters/ports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 66 | DELETE | `/masters/ports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 67 | GET | `/masters/airports` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 68 | POST | `/masters/airports` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 69 | GET | `/masters/airports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 70 | PATCH | `/masters/airports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 71 | DELETE | `/masters/airports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 72 | GET | `/masters/container-types` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 73 | POST | `/masters/container-types` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 74 | GET | `/masters/container-types/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 75 | PATCH | `/masters/container-types/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 76 | DELETE | `/masters/container-types/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 77 | GET | `/masters/hs-codes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 78 | POST | `/masters/hs-codes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 79 | GET | `/masters/hs-codes/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 80 | PATCH | `/masters/hs-codes/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 81 | DELETE | `/masters/hs-codes/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 82 | GET | `/masters/airlines` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 83 | POST | `/masters/airlines` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 84 | GET | `/masters/airlines/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 85 | PATCH | `/masters/airlines/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 86 | DELETE | `/masters/airlines/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 87 | GET | `/masters/shipping-lines` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 88 | POST | `/masters/shipping-lines` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 89 | GET | `/masters/shipping-lines/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 90 | PATCH | `/masters/shipping-lines/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 91 | DELETE | `/masters/shipping-lines/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 92 | GET | `/masters/vessels` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 93 | POST | `/masters/vessels` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 94 | GET | `/masters/vessels/{id}` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 95 | PATCH | `/masters/vessels/{id}` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 96 | DELETE | `/masters/vessels/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 97 | GET | `/vessels/{id}/schedules` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 98 | POST | `/vessels/{id}/schedules` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 99 | PATCH | `/vessels/{id}/schedules/{scheduleId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 100 | DELETE | `/vessels/{id}/schedules/{scheduleId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 101 | GET | `/masters/truckers` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 102 | POST | `/masters/truckers` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 103 | GET | `/masters/truckers/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 104 | PATCH | `/masters/truckers/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 105 | DELETE | `/masters/truckers/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 106 | GET | `/masters/warehouses` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 107 | POST | `/masters/warehouses` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 108 | GET | `/masters/warehouses/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 109 | PATCH | `/masters/warehouses/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 110 | DELETE | `/masters/warehouses/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 111 | GET | `/masters/charge-codes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 112 | POST | `/masters/charge-codes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 113 | GET | `/masters/charge-codes/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 114 | PATCH | `/masters/charge-codes/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 115 | DELETE | `/masters/charge-codes/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 116 | GET | `/masters/banks` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 117 | POST | `/masters/banks` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 118 | GET | `/masters/banks/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 119 | PATCH | `/masters/banks/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 120 | DELETE | `/masters/banks/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 121 | GET | `/masters/holidays` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 122 | POST | `/masters/holidays` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 123 | GET | `/masters/holidays/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 124 | PATCH | `/masters/holidays/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 125 | DELETE | `/masters/holidays/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 126 | GET | `/masters/units-of-measure` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 127 | POST | `/masters/units-of-measure` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 128 | GET | `/masters/units-of-measure/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 129 | PATCH | `/masters/units-of-measure/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 130 | DELETE | `/masters/units-of-measure/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 131 | GET | `/masters/tax-rates` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 132 | POST | `/masters/tax-rates` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 133 | GET | `/masters/tax-rates/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 134 | PATCH | `/masters/tax-rates/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 135 | DELETE | `/masters/tax-rates/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 136 | GET | `/masters/branches` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 137 | POST | `/masters/branches` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 138 | GET | `/masters/branches/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 139 | PATCH | `/masters/branches/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 140 | DELETE | `/masters/branches/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 141 | GET | `/masters/departments` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 142 | POST | `/masters/departments` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 143 | GET | `/masters/departments/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 144 | PATCH | `/masters/departments/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 145 | DELETE | `/masters/departments/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 146 | GET | `/masters/designations` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 147 | POST | `/masters/designations` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 148 | GET | `/masters/designations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 149 | PATCH | `/masters/designations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 150 | DELETE | `/masters/designations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 151 | GET | `/parties` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 152 | POST | `/parties` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 153 | GET | `/parties/export` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 154 | GET | `/parties/{id}/history` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 155 | GET | `/parties/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 156 | PATCH | `/parties/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 157 | DELETE | `/parties/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 158 | POST | `/parties/import` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 159 | PATCH | `/parties/{id}/credit-status` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 160 | POST | `/parties/{id}/contacts` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 161 | PATCH | `/parties/{id}/contacts/{contactId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 162 | DELETE | `/parties/{id}/contacts/{contactId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 163 | POST | `/parties/{id}/addresses` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 164 | PATCH | `/parties/{id}/addresses/{addressId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 165 | DELETE | `/parties/{id}/addresses/{addressId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 166 | GET | `/organization/profile` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 167 | PATCH | `/organization/profile` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 168 | GET | `/organization/bank-accounts` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 169 | POST | `/organization/bank-accounts` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 170 | GET | `/organization/bank-accounts/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 171 | PATCH | `/organization/bank-accounts/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 172 | DELETE | `/organization/bank-accounts/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 173 | GET | `/organization/number-formats` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 174 | POST | `/organization/number-formats` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 175 | GET | `/organization/number-formats/{documentType}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 176 | PATCH | `/organization/number-formats/{documentType}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 177 | GET | `/organization/number-formats/{documentType}/preview` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 178 | GET | `/quotations/tariffs` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 179 | POST | `/quotations/tariffs` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 180 | GET | `/quotations/tariffs/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 181 | PATCH | `/quotations/tariffs/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 182 | DELETE | `/quotations/tariffs/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 183 | GET | `/quotations/zip-distances` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 184 | POST | `/quotations/zip-distances` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 185 | GET | `/quotations/zip-distances/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 186 | PATCH | `/quotations/zip-distances/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 187 | DELETE | `/quotations/zip-distances/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 188 | GET | `/quotations` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 189 | POST | `/quotations` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 190 | GET | `/quotations/reports/chargewise` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 191 | GET | `/quotations/reports/analytics` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 192 | GET | `/quotations/reports/analytics/conversion` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 193 | GET | `/quotations/reports/analytics/lost-reasons` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 194 | GET | `/quotations/reports/analytics/response-time` | EXECUTED_FAIL (API did not reject as expected) | 429 |
 | 195 | POST | `/quotations/online-quote` | PUBLIC_USE_BAD_BODY | 400 |
-| 196 | POST | `/quotations/expire-due` | EXECUTED_PASS (API correctly rejected) | 403 |
-| 197 | GET | `/quotations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 198 | PATCH | `/quotations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 199 | DELETE | `/quotations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 200 | GET | `/quotations/{id}/revisions` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 201 | POST | `/quotations/{id}/lines` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 202 | POST | `/quotations/{id}/apply-tariff` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 203 | PATCH | `/quotations/{id}/lines/{lineId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 204 | DELETE | `/quotations/{id}/lines/{lineId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 205 | POST | `/quotations/{id}/submit` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 206 | POST | `/quotations/{id}/approve` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 207 | POST | `/quotations/{id}/reject` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 208 | POST | `/quotations/{id}/send` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 209 | POST | `/quotations/{id}/mark-won` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 210 | POST | `/quotations/{id}/mark-lost` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 211 | POST | `/quotations/{id}/duplicate` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 212 | POST | `/quotations/{id}/convert-to-job` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 213 | POST | `/quotations/{id}/archive` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 214 | POST | `/quotations/{id}/expire` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 215 | POST | `/quotations/{id}/pdf` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 216 | GET | `/quotations/{id}/pdf` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 217 | GET | `/quotations/{id}/pdf/status` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 218 | POST | `/quotations/{id}/send-email` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 219 | GET | `/jobs` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 220 | POST | `/jobs` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 221 | GET | `/jobs/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 222 | PATCH | `/jobs/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 223 | DELETE | `/jobs/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 224 | GET | `/jobs/{id}/house-jobs` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 225 | GET | `/jobs/{id}/milestones` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 226 | POST | `/jobs/{id}/milestones` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 227 | GET | `/jobs/{id}/pnl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 228 | GET | `/jobs/{id}/notes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 229 | POST | `/jobs/{id}/notes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 230 | GET | `/jobs/{id}/documents` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 231 | POST | `/jobs/{id}/documents` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 232 | GET | `/jobs/{id}/containers` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 233 | POST | `/jobs/{id}/containers` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 234 | GET | `/jobs/{id}/containers/fill` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 235 | GET | `/jobs/{id}/containers/{containerId}/fill` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 236 | GET | `/jobs/{id}/cutoffs` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 237 | GET | `/jobs/{id}/cargo` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 238 | POST | `/jobs/{id}/cargo` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 239 | GET | `/jobs/{id}/bills-of-lading` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 240 | POST | `/jobs/{id}/bills-of-lading` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 241 | GET | `/jobs/{id}/stuffing-records` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 242 | POST | `/jobs/{id}/stuffing-records` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 243 | POST | `/jobs/{id}/close` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 244 | POST | `/jobs/{id}/cancel` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 245 | PATCH | `/jobs/{id}/air-details` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 246 | PATCH | `/jobs/{id}/sea-fcl-details` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 247 | POST | `/jobs/{id}/sea-fcl-details/si-submission` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 248 | POST | `/jobs/{id}/sea-fcl-details/vgm-submission` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 249 | PATCH | `/jobs/{id}/milestones/{milestoneId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 250 | POST | `/jobs/{id}/charges` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 251 | PATCH | `/jobs/{id}/charges/{chargeId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 252 | DELETE | `/jobs/{id}/charges/{chargeId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 253 | POST | `/jobs/{id}/prorate-cost/{chargeCodeId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 254 | PATCH | `/jobs/{id}/notes/{noteId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 255 | DELETE | `/jobs/{id}/notes/{noteId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 256 | PATCH | `/jobs/{id}/documents/{documentId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 257 | DELETE | `/jobs/{id}/documents/{documentId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 258 | POST | `/jobs/{id}/documents/{documentId}/finalize` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 259 | GET | `/jobs/{id}/documents/generation-status` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 260 | POST | `/jobs/{id}/documents/hawb` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 261 | POST | `/jobs/{id}/documents/mawb` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 262 | POST | `/jobs/{id}/documents/pre-alert` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 263 | POST | `/jobs/{id}/documents/cargo-manifest` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 264 | POST | `/jobs/{id}/documents/hbl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 265 | POST | `/jobs/{id}/documents/hbl-express-release` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 266 | POST | `/jobs/{id}/documents/mbl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 267 | POST | `/jobs/{id}/documents/fiata-bl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 268 | POST | `/jobs/{id}/documents/rider-bl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 269 | POST | `/jobs/{id}/documents/switch-bl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 270 | POST | `/jobs/{id}/documents/proxy-bl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 271 | POST | `/jobs/{id}/documents/back-to-back-bl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 272 | POST | `/jobs/{id}/documents/surrender-notice` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 273 | POST | `/jobs/{id}/documents/si` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 274 | POST | `/jobs/{id}/documents/stuffing-report` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 275 | POST | `/jobs/{id}/documents/sailing-confirmation` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 276 | POST | `/jobs/{id}/documents/transhipment-confirmation` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 277 | POST | `/jobs/{id}/documents/freight-manifest` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 278 | POST | `/jobs/{id}/documents/job-card` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 279 | POST | `/jobs/{id}/documents/job-pnl` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 280 | POST | `/jobs/{id}/documents/proforma-invoice` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 281 | POST | `/jobs/{id}/pre-alert/send` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 282 | POST | `/jobs/{id}/pre-alert/schedule` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 283 | POST | `/jobs/{id}/whatsapp/status` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 284 | GET | `/jobs/{id}/sub-jobs` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 285 | POST | `/jobs/{id}/sub-jobs` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 286 | POST | `/jobs/{id}/payment-requests` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 287 | POST | `/jobs/{id}/documents/e-awb` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 288 | POST | `/jobs/{id}/documents/barcode-label` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 289 | POST | `/jobs/{id}/documents/consignee-label` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 290 | POST | `/jobs/{id}/documents/job-costing` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 291 | POST | `/jobs/{id}/documents/freight-certificate` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 292 | PATCH | `/jobs/{id}/containers/{containerId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 293 | DELETE | `/jobs/{id}/containers/{containerId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 294 | POST | `/jobs/{id}/containers/{containerId}/cargo` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 295 | POST | `/jobs/{id}/containers/{containerId}/split` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 296 | PATCH | `/jobs/{id}/cargo/{cargoId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 297 | DELETE | `/jobs/{id}/cargo/{cargoId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 298 | PATCH | `/jobs/{id}/bills-of-lading/{blId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 299 | DELETE | `/jobs/{id}/bills-of-lading/{blId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 300 | PATCH | `/jobs/{id}/stuffing-records/{recordId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 301 | DELETE | `/jobs/{id}/stuffing-records/{recordId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 302 | GET | `/jobs/{id}/free-days` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 303 | POST | `/jobs/{id}/free-days` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 304 | POST | `/jobs/{id}/free-days/recalculate` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 305 | GET | `/jobs/{id}/deposits` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 306 | POST | `/jobs/{id}/deposits` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 307 | PATCH | `/jobs/{id}/deposits/{depositId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 308 | DELETE | `/jobs/{id}/deposits/{depositId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 309 | PATCH | `/jobs/{id}/customs-status` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 310 | POST | `/jobs/{id}/containers/{containerId}/return` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 311 | GET | `/jobs/{id}/part-deliveries` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 312 | POST | `/jobs/{id}/part-deliveries` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 313 | GET | `/jobs/{id}/pods` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 314 | POST | `/jobs/{id}/pods` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 315 | GET | `/jobs/{id}/damage-reports` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 316 | POST | `/jobs/{id}/damage-reports` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 317 | POST | `/jobs/{id}/transhipment-link` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 318 | POST | `/jobs/{id}/cfs-storage/calculate` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 319 | POST | `/jobs/{id}/documents/pre-can` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 320 | POST | `/jobs/{id}/documents/can` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 321 | POST | `/jobs/{id}/documents/exchange-letter` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 322 | POST | `/jobs/{id}/documents/undertake-letter` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 323 | POST | `/jobs/{id}/documents/delivery-order` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 324 | POST | `/jobs/{id}/documents/transport-request` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 325 | POST | `/jobs/{id}/documents/shipping-advice` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 326 | POST | `/jobs/{id}/documents/proof-of-delivery` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 327 | GET | `/awb-stock/batches` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 328 | POST | `/awb-stock/batches` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 329 | GET | `/awb-stock/reports/low-stock` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 330 | GET | `/awb-stock/allocations` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 331 | GET | `/awb-stock/batches/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 332 | PATCH | `/awb-stock/batches/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 333 | DELETE | `/awb-stock/batches/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 334 | POST | `/awb-stock/batches/{id}/allocate` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 335 | POST | `/awb-stock/batches/{id}/transfer-branch` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 336 | POST | `/awb-stock/allocations/{id}/void` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 337 | POST | `/awb-stock/allocations/{id}/mark-used` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 338 | GET | `/search` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 339 | GET | `/files/{tenantId}/{filename}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 340 | GET | `/invoices` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 341 | POST | `/invoices` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 342 | GET | `/invoices/reports/overdue` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 343 | GET | `/invoices/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 344 | PATCH | `/invoices/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 345 | DELETE | `/invoices/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 346 | POST | `/invoices/from-job/{jobId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 347 | POST | `/invoices/{id}/lines` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 348 | PATCH | `/invoices/{id}/lines/{lineId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 349 | DELETE | `/invoices/{id}/lines/{lineId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 350 | POST | `/invoices/{id}/post` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 351 | POST | `/invoices/{id}/send` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 352 | POST | `/invoices/{id}/pdf` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 353 | GET | `/invoices/{id}/pdf` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 354 | POST | `/invoices/{id}/cancel` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 355 | GET | `/credit-notes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 356 | POST | `/credit-notes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 357 | GET | `/credit-notes/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 358 | POST | `/credit-notes/{id}/post` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 359 | GET | `/debit-notes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 360 | POST | `/debit-notes` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 361 | GET | `/debit-notes/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 362 | POST | `/debit-notes/{id}/post` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 363 | GET | `/purchase-invoices` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 364 | POST | `/purchase-invoices` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 365 | GET | `/purchase-invoices/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 366 | PATCH | `/purchase-invoices/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 367 | DELETE | `/purchase-invoices/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 368 | POST | `/purchase-invoices/{id}/post` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 369 | GET | `/payment-requests` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 370 | POST | `/payment-requests` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 371 | GET | `/payment-requests/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 372 | PATCH | `/payment-requests/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 373 | DELETE | `/payment-requests/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 374 | POST | `/payment-requests/{id}/approve` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 375 | POST | `/payment-requests/{id}/reject` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 376 | POST | `/payment-requests/{id}/mark-paid` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 377 | GET | `/gl/accounts` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 378 | POST | `/gl/accounts` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 379 | GET | `/gl/accounts/tree` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 380 | GET | `/gl/accounts/reports/trial-balance` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 381 | POST | `/gl/accounts/seed-defaults` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 382 | GET | `/gl/accounts/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 383 | PATCH | `/gl/accounts/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 384 | DELETE | `/gl/accounts/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 385 | GET | `/gl/accounts/{id}/ledger` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 386 | GET | `/gl/vouchers` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 387 | POST | `/gl/vouchers` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 388 | GET | `/gl/vouchers/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 389 | PATCH | `/gl/vouchers/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 390 | DELETE | `/gl/vouchers/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 391 | POST | `/gl/vouchers/{id}/lines` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 392 | PATCH | `/gl/vouchers/{id}/lines/{lineId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 393 | DELETE | `/gl/vouchers/{id}/lines/{lineId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 394 | POST | `/gl/vouchers/{id}/post` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 395 | POST | `/gl/vouchers/{id}/reverse` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 396 | GET | `/gl/payments` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 397 | POST | `/gl/payments` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 398 | GET | `/gl/payments/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 399 | PATCH | `/gl/payments/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 400 | DELETE | `/gl/payments/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 401 | POST | `/gl/payments/{id}/allocations` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 402 | DELETE | `/gl/payments/{id}/allocations/{allocationId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 403 | POST | `/gl/payments/{id}/post` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 404 | POST | `/gl/payments/{id}/cancel` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 405 | GET | `/gl/ar/aging` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 406 | GET | `/gl/ap/aging` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 407 | GET | `/gl/ar/statement/{partyId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 408 | GET | `/gl/ap/statement/{partyId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 409 | GET | `/gl/cheques` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 410 | POST | `/gl/cheques` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 411 | GET | `/gl/cheques/reports/pdc-due` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 412 | GET | `/gl/cheques/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 413 | PATCH | `/gl/cheques/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 414 | POST | `/gl/cheques/{id}/deposit` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 415 | POST | `/gl/cheques/{id}/clear` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 416 | POST | `/gl/cheques/{id}/bounce` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 417 | POST | `/gl/cheques/{id}/cancel` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 418 | POST | `/gl/bank-transfers` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 419 | GET | `/gl/bank-reconciliations` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 420 | POST | `/gl/bank-reconciliations` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 421 | GET | `/gl/bank-reconciliations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 422 | PATCH | `/gl/bank-reconciliations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 423 | DELETE | `/gl/bank-reconciliations/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 424 | GET | `/gl/bank-reconciliations/{id}/unmatched` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 425 | POST | `/gl/bank-reconciliations/{id}/lines` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 426 | PATCH | `/gl/bank-reconciliations/{id}/lines/{lineId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 427 | DELETE | `/gl/bank-reconciliations/{id}/lines/{lineId}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 428 | POST | `/gl/bank-reconciliations/{id}/complete` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 429 | GET | `/gl/reports/trial-balance` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 430 | GET | `/gl/reports/balance-sheet` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 431 | GET | `/gl/reports/profit-and-loss` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 432 | GET | `/gl/reports/cash-flow` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 433 | GET | `/gl/reports/vat-return` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 434 | GET | `/gl/mis/dashboard` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 435 | GET | `/gl/mis/profitability` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 436 | GET | `/gl/mis/operational` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 437 | GET | `/gl/saved-reports` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 438 | POST | `/gl/saved-reports` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 439 | GET | `/gl/saved-reports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 440 | PATCH | `/gl/saved-reports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
-| 441 | DELETE | `/gl/saved-reports/{id}` | EXECUTED_PASS (API correctly rejected) | 401 |
+| 196 | POST | `/quotations/expire-due` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 197 | GET | `/quotations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 198 | PATCH | `/quotations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 199 | DELETE | `/quotations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 200 | GET | `/quotations/{id}/revisions` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 201 | POST | `/quotations/{id}/lines` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 202 | POST | `/quotations/{id}/apply-tariff` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 203 | PATCH | `/quotations/{id}/lines/{lineId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 204 | DELETE | `/quotations/{id}/lines/{lineId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 205 | POST | `/quotations/{id}/submit` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 206 | POST | `/quotations/{id}/approve` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 207 | POST | `/quotations/{id}/reject` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 208 | POST | `/quotations/{id}/send` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 209 | POST | `/quotations/{id}/mark-won` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 210 | POST | `/quotations/{id}/mark-lost` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 211 | POST | `/quotations/{id}/duplicate` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 212 | POST | `/quotations/{id}/convert-to-job` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 213 | POST | `/quotations/{id}/archive` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 214 | POST | `/quotations/{id}/expire` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 215 | POST | `/quotations/{id}/pdf` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 216 | GET | `/quotations/{id}/pdf` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 217 | GET | `/quotations/{id}/pdf/status` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 218 | POST | `/quotations/{id}/send-email` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 219 | GET | `/jobs` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 220 | POST | `/jobs` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 221 | GET | `/jobs/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 222 | PATCH | `/jobs/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 223 | DELETE | `/jobs/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 224 | GET | `/jobs/{id}/house-jobs` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 225 | GET | `/jobs/{id}/milestones` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 226 | POST | `/jobs/{id}/milestones` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 227 | GET | `/jobs/{id}/pnl` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 228 | GET | `/jobs/{id}/notes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 229 | POST | `/jobs/{id}/notes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 230 | GET | `/jobs/{id}/documents` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 231 | POST | `/jobs/{id}/documents` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 232 | GET | `/jobs/{id}/containers` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 233 | POST | `/jobs/{id}/containers` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 234 | GET | `/jobs/{id}/containers/fill` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 235 | GET | `/jobs/{id}/containers/{containerId}/fill` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 236 | GET | `/jobs/{id}/cutoffs` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 237 | GET | `/jobs/{id}/cargo` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 238 | POST | `/jobs/{id}/cargo` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 239 | GET | `/jobs/{id}/bills-of-lading` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 240 | POST | `/jobs/{id}/bills-of-lading` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 241 | GET | `/jobs/{id}/stuffing-records` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 242 | POST | `/jobs/{id}/stuffing-records` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 243 | POST | `/jobs/{id}/close` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 244 | POST | `/jobs/{id}/cancel` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 245 | PATCH | `/jobs/{id}/air-details` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 246 | PATCH | `/jobs/{id}/sea-fcl-details` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 247 | POST | `/jobs/{id}/sea-fcl-details/si-submission` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 248 | POST | `/jobs/{id}/sea-fcl-details/vgm-submission` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 249 | PATCH | `/jobs/{id}/milestones/{milestoneId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 250 | POST | `/jobs/{id}/charges` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 251 | PATCH | `/jobs/{id}/charges/{chargeId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 252 | DELETE | `/jobs/{id}/charges/{chargeId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 253 | POST | `/jobs/{id}/prorate-cost/{chargeCodeId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 254 | PATCH | `/jobs/{id}/notes/{noteId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 255 | DELETE | `/jobs/{id}/notes/{noteId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 256 | PATCH | `/jobs/{id}/documents/{documentId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 257 | DELETE | `/jobs/{id}/documents/{documentId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 258 | POST | `/jobs/{id}/documents/{documentId}/finalize` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 259 | GET | `/jobs/{id}/documents/generation-status` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 260 | POST | `/jobs/{id}/documents/hawb` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 261 | POST | `/jobs/{id}/documents/mawb` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 262 | POST | `/jobs/{id}/documents/pre-alert` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 263 | POST | `/jobs/{id}/documents/cargo-manifest` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 264 | POST | `/jobs/{id}/documents/hbl` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 265 | POST | `/jobs/{id}/documents/hbl-express-release` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 266 | POST | `/jobs/{id}/documents/mbl` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 267 | POST | `/jobs/{id}/documents/fiata-bl` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 268 | POST | `/jobs/{id}/documents/rider-bl` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 269 | POST | `/jobs/{id}/documents/switch-bl` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 270 | POST | `/jobs/{id}/documents/proxy-bl` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 271 | POST | `/jobs/{id}/documents/back-to-back-bl` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 272 | POST | `/jobs/{id}/documents/surrender-notice` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 273 | POST | `/jobs/{id}/documents/si` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 274 | POST | `/jobs/{id}/documents/stuffing-report` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 275 | POST | `/jobs/{id}/documents/sailing-confirmation` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 276 | POST | `/jobs/{id}/documents/transhipment-confirmation` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 277 | POST | `/jobs/{id}/documents/freight-manifest` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 278 | POST | `/jobs/{id}/documents/job-card` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 279 | POST | `/jobs/{id}/documents/job-pnl` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 280 | POST | `/jobs/{id}/documents/proforma-invoice` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 281 | POST | `/jobs/{id}/pre-alert/send` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 282 | POST | `/jobs/{id}/pre-alert/schedule` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 283 | POST | `/jobs/{id}/whatsapp/status` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 284 | GET | `/jobs/{id}/sub-jobs` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 285 | POST | `/jobs/{id}/sub-jobs` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 286 | POST | `/jobs/{id}/payment-requests` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 287 | POST | `/jobs/{id}/documents/e-awb` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 288 | POST | `/jobs/{id}/documents/barcode-label` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 289 | POST | `/jobs/{id}/documents/consignee-label` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 290 | POST | `/jobs/{id}/documents/job-costing` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 291 | POST | `/jobs/{id}/documents/freight-certificate` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 292 | PATCH | `/jobs/{id}/containers/{containerId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 293 | DELETE | `/jobs/{id}/containers/{containerId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 294 | POST | `/jobs/{id}/containers/{containerId}/cargo` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 295 | POST | `/jobs/{id}/containers/{containerId}/split` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 296 | PATCH | `/jobs/{id}/cargo/{cargoId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 297 | DELETE | `/jobs/{id}/cargo/{cargoId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 298 | PATCH | `/jobs/{id}/bills-of-lading/{blId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 299 | DELETE | `/jobs/{id}/bills-of-lading/{blId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 300 | PATCH | `/jobs/{id}/stuffing-records/{recordId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 301 | DELETE | `/jobs/{id}/stuffing-records/{recordId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 302 | GET | `/jobs/{id}/free-days` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 303 | POST | `/jobs/{id}/free-days` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 304 | POST | `/jobs/{id}/free-days/recalculate` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 305 | GET | `/jobs/{id}/deposits` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 306 | POST | `/jobs/{id}/deposits` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 307 | PATCH | `/jobs/{id}/deposits/{depositId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 308 | DELETE | `/jobs/{id}/deposits/{depositId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 309 | PATCH | `/jobs/{id}/customs-status` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 310 | POST | `/jobs/{id}/containers/{containerId}/return` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 311 | GET | `/jobs/{id}/part-deliveries` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 312 | POST | `/jobs/{id}/part-deliveries` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 313 | GET | `/jobs/{id}/pods` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 314 | POST | `/jobs/{id}/pods` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 315 | GET | `/jobs/{id}/damage-reports` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 316 | POST | `/jobs/{id}/damage-reports` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 317 | POST | `/jobs/{id}/transhipment-link` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 318 | POST | `/jobs/{id}/cfs-storage/calculate` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 319 | POST | `/jobs/{id}/documents/pre-can` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 320 | POST | `/jobs/{id}/documents/can` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 321 | POST | `/jobs/{id}/documents/exchange-letter` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 322 | POST | `/jobs/{id}/documents/undertake-letter` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 323 | POST | `/jobs/{id}/documents/delivery-order` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 324 | POST | `/jobs/{id}/documents/transport-request` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 325 | POST | `/jobs/{id}/documents/shipping-advice` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 326 | POST | `/jobs/{id}/documents/proof-of-delivery` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 327 | GET | `/awb-stock/batches` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 328 | POST | `/awb-stock/batches` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 329 | GET | `/awb-stock/reports/low-stock` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 330 | GET | `/awb-stock/allocations` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 331 | GET | `/awb-stock/batches/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 332 | PATCH | `/awb-stock/batches/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 333 | DELETE | `/awb-stock/batches/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 334 | POST | `/awb-stock/batches/{id}/allocate` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 335 | POST | `/awb-stock/batches/{id}/transfer-branch` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 336 | POST | `/awb-stock/allocations/{id}/void` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 337 | POST | `/awb-stock/allocations/{id}/mark-used` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 338 | GET | `/search` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 339 | GET | `/files/{tenantId}/{filename}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 340 | GET | `/invoices` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 341 | POST | `/invoices` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 342 | GET | `/invoices/reports/overdue` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 343 | GET | `/invoices/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 344 | PATCH | `/invoices/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 345 | DELETE | `/invoices/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 346 | POST | `/invoices/from-job/{jobId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 347 | POST | `/invoices/{id}/lines` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 348 | PATCH | `/invoices/{id}/lines/{lineId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 349 | DELETE | `/invoices/{id}/lines/{lineId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 350 | POST | `/invoices/{id}/post` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 351 | POST | `/invoices/{id}/send` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 352 | POST | `/invoices/{id}/pdf` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 353 | GET | `/invoices/{id}/pdf` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 354 | POST | `/invoices/{id}/cancel` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 355 | GET | `/credit-notes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 356 | POST | `/credit-notes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 357 | GET | `/credit-notes/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 358 | POST | `/credit-notes/{id}/post` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 359 | GET | `/debit-notes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 360 | POST | `/debit-notes` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 361 | GET | `/debit-notes/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 362 | POST | `/debit-notes/{id}/post` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 363 | GET | `/purchase-invoices` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 364 | POST | `/purchase-invoices` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 365 | GET | `/purchase-invoices/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 366 | PATCH | `/purchase-invoices/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 367 | DELETE | `/purchase-invoices/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 368 | POST | `/purchase-invoices/{id}/post` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 369 | GET | `/payment-requests` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 370 | POST | `/payment-requests` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 371 | GET | `/payment-requests/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 372 | PATCH | `/payment-requests/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 373 | DELETE | `/payment-requests/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 374 | POST | `/payment-requests/{id}/approve` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 375 | POST | `/payment-requests/{id}/reject` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 376 | POST | `/payment-requests/{id}/mark-paid` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 377 | GET | `/gl/accounts` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 378 | POST | `/gl/accounts` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 379 | GET | `/gl/accounts/tree` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 380 | GET | `/gl/accounts/reports/trial-balance` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 381 | POST | `/gl/accounts/seed-defaults` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 382 | GET | `/gl/accounts/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 383 | PATCH | `/gl/accounts/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 384 | DELETE | `/gl/accounts/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 385 | GET | `/gl/accounts/{id}/ledger` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 386 | GET | `/gl/vouchers` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 387 | POST | `/gl/vouchers` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 388 | GET | `/gl/vouchers/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 389 | PATCH | `/gl/vouchers/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 390 | DELETE | `/gl/vouchers/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 391 | POST | `/gl/vouchers/{id}/lines` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 392 | PATCH | `/gl/vouchers/{id}/lines/{lineId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 393 | DELETE | `/gl/vouchers/{id}/lines/{lineId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 394 | POST | `/gl/vouchers/{id}/post` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 395 | POST | `/gl/vouchers/{id}/reverse` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 396 | GET | `/gl/payments` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 397 | POST | `/gl/payments` | EXECUTED_FAIL (API did not reject as expected) | 503 |
+| 398 | GET | `/gl/payments/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 399 | PATCH | `/gl/payments/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 400 | DELETE | `/gl/payments/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 401 | POST | `/gl/payments/{id}/allocations` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 402 | DELETE | `/gl/payments/{id}/allocations/{allocationId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 403 | POST | `/gl/payments/{id}/post` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 404 | POST | `/gl/payments/{id}/cancel` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 405 | GET | `/gl/ar/aging` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 406 | GET | `/gl/ap/aging` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 407 | GET | `/gl/ar/statement/{partyId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 408 | GET | `/gl/ap/statement/{partyId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 409 | GET | `/gl/cheques` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 410 | POST | `/gl/cheques` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 411 | GET | `/gl/cheques/reports/pdc-due` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 412 | GET | `/gl/cheques/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 413 | PATCH | `/gl/cheques/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 414 | POST | `/gl/cheques/{id}/deposit` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 415 | POST | `/gl/cheques/{id}/clear` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 416 | POST | `/gl/cheques/{id}/bounce` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 417 | POST | `/gl/cheques/{id}/cancel` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 418 | POST | `/gl/bank-transfers` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 419 | GET | `/gl/bank-reconciliations` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 420 | POST | `/gl/bank-reconciliations` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 421 | GET | `/gl/bank-reconciliations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 422 | PATCH | `/gl/bank-reconciliations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 423 | DELETE | `/gl/bank-reconciliations/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 424 | GET | `/gl/bank-reconciliations/{id}/unmatched` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 425 | POST | `/gl/bank-reconciliations/{id}/lines` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 426 | PATCH | `/gl/bank-reconciliations/{id}/lines/{lineId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 427 | DELETE | `/gl/bank-reconciliations/{id}/lines/{lineId}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 428 | POST | `/gl/bank-reconciliations/{id}/complete` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 429 | GET | `/gl/reports/trial-balance` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 430 | GET | `/gl/reports/balance-sheet` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 431 | GET | `/gl/reports/profit-and-loss` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 432 | GET | `/gl/reports/cash-flow` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 433 | GET | `/gl/reports/vat-return` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 434 | GET | `/gl/mis/dashboard` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 435 | GET | `/gl/mis/profitability` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 436 | GET | `/gl/mis/operational` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 437 | GET | `/gl/saved-reports` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 438 | POST | `/gl/saved-reports` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 439 | GET | `/gl/saved-reports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 440 | PATCH | `/gl/saved-reports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
+| 441 | DELETE | `/gl/saved-reports/{id}` | EXECUTED_FAIL (API did not reject as expected) | 429 |
 
 ## Per-API FAIL details
 
@@ -460,17 +460,21 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 |-------|-------|
 | Case | **FAIL** |
 | Tag | Locale |
-| Primary attack | No `Authorization` header |
-| Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
-| Live HTTP | 200 |
-| Live title | No Authorization header |
-| Live notes | Expected 401, got 200 |
-| Assertion | FAIL — unexpected response |
+| Primary attack | Invalid / incomplete body |
+| Expected | **400** (or 401 for bad login credentials) |
+| Live status | **PUBLIC_USE_BAD_BODY** |
+| Live HTTP | _see secondary_ |
 
 ```http
 GET /locale/defaults HTTP/1.1
 Host: kingfisherwings.onrender.com
+Content-Type: application/json
+
+{
+  "email": "bad",
+  "password": "x",
+  "__invalid__": true
+}
 ```
 
 ---
@@ -482,17 +486,21 @@ Host: kingfisherwings.onrender.com
 |-------|-------|
 | Case | **FAIL** |
 | Tag | Locale |
-| Primary attack | No `Authorization` header |
-| Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
-| Live HTTP | 200 |
-| Live title | No Authorization header |
-| Live notes | Expected 401, got 200 |
-| Assertion | FAIL — unexpected response |
+| Primary attack | Invalid / incomplete body |
+| Expected | **400** (or 401 for bad login credentials) |
+| Live status | **PUBLIC_USE_BAD_BODY** |
+| Live HTTP | _see secondary_ |
 
 ```http
 GET /locale/{countryCode} HTTP/1.1
 Host: kingfisherwings.onrender.com
+Content-Type: application/json
+
+{
+  "email": "bad",
+  "password": "x",
+  "__invalid__": true
+}
 ```
 
 ---
@@ -503,17 +511,21 @@ Host: kingfisherwings.onrender.com
 |-------|-------|
 | Case | **FAIL** |
 | Tag | Untagged |
-| Primary attack | No `Authorization` header |
-| Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
-| Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Primary attack | Invalid / incomplete body |
+| Expected | **400** (or 401 for bad login credentials) |
+| Live status | **PUBLIC_USE_BAD_BODY** |
+| Live HTTP | _see secondary_ |
 
 ```http
 GET /health HTTP/1.1
 Host: kingfisherwings.onrender.com
+Content-Type: application/json
+
+{
+  "email": "bad",
+  "password": "x",
+  "__invalid__": true
+}
 ```
 
 ---
@@ -527,11 +539,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /tenants HTTP/1.1
@@ -552,11 +564,11 @@ Content-Type: application/json
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /tenants HTTP/1.1
@@ -574,11 +586,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /tenants/statistics HTTP/1.1
@@ -596,11 +608,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /tenants/sync-permissions HTTP/1.1
@@ -621,11 +633,11 @@ Content-Type: application/json
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /tenants/{id}/sync-permissions HTTP/1.1
@@ -646,11 +658,11 @@ Content-Type: application/json
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /tenants/{id} HTTP/1.1
@@ -668,11 +680,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /tenants/{id} HTTP/1.1
@@ -693,11 +705,11 @@ Content-Type: application/json
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /tenants/{id} HTTP/1.1
@@ -715,11 +727,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /tenants/{id}/restore HTTP/1.1
@@ -740,11 +752,11 @@ Content-Type: application/json
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /tenants/{id}/activate HTTP/1.1
@@ -765,11 +777,11 @@ Content-Type: application/json
 | Tag | Tenants (Super Admin) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /tenants/{id}/deactivate HTTP/1.1
@@ -790,11 +802,11 @@ Content-Type: application/json
 | Tag | Companies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /companies HTTP/1.1
@@ -812,11 +824,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Companies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /companies HTTP/1.1
@@ -837,11 +849,11 @@ Content-Type: application/json
 | Tag | Companies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /companies/{id} HTTP/1.1
@@ -859,11 +871,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Companies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /companies/{id} HTTP/1.1
@@ -884,11 +896,11 @@ Content-Type: application/json
 | Tag | Companies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /companies/{id} HTTP/1.1
@@ -906,11 +918,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /users HTTP/1.1
@@ -928,11 +940,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /users HTTP/1.1
@@ -953,11 +965,11 @@ Content-Type: application/json
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /users/{id} HTTP/1.1
@@ -975,11 +987,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /users/{id} HTTP/1.1
@@ -1000,11 +1012,11 @@ Content-Type: application/json
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /users/{id} HTTP/1.1
@@ -1022,11 +1034,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /users/{id}/status HTTP/1.1
@@ -1047,11 +1059,11 @@ Content-Type: application/json
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /users/bulk HTTP/1.1
@@ -1072,11 +1084,11 @@ Content-Type: application/json
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /users/{id}/restore HTTP/1.1
@@ -1097,11 +1109,11 @@ Content-Type: application/json
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /users/me/change-password HTTP/1.1
@@ -1122,11 +1134,11 @@ Content-Type: application/json
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /users/{id}/admin-reset-password HTTP/1.1
@@ -1147,11 +1159,11 @@ Content-Type: application/json
 | Tag | Users |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /users/{id}/force-logout HTTP/1.1
@@ -1250,11 +1262,8 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | Invalid / incomplete body |
 | Expected | **400** (or 401 for bad login credentials) |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
-| Live title | Super admin login with wrong password |
-| Live notes | OK |
-| Assertion | PASS — rejection correct |
+| Live status | **PUBLIC_USE_BAD_BODY** |
+| Live HTTP | _see secondary_ |
 
 ```http
 POST /auth/super-admin/login HTTP/1.1
@@ -1305,11 +1314,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/logout HTTP/1.1
@@ -1330,11 +1339,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /auth/sessions HTTP/1.1
@@ -1352,11 +1361,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/sessions/{sessionId}/revoke HTTP/1.1
@@ -1377,11 +1386,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/logout-all HTTP/1.1
@@ -1402,11 +1411,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /auth/me HTTP/1.1
@@ -1424,11 +1433,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /auth/me HTTP/1.1
@@ -1449,11 +1458,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/change-password HTTP/1.1
@@ -1474,11 +1483,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/tenant/change-password HTTP/1.1
@@ -1499,11 +1508,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/invite HTTP/1.1
@@ -1522,20 +1531,21 @@ Content-Type: application/json
 |-------|-------|
 | Case | **FAIL** |
 | Tag | Auth |
-| Primary attack | No `Authorization` header |
-| Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 400 |
-| Live title | Invalid / incomplete payload |
-| Live notes | Rejected invalid input |
-| Assertion | PASS — rejection correct |
+| Primary attack | Invalid / incomplete body |
+| Expected | **400** (or 401 for bad login credentials) |
+| Live status | **PUBLIC_USE_BAD_BODY** |
+| Live HTTP | _see secondary_ |
 
 ```http
 POST /auth/accept-invite HTTP/1.1
 Host: kingfisherwings.onrender.com
 Content-Type: application/json
 
-{}
+{
+  "email": "bad",
+  "password": "x",
+  "__invalid__": true
+}
 ```
 
 ---
@@ -1549,11 +1559,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/2fa/setup HTTP/1.1
@@ -1574,11 +1584,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/2fa/enable HTTP/1.1
@@ -1599,11 +1609,11 @@ Content-Type: application/json
 | Tag | Auth |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /auth/2fa/disable HTTP/1.1
@@ -1624,11 +1634,11 @@ Content-Type: application/json
 | Tag | Masters — Countries |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/countries HTTP/1.1
@@ -1646,11 +1656,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Countries |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/countries HTTP/1.1
@@ -1671,11 +1681,11 @@ Content-Type: application/json
 | Tag | Masters — Countries |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/countries/{id} HTTP/1.1
@@ -1693,11 +1703,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Countries |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/countries/{id} HTTP/1.1
@@ -1718,11 +1728,11 @@ Content-Type: application/json
 | Tag | Masters — Countries |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/countries/{id} HTTP/1.1
@@ -1740,11 +1750,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Currencies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/currencies HTTP/1.1
@@ -1762,11 +1772,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Currencies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/currencies HTTP/1.1
@@ -1787,11 +1797,11 @@ Content-Type: application/json
 | Tag | Masters — Currencies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/currencies/{id} HTTP/1.1
@@ -1809,11 +1819,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Currencies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/currencies/{id} HTTP/1.1
@@ -1834,11 +1844,11 @@ Content-Type: application/json
 | Tag | Masters — Currencies |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/currencies/{id} HTTP/1.1
@@ -1856,11 +1866,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Exchange Rates |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/exchange-rates HTTP/1.1
@@ -1878,11 +1888,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Exchange Rates |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/exchange-rates HTTP/1.1
@@ -1903,11 +1913,11 @@ Content-Type: application/json
 | Tag | Masters — Exchange Rates |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/exchange-rates/latest/{currencyId} HTTP/1.1
@@ -1925,11 +1935,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Ports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/ports HTTP/1.1
@@ -1947,11 +1957,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Ports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/ports HTTP/1.1
@@ -1972,11 +1982,11 @@ Content-Type: application/json
 | Tag | Masters — Ports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/ports/{id} HTTP/1.1
@@ -1994,11 +2004,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Ports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/ports/{id} HTTP/1.1
@@ -2019,11 +2029,11 @@ Content-Type: application/json
 | Tag | Masters — Ports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/ports/{id} HTTP/1.1
@@ -2041,11 +2051,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Airports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/airports HTTP/1.1
@@ -2063,11 +2073,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Airports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/airports HTTP/1.1
@@ -2088,11 +2098,11 @@ Content-Type: application/json
 | Tag | Masters — Airports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/airports/{id} HTTP/1.1
@@ -2110,11 +2120,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Airports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/airports/{id} HTTP/1.1
@@ -2135,11 +2145,11 @@ Content-Type: application/json
 | Tag | Masters — Airports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/airports/{id} HTTP/1.1
@@ -2157,11 +2167,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ContainerTypes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/container-types HTTP/1.1
@@ -2179,11 +2189,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ContainerTypes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/container-types HTTP/1.1
@@ -2204,11 +2214,11 @@ Content-Type: application/json
 | Tag | Masters — ContainerTypes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/container-types/{id} HTTP/1.1
@@ -2226,11 +2236,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ContainerTypes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/container-types/{id} HTTP/1.1
@@ -2251,11 +2261,11 @@ Content-Type: application/json
 | Tag | Masters — ContainerTypes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/container-types/{id} HTTP/1.1
@@ -2273,11 +2283,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — HsCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/hs-codes HTTP/1.1
@@ -2295,11 +2305,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — HsCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/hs-codes HTTP/1.1
@@ -2320,11 +2330,11 @@ Content-Type: application/json
 | Tag | Masters — HsCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/hs-codes/{id} HTTP/1.1
@@ -2342,11 +2352,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — HsCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/hs-codes/{id} HTTP/1.1
@@ -2367,11 +2377,11 @@ Content-Type: application/json
 | Tag | Masters — HsCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/hs-codes/{id} HTTP/1.1
@@ -2389,11 +2399,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Airlines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/airlines HTTP/1.1
@@ -2411,11 +2421,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Airlines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/airlines HTTP/1.1
@@ -2436,11 +2446,11 @@ Content-Type: application/json
 | Tag | Masters — Airlines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/airlines/{id} HTTP/1.1
@@ -2458,11 +2468,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Airlines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/airlines/{id} HTTP/1.1
@@ -2483,11 +2493,11 @@ Content-Type: application/json
 | Tag | Masters — Airlines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/airlines/{id} HTTP/1.1
@@ -2505,11 +2515,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ShippingLines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/shipping-lines HTTP/1.1
@@ -2527,11 +2537,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ShippingLines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/shipping-lines HTTP/1.1
@@ -2552,11 +2562,11 @@ Content-Type: application/json
 | Tag | Masters — ShippingLines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/shipping-lines/{id} HTTP/1.1
@@ -2574,11 +2584,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ShippingLines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/shipping-lines/{id} HTTP/1.1
@@ -2599,11 +2609,11 @@ Content-Type: application/json
 | Tag | Masters — ShippingLines |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/shipping-lines/{id} HTTP/1.1
@@ -2621,11 +2631,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Vessels |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/vessels HTTP/1.1
@@ -2643,11 +2653,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Vessels |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/vessels HTTP/1.1
@@ -2668,11 +2678,11 @@ Content-Type: application/json
 | Tag | Masters — Vessels |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/vessels/{id} HTTP/1.1
@@ -2690,11 +2700,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Vessels |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/vessels/{id} HTTP/1.1
@@ -2715,11 +2725,11 @@ Content-Type: application/json
 | Tag | Masters — Vessels |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/vessels/{id} HTTP/1.1
@@ -2737,11 +2747,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Vessels — Schedules |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /vessels/{id}/schedules HTTP/1.1
@@ -2759,11 +2769,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Vessels — Schedules |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /vessels/{id}/schedules HTTP/1.1
@@ -2784,11 +2794,11 @@ Content-Type: application/json
 | Tag | Vessels — Schedules |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /vessels/{id}/schedules/{scheduleId} HTTP/1.1
@@ -2809,11 +2819,11 @@ Content-Type: application/json
 | Tag | Vessels — Schedules |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /vessels/{id}/schedules/{scheduleId} HTTP/1.1
@@ -2831,11 +2841,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Truckers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/truckers HTTP/1.1
@@ -2853,11 +2863,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Truckers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/truckers HTTP/1.1
@@ -2878,11 +2888,11 @@ Content-Type: application/json
 | Tag | Masters — Truckers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/truckers/{id} HTTP/1.1
@@ -2900,11 +2910,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Truckers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/truckers/{id} HTTP/1.1
@@ -2925,11 +2935,11 @@ Content-Type: application/json
 | Tag | Masters — Truckers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/truckers/{id} HTTP/1.1
@@ -2947,11 +2957,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Warehouses |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/warehouses HTTP/1.1
@@ -2969,11 +2979,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Warehouses |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/warehouses HTTP/1.1
@@ -2994,11 +3004,11 @@ Content-Type: application/json
 | Tag | Masters — Warehouses |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/warehouses/{id} HTTP/1.1
@@ -3016,11 +3026,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Warehouses |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/warehouses/{id} HTTP/1.1
@@ -3041,11 +3051,11 @@ Content-Type: application/json
 | Tag | Masters — Warehouses |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/warehouses/{id} HTTP/1.1
@@ -3063,11 +3073,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ChargeCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/charge-codes HTTP/1.1
@@ -3085,11 +3095,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ChargeCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/charge-codes HTTP/1.1
@@ -3110,11 +3120,11 @@ Content-Type: application/json
 | Tag | Masters — ChargeCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/charge-codes/{id} HTTP/1.1
@@ -3132,11 +3142,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — ChargeCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/charge-codes/{id} HTTP/1.1
@@ -3157,11 +3167,11 @@ Content-Type: application/json
 | Tag | Masters — ChargeCodes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/charge-codes/{id} HTTP/1.1
@@ -3179,11 +3189,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Banks |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/banks HTTP/1.1
@@ -3201,11 +3211,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Banks |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/banks HTTP/1.1
@@ -3226,11 +3236,11 @@ Content-Type: application/json
 | Tag | Masters — Banks |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/banks/{id} HTTP/1.1
@@ -3248,11 +3258,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Banks |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/banks/{id} HTTP/1.1
@@ -3273,11 +3283,11 @@ Content-Type: application/json
 | Tag | Masters — Banks |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/banks/{id} HTTP/1.1
@@ -3295,11 +3305,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Holidays |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/holidays HTTP/1.1
@@ -3317,11 +3327,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Holidays |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/holidays HTTP/1.1
@@ -3342,11 +3352,11 @@ Content-Type: application/json
 | Tag | Masters — Holidays |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/holidays/{id} HTTP/1.1
@@ -3364,11 +3374,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Holidays |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/holidays/{id} HTTP/1.1
@@ -3389,11 +3399,11 @@ Content-Type: application/json
 | Tag | Masters — Holidays |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/holidays/{id} HTTP/1.1
@@ -3411,11 +3421,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — UnitsOfMeasure |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/units-of-measure HTTP/1.1
@@ -3433,11 +3443,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — UnitsOfMeasure |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/units-of-measure HTTP/1.1
@@ -3458,11 +3468,11 @@ Content-Type: application/json
 | Tag | Masters — UnitsOfMeasure |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/units-of-measure/{id} HTTP/1.1
@@ -3480,11 +3490,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — UnitsOfMeasure |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/units-of-measure/{id} HTTP/1.1
@@ -3505,11 +3515,11 @@ Content-Type: application/json
 | Tag | Masters — UnitsOfMeasure |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/units-of-measure/{id} HTTP/1.1
@@ -3527,11 +3537,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — TaxRates |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/tax-rates HTTP/1.1
@@ -3549,11 +3559,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — TaxRates |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/tax-rates HTTP/1.1
@@ -3574,11 +3584,11 @@ Content-Type: application/json
 | Tag | Masters — TaxRates |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/tax-rates/{id} HTTP/1.1
@@ -3596,11 +3606,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — TaxRates |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/tax-rates/{id} HTTP/1.1
@@ -3621,11 +3631,11 @@ Content-Type: application/json
 | Tag | Masters — TaxRates |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/tax-rates/{id} HTTP/1.1
@@ -3643,11 +3653,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Branches |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/branches HTTP/1.1
@@ -3665,11 +3675,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Branches |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/branches HTTP/1.1
@@ -3690,11 +3700,11 @@ Content-Type: application/json
 | Tag | Masters — Branches |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/branches/{id} HTTP/1.1
@@ -3712,11 +3722,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Branches |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/branches/{id} HTTP/1.1
@@ -3737,11 +3747,11 @@ Content-Type: application/json
 | Tag | Masters — Branches |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/branches/{id} HTTP/1.1
@@ -3759,11 +3769,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Departments |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/departments HTTP/1.1
@@ -3781,11 +3791,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Departments |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/departments HTTP/1.1
@@ -3806,11 +3816,11 @@ Content-Type: application/json
 | Tag | Masters — Departments |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/departments/{id} HTTP/1.1
@@ -3828,11 +3838,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Departments |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/departments/{id} HTTP/1.1
@@ -3853,11 +3863,11 @@ Content-Type: application/json
 | Tag | Masters — Departments |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/departments/{id} HTTP/1.1
@@ -3875,11 +3885,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Designations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/designations HTTP/1.1
@@ -3897,11 +3907,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Designations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /masters/designations HTTP/1.1
@@ -3922,11 +3932,11 @@ Content-Type: application/json
 | Tag | Masters — Designations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /masters/designations/{id} HTTP/1.1
@@ -3944,11 +3954,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Masters — Designations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /masters/designations/{id} HTTP/1.1
@@ -3969,11 +3979,11 @@ Content-Type: application/json
 | Tag | Masters — Designations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /masters/designations/{id} HTTP/1.1
@@ -3991,11 +4001,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /parties HTTP/1.1
@@ -4013,11 +4023,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /parties HTTP/1.1
@@ -4038,11 +4048,11 @@ Content-Type: application/json
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /parties/export HTTP/1.1
@@ -4060,11 +4070,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /parties/{id}/history HTTP/1.1
@@ -4082,11 +4092,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /parties/{id} HTTP/1.1
@@ -4104,11 +4114,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /parties/{id} HTTP/1.1
@@ -4129,11 +4139,11 @@ Content-Type: application/json
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /parties/{id} HTTP/1.1
@@ -4151,11 +4161,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /parties/import HTTP/1.1
@@ -4176,11 +4186,11 @@ Content-Type: application/json
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /parties/{id}/credit-status HTTP/1.1
@@ -4201,11 +4211,11 @@ Content-Type: application/json
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /parties/{id}/contacts HTTP/1.1
@@ -4226,11 +4236,11 @@ Content-Type: application/json
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /parties/{id}/contacts/{contactId} HTTP/1.1
@@ -4251,11 +4261,11 @@ Content-Type: application/json
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /parties/{id}/contacts/{contactId} HTTP/1.1
@@ -4273,11 +4283,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /parties/{id}/addresses HTTP/1.1
@@ -4298,11 +4308,11 @@ Content-Type: application/json
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /parties/{id}/addresses/{addressId} HTTP/1.1
@@ -4323,11 +4333,11 @@ Content-Type: application/json
 | Tag | Parties |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /parties/{id}/addresses/{addressId} HTTP/1.1
@@ -4345,11 +4355,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Organization Profile |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /organization/profile HTTP/1.1
@@ -4367,11 +4377,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Organization Profile |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /organization/profile HTTP/1.1
@@ -4392,11 +4402,11 @@ Content-Type: application/json
 | Tag | Organization — Bank Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /organization/bank-accounts HTTP/1.1
@@ -4414,11 +4424,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Organization — Bank Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /organization/bank-accounts HTTP/1.1
@@ -4439,11 +4449,11 @@ Content-Type: application/json
 | Tag | Organization — Bank Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /organization/bank-accounts/{id} HTTP/1.1
@@ -4461,11 +4471,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Organization — Bank Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /organization/bank-accounts/{id} HTTP/1.1
@@ -4486,11 +4496,11 @@ Content-Type: application/json
 | Tag | Organization — Bank Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /organization/bank-accounts/{id} HTTP/1.1
@@ -4508,11 +4518,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Organization — Number Formats |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /organization/number-formats HTTP/1.1
@@ -4530,11 +4540,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Organization — Number Formats |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /organization/number-formats HTTP/1.1
@@ -4555,11 +4565,11 @@ Content-Type: application/json
 | Tag | Organization — Number Formats |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /organization/number-formats/{documentType} HTTP/1.1
@@ -4577,11 +4587,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Organization — Number Formats |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /organization/number-formats/{documentType} HTTP/1.1
@@ -4602,11 +4612,11 @@ Content-Type: application/json
 | Tag | Organization — Number Formats |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /organization/number-formats/{documentType}/preview HTTP/1.1
@@ -4624,11 +4634,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations — Online Tariff Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/tariffs HTTP/1.1
@@ -4646,11 +4656,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations — Online Tariff Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/tariffs HTTP/1.1
@@ -4671,11 +4681,11 @@ Content-Type: application/json
 | Tag | Quotations — Online Tariff Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/tariffs/{id} HTTP/1.1
@@ -4693,11 +4703,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations — Online Tariff Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /quotations/tariffs/{id} HTTP/1.1
@@ -4718,11 +4728,11 @@ Content-Type: application/json
 | Tag | Quotations — Online Tariff Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /quotations/tariffs/{id} HTTP/1.1
@@ -4740,11 +4750,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations — Zip Distance Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/zip-distances HTTP/1.1
@@ -4762,11 +4772,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations — Zip Distance Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/zip-distances HTTP/1.1
@@ -4787,11 +4797,11 @@ Content-Type: application/json
 | Tag | Quotations — Zip Distance Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/zip-distances/{id} HTTP/1.1
@@ -4809,11 +4819,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations — Zip Distance Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /quotations/zip-distances/{id} HTTP/1.1
@@ -4834,11 +4844,11 @@ Content-Type: application/json
 | Tag | Quotations — Zip Distance Master |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /quotations/zip-distances/{id} HTTP/1.1
@@ -4856,11 +4866,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations HTTP/1.1
@@ -4878,11 +4888,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations HTTP/1.1
@@ -4903,11 +4913,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/reports/chargewise HTTP/1.1
@@ -4925,11 +4935,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/reports/analytics HTTP/1.1
@@ -4947,11 +4957,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/reports/analytics/conversion HTTP/1.1
@@ -4969,11 +4979,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/reports/analytics/lost-reasons HTTP/1.1
@@ -4991,11 +5001,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/reports/analytics/response-time HTTP/1.1
@@ -5039,11 +5049,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 403 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/expire-due HTTP/1.1
@@ -5064,11 +5074,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/{id} HTTP/1.1
@@ -5086,11 +5096,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /quotations/{id} HTTP/1.1
@@ -5111,11 +5121,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /quotations/{id} HTTP/1.1
@@ -5133,11 +5143,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/{id}/revisions HTTP/1.1
@@ -5155,11 +5165,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/lines HTTP/1.1
@@ -5180,11 +5190,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/apply-tariff HTTP/1.1
@@ -5205,11 +5215,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /quotations/{id}/lines/{lineId} HTTP/1.1
@@ -5230,11 +5240,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /quotations/{id}/lines/{lineId} HTTP/1.1
@@ -5252,11 +5262,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/submit HTTP/1.1
@@ -5277,11 +5287,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/approve HTTP/1.1
@@ -5302,11 +5312,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/reject HTTP/1.1
@@ -5327,11 +5337,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/send HTTP/1.1
@@ -5352,11 +5362,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/mark-won HTTP/1.1
@@ -5377,11 +5387,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/mark-lost HTTP/1.1
@@ -5402,11 +5412,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/duplicate HTTP/1.1
@@ -5427,11 +5437,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/convert-to-job HTTP/1.1
@@ -5452,11 +5462,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/archive HTTP/1.1
@@ -5477,11 +5487,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/expire HTTP/1.1
@@ -5502,11 +5512,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/pdf HTTP/1.1
@@ -5527,11 +5537,11 @@ Content-Type: application/json
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/{id}/pdf HTTP/1.1
@@ -5549,11 +5559,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /quotations/{id}/pdf/status HTTP/1.1
@@ -5571,11 +5581,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Quotations |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /quotations/{id}/send-email HTTP/1.1
@@ -5596,11 +5606,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs HTTP/1.1
@@ -5618,11 +5628,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs HTTP/1.1
@@ -5643,11 +5653,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id} HTTP/1.1
@@ -5665,11 +5675,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id} HTTP/1.1
@@ -5690,11 +5700,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id} HTTP/1.1
@@ -5712,11 +5722,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/house-jobs HTTP/1.1
@@ -5734,11 +5744,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/milestones HTTP/1.1
@@ -5756,11 +5766,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/milestones HTTP/1.1
@@ -5781,11 +5791,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/pnl HTTP/1.1
@@ -5803,11 +5813,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/notes HTTP/1.1
@@ -5825,11 +5835,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/notes HTTP/1.1
@@ -5850,11 +5860,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/documents HTTP/1.1
@@ -5872,11 +5882,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents HTTP/1.1
@@ -5897,11 +5907,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/containers HTTP/1.1
@@ -5919,11 +5929,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/containers HTTP/1.1
@@ -5944,11 +5954,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/containers/fill HTTP/1.1
@@ -5966,11 +5976,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/containers/{containerId}/fill HTTP/1.1
@@ -5988,11 +5998,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/cutoffs HTTP/1.1
@@ -6010,11 +6020,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/cargo HTTP/1.1
@@ -6032,11 +6042,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/cargo HTTP/1.1
@@ -6057,11 +6067,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/bills-of-lading HTTP/1.1
@@ -6079,11 +6089,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/bills-of-lading HTTP/1.1
@@ -6104,11 +6114,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/stuffing-records HTTP/1.1
@@ -6126,11 +6136,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/stuffing-records HTTP/1.1
@@ -6151,11 +6161,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/close HTTP/1.1
@@ -6176,11 +6186,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/cancel HTTP/1.1
@@ -6201,11 +6211,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/air-details HTTP/1.1
@@ -6226,11 +6236,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/sea-fcl-details HTTP/1.1
@@ -6251,11 +6261,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/sea-fcl-details/si-submission HTTP/1.1
@@ -6276,11 +6286,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/sea-fcl-details/vgm-submission HTTP/1.1
@@ -6301,11 +6311,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/milestones/{milestoneId} HTTP/1.1
@@ -6326,11 +6336,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/charges HTTP/1.1
@@ -6351,11 +6361,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/charges/{chargeId} HTTP/1.1
@@ -6376,11 +6386,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id}/charges/{chargeId} HTTP/1.1
@@ -6398,11 +6408,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/prorate-cost/{chargeCodeId} HTTP/1.1
@@ -6423,11 +6433,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/notes/{noteId} HTTP/1.1
@@ -6448,11 +6458,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id}/notes/{noteId} HTTP/1.1
@@ -6470,11 +6480,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/documents/{documentId} HTTP/1.1
@@ -6495,11 +6505,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id}/documents/{documentId} HTTP/1.1
@@ -6517,11 +6527,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/{documentId}/finalize HTTP/1.1
@@ -6542,11 +6552,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/documents/generation-status HTTP/1.1
@@ -6564,11 +6574,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/hawb HTTP/1.1
@@ -6589,11 +6599,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/mawb HTTP/1.1
@@ -6614,11 +6624,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/pre-alert HTTP/1.1
@@ -6639,11 +6649,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/cargo-manifest HTTP/1.1
@@ -6664,11 +6674,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/hbl HTTP/1.1
@@ -6689,11 +6699,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/hbl-express-release HTTP/1.1
@@ -6714,11 +6724,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/mbl HTTP/1.1
@@ -6739,11 +6749,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/fiata-bl HTTP/1.1
@@ -6764,11 +6774,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/rider-bl HTTP/1.1
@@ -6789,11 +6799,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/switch-bl HTTP/1.1
@@ -6814,11 +6824,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/proxy-bl HTTP/1.1
@@ -6839,11 +6849,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/back-to-back-bl HTTP/1.1
@@ -6864,11 +6874,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/surrender-notice HTTP/1.1
@@ -6889,11 +6899,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/si HTTP/1.1
@@ -6914,11 +6924,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/stuffing-report HTTP/1.1
@@ -6939,11 +6949,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/sailing-confirmation HTTP/1.1
@@ -6964,11 +6974,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/transhipment-confirmation HTTP/1.1
@@ -6989,11 +6999,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/freight-manifest HTTP/1.1
@@ -7014,11 +7024,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/job-card HTTP/1.1
@@ -7039,11 +7049,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/job-pnl HTTP/1.1
@@ -7064,11 +7074,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/proforma-invoice HTTP/1.1
@@ -7089,11 +7099,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/pre-alert/send HTTP/1.1
@@ -7114,11 +7124,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/pre-alert/schedule HTTP/1.1
@@ -7139,11 +7149,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/whatsapp/status HTTP/1.1
@@ -7164,11 +7174,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/sub-jobs HTTP/1.1
@@ -7186,11 +7196,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/sub-jobs HTTP/1.1
@@ -7211,11 +7221,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/payment-requests HTTP/1.1
@@ -7236,11 +7246,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/e-awb HTTP/1.1
@@ -7261,11 +7271,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/barcode-label HTTP/1.1
@@ -7286,11 +7296,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/consignee-label HTTP/1.1
@@ -7311,11 +7321,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/job-costing HTTP/1.1
@@ -7336,11 +7346,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/freight-certificate HTTP/1.1
@@ -7361,11 +7371,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/containers/{containerId} HTTP/1.1
@@ -7386,11 +7396,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id}/containers/{containerId} HTTP/1.1
@@ -7408,11 +7418,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/containers/{containerId}/cargo HTTP/1.1
@@ -7433,11 +7443,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/containers/{containerId}/split HTTP/1.1
@@ -7458,11 +7468,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/cargo/{cargoId} HTTP/1.1
@@ -7483,11 +7493,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id}/cargo/{cargoId} HTTP/1.1
@@ -7505,11 +7515,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/bills-of-lading/{blId} HTTP/1.1
@@ -7530,11 +7540,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id}/bills-of-lading/{blId} HTTP/1.1
@@ -7552,11 +7562,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/stuffing-records/{recordId} HTTP/1.1
@@ -7577,11 +7587,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id}/stuffing-records/{recordId} HTTP/1.1
@@ -7599,11 +7609,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/free-days HTTP/1.1
@@ -7621,11 +7631,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/free-days HTTP/1.1
@@ -7646,11 +7656,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/free-days/recalculate HTTP/1.1
@@ -7671,11 +7681,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/deposits HTTP/1.1
@@ -7693,11 +7703,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/deposits HTTP/1.1
@@ -7718,11 +7728,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/deposits/{depositId} HTTP/1.1
@@ -7743,11 +7753,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /jobs/{id}/deposits/{depositId} HTTP/1.1
@@ -7765,11 +7775,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /jobs/{id}/customs-status HTTP/1.1
@@ -7790,11 +7800,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/containers/{containerId}/return HTTP/1.1
@@ -7815,11 +7825,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/part-deliveries HTTP/1.1
@@ -7837,11 +7847,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/part-deliveries HTTP/1.1
@@ -7862,11 +7872,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/pods HTTP/1.1
@@ -7884,11 +7894,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/pods HTTP/1.1
@@ -7909,11 +7919,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /jobs/{id}/damage-reports HTTP/1.1
@@ -7931,11 +7941,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/damage-reports HTTP/1.1
@@ -7956,11 +7966,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/transhipment-link HTTP/1.1
@@ -7981,11 +7991,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/cfs-storage/calculate HTTP/1.1
@@ -8006,11 +8016,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/pre-can HTTP/1.1
@@ -8031,11 +8041,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/can HTTP/1.1
@@ -8056,11 +8066,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/exchange-letter HTTP/1.1
@@ -8081,11 +8091,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/undertake-letter HTTP/1.1
@@ -8106,11 +8116,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/delivery-order HTTP/1.1
@@ -8131,11 +8141,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/transport-request HTTP/1.1
@@ -8156,11 +8166,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/shipping-advice HTTP/1.1
@@ -8181,11 +8191,11 @@ Content-Type: application/json
 | Tag | Jobs |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /jobs/{id}/documents/proof-of-delivery HTTP/1.1
@@ -8206,11 +8216,11 @@ Content-Type: application/json
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /awb-stock/batches HTTP/1.1
@@ -8228,11 +8238,11 @@ Host: kingfisherwings.onrender.com
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /awb-stock/batches HTTP/1.1
@@ -8253,11 +8263,11 @@ Content-Type: application/json
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /awb-stock/reports/low-stock HTTP/1.1
@@ -8275,11 +8285,11 @@ Host: kingfisherwings.onrender.com
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /awb-stock/allocations HTTP/1.1
@@ -8297,11 +8307,11 @@ Host: kingfisherwings.onrender.com
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /awb-stock/batches/{id} HTTP/1.1
@@ -8319,11 +8329,11 @@ Host: kingfisherwings.onrender.com
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /awb-stock/batches/{id} HTTP/1.1
@@ -8344,11 +8354,11 @@ Content-Type: application/json
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /awb-stock/batches/{id} HTTP/1.1
@@ -8366,11 +8376,11 @@ Host: kingfisherwings.onrender.com
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /awb-stock/batches/{id}/allocate HTTP/1.1
@@ -8391,11 +8401,11 @@ Content-Type: application/json
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /awb-stock/batches/{id}/transfer-branch HTTP/1.1
@@ -8416,11 +8426,11 @@ Content-Type: application/json
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /awb-stock/allocations/{id}/void HTTP/1.1
@@ -8441,11 +8451,11 @@ Content-Type: application/json
 | Tag | AWB Stock |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /awb-stock/allocations/{id}/mark-used HTTP/1.1
@@ -8466,11 +8476,11 @@ Content-Type: application/json
 | Tag | Search |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /search HTTP/1.1
@@ -8488,11 +8498,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Files |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /files/{tenantId}/{filename} HTTP/1.1
@@ -8510,11 +8520,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /invoices HTTP/1.1
@@ -8532,11 +8542,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /invoices HTTP/1.1
@@ -8557,11 +8567,11 @@ Content-Type: application/json
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /invoices/reports/overdue HTTP/1.1
@@ -8579,11 +8589,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /invoices/{id} HTTP/1.1
@@ -8601,11 +8611,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /invoices/{id} HTTP/1.1
@@ -8626,11 +8636,11 @@ Content-Type: application/json
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /invoices/{id} HTTP/1.1
@@ -8648,11 +8658,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /invoices/from-job/{jobId} HTTP/1.1
@@ -8673,11 +8683,11 @@ Content-Type: application/json
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /invoices/{id}/lines HTTP/1.1
@@ -8698,11 +8708,11 @@ Content-Type: application/json
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /invoices/{id}/lines/{lineId} HTTP/1.1
@@ -8723,11 +8733,11 @@ Content-Type: application/json
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /invoices/{id}/lines/{lineId} HTTP/1.1
@@ -8745,11 +8755,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /invoices/{id}/post HTTP/1.1
@@ -8770,11 +8780,11 @@ Content-Type: application/json
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /invoices/{id}/send HTTP/1.1
@@ -8795,11 +8805,11 @@ Content-Type: application/json
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /invoices/{id}/pdf HTTP/1.1
@@ -8820,11 +8830,11 @@ Content-Type: application/json
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /invoices/{id}/pdf HTTP/1.1
@@ -8842,11 +8852,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /invoices/{id}/cancel HTTP/1.1
@@ -8867,11 +8877,11 @@ Content-Type: application/json
 | Tag | Credit Notes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /credit-notes HTTP/1.1
@@ -8889,11 +8899,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Credit Notes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /credit-notes HTTP/1.1
@@ -8914,11 +8924,11 @@ Content-Type: application/json
 | Tag | Credit Notes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /credit-notes/{id} HTTP/1.1
@@ -8936,11 +8946,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Credit Notes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /credit-notes/{id}/post HTTP/1.1
@@ -8961,11 +8971,11 @@ Content-Type: application/json
 | Tag | Debit Notes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /debit-notes HTTP/1.1
@@ -8983,11 +8993,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Debit Notes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /debit-notes HTTP/1.1
@@ -9008,11 +9018,11 @@ Content-Type: application/json
 | Tag | Debit Notes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /debit-notes/{id} HTTP/1.1
@@ -9030,11 +9040,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Debit Notes |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /debit-notes/{id}/post HTTP/1.1
@@ -9055,11 +9065,11 @@ Content-Type: application/json
 | Tag | Purchase Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /purchase-invoices HTTP/1.1
@@ -9077,11 +9087,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Purchase Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /purchase-invoices HTTP/1.1
@@ -9102,11 +9112,11 @@ Content-Type: application/json
 | Tag | Purchase Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /purchase-invoices/{id} HTTP/1.1
@@ -9124,11 +9134,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Purchase Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /purchase-invoices/{id} HTTP/1.1
@@ -9149,11 +9159,11 @@ Content-Type: application/json
 | Tag | Purchase Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /purchase-invoices/{id} HTTP/1.1
@@ -9171,11 +9181,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Purchase Invoices |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /purchase-invoices/{id}/post HTTP/1.1
@@ -9196,11 +9206,11 @@ Content-Type: application/json
 | Tag | Payment Requests |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /payment-requests HTTP/1.1
@@ -9218,11 +9228,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Payment Requests |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /payment-requests HTTP/1.1
@@ -9243,11 +9253,11 @@ Content-Type: application/json
 | Tag | Payment Requests |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /payment-requests/{id} HTTP/1.1
@@ -9265,11 +9275,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Payment Requests |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /payment-requests/{id} HTTP/1.1
@@ -9290,11 +9300,11 @@ Content-Type: application/json
 | Tag | Payment Requests |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /payment-requests/{id} HTTP/1.1
@@ -9312,11 +9322,11 @@ Host: kingfisherwings.onrender.com
 | Tag | Payment Requests |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /payment-requests/{id}/approve HTTP/1.1
@@ -9337,11 +9347,11 @@ Content-Type: application/json
 | Tag | Payment Requests |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /payment-requests/{id}/reject HTTP/1.1
@@ -9362,11 +9372,11 @@ Content-Type: application/json
 | Tag | Payment Requests |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /payment-requests/{id}/mark-paid HTTP/1.1
@@ -9387,11 +9397,11 @@ Content-Type: application/json
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/accounts HTTP/1.1
@@ -9409,11 +9419,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/accounts HTTP/1.1
@@ -9434,11 +9444,11 @@ Content-Type: application/json
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/accounts/tree HTTP/1.1
@@ -9456,11 +9466,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/accounts/reports/trial-balance HTTP/1.1
@@ -9478,11 +9488,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/accounts/seed-defaults HTTP/1.1
@@ -9503,11 +9513,11 @@ Content-Type: application/json
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/accounts/{id} HTTP/1.1
@@ -9525,11 +9535,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /gl/accounts/{id} HTTP/1.1
@@ -9550,11 +9560,11 @@ Content-Type: application/json
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /gl/accounts/{id} HTTP/1.1
@@ -9572,11 +9582,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Chart of Accounts |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/accounts/{id}/ledger HTTP/1.1
@@ -9594,11 +9604,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/vouchers HTTP/1.1
@@ -9616,11 +9626,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/vouchers HTTP/1.1
@@ -9641,11 +9651,11 @@ Content-Type: application/json
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/vouchers/{id} HTTP/1.1
@@ -9663,11 +9673,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /gl/vouchers/{id} HTTP/1.1
@@ -9688,11 +9698,11 @@ Content-Type: application/json
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /gl/vouchers/{id} HTTP/1.1
@@ -9710,11 +9720,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/vouchers/{id}/lines HTTP/1.1
@@ -9735,11 +9745,11 @@ Content-Type: application/json
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /gl/vouchers/{id}/lines/{lineId} HTTP/1.1
@@ -9760,11 +9770,11 @@ Content-Type: application/json
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /gl/vouchers/{id}/lines/{lineId} HTTP/1.1
@@ -9782,11 +9792,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/vouchers/{id}/post HTTP/1.1
@@ -9807,11 +9817,11 @@ Content-Type: application/json
 | Tag | GL — Vouchers |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/vouchers/{id}/reverse HTTP/1.1
@@ -9832,11 +9842,11 @@ Content-Type: application/json
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/payments HTTP/1.1
@@ -9854,11 +9864,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 503 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 503 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/payments HTTP/1.1
@@ -9879,11 +9889,11 @@ Content-Type: application/json
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/payments/{id} HTTP/1.1
@@ -9901,11 +9911,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /gl/payments/{id} HTTP/1.1
@@ -9926,11 +9936,11 @@ Content-Type: application/json
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /gl/payments/{id} HTTP/1.1
@@ -9948,11 +9958,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/payments/{id}/allocations HTTP/1.1
@@ -9973,11 +9983,11 @@ Content-Type: application/json
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /gl/payments/{id}/allocations/{allocationId} HTTP/1.1
@@ -9995,11 +10005,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/payments/{id}/post HTTP/1.1
@@ -10020,11 +10030,11 @@ Content-Type: application/json
 | Tag | GL — Payments (AR/AP) |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/payments/{id}/cancel HTTP/1.1
@@ -10045,11 +10055,11 @@ Content-Type: application/json
 | Tag | GL — AR / AP Aging |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/ar/aging HTTP/1.1
@@ -10067,11 +10077,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — AR / AP Aging |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/ap/aging HTTP/1.1
@@ -10089,11 +10099,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — AR / AP Aging |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/ar/statement/{partyId} HTTP/1.1
@@ -10111,11 +10121,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — AR / AP Aging |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/ap/statement/{partyId} HTTP/1.1
@@ -10133,11 +10143,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/cheques HTTP/1.1
@@ -10155,11 +10165,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/cheques HTTP/1.1
@@ -10180,11 +10190,11 @@ Content-Type: application/json
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/cheques/reports/pdc-due HTTP/1.1
@@ -10202,11 +10212,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/cheques/{id} HTTP/1.1
@@ -10224,11 +10234,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /gl/cheques/{id} HTTP/1.1
@@ -10249,11 +10259,11 @@ Content-Type: application/json
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/cheques/{id}/deposit HTTP/1.1
@@ -10274,11 +10284,11 @@ Content-Type: application/json
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/cheques/{id}/clear HTTP/1.1
@@ -10299,11 +10309,11 @@ Content-Type: application/json
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/cheques/{id}/bounce HTTP/1.1
@@ -10324,11 +10334,11 @@ Content-Type: application/json
 | Tag | GL — Cheques / PDC |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/cheques/{id}/cancel HTTP/1.1
@@ -10349,11 +10359,11 @@ Content-Type: application/json
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/bank-transfers HTTP/1.1
@@ -10374,11 +10384,11 @@ Content-Type: application/json
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/bank-reconciliations HTTP/1.1
@@ -10396,11 +10406,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/bank-reconciliations HTTP/1.1
@@ -10421,11 +10431,11 @@ Content-Type: application/json
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/bank-reconciliations/{id} HTTP/1.1
@@ -10443,11 +10453,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /gl/bank-reconciliations/{id} HTTP/1.1
@@ -10468,11 +10478,11 @@ Content-Type: application/json
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /gl/bank-reconciliations/{id} HTTP/1.1
@@ -10490,11 +10500,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/bank-reconciliations/{id}/unmatched HTTP/1.1
@@ -10512,11 +10522,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/bank-reconciliations/{id}/lines HTTP/1.1
@@ -10537,11 +10547,11 @@ Content-Type: application/json
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /gl/bank-reconciliations/{id}/lines/{lineId} HTTP/1.1
@@ -10562,11 +10572,11 @@ Content-Type: application/json
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /gl/bank-reconciliations/{id}/lines/{lineId} HTTP/1.1
@@ -10584,11 +10594,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Bank Reconciliation |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/bank-reconciliations/{id}/complete HTTP/1.1
@@ -10609,11 +10619,11 @@ Content-Type: application/json
 | Tag | GL — Financial Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/reports/trial-balance HTTP/1.1
@@ -10631,11 +10641,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Financial Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/reports/balance-sheet HTTP/1.1
@@ -10653,11 +10663,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Financial Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/reports/profit-and-loss HTTP/1.1
@@ -10675,11 +10685,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Financial Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/reports/cash-flow HTTP/1.1
@@ -10697,11 +10707,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — Financial Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/reports/vat-return HTTP/1.1
@@ -10719,11 +10729,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — MIS Dashboard |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/mis/dashboard HTTP/1.1
@@ -10741,11 +10751,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — MIS Dashboard |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/mis/profitability HTTP/1.1
@@ -10763,11 +10773,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — MIS Dashboard |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/mis/operational HTTP/1.1
@@ -10785,11 +10795,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — My Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/saved-reports HTTP/1.1
@@ -10807,11 +10817,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — My Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 POST /gl/saved-reports HTTP/1.1
@@ -10832,11 +10842,11 @@ Content-Type: application/json
 | Tag | GL — My Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 GET /gl/saved-reports/{id} HTTP/1.1
@@ -10854,11 +10864,11 @@ Host: kingfisherwings.onrender.com
 | Tag | GL — My Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 PATCH /gl/saved-reports/{id} HTTP/1.1
@@ -10879,11 +10889,11 @@ Content-Type: application/json
 | Tag | GL — My Reports |
 | Primary attack | No `Authorization` header |
 | Expected | **401 Unauthorized** |
-| Live status | **EXECUTED_PASS (API correctly rejected)** |
-| Live HTTP | 401 |
+| Live status | **EXECUTED_FAIL (API did not reject as expected)** |
+| Live HTTP | 429 |
 | Live title | No Authorization header |
-| Live notes | Correctly rejected |
-| Assertion | PASS — rejection correct |
+| Live notes | Expected 401, got 429 |
+| Assertion | FAIL — unexpected response |
 
 ```http
 DELETE /gl/saved-reports/{id} HTTP/1.1

@@ -1,18 +1,18 @@
 # LIVE PASS Cases — One Per API
 
 **Base URL:** `https://kingfisherwings.onrender.com`
-**Run ID:** 1784282902909
-**When:** 2026-07-17T10:18:47.828Z
+**Run ID:** 1787902145904
+**When:** 2026-08-28T07:30:11.114Z
 **OpenAPI APIs:** 441
 
 Every OpenAPI operation appears exactly once. Live execution result is shown when available.
 
 | # | Method | Path | Live result | HTTP |
 |---|--------|------|-------------|------|
-| 1 | GET | `/locale/defaults` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 2 | GET | `/locale/{countryCode}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 3 | GET | `/health` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 4 | POST | `/tenants` | EXECUTED_PASS | 201 |
+| 1 | GET | `/locale/defaults` | EXECUTED_PASS |  |
+| 2 | GET | `/locale/{countryCode}` | EXECUTED_PASS |  |
+| 3 | GET | `/health` | EXECUTED_PASS |  |
+| 4 | POST | `/tenants` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 5 | GET | `/tenants` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 6 | GET | `/tenants/statistics` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 7 | POST | `/tenants/sync-permissions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -23,12 +23,12 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 12 | PATCH | `/tenants/{id}/restore` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 13 | PATCH | `/tenants/{id}/activate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 14 | PATCH | `/tenants/{id}/deactivate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 15 | GET | `/companies` | EXECUTED_PASS | 200 |
+| 15 | GET | `/companies` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 16 | POST | `/companies` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 17 | GET | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 18 | PATCH | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 19 | DELETE | `/companies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 20 | GET | `/users` | EXECUTED_PASS | 200 |
+| 20 | GET | `/users` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 21 | POST | `/users` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 22 | GET | `/users/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 23 | PATCH | `/users/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -40,67 +40,67 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 29 | POST | `/users/{id}/admin-reset-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 30 | POST | `/users/{id}/force-logout` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 31 | POST | `/auth/login` | EXECUTED_PASS |  |
-| 32 | POST | `/auth/tenant-login` | EXECUTED_PASS | 200 |
-| 33 | POST | `/auth/super-admin/signup` | EXECUTED_PASS | 201 |
+| 32 | POST | `/auth/tenant-login` | EXECUTED_PASS |  |
+| 33 | POST | `/auth/super-admin/signup` | EXECUTED_PASS |  |
 | 34 | POST | `/auth/super-admin/login` | EXECUTED_PASS |  |
-| 35 | POST | `/auth/refresh` | EXECUTED_PASS | 200 |
-| 36 | POST | `/auth/logout` | EXECUTED_FAIL | 401 |
-| 37 | GET | `/auth/sessions` | EXECUTED_PASS | 200 |
+| 35 | POST | `/auth/refresh` | EXECUTED_PASS |  |
+| 36 | POST | `/auth/logout` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 37 | GET | `/auth/sessions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 38 | POST | `/auth/sessions/{sessionId}/revoke` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 39 | POST | `/auth/logout-all` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 40 | GET | `/auth/me` | EXECUTED_PASS | 200 |
+| 40 | GET | `/auth/me` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 41 | PATCH | `/auth/me` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 42 | POST | `/auth/change-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 43 | POST | `/auth/tenant/change-password` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 44 | POST | `/auth/invite` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 45 | POST | `/auth/accept-invite` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 45 | POST | `/auth/accept-invite` | EXECUTED_PASS |  |
 | 46 | POST | `/auth/2fa/setup` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 47 | POST | `/auth/2fa/enable` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 48 | POST | `/auth/2fa/disable` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 49 | GET | `/masters/countries` | EXECUTED_PASS | 200 |
-| 50 | POST | `/masters/countries` | EXECUTED_PASS | 201 |
+| 49 | GET | `/masters/countries` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 50 | POST | `/masters/countries` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 51 | GET | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 52 | PATCH | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 53 | DELETE | `/masters/countries/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 54 | GET | `/masters/currencies` | EXECUTED_PASS | 200 |
-| 55 | POST | `/masters/currencies` | EXECUTED_PASS | 201 |
+| 54 | GET | `/masters/currencies` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 55 | POST | `/masters/currencies` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 56 | GET | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 57 | PATCH | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 58 | DELETE | `/masters/currencies/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 59 | GET | `/masters/exchange-rates` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 60 | POST | `/masters/exchange-rates` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 61 | GET | `/masters/exchange-rates/latest/{currencyId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 62 | GET | `/masters/ports` | EXECUTED_PASS | 200 |
-| 63 | POST | `/masters/ports` | EXECUTED_PASS | 201 |
+| 62 | GET | `/masters/ports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 63 | POST | `/masters/ports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 64 | GET | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 65 | PATCH | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 66 | DELETE | `/masters/ports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 67 | GET | `/masters/airports` | EXECUTED_PASS | 200 |
+| 67 | GET | `/masters/airports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 68 | POST | `/masters/airports` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 69 | GET | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 70 | PATCH | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 71 | DELETE | `/masters/airports/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 72 | GET | `/masters/container-types` | EXECUTED_PASS | 200 |
+| 72 | GET | `/masters/container-types` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 73 | POST | `/masters/container-types` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 74 | GET | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 75 | PATCH | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 76 | DELETE | `/masters/container-types/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 77 | GET | `/masters/hs-codes` | EXECUTED_PASS | 200 |
+| 77 | GET | `/masters/hs-codes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 78 | POST | `/masters/hs-codes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 79 | GET | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 80 | PATCH | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 81 | DELETE | `/masters/hs-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 82 | GET | `/masters/airlines` | EXECUTED_PASS | 200 |
-| 83 | POST | `/masters/airlines` | EXECUTED_PASS | 201 |
+| 82 | GET | `/masters/airlines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 83 | POST | `/masters/airlines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 84 | GET | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 85 | PATCH | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 86 | DELETE | `/masters/airlines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 87 | GET | `/masters/shipping-lines` | EXECUTED_PASS | 200 |
+| 87 | GET | `/masters/shipping-lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 88 | POST | `/masters/shipping-lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 89 | GET | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 90 | PATCH | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 91 | DELETE | `/masters/shipping-lines/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 92 | GET | `/masters/vessels` | EXECUTED_PASS | 200 |
+| 92 | GET | `/masters/vessels` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 93 | POST | `/masters/vessels` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 94 | GET | `/masters/vessels/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 95 | PATCH | `/masters/vessels/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -109,80 +109,80 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 98 | POST | `/vessels/{id}/schedules` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 99 | PATCH | `/vessels/{id}/schedules/{scheduleId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 100 | DELETE | `/vessels/{id}/schedules/{scheduleId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 101 | GET | `/masters/truckers` | EXECUTED_PASS | 200 |
+| 101 | GET | `/masters/truckers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 102 | POST | `/masters/truckers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 103 | GET | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 104 | PATCH | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 105 | DELETE | `/masters/truckers/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 106 | GET | `/masters/warehouses` | EXECUTED_PASS | 200 |
+| 106 | GET | `/masters/warehouses` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 107 | POST | `/masters/warehouses` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 108 | GET | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 109 | PATCH | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 110 | DELETE | `/masters/warehouses/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 111 | GET | `/masters/charge-codes` | EXECUTED_PASS | 200 |
-| 112 | POST | `/masters/charge-codes` | EXECUTED_PASS | 201 |
+| 111 | GET | `/masters/charge-codes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 112 | POST | `/masters/charge-codes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 113 | GET | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 114 | PATCH | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 115 | DELETE | `/masters/charge-codes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 116 | GET | `/masters/banks` | EXECUTED_PASS | 200 |
+| 116 | GET | `/masters/banks` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 117 | POST | `/masters/banks` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 118 | GET | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 119 | PATCH | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 120 | DELETE | `/masters/banks/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 121 | GET | `/masters/holidays` | EXECUTED_PASS | 200 |
+| 121 | GET | `/masters/holidays` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 122 | POST | `/masters/holidays` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 123 | GET | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 124 | PATCH | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 125 | DELETE | `/masters/holidays/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 126 | GET | `/masters/units-of-measure` | EXECUTED_PASS | 200 |
+| 126 | GET | `/masters/units-of-measure` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 127 | POST | `/masters/units-of-measure` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 128 | GET | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 129 | PATCH | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 130 | DELETE | `/masters/units-of-measure/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 131 | GET | `/masters/tax-rates` | EXECUTED_PASS | 200 |
-| 132 | POST | `/masters/tax-rates` | EXECUTED_PASS | 201 |
+| 131 | GET | `/masters/tax-rates` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 132 | POST | `/masters/tax-rates` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 133 | GET | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 134 | PATCH | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 135 | DELETE | `/masters/tax-rates/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 136 | GET | `/masters/branches` | EXECUTED_PASS | 200 |
-| 137 | POST | `/masters/branches` | EXECUTED_PASS | 201 |
+| 136 | GET | `/masters/branches` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 137 | POST | `/masters/branches` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 138 | GET | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 139 | PATCH | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 140 | DELETE | `/masters/branches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 141 | GET | `/masters/departments` | EXECUTED_PASS | 200 |
+| 141 | GET | `/masters/departments` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 142 | POST | `/masters/departments` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 143 | GET | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 144 | PATCH | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 145 | DELETE | `/masters/departments/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 146 | GET | `/masters/designations` | EXECUTED_PASS | 200 |
+| 146 | GET | `/masters/designations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 147 | POST | `/masters/designations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 148 | GET | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 149 | PATCH | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 150 | DELETE | `/masters/designations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 151 | GET | `/parties` | EXECUTED_PASS | 200 |
-| 152 | POST | `/parties` | EXECUTED_PASS | 201 |
+| 151 | GET | `/parties` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 152 | POST | `/parties` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 153 | GET | `/parties/export` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 154 | GET | `/parties/{id}/history` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 155 | GET | `/parties/{id}` | EXECUTED_PASS | 200 |
+| 155 | GET | `/parties/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 156 | PATCH | `/parties/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 157 | DELETE | `/parties/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 158 | POST | `/parties/import` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 159 | PATCH | `/parties/{id}/credit-status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 160 | POST | `/parties/{id}/contacts` | EXECUTED_PASS | 201 |
+| 160 | POST | `/parties/{id}/contacts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 161 | PATCH | `/parties/{id}/contacts/{contactId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 162 | DELETE | `/parties/{id}/contacts/{contactId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 163 | POST | `/parties/{id}/addresses` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 164 | PATCH | `/parties/{id}/addresses/{addressId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 165 | DELETE | `/parties/{id}/addresses/{addressId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 166 | GET | `/organization/profile` | EXECUTED_PASS | 200 |
+| 166 | GET | `/organization/profile` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 167 | PATCH | `/organization/profile` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 168 | GET | `/organization/bank-accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 169 | POST | `/organization/bank-accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 170 | GET | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 171 | PATCH | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 172 | DELETE | `/organization/bank-accounts/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 173 | GET | `/organization/number-formats` | EXECUTED_PASS | 200 |
-| 174 | POST | `/organization/number-formats` | EXECUTED_PASS | 201 |
+| 173 | GET | `/organization/number-formats` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 174 | POST | `/organization/number-formats` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 175 | GET | `/organization/number-formats/{documentType}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 176 | PATCH | `/organization/number-formats/{documentType}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 177 | GET | `/organization/number-formats/{documentType}/preview` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -196,10 +196,10 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 185 | GET | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 186 | PATCH | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 187 | DELETE | `/quotations/zip-distances/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 188 | GET | `/quotations` | EXECUTED_PASS | 200 |
-| 189 | POST | `/quotations` | EXECUTED_PASS | 201 |
+| 188 | GET | `/quotations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 189 | POST | `/quotations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 190 | GET | `/quotations/reports/chargewise` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 191 | GET | `/quotations/reports/analytics` | EXECUTED_PASS | 200 |
+| 191 | GET | `/quotations/reports/analytics` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 192 | GET | `/quotations/reports/analytics/conversion` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 193 | GET | `/quotations/reports/analytics/lost-reasons` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 194 | GET | `/quotations/reports/analytics/response-time` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -209,35 +209,35 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 198 | PATCH | `/quotations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 199 | DELETE | `/quotations/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 200 | GET | `/quotations/{id}/revisions` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 201 | POST | `/quotations/{id}/lines` | EXECUTED_PASS | 201 |
+| 201 | POST | `/quotations/{id}/lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 202 | POST | `/quotations/{id}/apply-tariff` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 203 | PATCH | `/quotations/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 204 | DELETE | `/quotations/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 205 | POST | `/quotations/{id}/submit` | EXECUTED_PASS | 201 |
-| 206 | POST | `/quotations/{id}/approve` | EXECUTED_PASS | 201 |
+| 205 | POST | `/quotations/{id}/submit` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 206 | POST | `/quotations/{id}/approve` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 207 | POST | `/quotations/{id}/reject` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 208 | POST | `/quotations/{id}/send` | EXECUTED_PASS | 201 |
-| 209 | POST | `/quotations/{id}/mark-won` | EXECUTED_PASS | 201 |
+| 208 | POST | `/quotations/{id}/send` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 209 | POST | `/quotations/{id}/mark-won` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 210 | POST | `/quotations/{id}/mark-lost` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 211 | POST | `/quotations/{id}/duplicate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 212 | POST | `/quotations/{id}/convert-to-job` | EXECUTED_PASS | 201 |
+| 212 | POST | `/quotations/{id}/convert-to-job` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 213 | POST | `/quotations/{id}/archive` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 214 | POST | `/quotations/{id}/expire` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 215 | POST | `/quotations/{id}/pdf` | EXECUTED_FAIL |  |
-| 216 | GET | `/quotations/{id}/pdf` | EXECUTED_PASS | 200 |
+| 215 | POST | `/quotations/{id}/pdf` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 216 | GET | `/quotations/{id}/pdf` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 217 | GET | `/quotations/{id}/pdf/status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 218 | POST | `/quotations/{id}/send-email` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 219 | GET | `/jobs` | EXECUTED_PASS | 200 |
-| 220 | POST | `/jobs` | EXECUTED_PASS | 201 |
-| 221 | GET | `/jobs/{id}` | EXECUTED_PASS | 200 |
+| 219 | GET | `/jobs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 220 | POST | `/jobs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 221 | GET | `/jobs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 222 | PATCH | `/jobs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 223 | DELETE | `/jobs/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 224 | GET | `/jobs/{id}/house-jobs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 225 | GET | `/jobs/{id}/milestones` | EXECUTED_PASS | 200 |
+| 225 | GET | `/jobs/{id}/milestones` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 226 | POST | `/jobs/{id}/milestones` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 227 | GET | `/jobs/{id}/pnl` | EXECUTED_PASS | 200 |
+| 227 | GET | `/jobs/{id}/pnl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 228 | GET | `/jobs/{id}/notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 229 | POST | `/jobs/{id}/notes` | EXECUTED_PASS | 201 |
+| 229 | POST | `/jobs/{id}/notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 230 | GET | `/jobs/{id}/documents` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 231 | POST | `/jobs/{id}/documents` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 232 | GET | `/jobs/{id}/containers` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -253,12 +253,12 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 242 | POST | `/jobs/{id}/stuffing-records` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 243 | POST | `/jobs/{id}/close` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 244 | POST | `/jobs/{id}/cancel` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 245 | PATCH | `/jobs/{id}/air-details` | EXECUTED_PASS | 200 |
+| 245 | PATCH | `/jobs/{id}/air-details` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 246 | PATCH | `/jobs/{id}/sea-fcl-details` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 247 | POST | `/jobs/{id}/sea-fcl-details/si-submission` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 248 | POST | `/jobs/{id}/sea-fcl-details/vgm-submission` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 249 | PATCH | `/jobs/{id}/milestones/{milestoneId}` | EXECUTED_PASS | 200 |
-| 250 | POST | `/jobs/{id}/charges` | EXECUTED_PASS | 201 |
+| 249 | PATCH | `/jobs/{id}/milestones/{milestoneId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 250 | POST | `/jobs/{id}/charges` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 251 | PATCH | `/jobs/{id}/charges/{chargeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 252 | DELETE | `/jobs/{id}/charges/{chargeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 253 | POST | `/jobs/{id}/prorate-cost/{chargeCodeId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -267,8 +267,8 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 256 | PATCH | `/jobs/{id}/documents/{documentId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 257 | DELETE | `/jobs/{id}/documents/{documentId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 258 | POST | `/jobs/{id}/documents/{documentId}/finalize` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 259 | GET | `/jobs/{id}/documents/generation-status` | EXECUTED_PASS | 200 |
-| 260 | POST | `/jobs/{id}/documents/hawb` | EXECUTED_FAIL | 500 |
+| 259 | GET | `/jobs/{id}/documents/generation-status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 260 | POST | `/jobs/{id}/documents/hawb` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 261 | POST | `/jobs/{id}/documents/mawb` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 262 | POST | `/jobs/{id}/documents/pre-alert` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 263 | POST | `/jobs/{id}/documents/cargo-manifest` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -289,7 +289,7 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 278 | POST | `/jobs/{id}/documents/job-card` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 279 | POST | `/jobs/{id}/documents/job-pnl` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 280 | POST | `/jobs/{id}/documents/proforma-invoice` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 281 | POST | `/jobs/{id}/pre-alert/send` | EXECUTED_PASS | 201 |
+| 281 | POST | `/jobs/{id}/pre-alert/send` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 282 | POST | `/jobs/{id}/pre-alert/schedule` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 283 | POST | `/jobs/{id}/whatsapp/status` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 284 | GET | `/jobs/{id}/sub-jobs` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -335,36 +335,36 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 324 | POST | `/jobs/{id}/documents/transport-request` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 325 | POST | `/jobs/{id}/documents/shipping-advice` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 326 | POST | `/jobs/{id}/documents/proof-of-delivery` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 327 | GET | `/awb-stock/batches` | EXECUTED_PASS | 200 |
-| 328 | POST | `/awb-stock/batches` | EXECUTED_PASS | 201 |
-| 329 | GET | `/awb-stock/reports/low-stock` | EXECUTED_PASS | 200 |
+| 327 | GET | `/awb-stock/batches` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 328 | POST | `/awb-stock/batches` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 329 | GET | `/awb-stock/reports/low-stock` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 330 | GET | `/awb-stock/allocations` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 331 | GET | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 332 | PATCH | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 333 | DELETE | `/awb-stock/batches/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 334 | POST | `/awb-stock/batches/{id}/allocate` | EXECUTED_PASS | 201 |
+| 334 | POST | `/awb-stock/batches/{id}/allocate` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 335 | POST | `/awb-stock/batches/{id}/transfer-branch` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 336 | POST | `/awb-stock/allocations/{id}/void` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 337 | POST | `/awb-stock/allocations/{id}/mark-used` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 338 | GET | `/search` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 339 | GET | `/files/{tenantId}/{filename}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 340 | GET | `/invoices` | EXECUTED_PASS | 200 |
+| 340 | GET | `/invoices` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 341 | POST | `/invoices` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 342 | GET | `/invoices/reports/overdue` | EXECUTED_PASS | 200 |
-| 343 | GET | `/invoices/{id}` | EXECUTED_PASS | 200 |
+| 342 | GET | `/invoices/reports/overdue` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 343 | GET | `/invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 344 | PATCH | `/invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 345 | DELETE | `/invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 346 | POST | `/invoices/from-job/{jobId}` | EXECUTED_PASS | 201 |
+| 346 | POST | `/invoices/from-job/{jobId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 347 | POST | `/invoices/{id}/lines` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 348 | PATCH | `/invoices/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 349 | DELETE | `/invoices/{id}/lines/{lineId}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 350 | POST | `/invoices/{id}/post` | EXECUTED_PASS | 201 |
-| 351 | POST | `/invoices/{id}/send` | EXECUTED_FAIL | 500 |
-| 352 | POST | `/invoices/{id}/pdf` | EXECUTED_FAIL | 500 |
+| 350 | POST | `/invoices/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 351 | POST | `/invoices/{id}/send` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
+| 352 | POST | `/invoices/{id}/pdf` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 353 | GET | `/invoices/{id}/pdf` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 354 | POST | `/invoices/{id}/cancel` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 355 | GET | `/credit-notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 356 | POST | `/credit-notes` | EXECUTED_FAIL | 500 |
+| 356 | POST | `/credit-notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 357 | GET | `/credit-notes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 358 | POST | `/credit-notes/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 359 | GET | `/debit-notes` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -372,19 +372,19 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | 361 | GET | `/debit-notes/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 362 | POST | `/debit-notes/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 363 | GET | `/purchase-invoices` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 364 | POST | `/purchase-invoices` | EXECUTED_FAIL | 500 |
+| 364 | POST | `/purchase-invoices` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 365 | GET | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 366 | PATCH | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 367 | DELETE | `/purchase-invoices/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 368 | POST | `/purchase-invoices/{id}/post` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 369 | GET | `/payment-requests` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 370 | POST | `/payment-requests` | EXECUTED_PASS | 201 |
+| 370 | POST | `/payment-requests` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 371 | GET | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 372 | PATCH | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 373 | DELETE | `/payment-requests/{id}` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 374 | POST | `/payment-requests/{id}/approve` | EXECUTED_PASS | 201 |
+| 374 | POST | `/payment-requests/{id}/approve` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 375 | POST | `/payment-requests/{id}/reject` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
-| 376 | POST | `/payment-requests/{id}/mark-paid` | EXECUTED_PASS | 201 |
+| 376 | POST | `/payment-requests/{id}/mark-paid` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 377 | GET | `/gl/accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 378 | POST | `/gl/accounts` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
 | 379 | GET | `/gl/accounts/tree` | DEFINED_NOT_HIT_IN_HAPPY_PATH |  |
@@ -460,11 +460,12 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 |-------|-------|
 | Case | **PASS** |
 | Tag | Locale |
-| Auth | Bearer {{TOKEN}} |
+| Auth | Public |
 | Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+| Live status | **EXECUTED_PASS** |
+| Live HTTP | n/a |
+| Live title | Public route — auth not required (catalogued) |
+| Live notes | Skipped unauth fail — route is @Public |
 
 ---
 
@@ -475,11 +476,12 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 |-------|-------|
 | Case | **PASS** |
 | Tag | Locale |
-| Auth | Bearer {{TOKEN}} |
+| Auth | Public |
 | Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+| Live status | **EXECUTED_PASS** |
+| Live HTTP | n/a |
+| Live title | Public route — auth not required (catalogued) |
+| Live notes | Skipped unauth fail — route is @Public |
 
 ---
 
@@ -489,11 +491,12 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 |-------|-------|
 | Case | **PASS** |
 | Tag | Untagged |
-| Auth | Bearer {{TOKEN}} |
+| Auth | Public |
 | Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+| Live status | **EXECUTED_PASS** |
+| Live HTTP | n/a |
+| Live title | Public route — auth not required (catalogued) |
+| Live notes | Skipped unauth fail — route is @Public |
 
 ---
 
@@ -506,10 +509,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Tenants (Super Admin) |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create tenant |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -672,10 +674,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Companies |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List companies |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -748,10 +749,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Users |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List users |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -931,9 +931,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Auth | Public |
 | Expected | 2xx |
 | Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Tenant login |
-| Live notes | OK |
+| Live HTTP | n/a |
+| Live title | Public route — auth not required (catalogued) |
+| Live notes | Skipped unauth fail — route is @Public |
 
 ---
 
@@ -947,9 +947,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Auth | Public |
 | Expected | 2xx |
 | Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Super admin signup |
-| Live notes | OK |
+| Live HTTP | n/a |
+| Live title | Public route — auth not required (catalogued) |
+| Live notes | Skipped unauth fail — route is @Public |
 
 ---
 
@@ -979,9 +979,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Auth | Public |
 | Expected | 2xx |
 | Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Refresh token |
-| Live notes | OK |
+| Live HTTP | n/a |
+| Live title | Public route — auth not required (catalogued) |
+| Live notes | Skipped unauth fail — route is @Public |
 
 ---
 
@@ -994,10 +994,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Auth |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_FAIL** |
-| Live HTTP | 401 |
-| Live title | Logout |
-| Live notes | {"message":"Session is no longer valid.","error":"Unauthorized","statusCode":401} |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1010,10 +1009,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Auth |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List sessions |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1056,10 +1054,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Auth |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | GET /auth/me |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1130,11 +1127,12 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 |-------|-------|
 | Case | **PASS** |
 | Tag | Auth |
-| Auth | Bearer {{TOKEN}} |
+| Auth | Public |
 | Expected | 2xx |
-| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
-| Live HTTP | _not executed in happy-path this run_ |
-| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
+| Live status | **EXECUTED_PASS** |
+| Live HTTP | n/a |
+| Live title | Public route — auth not required (catalogued) |
+| Live notes | Skipped unauth fail — route is @Public |
 
 ---
 
@@ -1192,10 +1190,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Countries |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/countries |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1208,10 +1205,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Countries |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create country AE |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1269,10 +1265,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Currencies |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/currencies |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1285,10 +1280,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Currencies |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create currency AED |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1391,10 +1385,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Ports |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/ports |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1407,10 +1400,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Ports |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create port DXB |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1468,10 +1460,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Airports |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/airports |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1544,10 +1535,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — ContainerTypes |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/container-types |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1620,10 +1610,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — HsCodes |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/hs-codes |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1696,10 +1685,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Airlines |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/airlines |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1712,10 +1700,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Airlines |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create airline EK |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1773,10 +1760,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — ShippingLines |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/shipping-lines |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1849,10 +1835,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Vessels |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/vessels |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -1985,10 +1970,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Truckers |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/truckers |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2061,10 +2045,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Warehouses |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/warehouses |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2137,10 +2120,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — ChargeCodes |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/charge-codes |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2153,10 +2135,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — ChargeCodes |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create charge code AFR |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2214,10 +2195,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Banks |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/banks |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2290,10 +2270,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Holidays |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/holidays |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2366,10 +2345,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — UnitsOfMeasure |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/units-of-measure |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2442,10 +2420,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — TaxRates |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/tax-rates |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2458,10 +2435,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — TaxRates |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create tax rate VAT5 |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2519,10 +2495,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Branches |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/branches |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2535,10 +2510,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Branches |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create branch |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2596,10 +2570,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Departments |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/departments |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2672,10 +2645,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Masters — Designations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List masters/designations |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2748,10 +2720,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Parties |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List parties |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2764,10 +2735,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Parties |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create customer party |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2810,10 +2780,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Parties |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Get party |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2886,10 +2855,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Parties |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Add party contact |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -2977,10 +2945,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Organization Profile |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Org profile |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3083,10 +3050,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Organization — Number Formats |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List number formats |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3099,10 +3065,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Organization — Number Formats |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Number format QUOTATION |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3310,10 +3275,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List quotations |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3326,10 +3290,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create quotation |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3357,10 +3320,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Quotation analytics |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3509,10 +3471,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Add quotation revenue line |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3570,10 +3531,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Submit quotation |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3586,10 +3546,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Approve quotation |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3617,10 +3576,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Send quotation |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3633,10 +3591,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Mark won |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3679,10 +3636,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Convert to job |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3725,10 +3681,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_FAIL** |
-| Live HTTP | n/a |
-| Live title | Queue quotation PDF |
-| Live notes | fetch failed |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3741,10 +3696,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Quotations |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Get quotation PDF info |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3787,10 +3741,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List jobs |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3803,10 +3756,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create job directly |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3819,10 +3771,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Get job |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3880,10 +3831,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List milestones |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3911,10 +3861,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Job P&L |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -3942,10 +3891,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Add job note |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -4183,10 +4131,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Update air details |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -4244,10 +4191,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Complete milestone |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -4260,10 +4206,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Add job charge |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -4396,10 +4341,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Doc generation status |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -4412,10 +4356,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_FAIL** |
-| Live HTTP | 500 |
-| Live title | Queue HAWB PDF |
-| Live notes | {"statusCode":500,"message":"Internal server error"} |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -4728,10 +4671,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Jobs |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Send pre-alert |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5419,10 +5361,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | AWB Stock |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List batches |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5435,10 +5376,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | AWB Stock |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create AWB batch |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5451,10 +5391,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | AWB Stock |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Low stock report |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5527,10 +5466,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | AWB Stock |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Allocate AWB |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5618,10 +5556,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Invoices |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | List invoices |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5649,10 +5586,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Invoices |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Overdue report |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5665,10 +5601,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Invoices |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 200 |
-| Live title | Get invoice |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5711,10 +5646,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Invoices |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Invoice from job |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5772,10 +5706,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Invoices |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Post invoice |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5788,10 +5721,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Invoices |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_FAIL** |
-| Live HTTP | 500 |
-| Live title | Send invoice email |
-| Live notes | {"statusCode":500,"message":"Internal server error"} |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5804,10 +5736,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Invoices |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_FAIL** |
-| Live HTTP | 500 |
-| Live title | Generate invoice PDF |
-| Live notes | {"statusCode":500,"message":"Internal server error"} |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5865,10 +5796,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Credit Notes |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_FAIL** |
-| Live HTTP | 500 |
-| Live title | Create credit note |
-| Live notes | {"statusCode":500,"message":"Internal server error"} |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -5986,10 +5916,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Purchase Invoices |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_FAIL** |
-| Live HTTP | 500 |
-| Live title | Create purchase invoice |
-| Live notes | {"statusCode":500,"message":"Internal server error"} |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -6077,10 +6006,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Payment Requests |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Create payment request |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -6138,10 +6066,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Payment Requests |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Approve payment request |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 
@@ -6169,10 +6096,9 @@ Every OpenAPI operation appears exactly once. Live execution result is shown whe
 | Tag | Payment Requests |
 | Auth | Bearer {{TOKEN}} |
 | Expected | 2xx |
-| Live status | **EXECUTED_PASS** |
-| Live HTTP | 201 |
-| Live title | Mark payment paid |
-| Live notes | OK |
+| Live status | **DEFINED_NOT_HIT_IN_HAPPY_PATH** |
+| Live HTTP | _not executed in happy-path this run_ |
+| How to pass | Use valid token + body from `docs/API_PASS_CASES.md` for this path |
 
 ---
 

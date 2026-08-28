@@ -192,6 +192,7 @@ enum DocumentType {
   CUSTOMS_TRANSIT
   DELIVERY_NOTE
   COURIER_REPORT
+  NVOCC_LOAD_LIST
   OTHER
 }
 
@@ -244,6 +245,62 @@ enum TransportRequestStatus {
   IN_TRANSIT
   DELIVERED
   CANCELLED
+}
+
+enum NvoccVoyageStatus {
+  OPEN
+  FULL
+  SAILED
+  COMPLETED
+  CANCELLED
+}
+
+enum NvoccCargoType {
+  FCL
+  LCL
+}
+
+enum NvoccEnquiryStatus {
+  NEW
+  RATE_SENT
+  ACCEPTED
+  CONVERTED
+  LOST
+  CANCELLED
+}
+
+enum NvoccBookingStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+  CONVERTED
+}
+
+enum NvoccLoadListCargoStatus {
+  PENDING
+  RECEIVED_AT_CFS
+  STUFFED
+  LOADED_ON_VESSEL
+  MANIFESTED
+}
+
+enum NvoccHblStatus {
+  DRAFT
+  ORIGINAL
+  SURRENDERED
+  RELEASED
+}
+
+enum NvoccTariffCommodityType {
+  GENERAL
+  DG
+  REEFER
+  OOG
+}
+
+enum NvoccTariffStatus {
+  ACTIVE
+  INACTIVE
 }
 
 enum CustomsExaminationResult {
@@ -673,6 +730,9 @@ enum DocumentNumberType {
   PAYMENT
   EMPLOYEE_CODE
   TRANSPORT_REQUEST
+  NVOCC_VOYAGE
+  NVOCC_ENQUIRY
+  NVOCC_BOOKING
 }
 
 enum DocumentNumberResetFrequency {
@@ -2236,6 +2296,7 @@ model Job {
   hr_timesheets        HrTimesheet[]
   transport_requests   TransportRequest[]
   courier_checkpoints  CourierDeliveryCheckpoint[]
+  nvocc_details        NvoccJobDetail?
 
   @@unique([tenant_id, job_number])
   @@index([tenant_id])
@@ -2567,6 +2628,282 @@ model CourierDeliveryCheckpoint {
   @@index([tenant_id])
   @@index([tenant_id, job_id])
   @@map("courier_delivery_checkpoints")
+}
+
+/// Week 20 — NVOCC vessel voyage master (space allocation per sailing).
+model NvoccVoyage {
+  id                         String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id                  String            @db.Uuid
+  voyage_number              String            @db.VarChar(40)
+  vessel_id                  String?           @db.Uuid
+  shipping_line_id           String?           @db.Uuid
+  pol_id                     String?           @db.Uuid
+  pod_id                     String?           @db.Uuid
+  transshipment_port_id      String?           @db.Uuid
+  etd                        DateTime?         @db.Timestamptz
+  eta                        DateTime?         @db.Timestamptz
+  si_cutoff                  DateTime?         @db.Timestamptz
+  vgm_cutoff                 DateTime?         @db.Timestamptz
+  cy_cutoff                  DateTime?         @db.Timestamptz
+  cargo_cutoff               DateTime?         @db.Timestamptz
+  slot_allocation_containers Int               @default(0)
+  fcl_booked_containers    Int               @default(0)
+  lcl_capacity_cbm           Decimal?          @db.Decimal(10, 3)
+  lcl_booked_cbm             Decimal           @default(0) @db.Decimal(10, 3)
+  voyage_status              NvoccVoyageStatus @default(OPEN)
+  mbl_number                 String?           @db.VarChar(50)
+  nvocc_freight_rate         Decimal?          @db.Decimal(18, 4)
+  carrier_cost               Decimal?          @db.Decimal(18, 4)
+  agent_pol_id               String?           @db.Uuid
+  agent_pod_id               String?           @db.Uuid
+  published_at               DateTime?         @db.Timestamptz
+  closed_at                  DateTime?         @db.Timestamptz
+  sailed_at                  DateTime?         @db.Timestamptz
+  remarks                    String?           @db.Text
+  created_at                 DateTime          @default(now()) @db.Timestamptz
+  updated_at                 DateTime          @updatedAt @db.Timestamptz
+  created_by                 String?           @db.Uuid
+  updated_by                 String?           @db.Uuid
+  deleted_at                 DateTime?         @db.Timestamptz
+
+  enquiries NvoccEnquiry[]
+  bookings  NvoccBooking[]
+  load_list NvoccLoadListItem[]
+  jobs      NvoccJobDetail[]
+
+  @@unique([tenant_id, voyage_number])
+  @@index([tenant_id])
+  @@index([tenant_id, voyage_status])
+  @@index([tenant_id, etd])
+  @@map("nvocc_voyages")
+}
+
+/// Week 20 — NVOCC space enquiry (distinct from CRM sales enquiry).
+model NvoccEnquiry {
+  id                 String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String              @db.Uuid
+  enquiry_number     String              @db.VarChar(40)
+  enquiry_date       DateTime            @default(now()) @db.Timestamptz
+  customer_id        String?             @db.Uuid
+  voyage_id          String?             @db.Uuid
+  cargo_type         NvoccCargoType?
+  container_type_id  String?             @db.Uuid
+  container_count    Int?
+  cbm                Decimal?            @db.Decimal(10, 3)
+  gross_weight       Decimal?            @db.Decimal(12, 3)
+  pieces             Int?
+  commodity          String?             @db.VarChar(500)
+  hs_code            String?             @db.VarChar(12)
+  incoterms          String?             @db.VarChar(10)
+  freight_terms      String?             @db.VarChar(30)
+  rate_quoted        Decimal?            @db.Decimal(18, 4)
+  rate_validity      DateTime?           @db.Date
+  enquiry_status     NvoccEnquiryStatus  @default(NEW)
+  loss_reason        String?             @db.VarChar(100)
+  salesperson_id     String?             @db.Uuid
+  follow_up_date     DateTime?           @db.Date
+  created_at         DateTime            @default(now()) @db.Timestamptz
+  updated_at         DateTime            @updatedAt @db.Timestamptz
+  created_by         String?             @db.Uuid
+  updated_by         String?             @db.Uuid
+  deleted_at         DateTime?           @db.Timestamptz
+
+  voyage   NvoccVoyage?   @relation(fields: [voyage_id], references: [id], onDelete: SetNull)
+  bookings NvoccBooking[]
+
+  @@unique([tenant_id, enquiry_number])
+  @@index([tenant_id])
+  @@index([tenant_id, enquiry_status])
+  @@index([tenant_id, voyage_id])
+  @@map("nvocc_enquiries")
+}
+
+/// Week 20 — NVOCC booking (space reservation on a voyage).
+model NvoccBooking {
+  id                    String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String             @db.Uuid
+  booking_number        String             @db.VarChar(40)
+  booking_date          DateTime           @default(now()) @db.Timestamptz
+  voyage_id             String             @db.Uuid
+  enquiry_id            String?            @db.Uuid
+  shipper_id            String?            @db.Uuid
+  consignee_id          String?            @db.Uuid
+  notify_id             String?            @db.Uuid
+  agent_pol_id          String?            @db.Uuid
+  agent_pod_id          String?            @db.Uuid
+  cargo_type            NvoccCargoType
+  container_type_id     String?            @db.Uuid
+  container_count       Int?
+  cbm_allocated         Decimal?           @db.Decimal(10, 3)
+  gross_weight          Decimal?           @db.Decimal(12, 3)
+  pieces                Int?
+  commodity             String?            @db.VarChar(500)
+  hs_code               String?            @db.VarChar(12)
+  is_dg                 Boolean            @default(false)
+  dg_un_number          String?            @db.VarChar(20)
+  dg_class              String?            @db.VarChar(20)
+  dg_packing_group      String?            @db.VarChar(10)
+  marks_numbers         String?            @db.Text
+  incoterms             String?            @db.VarChar(10)
+  freight_terms         String?            @db.VarChar(30)
+  other_charges_terms   String?            @db.VarChar(30)
+  nvocc_hbl_number      String?            @db.VarChar(50)
+  shipper_ref           String?            @db.VarChar(100)
+  booking_status        NvoccBookingStatus @default(DRAFT)
+  job_type              JobType            @default(NVOCC_EXPORT)
+  converted_job_id      String?            @db.Uuid
+  created_at            DateTime           @default(now()) @db.Timestamptz
+  updated_at            DateTime           @updatedAt @db.Timestamptz
+  created_by            String?            @db.Uuid
+  updated_by            String?            @db.Uuid
+  deleted_at            DateTime?          @db.Timestamptz
+
+  voyage    NvoccVoyage         @relation(fields: [voyage_id], references: [id], onDelete: Restrict)
+  enquiry   NvoccEnquiry?       @relation(fields: [enquiry_id], references: [id], onDelete: SetNull)
+  load_list NvoccLoadListItem[]
+  charges   NvoccBookingCharge[]
+  job       NvoccJobDetail?
+
+  @@unique([tenant_id, booking_number])
+  @@index([tenant_id])
+  @@index([tenant_id, voyage_id])
+  @@index([tenant_id, booking_status])
+  @@index([tenant_id, nvocc_hbl_number])
+  @@map("nvocc_bookings")
+}
+
+/// Charge lines on an NVOCC booking before job conversion.
+model NvoccBookingCharge {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  booking_id     String    @db.Uuid
+  charge_code_id String?   @db.Uuid
+  description    String    @db.VarChar(200)
+  quantity       Decimal   @default(1) @db.Decimal(12, 4)
+  unit_price     Decimal   @db.Decimal(18, 4)
+  currency_code  String    @db.Char(3)
+  amount         Decimal   @db.Decimal(18, 4)
+  is_cost        Boolean   @default(false)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  booking NvoccBooking @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, booking_id])
+  @@map("nvocc_booking_charges")
+}
+
+/// Week 20 — Consolidated load list row per booking/container on a voyage.
+model NvoccLoadListItem {
+  id                  String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String                   @db.Uuid
+  voyage_id           String                   @db.Uuid
+  booking_id          String                   @db.Uuid
+  container_number    String?                  @db.VarChar(20)
+  seal_number         String?                  @db.VarChar(30)
+  container_type_id   String?                  @db.Uuid
+  pieces              Int?
+  gross_weight_kg     Decimal?                 @db.Decimal(12, 3)
+  cbm                 Decimal?                 @db.Decimal(10, 3)
+  commodity           String?                  @db.VarChar(500)
+  marks_numbers       String?                  @db.Text
+  hbl_number          String?                  @db.VarChar(50)
+  agent_pol_id        String?                  @db.Uuid
+  freight_terms       String?                  @db.VarChar(30)
+  cargo_status        NvoccLoadListCargoStatus @default(PENDING)
+  cargo_received_date DateTime?                @db.Timestamptz
+  stuffing_date       DateTime?                @db.Timestamptz
+  vessel_loaded_date  DateTime?                @db.Timestamptz
+  created_at          DateTime                 @default(now()) @db.Timestamptz
+  updated_at          DateTime                 @updatedAt @db.Timestamptz
+  created_by          String?                  @db.Uuid
+  updated_by          String?                  @db.Uuid
+  deleted_at          DateTime?                @db.Timestamptz
+
+  voyage  NvoccVoyage  @relation(fields: [voyage_id], references: [id], onDelete: Cascade)
+  booking NvoccBooking @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, voyage_id])
+  @@index([tenant_id, booking_id])
+  @@map("nvocc_load_list")
+}
+
+/// Week 20 — NVOCC job extension (one row per NVOCC_EXPORT / NVOCC_IMPORT job).
+model NvoccJobDetail {
+  id                  String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String         @db.Uuid
+  job_id              String         @unique @db.Uuid
+  voyage_id           String?        @db.Uuid
+  booking_id          String?        @unique @db.Uuid
+  hbl_number          String?        @db.VarChar(50)
+  hbl_issued_date     DateTime?      @db.Timestamptz
+  hbl_status          NvoccHblStatus @default(DRAFT)
+  mbl_number          String?        @db.VarChar(50)
+  mbl_received_date   DateTime?      @db.Timestamptz
+  carrier_booking_ref String?        @db.VarChar(100)
+  stuffing_report_ref String?        @db.VarChar(100)
+  pre_alert_sent_at   DateTime?      @db.Timestamptz
+  can_sent_at         DateTime?      @db.Timestamptz
+  do_issued_at        DateTime?      @db.Timestamptz
+  pod_received_at     DateTime?      @db.Timestamptz
+  created_at          DateTime       @default(now()) @db.Timestamptz
+  updated_at          DateTime       @updatedAt @db.Timestamptz
+  created_by          String?        @db.Uuid
+  updated_by          String?        @db.Uuid
+  deleted_at          DateTime?      @db.Timestamptz
+
+  job     Job          @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  voyage  NvoccVoyage? @relation(fields: [voyage_id], references: [id], onDelete: SetNull)
+  booking NvoccBooking? @relation(fields: [booking_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([tenant_id, hbl_number])
+  @@map("nvocc_job_details")
+}
+
+/// Week 20 — NVOCC trade-lane tariff (distinct from quotation Tariff).
+model NvoccTariff {
+  id                 String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String                   @db.Uuid
+  trade_lane         String                   @db.VarChar(200)
+  pol_region         String?                  @db.VarChar(100)
+  pod_region         String?                  @db.VarChar(100)
+  origin_port_id     String?                  @db.Uuid
+  dest_port_id       String?                  @db.Uuid
+  commodity_type     NvoccTariffCommodityType @default(GENERAL)
+  container_type_id  String?                  @db.Uuid
+  lcl_rate_cbm       Decimal?                 @db.Decimal(18, 4)
+  lcl_rate_wm        Decimal?                 @db.Decimal(18, 4)
+  lcl_minimum_charge Decimal?                 @db.Decimal(18, 4)
+  fcl_rate           Decimal?                 @db.Decimal(18, 4)
+  origin_thc         Decimal?                 @db.Decimal(18, 4)
+  dest_thc           Decimal?                 @db.Decimal(18, 4)
+  bl_fee             Decimal?                 @db.Decimal(18, 4)
+  baf_surcharge      Decimal?                 @db.Decimal(18, 4)
+  caf_surcharge      Decimal?                 @db.Decimal(18, 4)
+  pss_surcharge      Decimal?                 @db.Decimal(18, 4)
+  gri_surcharge      Decimal?                 @db.Decimal(18, 4)
+  rate_valid_from    DateTime                 @db.Date
+  rate_valid_to      DateTime?                @db.Date
+  customer_id        String?                  @db.Uuid
+  currency_code      String                   @db.Char(3)
+  status             NvoccTariffStatus        @default(ACTIVE)
+  created_at         DateTime                 @default(now()) @db.Timestamptz
+  updated_at         DateTime                 @updatedAt @db.Timestamptz
+  created_by         String?                  @db.Uuid
+  updated_by         String?                  @db.Uuid
+  deleted_at         DateTime?                @db.Timestamptz
+
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, origin_port_id, dest_port_id])
+  @@index([tenant_id, customer_id])
+  @@map("nvocc_tariffs")
 }
 
 model JobContainer {

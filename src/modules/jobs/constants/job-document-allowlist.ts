@@ -127,6 +127,24 @@ const COURIER_DOCUMENTS: DocumentType[] = [
   'COURIER_REPORT',
 ];
 
+const NVOCC_DOCUMENTS: DocumentType[] = [
+  'HBL',
+  'HBL_EXPRESS_RELEASE',
+  'MBL',
+  'SURRENDER_NOTICE',
+  'PRE_CAN',
+  'CAN',
+  'DELIVERY_ORDER',
+  'PRE_ALERT',
+  'BOOKING_CONFIRMATION',
+  'NVOCC_LOAD_LIST',
+  'STUFFING_REPORT',
+  'CARGO_MANIFEST',
+  'JOB_CARD',
+  'JOB_PNL',
+  'PROFORMA_INVOICE',
+];
+
 const ALLOWLIST: Partial<Record<JobType, DocumentType[]>> = {
   AIR_EXPORT: AIR_EXPORT_DOCUMENTS,
   AIR_IMPORT: AIR_IMPORT_DOCUMENTS,
@@ -136,6 +154,8 @@ const ALLOWLIST: Partial<Record<JobType, DocumentType[]>> = {
   SEA_LCL_IMPORT: SEA_LCL_IMPORT_DOCUMENTS,
   LAND: LAND_DOCUMENTS,
   COURIER: COURIER_DOCUMENTS,
+  NVOCC_EXPORT: NVOCC_DOCUMENTS,
+  NVOCC_IMPORT: NVOCC_DOCUMENTS,
 };
 
 export function assertDocumentAllowedForJobType(jobType: JobType, documentType: DocumentType): void {

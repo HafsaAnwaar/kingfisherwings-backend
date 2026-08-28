@@ -10,6 +10,7 @@ import { assertDocumentAllowedForJobType } from './constants/job-document-allowl
 import { AIR_IMPORT_MAWB_RECEIVED_MILESTONE } from './constants/air-import-milestones';
 import { SEA_LCL_IMPORT_MBL_RECEIVED_MILESTONE } from './constants/sea-lcl-import-milestones';
 import { seedJobTypeExtras } from './utils/job-type-seed.util';
+import { mintTrackingToken } from './utils/tracking-token.util';
 
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { UpdateAirJobDetailDto } from './dto/air-job-detail.dto';
@@ -123,6 +124,7 @@ export class JobsService {
           tenant_id: tenantId,
           company_id: dto.company_id,
           job_number: jobNumber,
+          tracking_token: mintTrackingToken(),
           job_type: dto.job_type,
           status: 'BOOKING_CONFIRMED',
           branch_id: dto.branch_id,
@@ -195,6 +197,7 @@ export class JobsService {
             { land_details: { vehicle_number: { contains: query.search, mode: 'insensitive' } } },
             { courier_details: { tracking_number: { contains: query.search, mode: 'insensitive' } } },
             { courier_details: { barcode_value: { contains: query.search, mode: 'insensitive' } } },
+            { nvocc_details: { hbl_number: { contains: query.search, mode: 'insensitive' } } },
           ],
         });
       }
@@ -299,6 +302,12 @@ export class JobsService {
           sea_lcl_details: true,
           land_details: true,
           courier_details: true,
+          nvocc_details: {
+            include: {
+              voyage: true,
+              booking: true,
+            },
+          },
           transport_requests: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
           charges: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } },
           milestones: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } },

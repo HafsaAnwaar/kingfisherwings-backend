@@ -17,6 +17,7 @@ import {
 } from '../constants/sea-lcl-import-milestones';
 import { LAND_CREATE_MILESTONE, LAND_MILESTONES } from '../constants/land-milestones';
 import { COURIER_CREATE_MILESTONE, COURIER_MILESTONES } from '../constants/courier-milestones';
+import { NVOCC_CREATE_MILESTONE, NVOCC_MILESTONES } from '../../nvocc/constants/nvocc-milestones';
 
 /**
  * Seeds mode-specific detail rows and standard milestones after job create / quote convert.
@@ -85,6 +86,12 @@ async function seedJobTypeExtrasInner(
     });
   }
 
+  if (jobType === 'NVOCC_EXPORT' || jobType === 'NVOCC_IMPORT') {
+    await tx.nvoccJobDetail.create({
+      data: { tenant_id: tenantId, job_id: jobId, created_by: actorId, updated_by: actorId },
+    });
+  }
+
   const milestoneNames =
     jobType === 'AIR_EXPORT'
       ? AIR_EXPORT_MILESTONES
@@ -102,7 +109,9 @@ async function seedJobTypeExtrasInner(
                   ? LAND_MILESTONES
                   : jobType === 'COURIER'
                     ? COURIER_MILESTONES
-                    : null;
+                    : jobType === 'NVOCC_EXPORT' || jobType === 'NVOCC_IMPORT'
+                      ? NVOCC_MILESTONES
+                      : null;
 
   if (milestoneNames?.length) {
     await tx.jobMilestone.createMany({
@@ -159,6 +168,23 @@ async function seedJobTypeExtrasInner(
         tenant_id: tenantId,
         job_id: jobId,
         milestone: createMilestone,
+        deleted_at: null,
+        actual_date: null,
+      },
+      data: {
+        actual_date: new Date(),
+        completed_by: actorId,
+        updated_by: actorId,
+      },
+    });
+  }
+
+  if (jobType === 'NVOCC_EXPORT' || jobType === 'NVOCC_IMPORT') {
+    await tx.jobMilestone.updateMany({
+      where: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        milestone: NVOCC_CREATE_MILESTONE,
         deleted_at: null,
         actual_date: null,
       },
