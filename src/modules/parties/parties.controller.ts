@@ -20,6 +20,11 @@ import 'multer';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { PartiesService } from './parties.service';
+import {
+  CreatePartyStandardChargeDto,
+  PartyExtensionsService,
+  UpsertPartyEdiCodeDto,
+} from './party-extensions.service';
 
 import { CreatePartyDto, UpdatePartyDto } from './dto/party.dto';
 import { PartyQueryDto } from './dto/party-query.dto';
@@ -39,7 +44,10 @@ import { PARTIES_PERMISSIONS } from './constants/parties-permission.constants';
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller('parties')
 export class PartiesController {
-  constructor(private readonly service: PartiesService) {}
+  constructor(
+    private readonly service: PartiesService,
+    private readonly extensions: PartyExtensionsService,
+  ) {}
 
   // ============================================================
   // PARTY CRUD
@@ -239,5 +247,42 @@ export class PartiesController {
     @Param('addressId', ParseUUIDPipe) addressId: string,
   ) {
     await this.service.removeAddress(tenantId, id, addressId, actorId);
+  }
+
+  @Get(':id/edi-codes')
+  @RequirePermissions(PARTIES_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List party EDI codes (Week 26)' })
+  listEdiCodes(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.extensions.listEdiCodes(tenantId, id);
+  }
+
+  @Post(':id/edi-codes')
+  @RequirePermissions(PARTIES_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Upsert party EDI code' })
+  upsertEdiCode(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpsertPartyEdiCodeDto,
+  ) {
+    return this.extensions.upsertEdiCode(tenantId, id, dto, actorId);
+  }
+
+  @Get(':id/standard-charges')
+  @RequirePermissions(PARTIES_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'List party standard charges' })
+  listStandardCharges(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.extensions.listStandardCharges(tenantId, id);
+  }
+
+  @Post(':id/standard-charges')
+  @RequirePermissions(PARTIES_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Add party standard charge line' })
+  addStandardCharge(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreatePartyStandardChargeDto,
+  ) {
+    return this.extensions.addStandardCharge(tenantId, id, dto);
   }
 }

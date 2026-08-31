@@ -57,6 +57,68 @@ export interface JobDocumentPdfData {
   final_destination?: string;
 }
 
+export interface NvoccDocumentPdfData {
+  job_number: string;
+  document_type: DocumentType;
+  title: string;
+  watermark: string;
+  layout_variant?: string;
+  is_express_release?: boolean;
+  is_non_negotiable?: boolean;
+  carrier_name?: string;
+  carrier_address?: string;
+  shipper_name?: string;
+  consignee_name?: string;
+  notify_name?: string;
+  pol?: string;
+  pod?: string;
+  vessel_name?: string;
+  voyage_number?: string;
+  etd?: string;
+  eta?: string;
+  sailed_at?: string;
+  bl_number?: string;
+  hbl_number?: string;
+  mbl_number?: string;
+  booking_number?: string;
+  freight_terms?: string;
+  number_of_originals?: number;
+  description_of_goods?: string;
+  marks_numbers?: string;
+  packages?: number;
+  gross_weight?: string;
+  measurement?: string;
+  commodity?: string;
+  revenue_total?: string;
+  cost_total?: string;
+  gp_amount?: string;
+  gp_percent?: string;
+  containers?: Array<{
+    container_number?: string;
+    seal_number?: string;
+    container_type?: string;
+    gross_weight?: string;
+    cbm?: string;
+  }>;
+  charge_lines?: Array<{
+    description: string;
+    quantity: string;
+    unit_price: string;
+    amount: string;
+    is_cost: boolean;
+  }>;
+  load_list_rows?: Array<{
+    booking_number?: string;
+    hbl_number?: string;
+    container_number?: string;
+    seal_number?: string;
+    commodity?: string;
+    gross_weight?: string;
+    cbm?: string;
+    cargo_status?: string;
+  }>;
+}
+
 export interface SeaFclDocumentPdfData {
   job_number: string;
   document_type: DocumentType;
@@ -208,6 +270,27 @@ export class PdfService implements OnModuleDestroy {
       ...data,
       title: data.document_type.replace(/_/g, ' '),
       watermark: data.is_original ? 'ORIGINAL' : 'DRAFT',
+    });
+
+    return this.htmlToPdf(html);
+  }
+
+  async generateNvoccDocumentPdf(data: NvoccDocumentPdfData): Promise<Buffer> {
+    const isBlFamily = ['HBL', 'HBL_EXPRESS_RELEASE', 'MBL', 'SURRENDER_NOTICE'].includes(
+      data.document_type,
+    );
+    const isLoadList = data.document_type === 'NVOCC_LOAD_LIST';
+
+    const template = Handlebars.compile(
+      isLoadList ? NVOCC_LOAD_LIST_TEMPLATE : isBlFamily ? NVOCC_BL_TEMPLATE : NVOCC_SUPPORT_TEMPLATE,
+    );
+    const html = template({
+      ...data,
+      show_signature: data.watermark === 'ORIGINAL',
+      show_containers: (data.containers?.length ?? 0) > 0,
+      show_charges: (data.charge_lines?.length ?? 0) > 0,
+      show_pnl: data.document_type === 'JOB_PNL' || data.document_type === 'JOB_CARD',
+      show_load_list: (data.load_list_rows?.length ?? 0) > 0,
     });
 
     return this.htmlToPdf(html);
@@ -380,6 +463,185 @@ const QUOTATION_TEMPLATE = `
     {{/if}}
   </div>
   {{#if remarks}}<p><strong>Remarks:</strong> {{remarks}}</p>{{/if}}
+</body>
+</html>
+`;
+
+const NVOCC_BL_TEMPLATE = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: "Times New Roman", Times, serif; font-size: 11px; color: #111; }
+    .watermark { position: fixed; top: 35%; left: 15%; font-size: 64px; color: rgba(0,0,0,0.07); transform: rotate(-28deg); z-index: 0; }
+    .stamp { display: inline-block; border: 2px solid #b00; color: #b00; padding: 4px 10px; font-weight: bold; margin: 6px 4px 6px 0; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    .sub { color: #444; margin-bottom: 12px; }
+    .grid { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .grid td { border: 1px solid #999; padding: 6px; vertical-align: top; width: 50%; }
+    .label { font-size: 9px; text-transform: uppercase; color: #555; display: block; margin-bottom: 2px; }
+    table.data { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    table.data th, table.data td { border: 1px solid #bbb; padding: 5px; text-align: left; }
+    table.data th { background: #f3f3f3; font-size: 10px; }
+    .footer { margin-top: 24px; font-size: 10px; }
+    .sig { margin-top: 40px; border-top: 1px solid #333; width: 240px; padding-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="watermark">{{watermark}}</div>
+  <h1>{{title}}</h1>
+  <div class="sub">Job {{job_number}} · Carrier: {{carrier_name}}</div>
+  {{#if is_express_release}}<span class="stamp">NON-NEGOTIABLE</span><span class="stamp">EXPRESS / TELEX RELEASE</span>{{/if}}
+  {{#if is_non_negotiable}}<span class="stamp">NON-NEGOTIABLE</span>{{/if}}
+
+  <table class="grid">
+    <tr>
+      <td><span class="label">Carrier (NVOCC)</span>{{carrier_name}}<br/>{{carrier_address}}</td>
+      <td><span class="label">BL Number</span>{{bl_number}}{{#unless bl_number}}{{hbl_number}}{{/unless}}</td>
+    </tr>
+    <tr>
+      <td><span class="label">Shipper</span>{{shipper_name}}</td>
+      <td><span class="label">Number of Originals</span>{{number_of_originals}}</td>
+    </tr>
+    <tr>
+      <td><span class="label">Consignee</span>{{consignee_name}}</td>
+      <td><span class="label">Freight Terms</span>{{freight_terms}}</td>
+    </tr>
+    <tr>
+      <td><span class="label">Notify Party</span>{{notify_name}}</td>
+      <td><span class="label">Booking Ref</span>{{booking_number}}</td>
+    </tr>
+    <tr>
+      <td><span class="label">Port of Loading (POL)</span>{{pol}}</td>
+      <td><span class="label">Port of Discharge (POD)</span>{{pod}}</td>
+    </tr>
+    <tr>
+      <td><span class="label">Vessel / Voyage</span>{{vessel_name}} / {{voyage_number}}</td>
+      <td><span class="label">ETD / ETA</span>{{etd}} / {{eta}}</td>
+    </tr>
+  </table>
+
+  <table class="data">
+    <thead>
+      <tr><th>Marks &amp; Numbers</th><th>Description of Goods</th><th>Pkgs</th><th>Gross Wt</th><th>Measurement (CBM)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{marks_numbers}}</td>
+        <td>{{description_of_goods}}{{#unless description_of_goods}}{{commodity}}{{/unless}}</td>
+        <td>{{packages}}</td>
+        <td>{{gross_weight}}</td>
+        <td>{{measurement}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {{#if show_containers}}
+  <h3>Containers</h3>
+  <table class="data">
+    <thead><tr><th>Container #</th><th>Seal</th><th>Type</th><th>Gross Wt</th><th>CBM</th></tr></thead>
+    <tbody>
+      {{#each containers}}
+      <tr><td>{{container_number}}</td><td>{{seal_number}}</td><td>{{container_type}}</td><td>{{gross_weight}}</td><td>{{cbm}}</td></tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{/if}}
+
+  <div class="footer">
+    <p>NVOCC carrier bill of lading — subject to standard terms and conditions.</p>
+    {{#if show_signature}}<div class="sig">Authorized Carrier Signature / Stamp</div>{{/if}}
+  </div>
+</body>
+</html>
+`;
+
+const NVOCC_LOAD_LIST_TEMPLATE = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 10px; }
+    h1 { font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 4px; text-align: left; }
+    th { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h1>{{title}} — Voyage {{voyage_number}}</h1>
+  <p>Carrier: {{carrier_name}} · Vessel: {{vessel_name}} · POL/POD: {{pol}} → {{pod}} · ETD: {{etd}}</p>
+  {{#if show_load_list}}
+  <table>
+    <thead>
+      <tr>
+        <th>Booking</th><th>HBL</th><th>Container</th><th>Seal</th><th>Commodity</th><th>Gross Wt</th><th>CBM</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each load_list_rows}}
+      <tr>
+        <td>{{booking_number}}</td><td>{{hbl_number}}</td><td>{{container_number}}</td><td>{{seal_number}}</td>
+        <td>{{commodity}}</td><td>{{gross_weight}}</td><td>{{cbm}}</td><td>{{cargo_status}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{/if}}
+</body>
+</html>
+`;
+
+const NVOCC_SUPPORT_TEMPLATE = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 11px; color: #222; }
+    .watermark { position: fixed; top: 40%; left: 18%; font-size: 64px; color: rgba(0,0,0,0.07); transform: rotate(-28deg); }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    .meta { margin-bottom: 14px; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; }
+    .totals { margin-top: 14px; text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="watermark">{{watermark}}</div>
+  <h1>{{title}} — {{job_number}}</h1>
+  <div class="meta">
+    <div>Carrier: {{carrier_name}}</div>
+    <div>Shipper: {{shipper_name}}</div>
+    <div>Consignee: {{consignee_name}}</div>
+    <div>Vessel / Voyage: {{vessel_name}} / {{voyage_number}}</div>
+    <div>POL / POD: {{pol}} → {{pod}}</div>
+    <div>ETD / ETA: {{etd}} / {{eta}}</div>
+    {{#if hbl_number}}<div>HBL: {{hbl_number}}</div>{{/if}}
+    {{#if mbl_number}}<div>MBL: {{mbl_number}}</div>{{/if}}
+    {{#if booking_number}}<div>Booking: {{booking_number}}</div>{{/if}}
+  </div>
+  {{#if show_charges}}
+  <h3>Charges</h3>
+  <table>
+    <thead><tr><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th><th>Type</th></tr></thead>
+    <tbody>
+      {{#each charge_lines}}
+      <tr><td>{{description}}</td><td>{{quantity}}</td><td>{{unit_price}}</td><td>{{amount}}</td><td>{{#if is_cost}}Cost{{else}}Revenue{{/if}}</td></tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{/if}}
+  {{#if show_pnl}}
+  <div class="totals">
+    <div>Revenue: {{revenue_total}}</div>
+    <div>Cost: {{cost_total}}</div>
+    <div><strong>GP: {{gp_amount}} ({{gp_percent}}%)</strong></div>
+  </div>
+  {{/if}}
 </body>
 </html>
 `;

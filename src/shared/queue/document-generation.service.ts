@@ -4,7 +4,7 @@ import { Queue } from 'bull';
 import { DocumentEntityType, DocumentGenerationStatus, DocumentType, Prisma, QuotationPdfMode } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationEmitterService } from '../../modules/notifications/notification-emitter.service';
-import { PdfService, SeaFclDocumentPdfData } from '../pdf/pdf.service';
+import { PdfService, NvoccDocumentPdfData, SeaFclDocumentPdfData } from '../pdf/pdf.service';
 import { StorageService } from '../storage/storage.service';
 import { DOCUMENT_GENERATION_QUEUE, DocumentGenerationJobPayload } from './queue.constants';
 import { isSeaFclDocumentType } from '../../modules/jobs/constants/sea-fcl-document-types';
@@ -422,12 +422,32 @@ export class DocumentGenerationService {
             where: { deleted_at: null },
             include: { sea_fcl_details: true },
           },
+          nvocc_details: {
+            include: {
+              booking: {
+                include: { charges: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } } },
+              },
+              voyage: true,
+            },
+          },
         },
       }),
     );
 
     if (!job) {
       throw new NotFoundException('Job not found.');
+    }
+
+    if (job.job_type === 'NVOCC_EXPORT' || job.job_type === 'NVOCC_IMPORT') {
+      const result = await this.buildNvoccJobDocumentPdf(
+        tenantId,
+        job,
+        documentType,
+        isOriginal,
+        layoutVariant,
+      );
+      const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? '-original' : '-draft'}.pdf`;
+      return { buffer: result, filename };
     }
 
     const useSeaFcl =
@@ -512,6 +532,245 @@ export class DocumentGenerationService {
 
     const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? '-original' : '-draft'}.pdf`;
     return { buffer, filename };
+  }
+
+  private async buildNvoccJobDocumentPdf(
+    tenantId: string,
+    job: {
+      id: string;
+      job_number: string;
+      job_type: string;
+      company_id: string | null;
+      shipper_id: string | null;
+      consignee_id: string | null;
+      origin_port_id: string | null;
+      dest_port_id: string | null;
+      commodity: string | null;
+      pieces: number | null;
+      gross_weight: { toString(): string } | null;
+      volume_cbm: { toString(): string } | null;
+      etd: Date | null;
+      eta: Date | null;
+      revenue_total: { toString(): string };
+      cost_total: { toString(): string };
+      gp_amount: { toString(): string };
+      gp_percent: { toString(): string };
+      charges: Array<{
+        description: string;
+        quantity: { toString(): string };
+        unit_price: { toString(): string };
+        amount: { toString(): string };
+        is_cost: boolean;
+      }>;
+      nvocc_details: {
+        hbl_number: string | null;
+        mbl_number: string | null;
+        booking_id: string | null;
+        booking: {
+          booking_number: string;
+          nvocc_hbl_number: string | null;
+          shipper_id: string | null;
+          consignee_id: string | null;
+          notify_id: string | null;
+          freight_terms: string | null;
+          commodity: string | null;
+          marks_numbers: string | null;
+          pieces: number | null;
+          gross_weight: { toString(): string } | null;
+          cbm_allocated: { toString(): string } | null;
+          charges: Array<{
+            description: string;
+            quantity: { toString(): string };
+            unit_price: { toString(): string };
+            amount: { toString(): string };
+            is_cost: boolean;
+          }>;
+        } | null;
+        voyage: {
+          id: string;
+          voyage_number: string;
+          vessel_id: string | null;
+          pol_id: string | null;
+          pod_id: string | null;
+          etd: Date | null;
+          eta: Date | null;
+          sailed_at: Date | null;
+          mbl_number: string | null;
+        } | null;
+      } | null;
+    },
+    documentType: DocumentType,
+    isOriginal: boolean,
+    layoutVariant?: string,
+  ): Promise<Buffer> {
+    const detail = job.nvocc_details;
+    const booking = detail?.booking ?? null;
+    const voyage = detail?.voyage ?? null;
+
+    const partyIds = [
+      job.shipper_id,
+      job.consignee_id,
+      booking?.shipper_id,
+      booking?.consignee_id,
+      booking?.notify_id,
+    ].filter((id): id is string => !!id);
+
+    const portIds = [
+      job.origin_port_id,
+      job.dest_port_id,
+      voyage?.pol_id,
+      voyage?.pod_id,
+    ].filter((id): id is string => !!id);
+
+    const lookups = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const parties = partyIds.length
+        ? await tx.party.findMany({ where: { tenant_id: tenantId, id: { in: partyIds } } })
+        : [];
+      const ports = portIds.length
+        ? await tx.port.findMany({ where: { tenant_id: tenantId, id: { in: portIds } } })
+        : [];
+      const vessel = voyage?.vessel_id
+        ? await tx.vessel.findFirst({ where: { id: voyage.vessel_id, tenant_id: tenantId } })
+        : null;
+      const company = job.company_id
+        ? await tx.company.findFirst({
+            where: { id: job.company_id, tenant_id: tenantId, deleted_at: null },
+          })
+        : await tx.company.findFirst({
+            where: { tenant_id: tenantId, is_default: true, deleted_at: null },
+          });
+
+      let loadListItems: Array<{
+        container_number: string | null;
+        seal_number: string | null;
+        commodity: string | null;
+        gross_weight_kg: { toString(): string } | null;
+        cbm: { toString(): string } | null;
+        cargo_status: string;
+        hbl_number: string | null;
+        container_type_id: string | null;
+        booking: { booking_number: string } | null;
+      }> = [];
+
+      if (voyage?.id) {
+        loadListItems = await tx.nvoccLoadListItem.findMany({
+          where: { tenant_id: tenantId, voyage_id: voyage.id, deleted_at: null },
+          include: { booking: { select: { booking_number: true } } },
+          orderBy: { created_at: 'asc' },
+        });
+      } else if (detail?.booking_id) {
+        loadListItems = await tx.nvoccLoadListItem.findMany({
+          where: { tenant_id: tenantId, booking_id: detail.booking_id, deleted_at: null },
+          include: { booking: { select: { booking_number: true } } },
+          orderBy: { created_at: 'asc' },
+        });
+      }
+
+      const containerTypeIds = loadListItems
+        .map((i) => i.container_type_id)
+        .filter((id): id is string => !!id);
+      const containerTypes = containerTypeIds.length
+        ? await tx.containerType.findMany({ where: { tenant_id: tenantId, id: { in: containerTypeIds } } })
+        : [];
+
+      return { parties, ports, vessel, company, loadListItems, containerTypes };
+    });
+
+    const partyName = (id?: string | null) => lookups.parties.find((p) => p.id === id)?.name;
+    const portName = (id?: string | null) => lookups.ports.find((p) => p.id === id)?.name;
+    const typeCode = (id?: string | null) =>
+      id ? lookups.containerTypes.find((t) => t.id === id)?.code : undefined;
+
+    const isExpress = documentType === 'HBL_EXPRESS_RELEASE';
+    const titleMap: Partial<Record<DocumentType, string>> = {
+      HBL: 'NVOCC House Bill of Lading (Carrier HBL)',
+      HBL_EXPRESS_RELEASE: 'NVOCC HBL — Express / Telex Release',
+      MBL: 'Master Bill of Lading (MBL / OBL)',
+      SURRENDER_NOTICE: 'Bill of Lading Surrender Notice',
+      PRE_CAN: 'Pre-Arrival Notice (Pre-CAN)',
+      CAN: 'Cargo Arrival Notice (CAN)',
+      DELIVERY_ORDER: 'Delivery Order',
+      PRE_ALERT: 'Pre-Alert',
+      BOOKING_CONFIRMATION: 'Booking Confirmation',
+      NVOCC_LOAD_LIST: 'NVOCC Load List',
+      STUFFING_REPORT: 'Stuffing Report',
+      CARGO_MANIFEST: 'Cargo Manifest',
+      JOB_CARD: 'Job Card',
+      JOB_PNL: 'Job Profit & Loss',
+      PROFORMA_INVOICE: 'Proforma Invoice',
+    };
+
+    const bookingCharges = booking?.charges ?? [];
+    const allCharges = [
+      ...job.charges.map((c) => ({ ...c, source: 'job' as const })),
+      ...bookingCharges.map((c) => ({ ...c, source: 'booking' as const })),
+    ];
+
+    const pdfData: NvoccDocumentPdfData = {
+      job_number: job.job_number,
+      document_type: documentType,
+      title: titleMap[documentType] ?? documentType.replace(/_/g, ' '),
+      watermark: isOriginal ? 'ORIGINAL' : 'DRAFT',
+      layout_variant: layoutVariant,
+      is_express_release: isExpress,
+      is_non_negotiable: isExpress,
+      carrier_name: lookups.company?.name,
+      carrier_address: lookups.company?.address ?? undefined,
+      shipper_name: partyName(booking?.shipper_id ?? job.shipper_id),
+      consignee_name: partyName(booking?.consignee_id ?? job.consignee_id),
+      notify_name: partyName(booking?.notify_id),
+      pol: portName(voyage?.pol_id ?? job.origin_port_id),
+      pod: portName(voyage?.pod_id ?? job.dest_port_id),
+      vessel_name: lookups.vessel?.name,
+      voyage_number: voyage?.voyage_number,
+      etd: this.fmtDate(voyage?.etd ?? job.etd),
+      eta: this.fmtDate(voyage?.eta ?? job.eta),
+      sailed_at: this.fmtDate(voyage?.sailed_at),
+      bl_number: detail?.hbl_number ?? booking?.nvocc_hbl_number ?? undefined,
+      hbl_number: detail?.hbl_number ?? booking?.nvocc_hbl_number ?? undefined,
+      mbl_number: detail?.mbl_number ?? voyage?.mbl_number ?? undefined,
+      booking_number: booking?.booking_number,
+      freight_terms: booking?.freight_terms ?? undefined,
+      number_of_originals: 3,
+      description_of_goods: booking?.commodity ?? job.commodity ?? undefined,
+      marks_numbers: booking?.marks_numbers ?? undefined,
+      packages: booking?.pieces ?? job.pieces ?? undefined,
+      gross_weight: (booking?.gross_weight ?? job.gross_weight)?.toString(),
+      measurement: (booking?.cbm_allocated ?? job.volume_cbm)?.toString(),
+      commodity: booking?.commodity ?? job.commodity ?? undefined,
+      revenue_total: job.revenue_total.toString(),
+      cost_total: job.cost_total.toString(),
+      gp_amount: job.gp_amount.toString(),
+      gp_percent: job.gp_percent.toString(),
+      containers: lookups.loadListItems
+        .filter((i) => i.container_number)
+        .map((i) => ({
+          container_number: i.container_number ?? undefined,
+          seal_number: i.seal_number ?? undefined,
+          container_type: typeCode(i.container_type_id),
+          gross_weight: i.gross_weight_kg?.toString(),
+          cbm: i.cbm?.toString(),
+        })),
+      charge_lines: allCharges.map((c) => ({
+        description: c.description,
+        quantity: c.quantity.toString(),
+        unit_price: c.unit_price.toString(),
+        amount: c.amount.toString(),
+        is_cost: c.is_cost,
+      })),
+      load_list_rows: lookups.loadListItems.map((i) => ({
+        booking_number: i.booking?.booking_number,
+        hbl_number: i.hbl_number ?? undefined,
+        container_number: i.container_number ?? undefined,
+        seal_number: i.seal_number ?? undefined,
+        commodity: i.commodity ?? undefined,
+        gross_weight: i.gross_weight_kg?.toString(),
+        cbm: i.cbm?.toString(),
+        cargo_status: i.cargo_status,
+      })),
+    };
+
+    return this.pdfService.generateNvoccDocumentPdf(pdfData);
   }
 
   private async buildSeaFclPdfData(

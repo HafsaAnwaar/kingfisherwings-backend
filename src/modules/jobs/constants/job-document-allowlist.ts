@@ -158,6 +158,10 @@ const ALLOWLIST: Partial<Record<JobType, DocumentType[]>> = {
   NVOCC_IMPORT: NVOCC_DOCUMENTS,
 };
 
+export function isNvoccDocumentType(documentType: DocumentType): boolean {
+  return NVOCC_DOCUMENTS.includes(documentType);
+}
+
 export function assertDocumentAllowedForJobType(jobType: JobType, documentType: DocumentType): void {
   const allowed = ALLOWLIST[jobType];
   if (!allowed) {

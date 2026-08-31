@@ -9,6 +9,29 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { validatePortalVendorJwtSecrets } from './common/utils/jwt-secrets.util';
 
+function initSentry() {
+  const dsn = process.env.SENTRY_DSN;
+  if (!dsn) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Sentry = require('@sentry/nestjs');
+    Sentry.init({
+      dsn,
+      environment: process.env.NODE_ENV ?? 'development',
+      tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.1),
+      beforeSend(event: { user?: Record<string, unknown> }) {
+        if (event.user) {
+          delete event.user.email;
+          delete event.user.ip_address;
+        }
+        return event;
+      },
+    });
+  } catch {
+    console.warn('Sentry DSN set but @sentry/nestjs failed to initialize.');
+  }
+}
+
 function parseCorsOrigins(raw: string | undefined): string[] | undefined {
   if (!raw?.trim()) {
     return undefined;
@@ -30,6 +53,7 @@ function isSwaggerEnabled(config: ConfigService): boolean {
 }
 
 async function bootstrap() {
+  initSentry();
   const app = await NestFactory.create(AppModule);
 
   const config = app.get(ConfigService);

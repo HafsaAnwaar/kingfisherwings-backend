@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { NvoccVoyage, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
+import { markJobMilestoneIfPresent } from '../jobs/utils/mark-milestone.util';
+import { buildVoyagePnlResponse } from './utils/nvocc-voyage-pnl.util';
 import {
   CopyNvoccVoyageDto,
   CreateNvoccVoyageDto,
@@ -152,12 +154,72 @@ export class NvoccVoyagesService {
 
   async markSailed(tenantId: string, id: string, actorId?: string) {
     await this.findOne(tenantId, id);
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.nvoccVoyage.update({
+    const sailedAt = new Date();
+
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await tx.nvoccVoyage.update({
         where: { id },
-        data: { sailed_at: new Date(), voyage_status: 'SAILED', updated_by: actorId },
+        data: { sailed_at: sailedAt, voyage_status: 'SAILED', updated_by: actorId },
+      });
+
+      const jobDetails = await tx.nvoccJobDetail.findMany({
+        where: { tenant_id: tenantId, voyage_id: id, deleted_at: null },
+        select: { job_id: true },
+      });
+
+      for (const detail of jobDetails) {
+        await markJobMilestoneIfPresent(tx, tenantId, detail.job_id, 'VESSEL_SAILED', sailedAt, actorId);
+      }
+    });
+
+    return this.findOne(tenantId, id);
+  }
+
+  async getVoyagePnl(tenantId: string, voyageId: string) {
+    const voyage = await this.findOne(tenantId, voyageId);
+
+    const bookings = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.nvoccBooking.findMany({
+        where: {
+          tenant_id: tenantId,
+          voyage_id: voyageId,
+          deleted_at: null,
+          booking_status: { in: ['CONFIRMED', 'CONVERTED'] },
+        },
+        include: { charges: { where: { deleted_at: null } } },
       }),
     );
+
+    const jobIds = bookings
+      .map((b) => b.converted_job_id)
+      .filter((id): id is string => !!id);
+
+    const jobs = jobIds.length
+      ? await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.job.findMany({
+            where: { tenant_id: tenantId, id: { in: jobIds }, deleted_at: null },
+            select: {
+              id: true,
+              job_number: true,
+              revenue_total: true,
+              cost_total: true,
+              gp_amount: true,
+              gp_percent: true,
+              charges: {
+                where: { deleted_at: null },
+                select: {
+                  description: true,
+                  amount_base_currency: true,
+                  is_cost: true,
+                  is_provisional: true,
+                },
+              },
+            },
+          }),
+        )
+      : [];
+
+    return buildVoyagePnlResponse(voyage, bookings, jobs);
   }
 
   async copy(tenantId: string, id: string, dto: CopyNvoccVoyageDto, actorId?: string) {

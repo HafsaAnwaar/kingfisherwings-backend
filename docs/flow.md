@@ -492,7 +492,7 @@ Daily cron: customs deposit expiry bands 90/60/30 (CUSTOMS_DEPOSIT_EXPIRING)
 
 ---
 
-## 9. Future week flows (planned, not built)
+## 9. Future week flows (Weeks 23–28 shipped — see §8)
 
 Use these as the intended execution shape when those weeks start. Details still **OPEN** are in [decision.md](./decision.md) §4.
 
@@ -608,21 +608,114 @@ GET /track?ref=vehicle|tracking|barcode
 
 Existing tenants: `POST /tenants/:id/sync-permissions` for `transport.view` / `transport.manage`.
 
-### Week 20 / 20B — NVOCC (next)
-
-### Week 21 — Public API / EDI / Stripe
+### Week 20 — NVOCC (voyages, enquiries, bookings, load list, tariffs)
 
 ```
-/api/v1/* + API key
-  → still runWithTenant
-Webhooks outbound
-EDI adapters (per government system)
-Stripe: platform subscription (SuperAdmin/tenant), not freight checkout
+POST /nvocc/voyages → publish | close | mark-sailed | copy
+GET  /nvocc/voyages/:id/load-list | weight-check | load-list/pdf
+PATCH /nvocc/voyages/:voyageId/load-list/:itemId
+POST  /nvocc/voyages/:voyageId/load-list/:itemId/assign-container
+
+POST /nvocc/enquiries → send-rate | mark-lost | convert-to-booking
+GET  /nvocc/enquiries/analytics
+
+POST /nvocc/bookings → confirm | cancel | convert-to-job | send-cutoff-reminder
+GET/POST/PATCH/DELETE /nvocc/tariffs + GET /nvocc/tariffs/lookup
+
+NVOCC booking → Job (NVOCC_EXPORT/NVOCC_IMPORT) + NvoccJobDetail + 22 milestones
 ```
 
-### Weeks 22–28
+CRM `/crm/enquiries` stays sales-side. NVOCC enquiries are voyage/space only.
 
-Performance (cache, queue scale) → OWASP → integration tests (quote→GL, RLS, portal/vendor isolation) → UAT → infra → go-live.
+Existing tenants: `POST /tenants/:id/sync-permissions` for `nvocc.view` / `nvocc.manage`.
+
+### Week 20B — NVOCC documents, voyage P&L, reporting (shipped)
+
+```
+POST /nvocc/jobs/:id/documents/hbl-draft | hbl-original | hbl-express-release
+POST /nvocc/jobs/:id/documents/surrender-notice | mbl | pre-can | can | delivery-order
+POST /nvocc/jobs/:id/documents/pre-alert | booking-confirmation | stuffing-report
+POST /nvocc/jobs/:id/documents/cargo-manifest | job-card | job-pnl | proforma-invoice
+POST /nvocc/jobs/:id/pre-alert/send
+PATCH /nvocc/jobs/:id/mbl-received
+POST /nvocc/jobs/:id/si/submit | vgm/submit | pod/received
+GET  /nvocc/jobs/:id/documents/generation-status
+
+GET  /nvocc/voyages/:id/pnl
+GET  /nvocc/voyages/utilization
+GET  /nvocc/reports/trade-lane-profitability
+```
+
+Carrier-role HBL PDFs use `NvoccJobDetail` + booking + voyage (not `sea_fcl_details`).
+
+Load-list cargo status transitions mark job milestones; `mark-sailed` marks `VESSEL_SAILED` on voyage jobs.
+
+### Week 21 — Documentation console + EDI/customs
+
+```
+/documentation/boe/*           — BOE dashboard, pending claims, BOE records
+/documentation/bulk-costs/*    — preview + submit bulk cost batches
+/documentation/charge-templates/* — CRUD + apply to job charges
+/documentation/edi/*           — Bayan, CCN, CGM, eQO (Dubai/Oman), IAL gateways
+/documentation/mpci/filings/*  — UAE MPCI prepare/submit
+Extended GET /jobs filters     — department_id, consignee_id, customs_entry_number, date_field (etd/eta/atd/ata)
+Extended GET /payment-requests — branch_id, job_number, voucher_pending
+```
+
+House shipment = house job (`parent_job_id`); no separate shipment table. EDI file generation in-app; `EDI_SUBMIT_ENABLED=true` for live submit adapters.
+
+### Week 22 — Documentation ops + Admin/Public API/Stripe (deferred from original Week 21)
+
+```
+/documentation/uploads/*       — container numbers, transport, DPWORLD tracking, truck positions (CSV)
+/documentation/delivery-orders/closed-jobs + PATCH /documentation/jobs/:id/delivery-order
+/documentation/jobs/export|import — JSON job bundle
+/documentation/reports/*     — ETA/ETD follow-up, jobs list, manifest status
+/documentation/tracking/air    — MAWB tracking cache + stub provider
+PATCH /gl/vouchers/batch-status — voucher batch posting
+/api/v1/* + X-API-Key          — public API (jobs list, health)
+/admin/api-keys, /admin/webhooks, /admin/billing/* — tenant API keys, webhooks, Stripe stub
+```
+
+Permissions: `documentation.read`, `documentation.manage`, `documentation.edi.read`, `documentation.edi.submit`, `documentation.upload`, `documentation.mpci` (DOCUMENTATION role + Tenant Admin).
+
+### Weeks 23–28 — closure (shipped)
+
+**Week 23 — Deploy alignment**
+- `X-Throttle-Bypass` header (matches `CRON_SECRET`) for live/smoke suites
+- Extended `scripts/live-api-test-suite.cjs` — documentation + public API routes
+- `docs/DEPLOY_RUNBOOK.md`, `scripts/week23-deploy-check.cjs`
+
+**Week 24 — Performance**
+- Redis HTTP cache on `GET /masters/*` (`HttpCacheInterceptor`)
+- Documentation upload BullMQ queue (`documentation-upload`) with sync fallback
+- Sentry via `SENTRY_DSN` in `main.ts`
+- `scripts/load-test.k6.js` (100 VU target on staging)
+
+**Week 25 — Security**
+- `ApiKeyScopeGuard` + `RequireApiScope` on `/api/v1/*`
+- Outbound webhooks: HMAC-SHA256 + delivery log (`tenant_webhook_deliveries`)
+- Upload MIME/size limits (CSV/XLSX, 5 MB)
+- `AUTH_2FA_LINKED=true` — `/auth/2fa/setup|enable|disable`
+
+**Week 26 — Residual parity**
+- `GET/POST /parties/:id/edi-codes`, `/standard-charges`
+- Party EDI codes embedded in EDI XML payloads
+- Live MPCI submit when `EDI_SUBMIT_ENABLED=true` + `MPCI_EDI_ENDPOINT`
+- Stripe checkout sessions when `STRIPE_SECRET_KEY` + `STRIPE_PRICE_ID`
+- `POST/GET /jobs/:id/sea-scans`, `GET /reports/sea/kpi-weekly`
+- Excel (`.xlsx`) accepted on documentation uploads
+
+**Week 27 — Integration QA**
+- `src/test/integration-flows.e2e-spec.ts` — quote→job→invoice→GL, API scopes, 2FA setup
+- CI: `.github/workflows/ci.yml` — e2e + week17–22 smoke chain
+- `scripts/financial-accuracy-audit.cjs`
+
+**Week 28 — UAT / go-live**
+- `docs/UAT_CHECKLIST.md`, `docs/RENDER_OPS_RUNBOOK.md`
+- Hosting locked: **Render + Neon** (no AWS migration this phase)
+
+Migration: `20260831120000_week23_28_closure` (party EDI, webhook deliveries, sea scans, indexes).
 
 ---
 
@@ -640,6 +733,7 @@ Performance (cache, queue scale) → OWASP → integration tests (quote→GL, RL
 | CRM | `crm.view/create/update/delete` | Tenant Admin, Sales Manager, Sales Executive |
 | WMS | `wms.view`, `wms.manage_grn/gdo/stock/storage`, `wms.view_reports` | Warehouse Staff, Ops, Tenant Admin, Finance (storage) |
 | Transport | `transport.view`, `transport.manage` | Tenant Admin, Branch Manager, Operations, Documentation |
+| Documentation | `documentation.read`, `documentation.manage`, `documentation.edi.*`, `documentation.upload`, `documentation.mpci` | Documentation, Tenant Admin |
 | HR | `hr.view`, `hr.manage_employees`, `hr.manage_payroll`, `hr.view_self` | Tenant Admin, HR Manager; Finance payroll; Branch approve leave |
 | Notifications | `notifications.view` | Most staff |
 

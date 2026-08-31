@@ -25,6 +25,7 @@ import {
   UpdateVoucherDto,
   UpdateVoucherLineDto,
   VoucherQueryDto,
+  BatchVoucherStatusDto,
 } from './dto/gl.dto';
 
 @ApiTags('GL — Vouchers')
@@ -39,6 +40,17 @@ export class VouchersController {
   @ApiOperation({ summary: 'List vouchers (Ch.17)' })
   findAll(@CurrentUser('tenantId') tenantId: string, @Query() query: VoucherQueryDto) {
     return this.service.findAll(tenantId, query);
+  }
+
+  @Patch('batch-status')
+  @RequirePermissions(GL_PERMISSIONS.POST)
+  @ApiOperation({ summary: 'Batch update voucher status (documentation voucher batch)' })
+  batchStatus(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: BatchVoucherStatusDto,
+  ) {
+    return this.service.batchUpdateStatus(tenantId, dto.voucher_ids, dto.status, actorId);
   }
 
   @Get(':id')

@@ -182,4 +182,11 @@ export class NvoccVoyagesController {
   ) {
     return this.loadListService.generateLoadListPdf(tenantId, id, actorId);
   }
+
+  @Get(':id/pnl')
+  @RequirePermissions(NVOCC_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: 'Voyage profit and loss' })
+  pnl(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.voyagesService.getVoyagePnl(tenantId, id);
+  }
 }

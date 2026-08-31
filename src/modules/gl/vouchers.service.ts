@@ -57,6 +57,11 @@ export class VouchersService {
         { reference_number: { contains: query.search, mode: 'insensitive' } },
       ];
     }
+    if (query.batch_eligible) {
+      where.status = 'DRAFT';
+      where.total_debit = { gt: 0 };
+      where.total_credit = { gt: 0 };
+    }
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.voucher.findMany({
@@ -363,6 +368,48 @@ export class VouchersService {
 
       return reversal;
     });
+  }
+
+  async batchUpdateStatus(
+    tenantId: string,
+    voucherIds: string[],
+    status: import('@prisma/client').VoucherStatus,
+    actorId?: string,
+  ) {
+    if (!voucherIds.length) {
+      throw new BadRequestException('voucher_ids is required.');
+    }
+
+    const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+
+    for (const id of voucherIds) {
+      try {
+        if (status === 'POSTED') {
+          await this.post(tenantId, id, actorId);
+        } else {
+          await this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.voucher.update({
+              where: { id },
+              data: { status, updated_by: actorId },
+            }),
+          );
+        }
+        results.push({ id, ok: true });
+      } catch (err) {
+        results.push({
+          id,
+          ok: false,
+          error: err instanceof Error ? err.message : 'Update failed.',
+        });
+      }
+    }
+
+    return {
+      requested: voucherIds.length,
+      succeeded: results.filter((r) => r.ok).length,
+      failed: results.filter((r) => !r.ok).length,
+      results,
+    };
   }
 
   private mapLineCreate(

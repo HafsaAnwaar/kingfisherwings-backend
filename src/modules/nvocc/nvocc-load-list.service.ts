@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { NvoccLoadListCargoStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
+import { markJobMilestoneIfPresent } from '../jobs/utils/mark-milestone.util';
 import { assertCargoStatusTransition } from './constants/nvocc-cargo-status-transitions';
 import {
   AssignLoadListContainerDto,
@@ -65,8 +67,8 @@ export class NvoccLoadListService {
       await this.validateContainerPayload(tenantId, dto.container_type_id, dto.gross_weight_kg);
     }
 
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.nvoccLoadListItem.update({
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.nvoccLoadListItem.update({
         where: { id: itemId },
         data: {
           container_number: dto.container_number,
@@ -95,8 +97,27 @@ export class NvoccLoadListService {
               : undefined,
           updated_by: actorId,
         },
-      }),
-    );
+        include: { booking: { select: { converted_job_id: true } } },
+      });
+
+      if (dto.cargo_status && dto.cargo_status !== item.cargo_status && row.booking?.converted_job_id) {
+        const milestone = cargoStatusToMilestone(dto.cargo_status);
+        if (milestone) {
+          await markJobMilestoneIfPresent(
+            tx,
+            tenantId,
+            row.booking.converted_job_id,
+            milestone,
+            new Date(),
+            actorId,
+          );
+        }
+      }
+
+      return row;
+    });
+
+    return updated;
   }
 
   async assignContainer(
@@ -196,5 +217,18 @@ export class NvoccLoadListService {
         `Gross weight ${weightKg} kg exceeds container max payload ${ct.max_payload} kg.`,
       );
     }
+  }
+}
+
+function cargoStatusToMilestone(status: NvoccLoadListCargoStatus): string | null {
+  switch (status) {
+    case 'RECEIVED_AT_CFS':
+      return 'CARGO_RECEIVED_AT_CFS';
+    case 'STUFFED':
+      return 'CARGO_STUFFED';
+    case 'LOADED_ON_VESSEL':
+      return 'VESSEL_LOADED';
+    default:
+      return null;
   }
 }

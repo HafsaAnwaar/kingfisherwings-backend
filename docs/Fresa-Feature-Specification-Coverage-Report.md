@@ -41,7 +41,7 @@ This report follows the **same chapter order and section numbering** as the Fres
 | 13 | Sea LCL Import | ~5% | **Not started** |
 | 14 | Land / Trucking | ~90% | **Backend shipped (Week 19)** |
 | 15 | Courier | ~85% | **Backend shipped (Week 19)** |
-| 16 | Documentation & Document Generation | ~75% | **Mostly Done** for Air+FCL; LCL/land/courier docs Missing |
+| 16 | Documentation & Document Generation | ~92% | **Mostly Done** — BOE, EDI, uploads, DO, reports; PDF golden QA manual |
 | 17 | Accounting — GL & Vouchers | ~0% | **Not started** |
 | 18 | Accounting — Invoicing & Credit Notes | ~65% | **Partial** — core invoices Yes; 25+ formats / e-invoice / debit note thin |
 | 19 | Accounting — AR, AP & Banking | ~20% | **Partial** — bank master + payment request; no AR/AP ledgers/recon/CCP/VPP |
@@ -113,7 +113,7 @@ FreightSaas targets the same domain (freight forwarding ERP SaaS). **D** as prod
 | Business type | Status | Notes |
 |---------------|--------|-------|
 | Freight Forwarders (Air & Sea) | **D** | Air export + Sea FCL |
-| NVOCC Operators | **N** | Week 20 planned |
+| NVOCC Operators | **D** | Weeks 20–20B: voyages, enquiries, bookings, load list, tariffs, carrier HBL docs, voyage P&L, reporting |
 | IATA Cargo Agents | **P** | IATA/AWB stock Yes; agent portal No |
 | CFS / CFS Operators | **P** | Party type + CFS calc on FCL import |
 | Customs Brokers | **S** | Party type |
