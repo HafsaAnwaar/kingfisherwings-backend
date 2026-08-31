@@ -2,7 +2,9 @@ import './load-env';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+
+import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './shared/redis/redis.module';
@@ -30,6 +32,8 @@ import { HrModule } from './modules/hr/hr.module';
 import { WmsModule } from './modules/wms/wms.module';
 import { TransportModule } from './modules/transport/transport.module';
 import { NvoccModule } from './modules/nvocc/nvocc.module';
+import { DocumentationModule } from './modules/documentation/documentation.module';
+import { PublicApiModule } from './modules/public-api/public-api.module';
 import { TrackModule } from './modules/track/track.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
@@ -38,6 +42,7 @@ import smtpConfig from './config/smtp.config';
 import storageConfig from './config/storage.config';
 
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
+import { HttpCacheInterceptor } from './shared/cache/http-cache.interceptor';
 import { LocaleModule } from './common/locale/locale.module';
 
 @Module({
@@ -82,15 +87,23 @@ import { LocaleModule } from './common/locale/locale.module';
     WmsModule,
     TransportModule,
     NvoccModule,
+    DocumentationModule,
+    PublicApiModule,
   ],
   providers: [
+    AppThrottlerGuard,
+    HttpCacheInterceptor,
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantContextInterceptor,
     },
     {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpCacheInterceptor,
+    },
+    {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: AppThrottlerGuard,
     },
   ],
 })

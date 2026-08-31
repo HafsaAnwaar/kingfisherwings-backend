@@ -28,8 +28,8 @@ Extracted from `Fresa_Gold_Complete_28Week_Plan.pdf` (36 pages). Plan spans **We
 | **17** | Warehouse Management System | Ch.22 | GRN/GDO; FIFO/LIFO; stock ledger; storage invoicing; 12 WMS reports; ASN; low-stock alerts | `/warehouses`, `/grn`, `/gdo`, `/stock/*` |
 | **18** | Sea LCL Export + Import | Ch.12, Ch.13 | House/master consolidation; prorate cost; 14 LCL export + 11 LCL import docs; CFS storage per consignment | `/jobs/:id/documents/*` (14 LCL doc types) |
 | **19** | Land/Trucking + Courier | Ch.14, Ch.15 | Land jobs; transport requests; cross-border docs; courier booking; barcode labels; delivery tracking; **all 8 operation modes complete** | `/jobs` (land/courier), `/transport-requests` |
-| **20** | NVOCC — Voyages, Enquiries, Bookings, Load List | NVOCC | nvocc_voyages; enquiries; bookings; load list; NVOCC tariffs; convert booking→job | `/nvocc/voyages`, `/nvocc/enquiries`, `/nvocc/enquiries/:id/send-rate`, `/nvocc/bookings`, `/nvocc/bookings/:id/send-cutoff-reminder`, `/nvocc/tariffs`, `/nvocc/voyages/:id/load-list` |
-| **20B** | NVOCC — Documents, Voyage P&L, Reporting | NVOCC | NVOCC HBL (carrier role); CAN/DO/pre-alert; voyage P&L; space utilization; trade lane profitability | `/nvocc/jobs/:id/documents/hbl-draft`, `/hbl-original`, `/surrender-notice`, `/can`, `/do`, `/pre-alert/send`, `/nvocc/voyages/:id/pnl`, `/nvocc/voyages/utilization` |
+| **20** | NVOCC — Voyages, Enquiries, Bookings, Load List | NVOCC | **Done** | nvocc_voyages; enquiries; bookings; load list; NVOCC tariffs; convert booking→job | `/nvocc/voyages`, `/nvocc/enquiries`, `/nvocc/bookings`, `/nvocc/tariffs`, `/nvocc/voyages/:id/load-list` |
+| **20B** | NVOCC — Documents, Voyage P&L, Reporting | NVOCC | **Done** | Carrier-role HBL; CAN/DO/pre-alert; voyage P&L; utilization; trade-lane profitability | `/nvocc/jobs/:id/documents/*`, `/nvocc/voyages/:id/pnl`, `/nvocc/voyages/utilization`, `/nvocc/reports/trade-lane-profitability` |
 | **21** | System Admin · Settings · EDI · Public API | Ch.2, Ch.25, Ch.27 | EDI; public REST API + webhooks; Stripe billing; Ch.2 settings (theme, number/doc formats, email, approvals); data import/export; monitoring | Public API (`/api/v1/*`), webhooks, API keys, EDI config; **PHASE 2 complete** |
 | **22** | Performance Optimisation | Non-functional | DB indexes; Redis cache; BullMQ for PDF/email/CSV; rate limiting; Sentry; Helmet; load test (100 users) | `/jobs/:id/status` (async poll), BullMQ monitoring |
 | **23** | Security Hardening — OWASP | Security | OWASP Top 10; pen test; secrets rotation; IP/MAC/hours enforcement; 2FA QA; audit trail | *(hardening — no new business APIs)* |
@@ -72,12 +72,13 @@ Backend repo state assessed against implemented modules (`src/app.module.ts`, co
 
 ### What's next
 
-1. **Week 20** — NVOCC (voyages, enquiries, bookings, load list, tariffs).
-2. **Week 21** — Admin, EDI, public API, Stripe.
-3. Existing tenants: `POST /tenants/:id/sync-permissions` after each new module catalog.
+1. **Week 21** — Documentation foundation + EDI/customs (**done**).
+2. **Week 22** — Documentation uploads/DO/reports + Public API/Stripe stub (**done**).
+3. **Weeks 23+** — Performance, security, QA (shifted +1 week).
+4. Existing tenants: `POST /tenants/:id/sync-permissions` after each new module catalog.
 
 **Phase 1 MVP target (per 28-week PDF):** Air Export + Sea FCL Export/Import + Full Finance + MIS Dashboard (through Week 12) — **backend complete**.  
-**Phase 2 progress:** Weeks 13–19 **backend complete**; Weeks 20–21 remaining.
+**Phase 2 progress:** Weeks 13–28 **backend complete** (closure plan Weeks 23–28 shipped).
 
 ---
 
@@ -264,11 +265,15 @@ Fresa “Organization” ≈ our **Party** (+ org profile for the tenant company
 | **17** | **WMS** | **Done** | GRN/GDO, FIFO/LIFO, stock, storage DRAFT invoice, ASN, low-stock cron |
 | **18** | **Sea LCL Ex+Im** | **Done** | House/master consolidation, milestones, documents, CFS storage |
 | **19** | Land + Courier | **Done** | LandJobDetail, CourierJobDetail, transport requests, courier vendors |
-| **20 / 20B** | NVOCC | **Not started** | Voyages, space, NVOCC HBL, voyage P&L |
-| **21** | Admin / EDI / Public API / Stripe | **Not started** | EDI gateways, `/api/v1`, webhooks, Stripe SaaS, Ch.2 settings depth |
-| 22–23 | Performance / OWASP | **Not started** | Non-functional |
-| 24–26 | Integration test / UAT | **Not started** | Process |
-| 27–28 | Infra / go-live | **Not started** | Hosting decision OPEN |
+| **20 / 20B** | NVOCC | **Done** | Voyages, enquiries, bookings, load list, tariffs, carrier HBL docs, voyage P&L, utilization, trade-lane reporting |
+| **21** | Admin / EDI / Public API / Stripe | **Done** | Documentation console, EDI gateways, `/api/v1`, webhooks CRUD, Stripe stub→SDK |
+| **22** | Documentation uploads / DO / reports | **Done** | Upload batches, DO, air tracking, job export/import |
+| **23** | Deploy alignment + live smoke | **Done** | Throttle bypass, live suite extended, deploy runbook |
+| **24** | Performance / observability | **Done** | Redis HTTP cache, Sentry, upload BullMQ, load-test script |
+| **25** | OWASP / security | **Done** | API key scopes, webhook HMAC, 2FA linked, upload limits |
+| **26** | Residual parity | **Done** | Party EDI codes, webhook dispatch, MPCI live adapter, sea scans/KPI, Excel uploads |
+| **27** | Integration QA | **Done** | quote→GL e2e, RLS tests, CI smoke chain, financial audit script |
+| **28** | UAT / go-live / handover | **Done** | UAT checklist, Render ops runbook, hosting locked Render+Neon |
 | — | Mobile Sales App (Ch.26) | **Deferred** | Explicitly out of 28-week backend path |
 | — | General Trading bridge | **Research only** | See `docs/GENERAL_TRADING_PLAN.md` — not Fresa sea |
 

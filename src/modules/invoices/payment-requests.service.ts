@@ -27,6 +27,7 @@ export class PaymentRequestsService {
     const limit = query.limit ?? 20;
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const andFilters: Prisma.PaymentRequestWhereInput[] = [];
       const where: Prisma.PaymentRequestWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
@@ -34,6 +35,38 @@ export class PaymentRequestsService {
         ...(query.party_id ? { party_id: query.party_id } : {}),
         ...(query.job_id ? { job_id: query.job_id } : {}),
       };
+
+      if (query.branch_id || query.job_number) {
+        andFilters.push({
+          job: {
+            deleted_at: null,
+            ...(query.branch_id ? { branch_id: query.branch_id } : {}),
+            ...(query.job_number
+              ? { job_number: { contains: query.job_number, mode: 'insensitive' } }
+              : {}),
+          },
+        });
+      }
+
+      if (query.voucher_pending) {
+        andFilters.push({
+          status: 'APPROVED',
+          job_id: { not: null },
+          job: {
+            deleted_at: null,
+            vouchers: {
+              none: {
+                deleted_at: null,
+                status: 'POSTED',
+              },
+            },
+          },
+        });
+      }
+
+      if (andFilters.length) {
+        where.AND = andFilters;
+      }
 
       const [data, total] = await Promise.all([
         tx.paymentRequest.findMany({

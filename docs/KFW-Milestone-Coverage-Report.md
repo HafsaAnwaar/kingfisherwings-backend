@@ -48,9 +48,9 @@ FreightSaas stack alignment: **NestJS ✓ · Prisma ✓ · PostgreSQL + RLS ✓ 
 | M3 | Advanced Masters & Finance Base | Wks 5–6 | 10% | **~70%** | **Partial** (masters Done; **COA Not started**) |
 | M4 | Sales & Quotation Enablement | Wks 7–8 | 12% | **~75%** | **Partial** (quotation Done; CRM/lead training gaps) |
 | M5 | Customer Service Activation | Wks 9–10 | 12% | **~55%** | **Partial** (jobs/schedules Yes; enquiry CRM No; pricing dashboard thin) |
-| M6 | Documentation & Job Execution | Wks 11–12 | 14% | **~80%** | **Mostly Done** (Air + Sea FCL Yes; **Sea LCL Not started**) |
-| M7 | Operations & EDI Integration | Wks 13–14 | 16% | **~15%** | **Not started** (ops partial in-job; **all EDI gateways Missing**) |
-| M8 | Finance, HR, Reporting & Go-Live | Wks 15–16 | 18% | **~30%** | **Partial** (invoicing Yes; **GL/AR/AP/HR/MIS/UAT Ops Missing**) |
+| M6 | Documentation & Job Execution | Wks 11–12 | 14% | **~90%** | **Mostly Done** (Air + FCL + LCL + Documentation console) |
+| M7 | Operations & EDI Integration | Wks 13–14 | 16% | **~75%** | **Mostly Done** (EDI gateways + MPCI live adapter; some country stacks stub) |
+| M8 | Finance, HR, Reporting & Go-Live | Wks 15–16 | 18% | **~85%** | **Mostly Done** (GL, HR, MIS, UAT ops docs; frontend UAT separate) |
 
 **Overall SOW backend completion (weighted by SOW %):** approximately **58–62%**.
 

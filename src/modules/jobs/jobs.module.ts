@@ -8,6 +8,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { StorageModule } from '../../shared/storage/storage.module';
 import { JobsController } from './jobs.controller';
+import { JobsSeaScansController, SeaKpiReportController } from './jobs-sea-scans.controller';
 import { JobsService } from './jobs.service';
 import { SeaFclImportService } from './sea-fcl-import.service';
 import { AirImportService } from './air-import.service';
@@ -29,7 +30,7 @@ import { TransportModule } from '../transport/transport.module';
     StorageModule,
     TransportModule,
   ],
-  controllers: [JobsController],
+  controllers: [JobsController, JobsSeaScansController, SeaKpiReportController],
   providers: [
     JobsService,
     SeaFclImportService,

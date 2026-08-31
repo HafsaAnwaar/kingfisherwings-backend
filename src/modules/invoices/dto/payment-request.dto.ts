@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
 import { PaymentRequestStatus } from '@prisma/client';
 
 export class CreatePaymentRequestDto {
@@ -78,4 +78,20 @@ export class PaymentRequestQueryDto {
   @IsOptional()
   @IsUUID()
   job_id?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Filter by job branch (via job.branch_id join).' })
+  @IsOptional()
+  @IsUUID()
+  branch_id?: string;
+
+  @ApiPropertyOptional({ description: 'Search linked job number.' })
+  @IsOptional()
+  @IsString()
+  job_number?: string;
+
+  @ApiPropertyOptional({ description: 'Approved requests with no posted voucher on the same job/party.' })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  voucher_pending?: boolean;
 }

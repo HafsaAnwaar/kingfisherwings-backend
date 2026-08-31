@@ -306,6 +306,12 @@ export class VoucherQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Draft vouchers eligible for batch posting' })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  batch_eligible?: boolean;
 }
 
 export class LedgerQueryDto {
@@ -336,4 +342,15 @@ export class TrialBalanceQueryDto {
   @IsBoolean()
   @Type(() => Boolean)
   hide_zero?: boolean;
+}
+
+export class BatchVoucherStatusDto {
+  @ApiProperty({ type: [String], format: 'uuid' })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  voucher_ids!: string[];
+
+  @ApiProperty({ enum: VoucherStatus })
+  @IsEnum(VoucherStatus)
+  status!: VoucherStatus;
 }

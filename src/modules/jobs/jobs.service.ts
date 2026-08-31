@@ -11,6 +11,7 @@ import { AIR_IMPORT_MAWB_RECEIVED_MILESTONE } from './constants/air-import-miles
 import { SEA_LCL_IMPORT_MBL_RECEIVED_MILESTONE } from './constants/sea-lcl-import-milestones';
 import { seedJobTypeExtras } from './utils/job-type-seed.util';
 import { mintTrackingToken } from './utils/tracking-token.util';
+import { markJobMilestoneIfPresent } from './utils/mark-milestone.util';
 
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { UpdateAirJobDetailDto } from './dto/air-job-detail.dto';
@@ -175,19 +176,76 @@ export class JobsService {
       if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
       if (query.branch_id) where.branch_id = query.branch_id;
       if (query.company_id) where.company_id = query.company_id;
+      if (query.department_id) where.department_id = query.department_id;
+      if (query.created_by) where.created_by = query.created_by;
+      if (query.consignee_id) where.consignee_id = query.consignee_id;
       if (query.origin_port_id) where.origin_port_id = query.origin_port_id;
       if (query.dest_port_id) where.dest_port_id = query.dest_port_id;
       if (query.parent_job_id) where.parent_job_id = query.parent_job_id;
       if (query.masters_only) where.parent_job_id = null;
 
+      const andFilters: Prisma.JobWhereInput[] = [];
+
       if (query.from_date || query.to_date) {
-        where.created_at = {
+        const range = {
           ...(query.from_date ? { gte: new Date(query.from_date) } : {}),
           ...(query.to_date ? { lte: new Date(query.to_date) } : {}),
         };
+        if (query.date_field === 'etd') {
+          where.etd = range;
+        } else if (query.date_field === 'eta') {
+          where.eta = range;
+        } else if (query.date_field === 'atd') {
+          andFilters.push({
+            OR: [
+              { sea_fcl_details: { sailed_at: range, deleted_at: null } },
+              { sea_lcl_details: { sailed_at: range, deleted_at: null } },
+            ],
+          });
+        } else if (query.date_field === 'ata') {
+          andFilters.push({
+            air_details: {
+              deleted_at: null,
+              actual_eta: range,
+            },
+          });
+        } else {
+          where.created_at = range;
+        }
       }
 
-      const andFilters: Prisma.JobWhereInput[] = [];
+      if (query.customs_entry_number) {
+        andFilters.push({
+          OR: [
+            {
+              air_details: {
+                deleted_at: null,
+                customs_entry_number: { contains: query.customs_entry_number, mode: 'insensitive' },
+              },
+            },
+            {
+              sea_fcl_details: {
+                deleted_at: null,
+                customs_entry_number: { contains: query.customs_entry_number, mode: 'insensitive' },
+              },
+            },
+            {
+              sea_lcl_details: {
+                deleted_at: null,
+                customs_entry_number: { contains: query.customs_entry_number, mode: 'insensitive' },
+              },
+            },
+          ],
+        });
+      } else if (query.has_customs_entry) {
+        andFilters.push({
+          OR: [
+            { air_details: { deleted_at: null, customs_entry_number: { not: null } } },
+            { sea_fcl_details: { deleted_at: null, customs_entry_number: { not: null } } },
+            { sea_lcl_details: { deleted_at: null, customs_entry_number: { not: null } } },
+          ],
+        });
+      }
 
       if (query.search) {
         andFilters.push({
@@ -444,10 +502,16 @@ export class JobsService {
         throw new BadRequestException('Cannot close a cancelled job.');
       }
 
-      return tx.job.update({
+      const updated = await tx.job.update({
         where: { id },
         data: { status: 'COMPLETED', updated_by: actorId },
       });
+
+      if (job.job_type === 'NVOCC_EXPORT' || job.job_type === 'NVOCC_IMPORT') {
+        await markJobMilestoneIfPresent(tx, tenantId, id, 'JOB_CLOSED', new Date(), actorId);
+      }
+
+      return updated;
     });
   }
 

@@ -16,6 +16,8 @@ const fs = require('fs');
 const path = require('path');
 
 const BASE_URL = (process.env.BASE_URL || 'https://kingfisherwings.onrender.com').replace(/\/$/, '');
+const THROTTLE_BYPASS = process.env.CRON_SECRET || process.env.THROTTLE_BYPASS_SECRET || '';
+const REQ_DELAY_MS = Number(process.env.LIVE_TEST_DELAY_MS || 80);
 const OPENAPI_PATH = path.join(__dirname, '..', 'openapi-live.json');
 const REPORT_MD = path.join(__dirname, '..', 'docs', 'live-api-test-report.md');
 const REPORT_JSON = path.join(__dirname, '..', 'docs', 'live-api-test-results.json');
@@ -31,6 +33,7 @@ const PUBLIC_ROUTES = new Set([
   'GET /locale/defaults',
   'GET /locale/{countryCode}',
   'GET /health',
+  'GET /api/v1/health',
 ]);
 
 /** Routes that accept empty/minimal bodies successfully (skip invalid-payload FAIL_CASE). */
@@ -76,7 +79,8 @@ const ctx = {
   paymentRequestId: null,
   purchaseInvoiceId: null,
   userId: null,
-  staffTempPassword: null,
+  apiKey: null,
+  boeId: null,
 };
 
 const results = [];
@@ -90,9 +94,14 @@ function record(tc) {
   console.log(`${icon} [${tc.caseType}] ${tc.method} ${tc.path} — ${tc.title} (${tc.httpStatus ?? 'n/a'})`);
 }
 
-async function req(method, urlPath, { token, body, expectStatus, formData } = {}) {
+async function req(method, urlPath, { token, body, expectStatus, formData, apiKey } = {}) {
+  if (REQ_DELAY_MS > 0) {
+    await new Promise((r) => setTimeout(r, REQ_DELAY_MS));
+  }
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (apiKey) headers['X-API-Key'] = apiKey;
+  if (THROTTLE_BYPASS) headers['X-Throttle-Bypass'] = THROTTLE_BYPASS;
   let payload = body;
   if (formData) {
     // not used in this suite
@@ -938,6 +947,61 @@ async function phaseHappyPath() {
   await assertPass('Quotation analytics', 'GET', '/quotations/reports/analytics', {
     token: ctx.token,
     tag: 'Quotations',
+  });
+
+  // Documentation (Week 21–22)
+  await assertPass('Sync permissions for tenant', 'POST', `/tenants/${ctx.tenantId}/sync-permissions`, {
+    token: ctx.saToken,
+    tag: 'Documentation',
+  });
+  if (ctx.jobId) {
+    res = await assertPass('Create BOE record', 'POST', '/documentation/boe', {
+      token: ctx.token,
+      body: { boe_number: `LIVE-BOE-${runId}`, job_id: ctx.jobId, boe_type: 'IMPORT' },
+      tag: 'Documentation',
+    });
+    if (res) ctx.boeId = unwrap(res.body)?.id || res.body?.id;
+    await assertPass('BOE dashboard', 'GET', '/documentation/boe/dashboard', {
+      token: ctx.token,
+      tag: 'Documentation',
+    });
+    res = await assertPass('Bayan EDI generate', 'POST', `/documentation/edi/bayan/jobs/${ctx.jobId}/generate`, {
+      token: ctx.token,
+      tag: 'Documentation',
+    });
+    if (res) {
+      const subId = unwrap(res.body)?.id || res.body?.id;
+      if (subId) {
+        await assertPass('EDI download URL', 'GET', `/documentation/edi/submissions/${subId}/download`, {
+          token: ctx.token,
+          tag: 'Documentation',
+        });
+      }
+    }
+    await assertPass('Documentation reports list', 'GET', '/documentation/reports', {
+      token: ctx.token,
+      tag: 'Documentation',
+    });
+    await assertPass('ETA follow-up report', 'GET', '/documentation/reports/eta-followup', {
+      token: ctx.token,
+      tag: 'Documentation',
+    });
+  }
+
+  // Public API + admin keys
+  res = await assertPass('Create API key', 'POST', '/admin/api-keys', {
+    token: ctx.token,
+    body: { name: `Live Key ${runId}`, scopes: ['jobs.read'] },
+    tag: 'Public API',
+  });
+  if (res) ctx.apiKey = unwrap(res.body)?.api_key || res.body?.api_key;
+  if (ctx.apiKey) {
+    await assertPass('Public API health', 'GET', '/api/v1/health', { apiKey: ctx.apiKey, tag: 'Public API' });
+    await assertPass('Public API jobs', 'GET', '/api/v1/jobs', { apiKey: ctx.apiKey, tag: 'Public API' });
+  }
+  await assertPass('Billing status stub', 'GET', '/admin/billing/status', {
+    token: ctx.token,
+    tag: 'Public API',
   });
 
   // Refresh (keep token for phase 2 validation)

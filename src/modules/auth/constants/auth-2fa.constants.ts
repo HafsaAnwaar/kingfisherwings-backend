@@ -5,4 +5,4 @@
  * - restore login TOTP/backup-code checks
  * - restore MandatoryAdminTwoFactorGuard
  */
-export const AUTH_2FA_LINKED = false;
+export const AUTH_2FA_LINKED = true;

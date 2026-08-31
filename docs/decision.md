@@ -2,7 +2,7 @@
 
 > **Living document.** Record *why* we chose a library, pattern, or product rule — not just *what* shipped.  
 > Update this file whenever a decision is locked, reversed, or deferred. Do **not** duplicate API catalogs here; see [flow.md](./flow.md) for execution paths.  
-> **Current implementation horizon:** Weeks 0–19 complete (backend). Weeks 20–28 are planned.
+> **Current implementation horizon:** Weeks 0–28 **backend complete**. Frontend UAT and mobile (Ch.26) remain separate programs.
 
 **Product:** KingFisher Wings ERP (package `fresa-gold-backend`)  
 **Spec sources:** Fresa Gold Complete Feature Specification · 28-Week Plan · Ch.1–28  
@@ -558,24 +558,40 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 | Permissions | **SHIPPED** | Land/courier job ops reuse `jobs.view` / `jobs.update`. Tenant-wide TR list uses `transport.view` / `transport.manage`. |
 | Out of scope Week 19 | **LOCKED** | GPS/telematics; live carrier APIs (FedEx/DHL); UI; portal land/courier views. |
 
-### Week 20 / 20B — NVOCC
+### Week 20 / 20B — NVOCC — shipped
 
 | Topic | Status | Decision / question |
 |-------|--------|---------------------|
 | NVOCC enquiries are **not** CRM enquiries | **LOCKED** | Week 14 CRM enquiry is sales→quote. NVOCC enquiry is voyage/space (Week 20). |
-| Convert NVOCC booking → Job | **LOCKED** (plan) | Same as quote→job; one operational file. |
-| Carrier-role HBL | **OPEN** | Document templates vs existing FIATA/HBL. |
+| Convert NVOCC booking → Job | **LOCKED** | Same as quote→job; one operational file. |
+| Carrier-role HBL | **LOCKED** | NVOCC HBL uses `NvoccJobDetail` + booking + voyage data; dedicated PDF template with tenant company as carrier. **Not** routed through `sea_fcl_details` or `BillOfLading`. |
+| Voyage P&L | **SHIPPED** | `GET /nvocc/voyages/:id/pnl` aggregates booking charges, job charges, and `voyage.carrier_cost`. |
+| NVOCC reporting | **SHIPPED** | `GET /nvocc/voyages/utilization` + `GET /nvocc/reports/trade-lane-profitability` (operational, distinct from CRM trade_lane). |
 
-### Week 21 — Admin, EDI, public API, Stripe (Phase 2 close)
+### Week 21 — Documentation console + EDI/customs (SHIPPED)
 
-| Topic | Status | Decision / question |
-|-------|--------|---------------------|
-| Public API `/api/v1/*` + API keys + webhooks | **OPEN** | Auth model (key vs OAuth). Must not bypass RLS. |
-| Stripe for SaaS billing | **OPEN** | Platform billing (SuperAdmin/tenant subscription), **not** customer freight payment gateway (still deferred). |
-| EDI (Bayan, eDO, CCN, IAL, MPCI, …) | **OPEN** | Which gateway first; adapter per country. |
-| Ch.2 settings (theme, approvals matrix) | **OPEN** | How much is API vs frontend-only. |
+| Topic | Status | Decision |
+|-------|--------|----------|
+| Documentation module `/documentation/*` | **SHIPPED** | BOE, bulk cost, charge templates, EDI gateways, MPCI. |
+| House shipment model | **LOCKED** | House job (`parent_job_id`); no shipment table. |
+| BOE storage | **LOCKED** | `documentation_boe_records`; syncs `customs_entry_number` on air/sea details when `job_id` set. |
+| EDI v1 | **LOCKED** | In-app file generation + `documentation_edi_submissions` audit; stub submit unless `EDI_SUBMIT_ENABLED=true`. |
+| Job/payment-request filters | **SHIPPED** | Documentation list screens: customs entry, date_field, voucher_pending, etc. |
 
-### Weeks 22–23 — Performance & OWASP
+### Week 22 — Documentation ops + Admin/Public API/Stripe (SHIPPED)
+
+| Topic | Status | Decision |
+|-------|--------|----------|
+| Upload batches (4 types) | **SHIPPED** | CSV ingest; sync processing v1. |
+| Closed-job DO updates | **SHIPPED** | `documentation_delivery_orders` audit table. |
+| Documentation reports | **SHIPPED** | ETA/ETD follow-up, jobs list, manifest status. |
+| Air tracking | **SHIPPED** | Stub provider + `documentation_air_tracking_events` cache. |
+| Voucher batch | **SHIPPED** | `PATCH /gl/vouchers/batch-status`. |
+| Public API `/api/v1/*` + API keys | **SHIPPED** | `tenant_api_keys` + `X-API-Key` guard; webhooks table + admin CRUD. |
+| Stripe SaaS billing | **STUB** | `GET /admin/billing/status`; live checkout when `STRIPE_SECRET_KEY` configured. |
+| Ch.2 settings depth | **DEFERRED** | Theme/approvals matrix remain frontend-led. |
+
+### Weeks 23–24 — Performance & OWASP
 
 | Topic | Status | Decision / question |
 |-------|--------|---------------------|
@@ -626,6 +642,30 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 | Email | Nodemailer + EmailLog | §1.12 |
 | CRM | Staff only | Week 14 |
 | VPP | Own identity tables | Week 14 |
+| Public API | X-API-Key + scopes on `/api/v1/*` | Week 25–26 |
+| Webhooks | HMAC-SHA256 outbound + delivery log | Week 26 |
+| Hosting | Render + Neon (locked) | Week 28 |
+
+---
+
+## 6. OWASP Top 10 checklist (Week 25 — SHIPPED)
+
+Walkthrough recorded for staff, portal, vendor, and public API surfaces:
+
+| # | Control | Status |
+|---|---------|--------|
+| A01 | Broken access control — RLS e2e, API key scopes, portal/vendor JWT isolation | **SHIPPED** |
+| A02 | Cryptographic failures — Argon2, JWT secrets strict in prod, webhook HMAC | **SHIPPED** |
+| A03 | Injection — Prisma parameterized queries, upload path guards | **SHIPPED** |
+| A04 | Insecure design — tenant hierarchy, separate auth principals | **SHIPPED** |
+| A05 | Security misconfiguration — Helmet, rate limits, cron secret bypass scoped | **SHIPPED** |
+| A06 | Vulnerable components — npm audit in CI (manual cadence) | **PROCESS** |
+| A07 | Auth failures — 2FA routes linked, lockout on failed TOTP | **SHIPPED** |
+| A08 | Software/data integrity — webhook signatures, audit on permission sync | **SHIPPED** |
+| A09 | Logging/monitoring — Sentry, audit rows, webhook delivery log | **SHIPPED** |
+| A10 | SSRF | **N/A** (no user-supplied URL fetch in core paths) |
+
+Pen test: run OWASP ZAP against staging before production sign-off; remediate P1/P2 in backlog.
 
 ---
 

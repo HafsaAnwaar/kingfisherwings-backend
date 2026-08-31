@@ -75,6 +75,36 @@ export class JobQueryDto {
   @IsUUID()
   parent_job_id?: string;
 
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  department_id?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Filter by job creator (created_by).' })
+  @IsOptional()
+  @IsUUID()
+  created_by?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  consignee_id?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by customs entry number on air/sea detail tables.' })
+  @IsOptional()
+  @IsString()
+  customs_entry_number?: string;
+
+  @ApiPropertyOptional({ description: 'When true, only jobs with a customs entry number on their detail record.' })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  has_customs_entry?: boolean;
+
+  @ApiPropertyOptional({ enum: ['etd', 'eta', 'atd', 'ata'], description: 'Date field for from_date/to_date range.' })
+  @IsOptional()
+  @IsIn(['etd', 'eta', 'atd', 'ata'])
+  date_field?: 'etd' | 'eta' | 'atd' | 'ata';
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()

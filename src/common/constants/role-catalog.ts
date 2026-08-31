@@ -15,6 +15,7 @@ import { WMS_PERMISSIONS } from '../../modules/wms/constants/wms-permission.cons
 import { TRANSPORT_PERMISSIONS } from '../../modules/transport/constants/transport-permission.constants';
 import { NVOCC_PERMISSIONS } from '../../modules/nvocc/constants/nvocc-permission.constants';
 import { NOTIFICATIONS_PERMISSIONS } from '../../modules/notifications/constants/notifications-permission.constants';
+import { DOCUMENTATION_PERMISSIONS } from '../../modules/documentation/constants/documentation-permission.constants';
 
 export interface RoleCatalogEntry {
   /** Matches a UserRole enum value — kept 1:1 so User.role and the Role row it's assigned agree. */
@@ -57,6 +58,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(WMS_PERMISSIONS),
       ...Object.values(TRANSPORT_PERMISSIONS),
       ...Object.values(NVOCC_PERMISSIONS),
+      ...Object.values(DOCUMENTATION_PERMISSIONS),
       ...Object.values(NOTIFICATIONS_PERMISSIONS),
     ],
   },
@@ -248,6 +250,14 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       TRANSPORT_PERMISSIONS.MANAGE,
       NVOCC_PERMISSIONS.VIEW,
       NVOCC_PERMISSIONS.MANAGE,
+      DOCUMENTATION_PERMISSIONS.READ,
+      DOCUMENTATION_PERMISSIONS.MANAGE,
+      DOCUMENTATION_PERMISSIONS.EDI_READ,
+      DOCUMENTATION_PERMISSIONS.EDI_SUBMIT,
+      DOCUMENTATION_PERMISSIONS.UPLOAD,
+      DOCUMENTATION_PERMISSIONS.MPCI,
+      INVOICES_PERMISSIONS.VIEW,
+      GL_PERMISSIONS.VIEW,
     ],
   },
   {

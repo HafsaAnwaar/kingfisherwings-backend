@@ -15,6 +15,7 @@ import { WMS_PERMISSION_CONSTANTS } from '../../modules/wms/constants/wms-permis
 import { TRANSPORT_PERMISSION_CONSTANTS } from '../../modules/transport/constants/transport-permission.constants';
 import { NVOCC_PERMISSION_CONSTANTS } from '../../modules/nvocc/constants/nvocc-permission.constants';
 import { NOTIFICATIONS_PERMISSION_CONSTANTS } from '../../modules/notifications/constants/notifications-permission.constants';
+import { DOCUMENTATION_PERMISSION_CONSTANTS } from '../../modules/documentation/constants/documentation-permission.constants';
 
 export interface PermissionCatalogEntry {
   module: string;
@@ -117,5 +118,10 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: NOTIFICATIONS_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${NOTIFICATIONS_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(DOCUMENTATION_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: DOCUMENTATION_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${DOCUMENTATION_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
 ];

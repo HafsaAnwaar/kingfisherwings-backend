@@ -1260,4 +1260,49 @@ Authorization: Bearer {{SA_TOKEN}}
 
 ---
 
+# PART F — Documentation & Public API (Weeks 21–28)
+
+## Documentation smoke
+
+```bash
+BASE_URL=http://localhost:3000 node scripts/week21-documentation-api-test.cjs
+BASE_URL=http://localhost:3000 node scripts/week22-documentation-api-test.cjs
+```
+
+Key routes: `/documentation/boe/*`, `/documentation/edi/*`, `/documentation/uploads/*`, `/documentation/delivery-orders/*`.
+
+## Public API (tenant API key)
+
+```http
+POST /admin/api-keys
+Authorization: Bearer {{TENANT_ADMIN_TOKEN}}
+{ "name": "integration", "scopes": ["jobs.read", "track.read"] }
+
+GET /api/v1/jobs
+X-API-Key: kf_...
+
+GET /api/v1/health
+X-API-Key: kf_...
+```
+
+Scopes enforced: `jobs.read` required for job list/detail; `track.read` for `/api/v1/track/:token`.
+
+## Live suite (production)
+
+```bash
+CRON_SECRET=your_secret BASE_URL=https://kingfisherwings.onrender.com node scripts/live-api-test-suite.cjs
+```
+
+Pass `CRON_SECRET` as header `X-Throttle-Bypass` to avoid 429 during bulk runs.
+
+## Financial accuracy audit
+
+```bash
+BASE_URL=http://localhost:3000 node scripts/financial-accuracy-audit.cjs
+```
+
+Compares job revenue charge totals vs invoice line totals (tolerance 0.01).
+
+---
+
 *Generated for FreightSaas (Kingfisher Wings ERP). For interactive schemas, use Swagger at `/docs`.*

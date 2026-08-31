@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: kingfisher_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d kingfisher_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/kingfisher_test
+      DIRECT_URL: postgresql://test:test@localhost:5432/kingfisher_test
+      REDIS_ENABLED: 'true'
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_SECRET: ci-test-jwt-secret-min-32-chars-long
+      JWT_SECRETS_STRICT: 'false'
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma migrate deploy
+
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npx prisma validate
+      - run: npm test -- --passWithNoTests
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Week 17–22 smoke scripts
+        run: |
+          npm run start:prod &
+          APP_PID=$!
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:3000/health && break
+            sleep 2
+          done
+          BASE_URL=http://localhost:3000 node scripts/week17-wms-api-test.cjs || true
+          BASE_URL=http://localhost:3000 node scripts/week18-sea-lcl-api-test.cjs || true
+          BASE_URL=http://localhost:3000 node scripts/week20-nvocc-api-test.cjs || true
+          BASE_URL=http://localhost:3000 node scripts/week21-documentation-api-test.cjs || true
+          BASE_URL=http://localhost:3000 node scripts/week22-documentation-api-test.cjs || true
+          kill $APP_PID || true
+
+      - run: npm run build
+
+      - name: Docker build
+        run: docker build -t kingfisher-backend:ci .

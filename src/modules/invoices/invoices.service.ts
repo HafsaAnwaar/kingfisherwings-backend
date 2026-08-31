@@ -13,6 +13,7 @@ import { StorageService } from '../../shared/storage/storage.service';
 import { EmailService } from '../../shared/email/email.service';
 import { GlAutoPostService } from '../gl/gl-auto-post.service';
 import { NotificationEmitterService } from '../notifications/notification-emitter.service';
+import { WebhookDispatcherService } from '../public-api/webhook-dispatcher.service';
 import {
   CreateCreditNoteDto,
   CreateDebitNoteDto,
@@ -37,6 +38,7 @@ export class InvoicesService {
     private readonly emailService: EmailService,
     private readonly glAutoPost: GlAutoPostService,
     private readonly notifications: NotificationEmitterService,
+    private readonly webhooks: WebhookDispatcherService,
   ) {}
 
   async findAll(tenantId: string, query: InvoiceQueryDto, invoiceType?: InvoiceType) {
@@ -732,6 +734,17 @@ export class InvoicesService {
     ) {
       await this.checkAndNotifyCreditLimitExceeded(tenantId, posted.party_id, posted.id);
     }
+
+    void this.webhooks
+      .dispatch(tenantId, 'invoice.posted', {
+        invoice_id: posted.id,
+        invoice_number: posted.invoice_number,
+        invoice_type: posted.invoice_type,
+        total_amount: Number(posted.total_amount),
+        party_id: posted.party_id,
+        gl_voucher_id: gl?.voucher_id ?? null,
+      })
+      .catch(() => undefined);
 
     return { ...posted, gl_auto_post: gl };
   }

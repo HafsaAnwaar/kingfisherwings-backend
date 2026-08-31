@@ -5643,3 +5643,434 @@ model HrLetter {
   @@map("hr_letters")
 }
 
+// ─── Week 21 — Documentation module ─────────────────────────────────────────
+
+enum DocumentationBoeType {
+  IMPORT
+  EXPORT
+  TRANSIT
+  WAREHOUSE
+  OTHER
+}
+
+enum DocumentationBoeStatus {
+  DRAFT
+  FILED
+  CLEARED
+  CLAIM_PENDING
+}
+
+enum DocumentationDoStatus {
+  ISSUED
+  DELIVERED
+  CANCELLED
+}
+
+enum DocumentationBulkCostStatus {
+  DRAFT
+  SUBMITTED
+  CANCELLED
+}
+
+enum DocumentationEdiType {
+  BAYAN_MASTER
+  BAYAN_HOUSE
+  CCN_FWB
+  CCN_FHL
+  CGM
+  EQO_DUBAI
+  EQO_OMAN
+  IAL
+  MPCI
+}
+
+enum DocumentationEdiStatus {
+  DRAFT
+  GENERATED
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  AMENDED
+}
+
+enum DocumentationUploadType {
+  CONTAINER_NUMBERS
+  CONTAINER_TRANSPORT
+  DPWORLD_TRACKING
+  TRUCK_POSITIONS
+}
+
+enum DocumentationUploadBatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum DocumentationMpciStatus {
+  PREPARED
+  SUBMITTED
+  ACKNOWLEDGED
+  REJECTED
+}
+
+enum DocumentationSaleOrCost {
+  SALE
+  COST
+}
+
+enum DocumentationDrCr {
+  Dr
+  Cr
+}
+
+model DocumentationBoeRecord {
+  id              String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String                 @db.Uuid
+  branch_id       String?                @db.Uuid
+  job_id          String?                @db.Uuid
+  boe_number      String                 @db.VarChar(50)
+  boe_date        DateTime?              @db.Date
+  boe_type        DocumentationBoeType   @default(IMPORT)
+  status          DocumentationBoeStatus @default(DRAFT)
+  customs_office  String?                @db.VarChar(100)
+  port_id         String?                @db.Uuid
+  party_id        String?                @db.Uuid
+  salesperson_id  String?                @db.Uuid
+  department_id   String?                @db.Uuid
+  filed_by        String?                @db.Uuid
+  filed_at        DateTime?              @db.Timestamptz
+  claim_status    String?                @db.VarChar(50)
+  metadata        Json?
+  created_at      DateTime               @default(now()) @db.Timestamptz
+  updated_at      DateTime               @updatedAt @db.Timestamptz
+  created_by      String?                @db.Uuid
+  updated_by      String?                @db.Uuid
+  deleted_at      DateTime?              @db.Timestamptz
+
+  @@unique([tenant_id, boe_number])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, boe_date])
+  @@map("documentation_boe_records")
+}
+
+model DocumentationDeliveryOrder {
+  id              String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String                @db.Uuid
+  job_id          String                @db.Uuid
+  do_number       String                @db.VarChar(50)
+  do_date         DateTime?             @db.Date
+  do_status       DocumentationDoStatus @default(ISSUED)
+  closed_job_only Boolean               @default(true)
+  created_at      DateTime              @default(now()) @db.Timestamptz
+  updated_at      DateTime              @updatedAt @db.Timestamptz
+  created_by      String?               @db.Uuid
+  updated_by      String?               @db.Uuid
+  deleted_at      DateTime?             @db.Timestamptz
+
+  @@index([tenant_id, job_id])
+  @@map("documentation_delivery_orders")
+}
+
+model DocumentationChargeTemplate {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  name        String    @db.VarChar(200)
+  description String?   @db.Text
+  job_types   String[]  @default([])
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @updatedAt @db.Timestamptz
+  created_by  String?   @db.Uuid
+  updated_by  String?   @db.Uuid
+  deleted_at  DateTime? @db.Timestamptz
+
+  lines DocumentationChargeTemplateLine[]
+
+  @@index([tenant_id])
+  @@map("documentation_charge_templates")
+}
+
+model DocumentationChargeTemplateLine {
+  id              String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String                  @db.Uuid
+  template_id     String                  @db.Uuid
+  charge_code_id  String?                 @db.Uuid
+  description     String                  @db.VarChar(200)
+  sale_or_cost    DocumentationSaleOrCost @default(SALE)
+  dr_cr           DocumentationDrCr       @default(Dr)
+  currency_code   String                  @db.Char(3)
+  default_amount  Decimal?                @db.Decimal(18, 4)
+  tax_group_id    String?                 @db.Uuid
+  sort_order      Int                     @default(0)
+  created_at      DateTime                @default(now()) @db.Timestamptz
+  updated_at      DateTime                @updatedAt @db.Timestamptz
+
+  template DocumentationChargeTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, template_id])
+  @@map("documentation_charge_template_lines")
+}
+
+model DocumentationBulkCostBatch {
+  id               String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String                      @db.Uuid
+  organization_id  String?                     @db.Uuid
+  vessel_id        String?                     @db.Uuid
+  voyage_number    String?                     @db.VarChar(50)
+  prorate_method   String?                     @db.VarChar(50)
+  status           DocumentationBulkCostStatus @default(DRAFT)
+  submitted_at     DateTime?                   @db.Timestamptz
+  created_at       DateTime                    @default(now()) @db.Timestamptz
+  updated_at       DateTime                    @updatedAt @db.Timestamptz
+  created_by       String?                     @db.Uuid
+  updated_by       String?                     @db.Uuid
+  deleted_at       DateTime?                   @db.Timestamptz
+
+  lines DocumentationBulkCostLine[]
+
+  @@index([tenant_id, status])
+  @@map("documentation_bulk_cost_batches")
+}
+
+model DocumentationBulkCostLine {
+  id             String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String                  @db.Uuid
+  batch_id       String                  @db.Uuid
+  job_id         String                  @db.Uuid
+  charge_code_id String?                 @db.Uuid
+  description    String                  @db.VarChar(200)
+  currency_code  String                  @db.Char(3)
+  exchange_rate  Decimal                 @default(1) @db.Decimal(18, 8)
+  fcy_amount     Decimal                 @db.Decimal(18, 4)
+  amount_aed     Decimal                 @db.Decimal(18, 4)
+  sale_or_cost   DocumentationSaleOrCost @default(COST)
+  dr_cr          DocumentationDrCr       @default(Dr)
+  tax_group_id   String?                 @db.Uuid
+  created_at     DateTime                @default(now()) @db.Timestamptz
+
+  batch DocumentationBulkCostBatch @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, batch_id])
+  @@index([tenant_id, job_id])
+  @@map("documentation_bulk_cost_lines")
+}
+
+model DocumentationEdiSubmission {
+  id                String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String                 @db.Uuid
+  edi_type          DocumentationEdiType
+  reference_type    String                 @db.VarChar(30)
+  reference_id      String                 @db.Uuid
+  status            DocumentationEdiStatus @default(DRAFT)
+  file_storage_key  String?                @db.VarChar(500)
+  external_ref      String?                @db.VarChar(100)
+  payload_hash      String?                @db.VarChar(64)
+  error_message     String?                @db.Text
+  amendment_of_id   String?                @db.Uuid
+  submitted_by      String?                @db.Uuid
+  submitted_at      DateTime?              @db.Timestamptz
+  created_at        DateTime               @default(now()) @db.Timestamptz
+  updated_at        DateTime               @updatedAt @db.Timestamptz
+  created_by        String?                @db.Uuid
+  updated_by        String?                @db.Uuid
+  deleted_at        DateTime?              @db.Timestamptz
+
+  @@index([tenant_id, edi_type, reference_id])
+  @@index([tenant_id, status])
+  @@map("documentation_edi_submissions")
+}
+
+model DocumentationCgmVesselVoyage {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  vessel_id      String?   @db.Uuid
+  voyage_number  String    @db.VarChar(50)
+  origin_port_id String?   @db.Uuid
+  dest_port_id   String?   @db.Uuid
+  etd            DateTime? @db.Timestamptz
+  eta            DateTime? @db.Timestamptz
+  atd            DateTime? @db.Timestamptz
+  ata            DateTime? @db.Timestamptz
+  status         String    @default("OPEN") @db.VarChar(30)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  @@index([tenant_id, voyage_number])
+  @@map("documentation_cgm_vessel_voyages")
+}
+
+model DocumentationMpciFiling {
+  id               String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String                  @db.Uuid
+  job_id           String?                 @db.Uuid
+  filing_number    String?                 @db.VarChar(50)
+  filing_type      String?                 @db.VarChar(50)
+  status           DocumentationMpciStatus @default(PREPARED)
+  uae_customs_ref  String?                 @db.VarChar(100)
+  submitted_at     DateTime?               @db.Timestamptz
+  response_payload Json?
+  created_at       DateTime                @default(now()) @db.Timestamptz
+  updated_at       DateTime                @updatedAt @db.Timestamptz
+  created_by       String?                 @db.Uuid
+  updated_by       String?                 @db.Uuid
+  deleted_at       DateTime?               @db.Timestamptz
+
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, status])
+  @@map("documentation_mpci_filings")
+}
+
+model DocumentationUploadBatch {
+  id              String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String                         @db.Uuid
+  upload_type     DocumentationUploadType
+  file_name       String                         @db.VarChar(255)
+  file_storage_key String?                       @db.VarChar(500)
+  status          DocumentationUploadBatchStatus @default(PENDING)
+  total_rows      Int                            @default(0)
+  success_rows    Int                            @default(0)
+  error_rows      Int                            @default(0)
+  errors          Json?
+  created_at      DateTime                       @default(now()) @db.Timestamptz
+  processed_at    DateTime?                      @db.Timestamptz
+  created_by      String?                        @db.Uuid
+  updated_by      String?                        @db.Uuid
+
+  @@index([tenant_id, upload_type])
+  @@index([tenant_id, status])
+  @@map("documentation_upload_batches")
+}
+
+model DocumentationAirTrackingEvent {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String   @db.Uuid
+  mawb_number  String   @db.VarChar(20)
+  carrier_code String?  @db.VarChar(10)
+  events       Json     @default("[]")
+  fetched_at   DateTime @default(now()) @db.Timestamptz
+
+  @@unique([tenant_id, mawb_number])
+  @@map("documentation_air_tracking_events")
+}
+
+// Week 22 — Public API keys + webhooks
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
+model TenantApiKey {
+  id           String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String       @db.Uuid
+  name         String       @db.VarChar(100)
+  key_prefix   String       @db.VarChar(12)
+  key_hash     String       @db.VarChar(128)
+  status       ApiKeyStatus @default(ACTIVE)
+  scopes       String[]     @default([])
+  last_used_at DateTime?    @db.Timestamptz
+  expires_at   DateTime?    @db.Timestamptz
+  created_at   DateTime     @default(now()) @db.Timestamptz
+  updated_at   DateTime     @updatedAt @db.Timestamptz
+  created_by   String?      @db.Uuid
+  revoked_at   DateTime?    @db.Timestamptz
+
+  @@index([tenant_id, status])
+  @@index([key_prefix])
+  @@map("tenant_api_keys")
+}
+
+model TenantWebhook {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  url         String    @db.VarChar(500)
+  secret      String    @db.VarChar(128)
+  events      String[]  @default([])
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @updatedAt @db.Timestamptz
+  created_by  String?   @db.Uuid
+  deleted_at  DateTime? @db.Timestamptz
+
+  deliveries TenantWebhookDelivery[]
+
+  @@index([tenant_id, is_active])
+  @@map("tenant_webhooks")
+}
+
+model TenantWebhookDelivery {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String    @db.Uuid
+  webhook_id      String    @db.Uuid
+  event           String    @db.VarChar(100)
+  payload         Json
+  status          String    @default("PENDING") @db.VarChar(20)
+  attempts        Int       @default(0)
+  response_status Int?
+  error_message   String?   @db.Text
+  signature       String?   @db.VarChar(128)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  delivered_at    DateTime? @db.Timestamptz
+
+  webhook TenantWebhook @relation(fields: [webhook_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, webhook_id])
+  @@index([tenant_id, status])
+  @@map("tenant_webhook_deliveries")
+}
+
+model PartyEdiCode {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  party_id   String    @db.Uuid
+  edi_type   String    @db.VarChar(50)
+  edi_code   String    @db.VarChar(100)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, party_id, edi_type])
+  @@index([tenant_id, party_id])
+  @@map("party_edi_codes")
+}
+
+model PartyStandardCharge {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  party_id       String    @db.Uuid
+  charge_code_id String?   @db.Uuid
+  description    String    @db.VarChar(200)
+  currency_code  String    @db.Char(3)
+  default_amount Decimal   @db.Decimal(18, 4)
+  is_cost        Boolean   @default(false)
+  sort_order     Int       @default(0)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  deleted_at     DateTime? @db.Timestamptz
+
+  @@index([tenant_id, party_id])
+  @@map("party_standard_charges")
+}
+
+model JobSeaScan {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  job_id        String    @db.Uuid
+  scan_type     String    @db.VarChar(50)
+  barcode_value String?   @db.VarChar(100)
+  container_number String? @db.VarChar(20)
+  scanned_at    DateTime  @default(now()) @db.Timestamptz
+  location      String?   @db.VarChar(200)
+  notes         String?   @db.Text
+  created_by    String?   @db.Uuid
+
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, barcode_value])
+  @@map("job_sea_scans")
+}
