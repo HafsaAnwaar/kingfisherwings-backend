@@ -2,19 +2,19 @@ export const PERMISSION_CONSTANTS = {
   // module.action — lowercase, snake_case action, dot separator.
   CODE_REGEX: /^[a-z][a-z0-9_]{1,49}\.[a-z][a-z0-9_]{1,49}$/,
 
-  MODULE: 'users',
+  MODULE: "users",
 
   ACTIONS: {
-    VIEW: 'view',
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
-    RESTORE: 'restore',
-    CHANGE_STATUS: 'change_status',
-    BULK_ACTION: 'bulk_action',
-    RESET_PASSWORD: 'reset_password',
-    MANAGE_2FA: 'manage_2fa',
-    FORCE_LOGOUT: 'force_logout',
+    VIEW: "view",
+    CREATE: "create",
+    UPDATE: "update",
+    DELETE: "delete",
+    RESTORE: "restore",
+    CHANGE_STATUS: "change_status",
+    BULK_ACTION: "bulk_action",
+    RESET_PASSWORD: "reset_password",
+    MANAGE_2FA: "manage_2fa",
+    FORCE_LOGOUT: "force_logout",
   },
 } as const;
 

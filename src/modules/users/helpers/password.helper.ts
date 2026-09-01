@@ -1,7 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
-import { PasswordHistory } from '@prisma/client';
-import { PasswordUtil } from '../../../common/utils/password.util';
-import { PASSWORD_CONSTANTS } from '../constants/password.constants';
+import { BadRequestException } from "@nestjs/common";
+import { PasswordHistory } from "@prisma/client";
+import { PasswordUtil } from "../../../common/utils/password.util";
+import { PASSWORD_CONSTANTS } from "../constants/password.constants";
 
 export class PasswordHelper {
   /**
@@ -31,7 +31,10 @@ export class PasswordHelper {
     history: PasswordHistory[],
   ): Promise<void> {
     for (const entry of history) {
-      const matches = await PasswordUtil.verify(entry.password_hash, candidatePassword);
+      const matches = await PasswordUtil.verify(
+        entry.password_hash,
+        candidatePassword,
+      );
       if (matches) {
         throw new BadRequestException(
           `Password must not match any of your last ${PASSWORD_CONSTANTS.HISTORY_LIMIT} passwords.`,
@@ -57,18 +60,24 @@ export class PasswordHelper {
   }
 
   static generateResetToken(): string {
-    return PasswordUtil.generateTemporaryPassword(PASSWORD_CONSTANTS.RESET_TOKEN_BYTES);
+    return PasswordUtil.generateTemporaryPassword(
+      PASSWORD_CONSTANTS.RESET_TOKEN_BYTES,
+    );
   }
 
   static resetTokenExpiry(): Date {
     const expires = new Date();
-    expires.setMinutes(expires.getMinutes() + PASSWORD_CONSTANTS.RESET_TOKEN_TTL_MINUTES);
+    expires.setMinutes(
+      expires.getMinutes() + PASSWORD_CONSTANTS.RESET_TOKEN_TTL_MINUTES,
+    );
     return expires;
   }
 
   static inviteTokenExpiry(): Date {
     const expires = new Date();
-    expires.setHours(expires.getHours() + PASSWORD_CONSTANTS.INVITE_TOKEN_TTL_HOURS);
+    expires.setHours(
+      expires.getHours() + PASSWORD_CONSTANTS.INVITE_TOKEN_TTL_HOURS,
+    );
     return expires;
   }
 
@@ -76,7 +85,9 @@ export class PasswordHelper {
     count: number = PASSWORD_CONSTANTS.TWO_FACTOR_BACKUP_CODE_COUNT,
   ): string[] {
     return Array.from({ length: count }, () =>
-      PasswordUtil.generateTemporaryPassword(PASSWORD_CONSTANTS.TWO_FACTOR_BACKUP_CODE_LENGTH),
+      PasswordUtil.generateTemporaryPassword(
+        PASSWORD_CONSTANTS.TWO_FACTOR_BACKUP_CODE_LENGTH,
+      ),
     );
   }
 }

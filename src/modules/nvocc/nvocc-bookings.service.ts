@@ -3,27 +3,27 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { JobType, NvoccBooking, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
-import { EmailService } from '../../shared/email/email.service';
-import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
-import { seedJobTypeExtras } from '../jobs/utils/job-type-seed.util';
-import { mintTrackingToken } from '../jobs/utils/tracking-token.util';
+} from "@nestjs/common";
+import { JobType, NvoccBooking, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { EmailService } from "../../shared/email/email.service";
+import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
+import { seedJobTypeExtras } from "../jobs/utils/job-type-seed.util";
+import { mintTrackingToken } from "../jobs/utils/tracking-token.util";
 import {
   ConvertNvoccBookingToJobDto,
   CreateNvoccBookingDto,
   NvoccBookingQueryDto,
   SendCutoffReminderDto,
   UpdateNvoccBookingDto,
-} from './dto/nvocc-booking.dto';
-import { NvoccVoyagesService } from './nvocc-voyages.service';
-import { NvoccTariffsService } from './nvocc-tariffs.service';
+} from "./dto/nvocc-booking.dto";
+import { NvoccVoyagesService } from "./nvocc-voyages.service";
+import { NvoccTariffsService } from "./nvocc-tariffs.service";
 
 const JOB_TYPE_CODE: Record<string, string> = {
-  NVOCC_EXPORT: 'NE',
-  NVOCC_IMPORT: 'NI',
+  NVOCC_EXPORT: "NE",
+  NVOCC_IMPORT: "NI",
 };
 
 @Injectable()
@@ -37,13 +37,20 @@ export class NvoccBookingsService {
     private readonly documentGeneration: DocumentGenerationService,
   ) {}
 
-  async create(tenantId: string, dto: CreateNvoccBookingDto, actorId?: string): Promise<NvoccBooking> {
+  async create(
+    tenantId: string,
+    dto: CreateNvoccBookingDto,
+    actorId?: string,
+  ): Promise<NvoccBooking> {
     const voyage = await this.voyagesService.findOne(tenantId, dto.voyage_id);
     if (voyage.closed_at) {
-      throw new BadRequestException('Voyage is closed for new bookings.');
+      throw new BadRequestException("Voyage is closed for new bookings.");
     }
 
-    const bookingNumber = await this.numberGenerator.generate(tenantId, 'NVOCC_BOOKING');
+    const bookingNumber = await this.numberGenerator.generate(
+      tenantId,
+      "NVOCC_BOOKING",
+    );
 
     const booking = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const row = await tx.nvoccBooking.create({
@@ -74,14 +81,21 @@ export class NvoccBookingsService {
           freight_terms: dto.freight_terms,
           other_charges_terms: dto.other_charges_terms,
           shipper_ref: dto.shipper_ref,
-          job_type: dto.job_type ?? 'NVOCC_EXPORT',
+          job_type: dto.job_type ?? "NVOCC_EXPORT",
           created_by: actorId,
           updated_by: actorId,
         },
       });
 
       if (dto.apply_tariff !== false) {
-        await this.applyTariffChargesTx(tx, tenantId, row, voyage.pol_id, voyage.pod_id, actorId);
+        await this.applyTariffChargesTx(
+          tx,
+          tenantId,
+          row,
+          voyage.pol_id,
+          voyage.pod_id,
+          actorId,
+        );
       }
 
       return row;
@@ -140,12 +154,24 @@ export class NvoccBookingsService {
       ...(query.voyage_id ? { voyage_id: query.voyage_id } : {}),
       ...(query.shipper_id ? { shipper_id: query.shipper_id } : {}),
       ...(query.cargo_type ? { cargo_type: query.cargo_type } : {}),
-      ...(query.booking_status ? { booking_status: query.booking_status as Prisma.EnumNvoccBookingStatusFilter['equals'] } : {}),
+      ...(query.booking_status
+        ? {
+            booking_status:
+              query.booking_status as Prisma.EnumNvoccBookingStatusFilter["equals"],
+          }
+        : {}),
       ...(query.search
         ? {
             OR: [
-              { booking_number: { contains: query.search, mode: 'insensitive' } },
-              { nvocc_hbl_number: { contains: query.search, mode: 'insensitive' } },
+              {
+                booking_number: { contains: query.search, mode: "insensitive" },
+              },
+              {
+                nvocc_hbl_number: {
+                  contains: query.search,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
@@ -155,7 +181,7 @@ export class NvoccBookingsService {
       tx.nvoccBooking.findMany({
         where,
         include: { charges: { where: { deleted_at: null } } },
-        orderBy: { booking_date: 'desc' },
+        orderBy: { booking_date: "desc" },
       }),
     );
   }
@@ -172,14 +198,19 @@ export class NvoccBookingsService {
         },
       }),
     );
-    if (!row) throw new NotFoundException('NVOCC booking not found.');
+    if (!row) throw new NotFoundException("NVOCC booking not found.");
     return row;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateNvoccBookingDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateNvoccBookingDto,
+    actorId?: string,
+  ) {
     const booking = await this.findOne(tenantId, id);
-    if (booking.booking_status !== 'DRAFT') {
-      throw new BadRequestException('Only draft bookings can be edited.');
+    if (booking.booking_status !== "DRAFT") {
+      throw new BadRequestException("Only draft bookings can be edited.");
     }
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
@@ -217,20 +248,23 @@ export class NvoccBookingsService {
 
   async confirm(tenantId: string, id: string, actorId?: string) {
     const booking = await this.findOne(tenantId, id);
-    if (booking.booking_status !== 'DRAFT') {
-      throw new BadRequestException('Only draft bookings can be confirmed.');
+    if (booking.booking_status !== "DRAFT") {
+      throw new BadRequestException("Only draft bookings can be confirmed.");
     }
 
-    const voyage = await this.voyagesService.findOne(tenantId, booking.voyage_id);
+    const voyage = await this.voyagesService.findOne(
+      tenantId,
+      booking.voyage_id,
+    );
     this.assertSpaceAvailable(voyage, booking);
 
-    const hblNumber = await this.numberGenerator.generate(tenantId, 'HBL');
+    const hblNumber = await this.numberGenerator.generate(tenantId, "HBL");
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const updated = await tx.nvoccBooking.update({
         where: { id },
         data: {
-          booking_status: 'CONFIRMED',
+          booking_status: "CONFIRMED",
           nvocc_hbl_number: hblNumber,
           updated_by: actorId,
         },
@@ -259,8 +293,11 @@ export class NvoccBookingsService {
 
       if (booking.enquiry_id) {
         await tx.nvoccEnquiry.updateMany({
-          where: { id: booking.enquiry_id, enquiry_status: { not: 'CONVERTED' } },
-          data: { enquiry_status: 'ACCEPTED', updated_by: actorId },
+          where: {
+            id: booking.enquiry_id,
+            enquiry_status: { not: "CONVERTED" },
+          },
+          data: { enquiry_status: "ACCEPTED", updated_by: actorId },
         });
       }
 
@@ -269,21 +306,24 @@ export class NvoccBookingsService {
   }
 
   private assertSpaceAvailable(
-    voyage: Awaited<ReturnType<NvoccVoyagesService['findOne']>>,
+    voyage: Awaited<ReturnType<NvoccVoyagesService["findOne"]>>,
     booking: NvoccBooking,
   ) {
     const space = this.voyagesService.getRemainingSpace(voyage);
 
-    if (booking.cargo_type === 'FCL') {
+    if (booking.cargo_type === "FCL") {
       const needed = booking.container_count ?? 1;
-      if (voyage.slot_allocation_containers > 0 && needed > space.fclRemaining) {
+      if (
+        voyage.slot_allocation_containers > 0 &&
+        needed > space.fclRemaining
+      ) {
         throw new BadRequestException(
           `Insufficient FCL slots. Requested ${needed}, remaining ${space.fclRemaining}.`,
         );
       }
     }
 
-    if (booking.cargo_type === 'LCL') {
+    if (booking.cargo_type === "LCL") {
       const needed = Number(booking.cbm_allocated ?? 0);
       if (space.lclCapacity != null && needed > (space.lclRemaining ?? 0)) {
         throw new BadRequestException(
@@ -293,14 +333,17 @@ export class NvoccBookingsService {
     }
   }
 
-  private async deductSpaceTx(tx: Prisma.TransactionClient, booking: NvoccBooking) {
-    if (booking.cargo_type === 'FCL' && booking.container_count) {
+  private async deductSpaceTx(
+    tx: Prisma.TransactionClient,
+    booking: NvoccBooking,
+  ) {
+    if (booking.cargo_type === "FCL" && booking.container_count) {
       await tx.nvoccVoyage.update({
         where: { id: booking.voyage_id },
         data: { fcl_booked_containers: { increment: booking.container_count } },
       });
     }
-    if (booking.cargo_type === 'LCL' && booking.cbm_allocated) {
+    if (booking.cargo_type === "LCL" && booking.cbm_allocated) {
       await tx.nvoccVoyage.update({
         where: { id: booking.voyage_id },
         data: { lcl_booked_cbm: { increment: booking.cbm_allocated } },
@@ -308,14 +351,17 @@ export class NvoccBookingsService {
     }
   }
 
-  private async releaseSpaceTx(tx: Prisma.TransactionClient, booking: NvoccBooking) {
-    if (booking.cargo_type === 'FCL' && booking.container_count) {
+  private async releaseSpaceTx(
+    tx: Prisma.TransactionClient,
+    booking: NvoccBooking,
+  ) {
+    if (booking.cargo_type === "FCL" && booking.container_count) {
       await tx.nvoccVoyage.update({
         where: { id: booking.voyage_id },
         data: { fcl_booked_containers: { decrement: booking.container_count } },
       });
     }
-    if (booking.cargo_type === 'LCL' && booking.cbm_allocated) {
+    if (booking.cargo_type === "LCL" && booking.cbm_allocated) {
       await tx.nvoccVoyage.update({
         where: { id: booking.voyage_id },
         data: { lcl_booked_cbm: { decrement: booking.cbm_allocated } },
@@ -325,21 +371,23 @@ export class NvoccBookingsService {
 
   async cancel(tenantId: string, id: string, actorId?: string) {
     const booking = await this.findOne(tenantId, id);
-    if (booking.booking_status === 'CANCELLED') {
-      throw new BadRequestException('Booking is already cancelled.');
+    if (booking.booking_status === "CANCELLED") {
+      throw new BadRequestException("Booking is already cancelled.");
     }
-    if (booking.booking_status === 'CONVERTED') {
-      throw new BadRequestException('Cannot cancel a booking that has been converted to a job.');
+    if (booking.booking_status === "CONVERTED") {
+      throw new BadRequestException(
+        "Cannot cancel a booking that has been converted to a job.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      if (booking.booking_status === 'CONFIRMED') {
+      if (booking.booking_status === "CONFIRMED") {
         await this.releaseSpaceTx(tx, booking);
       }
 
       return tx.nvoccBooking.update({
         where: { id },
-        data: { booking_status: 'CANCELLED', updated_by: actorId },
+        data: { booking_status: "CANCELLED", updated_by: actorId },
       });
     });
   }
@@ -351,27 +399,41 @@ export class NvoccBookingsService {
     actorId?: string,
   ): Promise<{ jobId: string; jobNumber: string }> {
     const booking = await this.findOne(tenantId, id);
-    if (booking.booking_status !== 'CONFIRMED') {
-      throw new BadRequestException('Only confirmed bookings can be converted to a job.');
+    if (booking.booking_status !== "CONFIRMED") {
+      throw new BadRequestException(
+        "Only confirmed bookings can be converted to a job.",
+      );
     }
     if (booking.converted_job_id) {
-      throw new ConflictException('Booking has already been converted to a job.');
+      throw new ConflictException(
+        "Booking has already been converted to a job.",
+      );
     }
 
     const voyage = booking.voyage!;
-    const jobType = (booking.job_type ?? 'NVOCC_EXPORT') as JobType;
+    const jobType = (booking.job_type ?? "NVOCC_EXPORT") as JobType;
     const branchCode = dto.branch_id
       ? (
           await this.prisma.runWithTenant(tenantId, (tx) =>
-            tx.branch.findFirst({ where: { id: dto.branch_id, tenant_id: tenantId, deleted_at: null } }),
+            tx.branch.findFirst({
+              where: {
+                id: dto.branch_id,
+                tenant_id: tenantId,
+                deleted_at: null,
+              },
+            }),
           )
         )?.code
       : undefined;
 
-    const jobNumber = await this.numberGenerator.generate(tenantId, 'JOB_NUMBER', {
-      extraSegment: JOB_TYPE_CODE[jobType] ?? 'NE',
-      branchCode,
-    });
+    const jobNumber = await this.numberGenerator.generate(
+      tenantId,
+      "JOB_NUMBER",
+      {
+        extraSegment: JOB_TYPE_CODE[jobType] ?? "NE",
+        branchCode,
+      },
+    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.create({
@@ -381,7 +443,7 @@ export class NvoccBookingsService {
           job_number: jobNumber,
           tracking_token: mintTrackingToken(),
           job_type: jobType,
-          status: 'BOOKING_CONFIRMED',
+          status: "BOOKING_CONFIRMED",
           branch_id: dto.branch_id,
           department_id: dto.department_id,
           shipper_id: booking.shipper_id,
@@ -409,7 +471,7 @@ export class NvoccBookingsService {
       if (booking.charges.length > 0) {
         const fallbackChargeCode = await tx.chargeCode.findFirst({
           where: { tenant_id: tenantId, deleted_at: null, is_active: true },
-          orderBy: { code: 'asc' },
+          orderBy: { code: "asc" },
         });
 
         const chargeRows = booking.charges
@@ -456,13 +518,17 @@ export class NvoccBookingsService {
 
       await tx.nvoccBooking.update({
         where: { id },
-        data: { booking_status: 'CONVERTED', converted_job_id: job.id, updated_by: actorId },
+        data: {
+          booking_status: "CONVERTED",
+          converted_job_id: job.id,
+          updated_by: actorId,
+        },
       });
 
       if (booking.enquiry_id) {
         await tx.nvoccEnquiry.update({
           where: { id: booking.enquiry_id },
-          data: { enquiry_status: 'CONVERTED', updated_by: actorId },
+          data: { enquiry_status: "CONVERTED", updated_by: actorId },
         });
       }
 
@@ -470,33 +536,38 @@ export class NvoccBookingsService {
     });
   }
 
-  async sendCutoffReminder(tenantId: string, id: string, dto: SendCutoffReminderDto) {
+  async sendCutoffReminder(
+    tenantId: string,
+    id: string,
+    dto: SendCutoffReminderDto,
+  ) {
     const booking = await this.findOne(tenantId, id);
     const voyage = booking.voyage!;
     const cutoffs = [
-      ['SI', voyage.si_cutoff],
-      ['VGM', voyage.vgm_cutoff],
-      ['CY', voyage.cy_cutoff],
-      ['Cargo', voyage.cargo_cutoff],
+      ["SI", voyage.si_cutoff],
+      ["VGM", voyage.vgm_cutoff],
+      ["CY", voyage.cy_cutoff],
+      ["Cargo", voyage.cargo_cutoff],
     ].filter(([, d]) => d);
 
     const body = [
       `Booking: ${booking.booking_number}`,
-      `HBL: ${booking.nvocc_hbl_number ?? 'TBC'}`,
-      '',
-      'Upcoming cut-offs:',
+      `HBL: ${booking.nvocc_hbl_number ?? "TBC"}`,
+      "",
+      "Upcoming cut-offs:",
       ...cutoffs.map(([label, date]) => {
         const d = date instanceof Date ? date : date ? new Date(date) : null;
-        return `${label}: ${d?.toISOString() ?? 'N/A'}`;
+        return `${label}: ${d?.toISOString() ?? "N/A"}`;
       }),
-      '',
-      dto.message ?? 'Please ensure all documentation is submitted before the cut-off dates.',
-    ].join('\n');
+      "",
+      dto.message ??
+        "Please ensure all documentation is submitted before the cut-off dates.",
+    ].join("\n");
 
-    const to = dto.to_email ?? 'ops@example.com';
+    const to = dto.to_email ?? "ops@example.com";
     await this.emailService.send({
       tenantId,
-      eventType: 'OTHER',
+      eventType: "OTHER",
       to,
       subject: `Cut-off reminder — Booking ${booking.booking_number}`,
       body,
@@ -505,23 +576,29 @@ export class NvoccBookingsService {
     return { sent: true, to };
   }
 
-  async generateBookingConfirmationPdf(tenantId: string, id: string, actorId?: string) {
+  async generateBookingConfirmationPdf(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ) {
     const booking = await this.findOne(tenantId, id);
     if (!booking.converted_job_id) {
-      throw new BadRequestException('Convert booking to a job before generating booking confirmation PDF.');
+      throw new BadRequestException(
+        "Convert booking to a job before generating booking confirmation PDF.",
+      );
     }
     return this.documentGeneration.enqueueJobDocument(
       tenantId,
       booking.converted_job_id,
-      'BOOKING_CONFIRMATION',
+      "BOOKING_CONFIRMATION",
       actorId,
     );
   }
 
   async remove(tenantId: string, id: string, actorId?: string) {
     const booking = await this.findOne(tenantId, id);
-    if (booking.booking_status === 'CONFIRMED') {
-      throw new BadRequestException('Cancel the booking before deleting.');
+    if (booking.booking_status === "CONFIRMED") {
+      throw new BadRequestException("Cancel the booking before deleting.");
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccBooking.update({

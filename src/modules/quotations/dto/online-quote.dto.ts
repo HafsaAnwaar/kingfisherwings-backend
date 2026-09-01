@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsDateString,
   IsEnum,
@@ -9,12 +9,15 @@ import {
   IsUUID,
   Length,
   Min,
-} from 'class-validator';
-import { JobType } from '@prisma/client';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+} from "class-validator";
+import { JobType } from "@prisma/client";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
 export class CreateOnlineQuoteDto {
-  @ApiProperty({ example: 'kingfisher', description: 'Tenant slug — identifies which company receives the enquiry.' })
+  @ApiProperty({
+    example: "kingfisher",
+    description: "Tenant slug — identifies which company receives the enquiry.",
+  })
   @IsString()
   @Length(2, 100)
   tenant_slug!: string;
@@ -23,28 +26,32 @@ export class CreateOnlineQuoteDto {
   @IsEnum(JobType)
   job_type!: JobType;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Existing customer Party. If omitted, contact_email + contact_name are required.' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Existing customer Party. If omitted, contact_email + contact_name are required.",
+  })
   @IsOptional()
   @IsUUID()
   customer_id?: string;
 
-  @ApiPropertyOptional({ example: 'john@acme.com' })
+  @ApiPropertyOptional({ example: "john@acme.com" })
   @IsOptional()
   @IsStrictEmail()
   contact_email?: string;
 
-  @ApiPropertyOptional({ example: 'John Smith' })
+  @ApiPropertyOptional({ example: "John Smith" })
   @IsOptional()
   @IsString()
   @Length(2, 200)
   contact_name?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
@@ -78,7 +85,7 @@ export class CreateOnlineQuoteDto {
   @Min(0)
   pieces?: number;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_type_id?: string;
@@ -88,12 +95,12 @@ export class CreateOnlineQuoteDto {
   @IsString()
   special_requirements?: string;
 
-  @ApiPropertyOptional({ example: '2026-08-31' })
+  @ApiPropertyOptional({ example: "2026-08-31" })
   @IsOptional()
   @IsDateString()
   valid_until?: string;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;

@@ -1,14 +1,14 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { QuotationPdfMode } from '@prisma/client';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsEnum, IsOptional, IsString, MaxLength } from "class-validator";
+import { QuotationPdfMode } from "@prisma/client";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
 export class GenerateQuotationPdfDto {
   @ApiProperty({ enum: QuotationPdfMode, default: QuotationPdfMode.CUSTOMER })
   @IsEnum(QuotationPdfMode)
   mode!: QuotationPdfMode;
 
-  @ApiPropertyOptional({ description: 'Template layout variant identifier' })
+  @ApiPropertyOptional({ description: "Template layout variant identifier" })
   @IsOptional()
   @IsString()
   @MaxLength(50)
@@ -16,7 +16,7 @@ export class GenerateQuotationPdfDto {
 }
 
 export class SendQuotationEmailDto {
-  @ApiProperty({ example: 'customer@example.com' })
+  @ApiProperty({ example: "customer@example.com" })
   @IsStrictEmail()
   to_email!: string;
 
@@ -25,7 +25,10 @@ export class SendQuotationEmailDto {
   @IsStrictEmail()
   cc_email?: string;
 
-  @ApiPropertyOptional({ enum: QuotationPdfMode, default: QuotationPdfMode.CUSTOMER })
+  @ApiPropertyOptional({
+    enum: QuotationPdfMode,
+    default: QuotationPdfMode.CUSTOMER,
+  })
   @IsOptional()
   @IsEnum(QuotationPdfMode)
   pdf_mode?: QuotationPdfMode;

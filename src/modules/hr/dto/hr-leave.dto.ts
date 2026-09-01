@@ -1,6 +1,10 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { HrLeaveRequestStatus, HrLeaveType, HrStaffGrade } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  HrLeaveRequestStatus,
+  HrLeaveType,
+  HrStaffGrade,
+} from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsDateString,
@@ -12,7 +16,7 @@ import {
   IsUUID,
   Max,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class LeavePolicyDto {
   @ApiProperty({ enum: HrLeaveType })
@@ -113,7 +117,7 @@ export class LeaveEncashmentDto {
   @IsUUID()
   employee_id!: string;
 
-  @ApiProperty({ enum: HrLeaveType, default: 'ANNUAL' })
+  @ApiProperty({ enum: HrLeaveType, default: "ANNUAL" })
   @IsEnum(HrLeaveType)
   leave_type!: HrLeaveType;
 

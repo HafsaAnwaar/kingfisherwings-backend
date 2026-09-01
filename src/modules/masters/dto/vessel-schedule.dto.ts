@@ -1,5 +1,12 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsDateString,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+} from "class-validator";
 
 export class CreateVesselScheduleDto {
   @ApiProperty()
@@ -7,17 +14,17 @@ export class CreateVesselScheduleDto {
   @Length(1, 50)
   voyage_number!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   shipping_line_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   pol_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   pod_id?: string;
@@ -44,25 +51,35 @@ export class CreateVesselScheduleDto {
   remarks?: string;
 }
 
-export class UpdateVesselScheduleDto extends PartialType(CreateVesselScheduleDto) {}
+export class UpdateVesselScheduleDto extends PartialType(
+  CreateVesselScheduleDto,
+) {}
 
 export class VesselScheduleQueryDto {
-  @ApiPropertyOptional({ description: 'Filter schedules with ETD on/after this date' })
+  @ApiPropertyOptional({
+    description: "Filter schedules with ETD on/after this date",
+  })
   @IsOptional()
   @IsDateString()
   etd_from?: string;
 
-  @ApiPropertyOptional({ description: 'Filter schedules with ETD on/before this date' })
+  @ApiPropertyOptional({
+    description: "Filter schedules with ETD on/before this date",
+  })
   @IsOptional()
   @IsDateString()
   etd_to?: string;
 
-  @ApiPropertyOptional({ description: 'Filter schedules with ETA on/after this date' })
+  @ApiPropertyOptional({
+    description: "Filter schedules with ETA on/after this date",
+  })
   @IsOptional()
   @IsDateString()
   eta_from?: string;
 
-  @ApiPropertyOptional({ description: 'Filter schedules with ETA on/before this date' })
+  @ApiPropertyOptional({
+    description: "Filter schedules with ETA on/before this date",
+  })
   @IsOptional()
   @IsDateString()
   eta_to?: string;

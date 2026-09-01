@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { AccountGroup, AccountType, Prisma, VoucherType } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { ChartOfAccountsService } from './chart-of-accounts.service';
+import { Injectable } from "@nestjs/common";
+import { AccountGroup, AccountType, Prisma, VoucherType } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { ChartOfAccountsService } from "./chart-of-accounts.service";
 import {
   AsOfReportQueryDto,
   ReportPeriodQueryDto,
   VatReturnQueryDto,
-} from './dto/financial-reports.dto';
-import { TrialBalanceQueryDto } from './dto/gl.dto';
+} from "./dto/financial-reports.dto";
+import { TrialBalanceQueryDto } from "./dto/gl.dto";
 
 type AccountBalanceRow = {
   account_id: string;
@@ -52,19 +52,19 @@ export class FinancialReportsService {
       companyId: query.company_id,
     });
 
-    const assets = this.filterSection(rows, ['ASSETS'], hideZero);
-    const liabilities = this.filterSection(rows, ['LIABILITIES'], hideZero);
-    const equityAccounts = this.filterSection(rows, ['EQUITY'], hideZero);
+    const assets = this.filterSection(rows, ["ASSETS"], hideZero);
+    const liabilities = this.filterSection(rows, ["LIABILITIES"], hideZero);
+    const equityAccounts = this.filterSection(rows, ["EQUITY"], hideZero);
 
     // Period P&L (YTD through as_of) — credit nature means profit is negative in our signed balance
     const ytd = await this.computeAccountBalances(tenantId, {
       fromDate: yearStart,
       toDate: asOf,
       companyId: query.company_id,
-      groups: ['REVENUE', 'EXPENSES'],
+      groups: ["REVENUE", "EXPENSES"],
     });
-    const revenue = ytd.filter((r) => r.account_group === 'REVENUE');
-    const expenses = ytd.filter((r) => r.account_group === 'EXPENSES');
+    const revenue = ytd.filter((r) => r.account_group === "REVENUE");
+    const expenses = ytd.filter((r) => r.account_group === "EXPENSES");
     // Revenue credit balances appear as negative `balance`; profit = -sum(revenue balance) - sum(expense balance)
     // Expense debit balances are positive.
     const revenueTotal = revenue.reduce((s, r) => s + -r.balance, 0); // convert credit to positive revenue
@@ -73,28 +73,31 @@ export class FinancialReportsService {
 
     const totalAssets = assets.reduce((s, r) => s + r.balance, 0);
     const totalLiabilities = liabilities.reduce((s, r) => s + -r.balance, 0);
-    const totalEquityAccounts = equityAccounts.reduce((s, r) => s + -r.balance, 0);
+    const totalEquityAccounts = equityAccounts.reduce(
+      (s, r) => s + -r.balance,
+      0,
+    );
     const totalEquity = totalEquityAccounts + netIncome;
     const totalLiabEquity = totalLiabilities + totalEquity;
 
     return {
-      report: 'BALANCE_SHEET',
+      report: "BALANCE_SHEET",
       as_of: asOf.toISOString().slice(0, 10),
       company_id: query.company_id ?? null,
       assets: {
-        lines: assets.map((r) => this.toDisplayLine(r, 'debit')),
+        lines: assets.map((r) => this.toDisplayLine(r, "debit")),
         total: round2(totalAssets),
       },
       liabilities: {
-        lines: liabilities.map((r) => this.toDisplayLine(r, 'credit')),
+        lines: liabilities.map((r) => this.toDisplayLine(r, "credit")),
         total: round2(totalLiabilities),
       },
       equity: {
         lines: [
-          ...equityAccounts.map((r) => this.toDisplayLine(r, 'credit')),
+          ...equityAccounts.map((r) => this.toDisplayLine(r, "credit")),
           {
-            account_code: 'CY-NI',
-            account_name: 'Current Year Net Income / (Loss)',
+            account_code: "CY-NI",
+            account_name: "Current Year Net Income / (Loss)",
             amount: round2(netIncome),
           },
         ],
@@ -119,18 +122,24 @@ export class FinancialReportsService {
       fromDate: from,
       toDate: to,
       companyId: query.company_id,
-      groups: ['REVENUE', 'EXPENSES'],
+      groups: ["REVENUE", "EXPENSES"],
       openingIgnored: true,
     });
 
-    const revenue = rows.filter((r) => r.account_group === 'REVENUE' && r.account_type !== 'OTHER_INCOME');
-    const otherIncome = rows.filter((r) => r.account_type === 'OTHER_INCOME');
-    const cogs = rows.filter((r) => r.account_type === 'COST_OF_SALES');
-    const opex = rows.filter((r) => r.account_type === 'EXPENSE' || r.account_type === 'OTHER_EXPENSE');
+    const revenue = rows.filter(
+      (r) => r.account_group === "REVENUE" && r.account_type !== "OTHER_INCOME",
+    );
+    const otherIncome = rows.filter((r) => r.account_type === "OTHER_INCOME");
+    const cogs = rows.filter((r) => r.account_type === "COST_OF_SALES");
+    const opex = rows.filter(
+      (r) => r.account_type === "EXPENSE" || r.account_type === "OTHER_EXPENSE",
+    );
 
     const mapCredit = (list: AccountBalanceRow[]) =>
       list
-        .filter((r) => !hideZero || r.period_debit !== 0 || r.period_credit !== 0)
+        .filter(
+          (r) => !hideZero || r.period_debit !== 0 || r.period_credit !== 0,
+        )
         .map((r) => ({
           account_id: r.account_id,
           account_code: r.account_code,
@@ -140,7 +149,9 @@ export class FinancialReportsService {
 
     const mapDebit = (list: AccountBalanceRow[]) =>
       list
-        .filter((r) => !hideZero || r.period_debit !== 0 || r.period_credit !== 0)
+        .filter(
+          (r) => !hideZero || r.period_debit !== 0 || r.period_credit !== 0,
+        )
         .map((r) => ({
           account_id: r.account_id,
           account_code: r.account_code,
@@ -161,14 +172,17 @@ export class FinancialReportsService {
     const netIncome = grossProfit + totalOtherIncome - totalOpex;
 
     return {
-      report: 'PROFIT_AND_LOSS',
+      report: "PROFIT_AND_LOSS",
       from_date: from.toISOString().slice(0, 10),
       to_date: to.toISOString().slice(0, 10),
       company_id: query.company_id ?? null,
       revenue: { lines: revenueLines, total: round2(totalRevenue) },
       cost_of_sales: { lines: cogsLines, total: round2(totalCogs) },
       gross_profit: round2(grossProfit),
-      other_income: { lines: otherIncomeLines, total: round2(totalOtherIncome) },
+      other_income: {
+        lines: otherIncomeLines,
+        total: round2(totalOtherIncome),
+      },
       operating_expenses: { lines: opexLines, total: round2(totalOpex) },
       net_income: round2(netIncome),
     };
@@ -187,7 +201,11 @@ export class FinancialReportsService {
           tenant_id: tenantId,
           deleted_at: null,
           is_active: true,
-          OR: [{ is_bank_account: true }, { is_cash_account: true }, { account_sub_type: { in: ['BANK', 'CASH'] } }],
+          OR: [
+            { is_bank_account: true },
+            { is_cash_account: true },
+            { account_sub_type: { in: ["BANK", "CASH"] } },
+          ],
           ...(query.company_id ? { company_id: query.company_id } : {}),
         },
         select: { id: true, account_code: true, account_name: true },
@@ -197,7 +215,7 @@ export class FinancialReportsService {
     const accountIds = accounts.map((a) => a.id);
     if (!accountIds.length) {
       return {
-        report: 'CASH_FLOW',
+        report: "CASH_FLOW",
         from_date: from.toISOString().slice(0, 10),
         to_date: to.toISOString().slice(0, 10),
         opening_cash: 0,
@@ -223,7 +241,7 @@ export class FinancialReportsService {
           deleted_at: null,
           account_id: { in: accountIds },
           voucher: {
-            status: 'POSTED',
+            status: "POSTED",
             deleted_at: null,
             voucher_date: { gte: from, lte: to },
             ...(query.company_id ? { company_id: query.company_id } : {}),
@@ -241,20 +259,20 @@ export class FinancialReportsService {
           },
           account: { select: { account_code: true, account_name: true } },
         },
-        orderBy: { created_at: 'asc' },
+        orderBy: { created_at: "asc" },
       }),
     );
 
     const operatingTypes: VoucherType[] = [
-      'BANK_RECEIPT',
-      'CASH_RECEIPT',
-      'BANK_PAYMENT',
-      'CASH_PAYMENT',
-      'JOURNAL',
-      'PURCHASE_INVOICE',
-      'PURCHASE_CREDIT_NOTE',
-      'OPENING_BALANCE',
-      'RECURRING',
+      "BANK_RECEIPT",
+      "CASH_RECEIPT",
+      "BANK_PAYMENT",
+      "CASH_PAYMENT",
+      "JOURNAL",
+      "PURCHASE_INVOICE",
+      "PURCHASE_CREDIT_NOTE",
+      "OPENING_BALANCE",
+      "RECURRING",
     ];
 
     let inflows = 0;
@@ -262,8 +280,8 @@ export class FinancialReportsService {
     const operatingLines: Array<Record<string, unknown>> = [];
     const investingLines: Array<Record<string, unknown>> = [];
     const financingLines: Array<Record<string, unknown>> = [];
-    let investingNet = 0;
-    let financingNet = 0;
+    const investingNet = 0;
+    const financingNet = 0;
 
     for (const line of lines) {
       const debit = Number(line.debit_base);
@@ -281,7 +299,7 @@ export class FinancialReportsService {
         net: round2(net),
       };
 
-      if (line.voucher.voucher_type === 'CONTRA') {
+      if (line.voucher.voucher_type === "CONTRA") {
         // Skip netting both sides of same contra (would cancel); attribute nothing
         continue;
       }
@@ -293,7 +311,8 @@ export class FinancialReportsService {
       }
     }
 
-    const closingCash = openingCash + inflows - outflows + investingNet + financingNet;
+    const closingCash =
+      openingCash + inflows - outflows + investingNet + financingNet;
 
     const byAccount = await Promise.all(
       accounts.map(async (a) => {
@@ -312,7 +331,7 @@ export class FinancialReportsService {
     );
 
     return {
-      report: 'CASH_FLOW',
+      report: "CASH_FLOW",
       from_date: from.toISOString().slice(0, 10),
       to_date: to.toISOString().slice(0, 10),
       opening_cash: round2(openingCash),
@@ -343,7 +362,7 @@ export class FinancialReportsService {
         where: {
           tenant_id: tenantId,
           deleted_at: null,
-          status: { in: ['POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'] },
+          status: { in: ["POSTED", "SENT", "PARTIALLY_PAID", "PAID"] },
           invoice_date: { gte: from, lte: to },
           ...(query.company_id ? { company_id: query.company_id } : {}),
         },
@@ -359,13 +378,21 @@ export class FinancialReportsService {
           vat_rate: true,
           party: { select: { id: true, name: true, vat_number: true } },
         },
-        orderBy: { invoice_date: 'asc' },
+        orderBy: { invoice_date: "asc" },
       }),
     );
 
-    const sales = invoices.filter((i) => i.invoice_type === 'CUSTOMER_INVOICE' || i.invoice_type === 'DEBIT_NOTE');
-    const creditNotes = invoices.filter((i) => i.invoice_type === 'CREDIT_NOTE');
-    const purchases = invoices.filter((i) => i.invoice_type === 'PURCHASE_INVOICE');
+    const sales = invoices.filter(
+      (i) =>
+        i.invoice_type === "CUSTOMER_INVOICE" ||
+        i.invoice_type === "DEBIT_NOTE",
+    );
+    const creditNotes = invoices.filter(
+      (i) => i.invoice_type === "CREDIT_NOTE",
+    );
+    const purchases = invoices.filter(
+      (i) => i.invoice_type === "PURCHASE_INVOICE",
+    );
 
     const outputVat =
       sales.reduce((s, i) => s + Number(i.tax_amount), 0) -
@@ -374,7 +401,10 @@ export class FinancialReportsService {
       sales.reduce((s, i) => s + Number(i.subtotal), 0) -
       creditNotes.reduce((s, i) => s + Number(i.subtotal), 0);
     const inputVat = purchases.reduce((s, i) => s + Number(i.tax_amount), 0);
-    const taxablePurchases = purchases.reduce((s, i) => s + Number(i.subtotal), 0);
+    const taxablePurchases = purchases.reduce(
+      (s, i) => s + Number(i.subtotal),
+      0,
+    );
     const netVat = outputVat - inputVat;
 
     const taxAccounts = await this.computeAccountBalances(tenantId, {
@@ -383,11 +413,11 @@ export class FinancialReportsService {
       companyId: query.company_id,
       openingIgnored: true,
     });
-    const glTax = taxAccounts.filter((a) => a.account_sub_type === 'TAX');
+    const glTax = taxAccounts.filter((a) => a.account_sub_type === "TAX");
 
     return {
-      report: 'VAT_RETURN',
-      regime: 'UAE_VAT',
+      report: "VAT_RETURN",
+      regime: "UAE_VAT",
       from_date: query.from_date,
       to_date: query.to_date,
       company_id: query.company_id ?? null,
@@ -450,16 +480,23 @@ export class FinancialReportsService {
     return { from, to };
   }
 
-  private filterSection(rows: AccountBalanceRow[], groups: AccountGroup[], hideZero: boolean) {
+  private filterSection(
+    rows: AccountBalanceRow[],
+    groups: AccountGroup[],
+    hideZero: boolean,
+  ) {
     return rows.filter(
       (r) =>
         groups.includes(r.account_group) &&
-        (!hideZero || Math.abs(r.balance) > 0.0001 || r.period_debit !== 0 || r.period_credit !== 0),
+        (!hideZero ||
+          Math.abs(r.balance) > 0.0001 ||
+          r.period_debit !== 0 ||
+          r.period_credit !== 0),
     );
   }
 
-  private toDisplayLine(r: AccountBalanceRow, nature: 'debit' | 'credit') {
-    const amount = nature === 'debit' ? r.balance : -r.balance;
+  private toDisplayLine(r: AccountBalanceRow, nature: "debit" | "credit") {
+    const amount = nature === "debit" ? r.balance : -r.balance;
     return {
       account_id: r.account_id,
       account_code: r.account_code,
@@ -487,23 +524,25 @@ export class FinancialReportsService {
           deleted_at: null,
           is_active: true,
           is_postable: true,
-          ...(opts.companyId ? { OR: [{ company_id: opts.companyId }, { company_id: null }] } : {}),
+          ...(opts.companyId
+            ? { OR: [{ company_id: opts.companyId }, { company_id: null }] }
+            : {}),
           ...(opts.groups ? { account_group: { in: opts.groups } } : {}),
           ...(opts.accountIds ? { id: { in: opts.accountIds } } : {}),
         },
-        orderBy: [{ sort_order: 'asc' }, { account_code: 'asc' }],
+        orderBy: [{ sort_order: "asc" }, { account_code: "asc" }],
       }),
     );
 
     const aggregates = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.voucherLine.groupBy({
-        by: ['account_id'],
+        by: ["account_id"],
         where: {
           tenant_id: tenantId,
           deleted_at: null,
           ...(opts.accountIds ? { account_id: { in: opts.accountIds } } : {}),
           voucher: {
-            status: 'POSTED',
+            status: "POSTED",
             deleted_at: null,
             voucher_date: {
               ...(opts.fromDate ? { gte: opts.fromDate } : {}),
@@ -519,7 +558,10 @@ export class FinancialReportsService {
     const byId = new Map(
       aggregates.map((a) => [
         a.account_id,
-        { debit: Number(a._sum.debit_base ?? 0), credit: Number(a._sum.credit_base ?? 0) },
+        {
+          debit: Number(a._sum.debit_base ?? 0),
+          credit: Number(a._sum.credit_base ?? 0),
+        },
       ]),
     );
 
@@ -527,7 +569,7 @@ export class FinancialReportsService {
       let opening = 0;
       if (!opts.openingIgnored) {
         opening = Number(a.opening_balance);
-        if (a.opening_balance_type === 'CREDIT') opening = -opening;
+        if (a.opening_balance_type === "CREDIT") opening = -opening;
       }
       const move = byId.get(a.id) ?? { debit: 0, credit: 0 };
       return {

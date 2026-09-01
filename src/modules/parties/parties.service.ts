@@ -1,17 +1,29 @@
-import { ConflictException, Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Party, Prisma } from '@prisma/client';
-import { parse } from 'csv-parse/sync';
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { Party, Prisma } from "@prisma/client";
+import { parse } from "csv-parse/sync";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
+import { PrismaService } from "../../prisma/prisma.service";
 
-import { CreatePartyDto, UpdatePartyDto } from './dto/party.dto';
-import { PartyQueryDto } from './dto/party-query.dto';
-import { UpdateCreditStatusDto } from './dto/update-credit-status.dto';
-import { CreatePartyContactDto, UpdatePartyContactDto } from './dto/party-contact.dto';
-import { CreatePartyAddressDto, UpdatePartyAddressDto } from './dto/party-address.dto';
-import { PartyImportResultDto } from './dto/party-import-result.dto';
-import { CountryLocaleService } from '../../common/locale/country-locale.service';
+import { CreatePartyDto, UpdatePartyDto } from "./dto/party.dto";
+import { PartyQueryDto } from "./dto/party-query.dto";
+import { UpdateCreditStatusDto } from "./dto/update-credit-status.dto";
+import {
+  CreatePartyContactDto,
+  UpdatePartyContactDto,
+} from "./dto/party-contact.dto";
+import {
+  CreatePartyAddressDto,
+  UpdatePartyAddressDto,
+} from "./dto/party-address.dto";
+import { PartyImportResultDto } from "./dto/party-import-result.dto";
+import { CountryLocaleService } from "../../common/locale/country-locale.service";
 
 const MAX_IMPORT_ROWS = 5000;
 
@@ -28,7 +40,11 @@ export class PartiesService {
   // PARTY CRUD
   // ============================================================
 
-  async create(tenantId: string, dto: CreatePartyDto, actorId?: string): Promise<Party> {
+  async create(
+    tenantId: string,
+    dto: CreatePartyDto,
+    actorId?: string,
+  ): Promise<Party> {
     await this.assertSalespersonValid(tenantId, dto.salesperson_id);
     await this.assertCompanyExists(tenantId, dto.company_id);
 
@@ -78,8 +94,8 @@ export class PartiesService {
         }),
       );
     } catch (error: any) {
-      if (error?.code === 'P2002') {
-        throw new ConflictException('A party with this code already exists.');
+      if (error?.code === "P2002") {
+        throw new ConflictException("A party with this code already exists.");
       }
       throw error;
     }
@@ -96,28 +112,43 @@ export class PartiesService {
   // CSV delimiter). Header row is case-insensitive, matched by name.
   // ============================================================
 
-  async bulkImport(tenantId: string, fileBuffer: Buffer, actorId?: string): Promise<PartyImportResultDto> {
+  async bulkImport(
+    tenantId: string,
+    fileBuffer: Buffer,
+    actorId?: string,
+  ): Promise<PartyImportResultDto> {
     let rows: Record<string, string>[];
 
     try {
       rows = parse(fileBuffer, {
-        columns: (header: string[]) => header.map((h) => h.trim().toLowerCase()),
+        columns: (header: string[]) =>
+          header.map((h) => h.trim().toLowerCase()),
         skip_empty_lines: true,
         trim: true,
       });
     } catch (error: any) {
-      throw new BadRequestException(`Could not parse CSV file: ${error.message}`);
+      throw new BadRequestException(
+        `Could not parse CSV file: ${error.message}`,
+      );
     }
 
     if (rows.length === 0) {
-      throw new BadRequestException('CSV file has no data rows.');
+      throw new BadRequestException("CSV file has no data rows.");
     }
 
     if (rows.length > MAX_IMPORT_ROWS) {
-      throw new BadRequestException(`CSV file has ${rows.length} rows — the limit is ${MAX_IMPORT_ROWS} per import.`);
+      throw new BadRequestException(
+        `CSV file has ${rows.length} rows — the limit is ${MAX_IMPORT_ROWS} per import.`,
+      );
     }
 
-    const result: PartyImportResultDto = { total: rows.length, imported: 0, failed: 0, createdIds: [], errors: [] };
+    const result: PartyImportResultDto = {
+      total: rows.length,
+      imported: 0,
+      failed: 0,
+      createdIds: [],
+      errors: [],
+    };
 
     for (let i = 0; i < rows.length; i++) {
       const rowNumber = i + 1;
@@ -140,7 +171,12 @@ export class PartiesService {
         currency_code: raw.currency_code || undefined,
         iata_code: raw.iata_code || undefined,
         scac_code: raw.scac_code || undefined,
-        tags: raw.tags ? raw.tags.split('|').map((t) => t.trim()).filter(Boolean) : undefined,
+        tags: raw.tags
+          ? raw.tags
+              .split("|")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : undefined,
         notes: raw.notes || undefined,
       };
 
@@ -152,8 +188,8 @@ export class PartiesService {
         result.errors.push({
           row: rowNumber,
           message: validationErrors
-            .map((e) => Object.values(e.constraints ?? {}).join('; '))
-            .join(' | '),
+            .map((e) => Object.values(e.constraints ?? {}).join("; "))
+            .join(" | "),
         });
         continue;
       }
@@ -167,7 +203,10 @@ export class PartiesService {
         result.errors.push({
           row: rowNumber,
           code: candidate.code,
-          message: error instanceof ConflictException ? error.message : 'Failed to create record.',
+          message:
+            error instanceof ConflictException
+              ? error.message
+              : "Failed to create record.",
         });
       }
     }
@@ -181,7 +220,10 @@ export class PartiesService {
 
   async findAll(tenantId: string, query: PartyQueryDto) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const where: Prisma.PartyWhereInput = { tenant_id: tenantId, deleted_at: null };
+      const where: Prisma.PartyWhereInput = {
+        tenant_id: tenantId,
+        deleted_at: null,
+      };
 
       if (query.party_type) {
         where.party_type = query.party_type;
@@ -197,10 +239,10 @@ export class PartiesService {
 
       if (query.search) {
         where.OR = [
-          { name: { contains: query.search, mode: 'insensitive' } },
-          { short_name: { contains: query.search, mode: 'insensitive' } },
-          { code: { contains: query.search, mode: 'insensitive' } },
-          { email: { contains: query.search, mode: 'insensitive' } },
+          { name: { contains: query.search, mode: "insensitive" } },
+          { short_name: { contains: query.search, mode: "insensitive" } },
+          { code: { contains: query.search, mode: "insensitive" } },
+          { email: { contains: query.search, mode: "insensitive" } },
         ];
       }
 
@@ -231,28 +273,41 @@ export class PartiesService {
       const party = await tx.party.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
-          contacts: { where: { deleted_at: null }, orderBy: { is_primary: 'desc' } },
-          addresses: { where: { deleted_at: null }, orderBy: { is_default: 'desc' } },
+          contacts: {
+            where: { deleted_at: null },
+            orderBy: { is_primary: "desc" },
+          },
+          addresses: {
+            where: { deleted_at: null },
+            orderBy: { is_default: "desc" },
+          },
         },
       });
 
       if (!party) {
-        throw new NotFoundException('Party not found.');
+        throw new NotFoundException("Party not found.");
       }
 
       return party;
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdatePartyDto, actorId?: string): Promise<Party> {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdatePartyDto,
+    actorId?: string,
+  ): Promise<Party> {
     await this.assertSalespersonValid(tenantId, dto.salesperson_id);
     await this.assertCompanyExists(tenantId, dto.company_id);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const existing = await tx.party.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } });
+      const existing = await tx.party.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      });
 
       if (!existing) {
-        throw new NotFoundException('Party not found.');
+        throw new NotFoundException("Party not found.");
       }
 
       try {
@@ -261,23 +316,32 @@ export class PartiesService {
           data: { ...dto, updated_by: actorId },
         });
       } catch (error: any) {
-        if (error?.code === 'P2002') {
-          throw new ConflictException('A party with this code already exists.');
+        if (error?.code === "P2002") {
+          throw new ConflictException("A party with this code already exists.");
         }
         throw error;
       }
     });
   }
 
-  async softDelete(tenantId: string, id: string, actorId?: string): Promise<void> {
+  async softDelete(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<void> {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const existing = await tx.party.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } });
+      const existing = await tx.party.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      });
 
       if (!existing) {
-        throw new NotFoundException('Party not found.');
+        throw new NotFoundException("Party not found.");
       }
 
-      await tx.party.update({ where: { id }, data: { deleted_at: new Date(), updated_by: actorId } });
+      await tx.party.update({
+        where: { id },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      });
     });
   }
 
@@ -294,19 +358,21 @@ export class PartiesService {
     actorId?: string,
   ): Promise<Party> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const existing = await tx.party.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } });
+      const existing = await tx.party.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      });
 
       if (!existing) {
-        throw new NotFoundException('Party not found.');
+        throw new NotFoundException("Party not found.");
       }
 
       this.logger.log(
         `[CREDIT_STATUS] Party ${id}: ${existing.credit_status} -> ${dto.credit_status}` +
-          (dto.reason ? ` (${dto.reason})` : ''),
+          (dto.reason ? ` (${dto.reason})` : ""),
       );
 
       const noteEntry = `[${new Date().toISOString()}] Credit status changed to ${dto.credit_status}${
-        dto.reason ? `: ${dto.reason}` : ''
+        dto.reason ? `: ${dto.reason}` : ""
       }`;
 
       return tx.party.update({
@@ -324,7 +390,12 @@ export class PartiesService {
   // CONTACTS
   // ============================================================
 
-  async addContact(tenantId: string, partyId: string, dto: CreatePartyContactDto, actorId?: string) {
+  async addContact(
+    tenantId: string,
+    partyId: string,
+    dto: CreatePartyContactDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.assertPartyExists(tx, tenantId, partyId);
 
@@ -361,16 +432,26 @@ export class PartiesService {
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const contact = await tx.partyContact.findFirst({
-        where: { id: contactId, party_id: partyId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: contactId,
+          party_id: partyId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       if (!contact) {
-        throw new NotFoundException('Contact not found.');
+        throw new NotFoundException("Contact not found.");
       }
 
       if (dto.is_primary) {
         await tx.partyContact.updateMany({
-          where: { tenant_id: tenantId, party_id: partyId, is_primary: true, id: { not: contactId } },
+          where: {
+            tenant_id: tenantId,
+            party_id: partyId,
+            is_primary: true,
+            id: { not: contactId },
+          },
           data: { is_primary: false },
         });
       }
@@ -382,14 +463,24 @@ export class PartiesService {
     });
   }
 
-  async removeContact(tenantId: string, partyId: string, contactId: string, actorId?: string): Promise<void> {
+  async removeContact(
+    tenantId: string,
+    partyId: string,
+    contactId: string,
+    actorId?: string,
+  ): Promise<void> {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const contact = await tx.partyContact.findFirst({
-        where: { id: contactId, party_id: partyId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: contactId,
+          party_id: partyId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       if (!contact) {
-        throw new NotFoundException('Contact not found.');
+        throw new NotFoundException("Contact not found.");
       }
 
       await tx.partyContact.update({
@@ -403,7 +494,12 @@ export class PartiesService {
   // ADDRESSES
   // ============================================================
 
-  async addAddress(tenantId: string, partyId: string, dto: CreatePartyAddressDto, actorId?: string) {
+  async addAddress(
+    tenantId: string,
+    partyId: string,
+    dto: CreatePartyAddressDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.assertPartyExists(tx, tenantId, partyId);
 
@@ -442,16 +538,26 @@ export class PartiesService {
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const address = await tx.partyAddress.findFirst({
-        where: { id: addressId, party_id: partyId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: addressId,
+          party_id: partyId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       if (!address) {
-        throw new NotFoundException('Address not found.');
+        throw new NotFoundException("Address not found.");
       }
 
       if (dto.is_default) {
         await tx.partyAddress.updateMany({
-          where: { tenant_id: tenantId, party_id: partyId, is_default: true, id: { not: addressId } },
+          where: {
+            tenant_id: tenantId,
+            party_id: partyId,
+            is_default: true,
+            id: { not: addressId },
+          },
           data: { is_default: false },
         });
       }
@@ -463,14 +569,24 @@ export class PartiesService {
     });
   }
 
-  async removeAddress(tenantId: string, partyId: string, addressId: string, actorId?: string): Promise<void> {
+  async removeAddress(
+    tenantId: string,
+    partyId: string,
+    addressId: string,
+    actorId?: string,
+  ): Promise<void> {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const address = await tx.partyAddress.findFirst({
-        where: { id: addressId, party_id: partyId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: addressId,
+          party_id: partyId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       if (!address) {
-        throw new NotFoundException('Address not found.');
+        throw new NotFoundException("Address not found.");
       }
 
       await tx.partyAddress.update({
@@ -488,55 +604,93 @@ export class PartiesService {
     await this.findOne(tenantId, partyId);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const [jobsAsShipper, jobsAsConsignee, quotations, invoices, paymentRequests, audit] =
-        await Promise.all([
-          tx.job.findMany({
-            where: { tenant_id: tenantId, shipper_id: partyId, deleted_at: null },
-            select: { id: true, job_number: true, job_type: true, status: true, created_at: true },
-            take: 50,
-            orderBy: { created_at: 'desc' },
-          }),
-          tx.job.findMany({
-            where: { tenant_id: tenantId, consignee_id: partyId, deleted_at: null },
-            select: { id: true, job_number: true, job_type: true, status: true, created_at: true },
-            take: 50,
-            orderBy: { created_at: 'desc' },
-          }),
-          tx.quotation.findMany({
-            where: { tenant_id: tenantId, customer_id: partyId, deleted_at: null },
-            select: { id: true, quotation_number: true, status: true, created_at: true, revenue_total: true },
-            take: 50,
-            orderBy: { created_at: 'desc' },
-          }),
-          tx.invoice.findMany({
-            where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
-            select: {
-              id: true,
-              invoice_number: true,
-              status: true,
-              invoice_type: true,
-              total_amount: true,
-              created_at: true,
-            },
-            take: 50,
-            orderBy: { created_at: 'desc' },
-          }),
-          tx.paymentRequest.findMany({
-            where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
-            select: { id: true, request_number: true, status: true, amount: true, created_at: true },
-            take: 50,
-            orderBy: { created_at: 'desc' },
-          }),
-          tx.auditLog.findMany({
-            where: {
-              tenant_id: tenantId,
-              entity: { in: ['Party', 'party', 'PARTIES'] },
-              entity_id: partyId,
-            },
-            take: 50,
-            orderBy: { created_at: 'desc' },
-          }),
-        ]);
+      const [
+        jobsAsShipper,
+        jobsAsConsignee,
+        quotations,
+        invoices,
+        paymentRequests,
+        audit,
+      ] = await Promise.all([
+        tx.job.findMany({
+          where: { tenant_id: tenantId, shipper_id: partyId, deleted_at: null },
+          select: {
+            id: true,
+            job_number: true,
+            job_type: true,
+            status: true,
+            created_at: true,
+          },
+          take: 50,
+          orderBy: { created_at: "desc" },
+        }),
+        tx.job.findMany({
+          where: {
+            tenant_id: tenantId,
+            consignee_id: partyId,
+            deleted_at: null,
+          },
+          select: {
+            id: true,
+            job_number: true,
+            job_type: true,
+            status: true,
+            created_at: true,
+          },
+          take: 50,
+          orderBy: { created_at: "desc" },
+        }),
+        tx.quotation.findMany({
+          where: {
+            tenant_id: tenantId,
+            customer_id: partyId,
+            deleted_at: null,
+          },
+          select: {
+            id: true,
+            quotation_number: true,
+            status: true,
+            created_at: true,
+            revenue_total: true,
+          },
+          take: 50,
+          orderBy: { created_at: "desc" },
+        }),
+        tx.invoice.findMany({
+          where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
+          select: {
+            id: true,
+            invoice_number: true,
+            status: true,
+            invoice_type: true,
+            total_amount: true,
+            created_at: true,
+          },
+          take: 50,
+          orderBy: { created_at: "desc" },
+        }),
+        tx.paymentRequest.findMany({
+          where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
+          select: {
+            id: true,
+            request_number: true,
+            status: true,
+            amount: true,
+            created_at: true,
+          },
+          take: 50,
+          orderBy: { created_at: "desc" },
+        }),
+        tx.auditLog.findMany({
+          where: {
+            tenant_id: tenantId,
+            entity: { in: ["Party", "party", "PARTIES"] },
+            entity_id: partyId,
+          },
+          take: 50,
+          orderBy: { created_at: "desc" },
+        }),
+      ]);
 
       return {
         party_id: partyId,
@@ -550,23 +704,27 @@ export class PartiesService {
   }
 
   async exportCsv(tenantId: string, query: PartyQueryDto) {
-    const page = await this.findAll(tenantId, { ...query, page: 1, limit: 5000 });
+    const page = await this.findAll(tenantId, {
+      ...query,
+      page: 1,
+      limit: 5000,
+    });
     const rows = page.data as Array<Record<string, unknown>>;
     const headers = [
-      'party_type',
-      'code',
-      'name',
-      'short_name',
-      'vat_number',
-      'country_code',
-      'city',
-      'phone',
-      'email',
-      'currency_code',
-      'is_active',
+      "party_type",
+      "code",
+      "name",
+      "short_name",
+      "vat_number",
+      "country_code",
+      "city",
+      "phone",
+      "email",
+      "currency_code",
+      "is_active",
     ];
     const escape = (v: unknown) => {
-      let s = v == null ? '' : String(v);
+      let s = v == null ? "" : String(v);
       // Neutralize CSV/DDE formula injection (CWE-1236) for values that may
       // originate from unauthenticated input (e.g. the public online-quote form).
       if (/^[=+\-@\t\r]/.test(s)) {
@@ -574,14 +732,14 @@ export class PartiesService {
       }
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const lines = [headers.join(',')];
+    const lines = [headers.join(",")];
     for (const row of rows) {
-      lines.push(headers.map((h) => escape(row[h])).join(','));
+      lines.push(headers.map((h) => escape(row[h])).join(","));
     }
     return {
-      content_type: 'text/csv',
-      filename: 'parties-export.csv',
-      csv: lines.join('\n'),
+      content_type: "text/csv",
+      filename: "parties-export.csv",
+      csv: lines.join("\n"),
       count: rows.length,
     };
   }
@@ -590,39 +748,55 @@ export class PartiesService {
   // PRIVATE HELPERS
   // ============================================================
 
-  private async assertPartyExists(tx: Prisma.TransactionClient, tenantId: string, partyId: string): Promise<void> {
-    const exists = await tx.party.findFirst({ where: { id: partyId, tenant_id: tenantId, deleted_at: null } });
+  private async assertPartyExists(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    partyId: string,
+  ): Promise<void> {
+    const exists = await tx.party.findFirst({
+      where: { id: partyId, tenant_id: tenantId, deleted_at: null },
+    });
 
     if (!exists) {
-      throw new NotFoundException('Party not found.');
+      throw new NotFoundException("Party not found.");
     }
   }
 
-  private async assertCompanyExists(tenantId: string, companyId?: string): Promise<void> {
+  private async assertCompanyExists(
+    tenantId: string,
+    companyId?: string,
+  ): Promise<void> {
     if (!companyId) {
       return;
     }
 
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } }),
+      tx.company.findFirst({
+        where: { id: companyId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
   }
 
-  private async assertSalespersonValid(tenantId: string, userId?: string): Promise<void> {
+  private async assertSalespersonValid(
+    tenantId: string,
+    userId?: string,
+  ): Promise<void> {
     if (!userId) {
       return;
     }
 
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.user.findFirst({ where: { id: userId, tenant_id: tenantId, deleted_at: null } }),
+      tx.user.findFirst({
+        where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {
-      throw new NotFoundException('Salesperson (user) not found.');
+      throw new NotFoundException("Salesperson (user) not found.");
     }
   }
 }

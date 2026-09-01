@@ -1,16 +1,24 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
-import { parse } from 'csv-parse/sync';
-import { DocumentationUploadBatchStatus, DocumentationUploadType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { isRedisEnabledEnv } from '../../shared/redis/redis-options.util';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bull";
+import { Queue } from "bull";
+import { parse } from "csv-parse/sync";
+import {
+  DocumentationUploadBatchStatus,
+  DocumentationUploadType,
+  Prisma,
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { isRedisEnabledEnv } from "../../shared/redis/redis-options.util";
 import {
   DOCUMENTATION_UPLOAD_QUEUE,
   DocumentationUploadJobPayload,
-} from '../../shared/queue/queue.constants';
-import { assertDocumentationUploadFile } from '../../common/utils/upload-file.util';
+} from "../../shared/queue/queue.constants";
+import { assertDocumentationUploadFile } from "../../common/utils/upload-file.util";
 
 @Injectable()
 export class DocumentationUploadService {
@@ -19,35 +27,64 @@ export class DocumentationUploadService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
-    @InjectQueue(DOCUMENTATION_UPLOAD_QUEUE) private readonly uploadQueue: Queue,
+    @InjectQueue(DOCUMENTATION_UPLOAD_QUEUE)
+    private readonly uploadQueue: Queue,
   ) {}
 
   getTemplate(uploadType: DocumentationUploadType) {
-    const templates: Record<DocumentationUploadType, { headers: string[]; sample: string[][] }> = {
+    const templates: Record<
+      DocumentationUploadType,
+      { headers: string[]; sample: string[][] }
+    > = {
       CONTAINER_NUMBERS: {
-        headers: ['job_number', 'container_number', 'seal_number'],
-        sample: [['JOB-001', 'MSCU1234567', 'SEAL001']],
+        headers: ["job_number", "container_number", "seal_number"],
+        sample: [["JOB-001", "MSCU1234567", "SEAL001"]],
       },
       CONTAINER_TRANSPORT: {
-        headers: ['job_number', 'container_number', 'charge_description', 'amount', 'currency_code'],
-        sample: [['JOB-001', 'MSCU1234567', 'Transport', '500', 'AED']],
+        headers: [
+          "job_number",
+          "container_number",
+          "charge_description",
+          "amount",
+          "currency_code",
+        ],
+        sample: [["JOB-001", "MSCU1234567", "Transport", "500", "AED"]],
       },
       DPWORLD_TRACKING: {
-        headers: ['job_number', 'container_number', 'milestone', 'event_time', 'remarks'],
-        sample: [['JOB-001', 'MSCU1234567', 'GATE_IN', '2026-01-01T10:00:00Z', '']],
+        headers: [
+          "job_number",
+          "container_number",
+          "milestone",
+          "event_time",
+          "remarks",
+        ],
+        sample: [
+          ["JOB-001", "MSCU1234567", "GATE_IN", "2026-01-01T10:00:00Z", ""],
+        ],
       },
       TRUCK_POSITIONS: {
-        headers: ['job_number', 'vehicle_number', 'latitude', 'longitude', 'recorded_at'],
-        sample: [['JOB-001', 'DXB-1234', '25.2048', '55.2708', '2026-01-01T10:00:00Z']],
+        headers: [
+          "job_number",
+          "vehicle_number",
+          "latitude",
+          "longitude",
+          "recorded_at",
+        ],
+        sample: [
+          ["JOB-001", "DXB-1234", "25.2048", "55.2708", "2026-01-01T10:00:00Z"],
+        ],
       },
     };
 
     const template = templates[uploadType];
-    const lines = [template.headers.join(','), ...template.sample.map((r) => r.join(','))];
+    const lines = [
+      template.headers.join(","),
+      ...template.sample.map((r) => r.join(",")),
+    ];
     return {
       upload_type: uploadType,
-      content_type: 'text/csv',
-      data: lines.join('\n'),
+      content_type: "text/csv",
+      data: lines.join("\n"),
     };
   }
 
@@ -63,7 +100,7 @@ export class DocumentationUploadService {
       tenantId,
       file.buffer,
       file.originalname,
-      file.mimetype || 'text/csv',
+      file.mimetype || "text/csv",
     );
 
     const batch = await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -73,14 +110,17 @@ export class DocumentationUploadService {
           upload_type: uploadType,
           file_name: file.originalname,
           file_storage_key: stored.s3Key,
-          status: 'PENDING',
+          status: "PENDING",
           created_by: actorId,
         },
       }),
     );
 
     if (this.redisEnabled) {
-      await this.uploadQueue.add({ tenantId, batchId: batch.id } satisfies DocumentationUploadJobPayload);
+      await this.uploadQueue.add({
+        tenantId,
+        batchId: batch.id,
+      } satisfies DocumentationUploadJobPayload);
     } else {
       await this.processBatch(tenantId, batch.id);
     }
@@ -90,9 +130,11 @@ export class DocumentationUploadService {
 
   async getBatch(tenantId: string, id: string) {
     const batch = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.documentationUploadBatch.findFirst({ where: { id, tenant_id: tenantId } }),
+      tx.documentationUploadBatch.findFirst({
+        where: { id, tenant_id: tenantId },
+      }),
     );
-    if (!batch) throw new NotFoundException('Upload batch not found.');
+    if (!batch) throw new NotFoundException("Upload batch not found.");
     return batch;
   }
 
@@ -114,17 +156,21 @@ export class DocumentationUploadService {
 
       await tx.documentationUploadBatch.update({
         where: { id: batchId },
-        data: { status: 'PROCESSING' },
+        data: { status: "PROCESSING" },
       });
 
       let buffer: Buffer;
       try {
-        const filename = batch.file_storage_key.split('/').pop() ?? batch.file_name;
+        const filename =
+          batch.file_storage_key.split("/").pop() ?? batch.file_name;
         buffer = await this.storage.readBuffer(tenantId, filename);
       } catch {
         await tx.documentationUploadBatch.update({
           where: { id: batchId },
-          data: { status: 'FAILED', errors: [{ row: 0, message: 'Could not read uploaded file.' }] },
+          data: {
+            status: "FAILED",
+            errors: [{ row: 0, message: "Could not read uploaded file." }],
+          },
         });
         return;
       }
@@ -142,13 +188,14 @@ export class DocumentationUploadService {
         } catch (err) {
           errors.push({
             row: i + 2,
-            message: err instanceof Error ? err.message : 'Row processing failed.',
+            message:
+              err instanceof Error ? err.message : "Row processing failed.",
           });
         }
       }
 
       const status: DocumentationUploadBatchStatus =
-        errors.length === rows.length ? 'FAILED' : 'COMPLETED';
+        errors.length === rows.length ? "FAILED" : "COMPLETED";
 
       await tx.documentationUploadBatch.update({
         where: { id: batchId },
@@ -170,7 +217,7 @@ export class DocumentationUploadService {
     row: Record<string, string>,
   ) {
     const jobNumber = row.job_number?.trim();
-    if (!jobNumber) throw new BadRequestException('job_number is required.');
+    if (!jobNumber) throw new BadRequestException("job_number is required.");
 
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
@@ -181,9 +228,11 @@ export class DocumentationUploadService {
     if (!job) throw new BadRequestException(`Job ${jobNumber} not found.`);
 
     switch (uploadType) {
-      case 'CONTAINER_NUMBERS':
-        if (!job.sea_fcl_details) throw new BadRequestException('Job has no FCL details.');
-        if (!job.container_type_id) throw new BadRequestException('Job has no container type.');
+      case "CONTAINER_NUMBERS":
+        if (!job.sea_fcl_details)
+          throw new BadRequestException("Job has no FCL details.");
+        if (!job.container_type_id)
+          throw new BadRequestException("Job has no container type.");
         await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.jobContainer.create({
             data: {
@@ -196,55 +245,63 @@ export class DocumentationUploadService {
           }),
         );
         break;
-      case 'CONTAINER_TRANSPORT':
+      case "CONTAINER_TRANSPORT":
         await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.jobMilestone.create({
             data: {
               tenant_id: tenantId,
               job_id: job.id,
-              milestone: 'TRANSPORT_CHARGE_UPLOAD',
-              notes: `${row.charge_description ?? 'Transport'}: ${row.amount ?? ''} ${row.currency_code ?? ''}`.trim(),
+              milestone: "TRANSPORT_CHARGE_UPLOAD",
+              notes:
+                `${row.charge_description ?? "Transport"}: ${row.amount ?? ""} ${row.currency_code ?? ""}`.trim(),
               actual_date: new Date(),
             },
           }),
         );
         break;
-      case 'DPWORLD_TRACKING':
+      case "DPWORLD_TRACKING":
         await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.jobMilestone.create({
             data: {
               tenant_id: tenantId,
               job_id: job.id,
-              milestone: row.milestone ?? 'DPWORLD_EVENT',
+              milestone: row.milestone ?? "DPWORLD_EVENT",
               notes: row.remarks,
-              actual_date: row.event_time ? new Date(row.event_time) : new Date(),
+              actual_date: row.event_time
+                ? new Date(row.event_time)
+                : new Date(),
             },
           }),
         );
         break;
-      case 'TRUCK_POSITIONS':
+      case "TRUCK_POSITIONS":
         await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.jobMilestone.create({
             data: {
               tenant_id: tenantId,
               job_id: job.id,
-              milestone: 'TRUCK_POSITION',
-              notes: `Vehicle ${row.vehicle_number ?? ''} @ ${row.latitude},${row.longitude}`,
-              actual_date: row.recorded_at ? new Date(row.recorded_at) : new Date(),
+              milestone: "TRUCK_POSITION",
+              notes: `Vehicle ${row.vehicle_number ?? ""} @ ${row.latitude},${row.longitude}`,
+              actual_date: row.recorded_at
+                ? new Date(row.recorded_at)
+                : new Date(),
             },
           }),
         );
         break;
       default:
-        throw new BadRequestException('Unsupported upload type.');
+        throw new BadRequestException("Unsupported upload type.");
     }
   }
 
-  private async parseUploadRows(buffer: Buffer, fileName: string): Promise<Record<string, string>[]> {
+  private async parseUploadRows(
+    buffer: Buffer,
+    fileName: string,
+  ): Promise<Record<string, string>[]> {
     const lower = fileName.toLowerCase();
-    if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+    if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const ExcelJS = require('exceljs') as typeof import('exceljs');
+      const ExcelJS = require("exceljs") as typeof import("exceljs");
       const workbook = new ExcelJS.Workbook();
       // ExcelJS typings expect Node Buffer; runtime accepts Uint8Array.
       await workbook.xlsx.load(buffer as never);
@@ -253,7 +310,7 @@ export class DocumentationUploadService {
       const headerRow = sheet.getRow(1);
       const headers: string[] = [];
       headerRow.eachCell((cell, col) => {
-        headers[col - 1] = String(cell.value ?? '').trim();
+        headers[col - 1] = String(cell.value ?? "").trim();
       });
       const rows: Record<string, string>[] = [];
       sheet.eachRow((row, rowNumber) => {
@@ -263,7 +320,7 @@ export class DocumentationUploadService {
         headers.forEach((header, idx) => {
           if (!header) return;
           const val = row.getCell(idx + 1).value;
-          const text = val == null ? '' : String(val).trim();
+          const text = val == null ? "" : String(val).trim();
           if (text) hasValue = true;
           record[header] = text;
         });
@@ -272,6 +329,10 @@ export class DocumentationUploadService {
       return rows;
     }
 
-    return parse(buffer, { columns: true, skip_empty_lines: true, trim: true }) as Record<string, string>[];
+    return parse(buffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+    }) as Record<string, string>[];
   }
 }

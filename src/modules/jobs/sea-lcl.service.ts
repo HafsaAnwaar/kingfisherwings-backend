@@ -1,9 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { JobType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AttachLclHouseDto } from './dto/sea-lcl.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { JobType, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AttachLclHouseDto } from "./dto/sea-lcl.dto";
 
-const LCL_TYPES: JobType[] = ['SEA_LCL_EXPORT', 'SEA_LCL_IMPORT'];
+const LCL_TYPES: JobType[] = ["SEA_LCL_EXPORT", "SEA_LCL_IMPORT"];
 
 @Injectable()
 export class SeaLclService {
@@ -13,12 +17,16 @@ export class SeaLclService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const master = await this.getLclMasterOrThrow(tx, tenantId, masterJobId);
       const houses = await tx.job.findMany({
-        where: { tenant_id: tenantId, parent_job_id: masterJobId, deleted_at: null },
+        where: {
+          tenant_id: tenantId,
+          parent_job_id: masterJobId,
+          deleted_at: null,
+        },
         include: {
           cargo_lines: { where: { deleted_at: null } },
           sea_lcl_details: true,
         },
-        orderBy: { created_at: 'asc' },
+        orderBy: { created_at: "asc" },
       });
 
       const totals = houses.reduce(
@@ -45,7 +53,8 @@ export class SeaLclService {
         master_job_id: master.id,
         master_job_number: master.job_number,
         job_type: master.job_type,
-        consolidation_number: master.sea_lcl_details?.consolidation_number ?? null,
+        consolidation_number:
+          master.sea_lcl_details?.consolidation_number ?? null,
         cfs_warehouse_id: master.sea_lcl_details?.cfs_warehouse_id ?? null,
         totals: {
           ...totals,
@@ -70,12 +79,17 @@ export class SeaLclService {
     });
   }
 
-  async attachHouse(tenantId: string, masterJobId: string, dto: AttachLclHouseDto, actorId?: string) {
+  async attachHouse(
+    tenantId: string,
+    masterJobId: string,
+    dto: AttachLclHouseDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const master = await this.getLclMasterOrThrow(tx, tenantId, masterJobId);
 
       if (dto.house_job_id === masterJobId) {
-        throw new BadRequestException('A job cannot be attached to itself.');
+        throw new BadRequestException("A job cannot be attached to itself.");
       }
 
       const house = await tx.job.findFirst({
@@ -83,15 +97,19 @@ export class SeaLclService {
       });
 
       if (!house) {
-        throw new NotFoundException('House job not found.');
+        throw new NotFoundException("House job not found.");
       }
 
       if (house.job_type !== master.job_type) {
-        throw new BadRequestException('House job must be the same job_type as the master.');
+        throw new BadRequestException(
+          "House job must be the same job_type as the master.",
+        );
       }
 
       if (house.parent_job_id && house.parent_job_id !== masterJobId) {
-        throw new BadRequestException('House job is already attached to another master.');
+        throw new BadRequestException(
+          "House job is already attached to another master.",
+        );
       }
 
       if (house.parent_job_id === masterJobId) {
@@ -99,15 +117,21 @@ export class SeaLclService {
       }
 
       if (house.parent_job_id) {
-        throw new BadRequestException('House job already has a parent master.');
+        throw new BadRequestException("House job already has a parent master.");
       }
 
       const nestedHouses = await tx.job.count({
-        where: { tenant_id: tenantId, parent_job_id: dto.house_job_id, deleted_at: null },
+        where: {
+          tenant_id: tenantId,
+          parent_job_id: dto.house_job_id,
+          deleted_at: null,
+        },
       });
 
       if (nestedHouses > 0) {
-        throw new BadRequestException('Cannot attach a master job as a house — only standalone house jobs are allowed.');
+        throw new BadRequestException(
+          "Cannot attach a master job as a house — only standalone house jobs are allowed.",
+        );
       }
 
       return tx.job.update({
@@ -117,7 +141,12 @@ export class SeaLclService {
     });
   }
 
-  async detachHouse(tenantId: string, masterJobId: string, houseJobId: string, actorId?: string) {
+  async detachHouse(
+    tenantId: string,
+    masterJobId: string,
+    houseJobId: string,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getLclMasterOrThrow(tx, tenantId, masterJobId);
 
@@ -131,7 +160,7 @@ export class SeaLclService {
       });
 
       if (!house) {
-        throw new NotFoundException('House job not found under this master.');
+        throw new NotFoundException("House job not found under this master.");
       }
 
       return tx.job.update({
@@ -141,59 +170,129 @@ export class SeaLclService {
     });
   }
 
-  async markCargoReceivedAtCfs(tenantId: string, jobId: string, actorId?: string) {
+  async markCargoReceivedAtCfs(
+    tenantId: string,
+    jobId: string,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
-      if (!job) throw new NotFoundException('Job not found.');
-      if (job.job_type !== 'SEA_LCL_EXPORT') {
-        throw new BadRequestException('CFS cargo receipt is only for SEA_LCL_EXPORT jobs.');
+      const job = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
+      if (job.job_type !== "SEA_LCL_EXPORT") {
+        throw new BadRequestException(
+          "CFS cargo receipt is only for SEA_LCL_EXPORT jobs.",
+        );
       }
 
-      await this.markMilestoneIfPresent(tx, tenantId, jobId, 'CARGO_RECEIVED_AT_CFS', new Date(), actorId);
-      return { job_id: jobId, milestone: 'CARGO_RECEIVED_AT_CFS', marked_at: new Date().toISOString() };
+      await this.markMilestoneIfPresent(
+        tx,
+        tenantId,
+        jobId,
+        "CARGO_RECEIVED_AT_CFS",
+        new Date(),
+        actorId,
+      );
+      return {
+        job_id: jobId,
+        milestone: "CARGO_RECEIVED_AT_CFS",
+        marked_at: new Date().toISOString(),
+      };
     });
   }
 
-  async markConsolidationStarted(tenantId: string, masterJobId: string, actorId?: string) {
+  async markConsolidationStarted(
+    tenantId: string,
+    masterJobId: string,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getLclMasterOrThrow(tx, tenantId, masterJobId);
-      await this.markMilestoneIfPresent(tx, tenantId, masterJobId, 'CONSOLIDATION_STARTED', new Date(), actorId);
-      return { job_id: masterJobId, milestone: 'CONSOLIDATION_STARTED', marked_at: new Date().toISOString() };
+      await this.markMilestoneIfPresent(
+        tx,
+        tenantId,
+        masterJobId,
+        "CONSOLIDATION_STARTED",
+        new Date(),
+        actorId,
+      );
+      return {
+        job_id: masterJobId,
+        milestone: "CONSOLIDATION_STARTED",
+        marked_at: new Date().toISOString(),
+      };
     });
   }
 
-  async markCfsStuffingCompleted(tenantId: string, jobId: string, actorId?: string) {
+  async markCfsStuffingCompleted(
+    tenantId: string,
+    jobId: string,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.assertLclJob(tx, tenantId, jobId, 'SEA_LCL_EXPORT');
-      await this.markMilestoneIfPresent(tx, tenantId, jobId, 'CFS_STUFFING_COMPLETED', new Date(), actorId);
-      return { job_id: jobId, milestone: 'CFS_STUFFING_COMPLETED', marked_at: new Date().toISOString() };
+      await this.assertLclJob(tx, tenantId, jobId, "SEA_LCL_EXPORT");
+      await this.markMilestoneIfPresent(
+        tx,
+        tenantId,
+        jobId,
+        "CFS_STUFFING_COMPLETED",
+        new Date(),
+        actorId,
+      );
+      return {
+        job_id: jobId,
+        milestone: "CFS_STUFFING_COMPLETED",
+        marked_at: new Date().toISOString(),
+      };
     });
   }
 
-  async markCfsDevanningCompleted(tenantId: string, jobId: string, actorId?: string) {
+  async markCfsDevanningCompleted(
+    tenantId: string,
+    jobId: string,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.assertLclJob(tx, tenantId, jobId, 'SEA_LCL_IMPORT');
-      await this.markMilestoneIfPresent(tx, tenantId, jobId, 'CFS_DEVANNING_COMPLETED', new Date(), actorId);
-      return { job_id: jobId, milestone: 'CFS_DEVANNING_COMPLETED', marked_at: new Date().toISOString() };
+      await this.assertLclJob(tx, tenantId, jobId, "SEA_LCL_IMPORT");
+      await this.markMilestoneIfPresent(
+        tx,
+        tenantId,
+        jobId,
+        "CFS_DEVANNING_COMPLETED",
+        new Date(),
+        actorId,
+      );
+      return {
+        job_id: jobId,
+        milestone: "CFS_DEVANNING_COMPLETED",
+        marked_at: new Date().toISOString(),
+      };
     });
   }
 
-  private async getLclMasterOrThrow(tx: Prisma.TransactionClient, tenantId: string, masterJobId: string) {
+  private async getLclMasterOrThrow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    masterJobId: string,
+  ) {
     const master = await tx.job.findFirst({
       where: { id: masterJobId, tenant_id: tenantId, deleted_at: null },
       include: { sea_lcl_details: true },
     });
 
     if (!master) {
-      throw new NotFoundException('Master job not found.');
+      throw new NotFoundException("Master job not found.");
     }
 
     if (!LCL_TYPES.includes(master.job_type)) {
-      throw new BadRequestException('This endpoint requires a Sea LCL job.');
+      throw new BadRequestException("This endpoint requires a Sea LCL job.");
     }
 
     if (master.parent_job_id) {
-      throw new BadRequestException('Consolidation summary is only available on master (parent) LCL jobs.');
+      throw new BadRequestException(
+        "Consolidation summary is only available on master (parent) LCL jobs.",
+      );
     }
 
     return master;
@@ -205,13 +304,17 @@ export class SeaLclService {
     jobId: string,
     expected?: JobType,
   ) {
-    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
-    if (!job) throw new NotFoundException('Job not found.');
+    const job = await tx.job.findFirst({
+      where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!job) throw new NotFoundException("Job not found.");
     if (!LCL_TYPES.includes(job.job_type)) {
-      throw new BadRequestException('This endpoint requires a Sea LCL job.');
+      throw new BadRequestException("This endpoint requires a Sea LCL job.");
     }
     if (expected && job.job_type !== expected) {
-      throw new BadRequestException(`This endpoint requires a ${expected} job.`);
+      throw new BadRequestException(
+        `This endpoint requires a ${expected} job.`,
+      );
     }
     return job;
   }
@@ -225,12 +328,21 @@ export class SeaLclService {
     actorId?: string,
   ) {
     const milestone = await tx.jobMilestone.findFirst({
-      where: { tenant_id: tenantId, job_id: jobId, milestone: milestoneName, deleted_at: null },
+      where: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        milestone: milestoneName,
+        deleted_at: null,
+      },
     });
     if (!milestone || milestone.actual_date) return;
     await tx.jobMilestone.update({
       where: { id: milestone.id },
-      data: { actual_date: actualDate, completed_by: actorId, updated_by: actorId },
+      data: {
+        actual_date: actualDate,
+        completed_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 }

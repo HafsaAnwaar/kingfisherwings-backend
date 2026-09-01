@@ -1,23 +1,29 @@
-import { Injectable, Logger, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Observable, of, tap } from 'rxjs';
-import { RedisService } from '../redis/redis.service';
+import {
+  Injectable,
+  Logger,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Observable, of, tap } from "rxjs";
+import { RedisService } from "../redis/redis.service";
 
 const CACHEABLE_PREFIXES = [
-  '/masters/ports',
-  '/masters/airports',
-  '/masters/charge-codes',
-  '/masters/branches',
-  '/masters/currencies',
-  '/masters/countries',
-  '/masters/exchange-rates',
-  '/masters/departments',
-  '/masters/container-types',
-  '/masters/shipping-lines',
-  '/masters/airlines',
-  '/masters/vessels',
-  '/masters/tax-rates',
-  '/masters/hs-codes',
+  "/masters/ports",
+  "/masters/airports",
+  "/masters/charge-codes",
+  "/masters/branches",
+  "/masters/currencies",
+  "/masters/countries",
+  "/masters/exchange-rates",
+  "/masters/departments",
+  "/masters/container-types",
+  "/masters/shipping-lines",
+  "/masters/airlines",
+  "/masters/vessels",
+  "/masters/tax-rates",
+  "/masters/hs-codes",
 ];
 
 @Injectable()
@@ -29,7 +35,10 @@ export class HttpCacheInterceptor implements NestInterceptor {
     private readonly config: ConfigService,
   ) {}
 
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<unknown>> {
     const req = context.switchToHttp().getRequest<{
       method?: string;
       originalUrl?: string;
@@ -37,17 +46,17 @@ export class HttpCacheInterceptor implements NestInterceptor {
       user?: { tenantId?: string };
     }>();
 
-    if (req.method !== 'GET' || !this.redis.isEnabled) {
+    if (req.method !== "GET" || !this.redis.isEnabled) {
       return next.handle();
     }
 
-    const path = (req.originalUrl ?? req.url ?? '').split('?')[0];
+    const path = (req.originalUrl ?? req.url ?? "").split("?")[0];
     if (!CACHEABLE_PREFIXES.some((p) => path.startsWith(p))) {
       return next.handle();
     }
 
-    const tenantId = req.user?.tenantId ?? 'global';
-    const ttl = this.config.get<number>('redis.ttl.masters') ?? 86400;
+    const tenantId = req.user?.tenantId ?? "global";
+    const ttl = this.config.get<number>("redis.ttl.masters") ?? 86400;
     const cacheKey = `http-cache:${tenantId}:${path}`;
 
     const cached = await this.redis.get(cacheKey);

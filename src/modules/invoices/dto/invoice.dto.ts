@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
@@ -14,12 +14,12 @@ import {
   Max,
   Min,
   ValidateNested,
-} from 'class-validator';
-import { InvoiceStatus, InvoiceType } from '@prisma/client';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+} from "class-validator";
+import { InvoiceStatus, InvoiceType } from "@prisma/client";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
 export class CreateInvoiceLineDto {
-  @ApiProperty({ example: 'Ocean Freight' })
+  @ApiProperty({ example: "Ocean Freight" })
   @IsString()
   @Length(1, 300)
   description!: string;
@@ -37,12 +37,12 @@ export class CreateInvoiceLineDto {
   @Min(0)
   unit_price!: number;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   charge_code_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   tax_rate_id?: string;
@@ -61,31 +61,31 @@ export class CreateInvoiceLineDto {
 export class UpdateInvoiceLineDto extends PartialType(CreateInvoiceLineDto) {}
 
 export class CreateInvoiceDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   party_id!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   department_id?: string;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
@@ -96,7 +96,7 @@ export class CreateInvoiceDto {
   @Min(0)
   exchange_rate?: number;
 
-  @ApiPropertyOptional({ default: 5, description: 'UAE VAT default 5%' })
+  @ApiPropertyOptional({ default: 5, description: "UAE VAT default 5%" })
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -139,7 +139,10 @@ export class CreateInvoiceDto {
 export class UpdateInvoiceDto extends PartialType(CreateInvoiceDto) {}
 
 export class CreateCreditNoteDto {
-  @ApiProperty({ format: 'uuid', description: 'Original customer invoice being credited' })
+  @ApiProperty({
+    format: "uuid",
+    description: "Original customer invoice being credited",
+  })
   @IsUUID()
   credited_invoice_id!: string;
 
@@ -158,7 +161,10 @@ export class CreateCreditNoteDto {
 
 /** Extra charge against a posted customer invoice (Ch.18). */
 export class CreateDebitNoteDto {
-  @ApiProperty({ format: 'uuid', description: 'Original customer invoice being debited' })
+  @ApiProperty({
+    format: "uuid",
+    description: "Original customer invoice being debited",
+  })
   @IsUUID()
   credited_invoice_id!: string;
 
@@ -176,13 +182,13 @@ export class CreateDebitNoteDto {
 }
 
 export class CreatePurchaseInvoiceDto extends CreateInvoiceDto {
-  @ApiProperty({ format: 'uuid', description: 'Vendor/supplier party' })
+  @ApiProperty({ format: "uuid", description: "Vendor/supplier party" })
   @IsUUID()
   party_id!: string;
 }
 
 export class SendInvoiceEmailDto {
-  @ApiProperty({ example: 'customer@example.com' })
+  @ApiProperty({ example: "customer@example.com" })
   @IsStrictEmail()
   to_email!: string;
 
@@ -219,12 +225,12 @@ export class InvoiceQueryDto {
   @IsEnum(InvoiceType)
   invoice_type?: InvoiceType;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;

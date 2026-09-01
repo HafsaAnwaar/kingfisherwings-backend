@@ -4,8 +4,8 @@ import {
   ForbiddenException,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 /**
  * Protects HTTP endpoints that mirror scheduler/cron jobs.
@@ -17,19 +17,21 @@ export class CronSecretGuard implements CanActivate {
   constructor(private readonly config: ConfigService) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const secret = this.config.get<string>('CRON_SECRET')?.trim();
+    const secret = this.config.get<string>("CRON_SECRET")?.trim();
     if (!secret) {
       throw new ForbiddenException(
-        'Cron HTTP trigger is disabled. Set CRON_SECRET to enable it, or rely on the in-process scheduler.',
+        "Cron HTTP trigger is disabled. Set CRON_SECRET to enable it, or rely on the in-process scheduler.",
       );
     }
 
-    const request = context.switchToHttp().getRequest<{ headers: Record<string, string | string[] | undefined> }>();
-    const header = request.headers['x-cron-secret'];
+    const request = context
+      .switchToHttp()
+      .getRequest<{ headers: Record<string, string | string[] | undefined> }>();
+    const header = request.headers["x-cron-secret"];
     const provided = Array.isArray(header) ? header[0] : header;
 
     if (!provided || provided !== secret) {
-      throw new UnauthorizedException('Invalid or missing X-Cron-Secret.');
+      throw new UnauthorizedException("Invalid or missing X-Cron-Secret.");
     }
 
     return true;

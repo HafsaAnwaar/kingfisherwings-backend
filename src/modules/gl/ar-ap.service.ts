@@ -1,35 +1,65 @@
-import { Injectable } from '@nestjs/common';
-import { InvoiceType } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AgingQueryDto } from './dto/ar-ap.dto';
+import { Injectable } from "@nestjs/common";
+import { InvoiceType } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AgingQueryDto } from "./dto/ar-ap.dto";
 
 const STATEMENT_ROW_CAP = 500;
 
-type AgingBucket = 'current' | 'days_1_30' | 'days_31_60' | 'days_61_90' | 'days_90_plus';
+type AgingBucket =
+  | "current"
+  | "days_1_30"
+  | "days_31_60"
+  | "days_61_90"
+  | "days_90_plus";
 
 @Injectable()
 export class ArApService {
   constructor(private readonly prisma: PrismaService) {}
 
   async arAging(tenantId: string, query: AgingQueryDto) {
-    return this.buildAging(tenantId, query, ['CUSTOMER_INVOICE', 'DEBIT_NOTE'], 'AR');
+    return this.buildAging(
+      tenantId,
+      query,
+      ["CUSTOMER_INVOICE", "DEBIT_NOTE"],
+      "AR",
+    );
   }
 
   async apAging(tenantId: string, query: AgingQueryDto) {
-    return this.buildAging(tenantId, query, ['PURCHASE_INVOICE'], 'AP');
+    return this.buildAging(tenantId, query, ["PURCHASE_INVOICE"], "AP");
   }
 
-  async partyStatement(tenantId: string, partyId: string, query: AgingQueryDto, side: 'AR' | 'AP') {
+  async partyStatement(
+    tenantId: string,
+    partyId: string,
+    query: AgingQueryDto,
+    side: "AR" | "AP",
+  ) {
     const asOf = query.as_of ? new Date(query.as_of) : new Date();
     const types: InvoiceType[] =
-      side === 'AR' ? ['CUSTOMER_INVOICE', 'DEBIT_NOTE', 'CREDIT_NOTE'] : ['PURCHASE_INVOICE'];
+      side === "AR"
+        ? ["CUSTOMER_INVOICE", "DEBIT_NOTE", "CREDIT_NOTE"]
+        : ["PURCHASE_INVOICE"];
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const party = await tx.party.findFirst({
         where: { id: partyId, tenant_id: tenantId, deleted_at: null },
-        select: { id: true, code: true, name: true, credit_limit: true, credit_days: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          credit_limit: true,
+          credit_days: true,
+        },
       });
-      if (!party) return { party: null, as_of: asOf, invoices: [], payments: [], summary: null };
+      if (!party)
+        return {
+          party: null,
+          as_of: asOf,
+          invoices: [],
+          payments: [],
+          summary: null,
+        };
 
       const invoices = await tx.invoice.findMany({
         where: {
@@ -37,10 +67,10 @@ export class ArApService {
           party_id: partyId,
           deleted_at: null,
           invoice_type: { in: types },
-          status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] },
+          status: { notIn: ["DRAFT", "CANCELLED", "VOID"] },
           ...(query.company_id ? { company_id: query.company_id } : {}),
         },
-        orderBy: { invoice_date: 'asc' },
+        orderBy: { invoice_date: "asc" },
         take: STATEMENT_ROW_CAP,
         select: {
           id: true,
@@ -61,10 +91,10 @@ export class ArApService {
           tenant_id: tenantId,
           party_id: partyId,
           deleted_at: null,
-          status: 'POSTED',
-          direction: side === 'AR' ? 'RECEIPT' : 'PAYMENT',
+          status: "POSTED",
+          direction: side === "AR" ? "RECEIPT" : "PAYMENT",
         },
-        orderBy: { payment_date: 'asc' },
+        orderBy: { payment_date: "asc" },
         take: STATEMENT_ROW_CAP,
         select: {
           id: true,
@@ -79,7 +109,12 @@ export class ArApService {
 
       const openBalance = invoices
         .filter((i) => Number(i.balance_due) > 0.0001)
-        .reduce((s, i) => s + Number(i.balance_due) * (i.invoice_type === 'CREDIT_NOTE' ? -1 : 1), 0);
+        .reduce(
+          (s, i) =>
+            s +
+            Number(i.balance_due) * (i.invoice_type === "CREDIT_NOTE" ? -1 : 1),
+          0,
+        );
 
       return {
         party,
@@ -90,8 +125,13 @@ export class ArApService {
         summary: {
           invoice_count: invoices.length,
           open_balance: openBalance,
-          advances_unallocated: payments.reduce((s, p) => s + Number(p.unallocated_amount), 0),
-          truncated: invoices.length >= STATEMENT_ROW_CAP || payments.length >= STATEMENT_ROW_CAP,
+          advances_unallocated: payments.reduce(
+            (s, p) => s + Number(p.unallocated_amount),
+            0,
+          ),
+          truncated:
+            invoices.length >= STATEMENT_ROW_CAP ||
+            payments.length >= STATEMENT_ROW_CAP,
         },
       };
     });
@@ -101,7 +141,7 @@ export class ArApService {
     tenantId: string,
     query: AgingQueryDto,
     types: InvoiceType[],
-    side: 'AR' | 'AP',
+    side: "AR" | "AP",
   ) {
     const asOf = query.as_of ? new Date(query.as_of) : new Date();
     asOf.setHours(0, 0, 0, 0);
@@ -112,7 +152,7 @@ export class ArApService {
           tenant_id: tenantId,
           deleted_at: null,
           invoice_type: { in: types },
-          status: { in: ['POSTED', 'SENT', 'PARTIALLY_PAID'] },
+          status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
           balance_due: { gt: 0 },
           ...(query.party_id ? { party_id: query.party_id } : {}),
           ...(query.company_id ? { company_id: query.company_id } : {}),
@@ -120,7 +160,7 @@ export class ArApService {
         include: {
           party: { select: { id: true, code: true, name: true } },
         },
-        orderBy: [{ party_id: 'asc' }, { due_date: 'asc' }],
+        orderBy: [{ party_id: "asc" }, { due_date: "asc" }],
       }),
     );
 
@@ -152,7 +192,9 @@ export class ArApService {
       const due = inv.due_date ?? inv.invoice_date;
       const dueDate = new Date(due);
       dueDate.setHours(0, 0, 0, 0);
-      const daysOverdue = Math.floor((asOf.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysOverdue = Math.floor(
+        (asOf.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
       const bucket = this.bucketFor(daysOverdue);
       const balance = Number(inv.balance_due);
 
@@ -196,7 +238,14 @@ export class ArApService {
         days_90_plus: acc.days_90_plus + p.days_90_plus,
         total: acc.total + p.total,
       }),
-      { current: 0, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_90_plus: 0, total: 0 },
+      {
+        current: 0,
+        days_1_30: 0,
+        days_31_60: 0,
+        days_61_90: 0,
+        days_90_plus: 0,
+        total: 0,
+      },
     );
 
     return {
@@ -209,10 +258,10 @@ export class ArApService {
   }
 
   private bucketFor(daysOverdue: number): AgingBucket {
-    if (daysOverdue <= 0) return 'current';
-    if (daysOverdue <= 30) return 'days_1_30';
-    if (daysOverdue <= 60) return 'days_31_60';
-    if (daysOverdue <= 90) return 'days_61_90';
-    return 'days_90_plus';
+    if (daysOverdue <= 0) return "current";
+    if (daysOverdue <= 30) return "days_1_30";
+    if (daysOverdue <= 60) return "days_31_60";
+    if (daysOverdue <= 90) return "days_61_90";
+    return "days_90_plus";
   }
 }

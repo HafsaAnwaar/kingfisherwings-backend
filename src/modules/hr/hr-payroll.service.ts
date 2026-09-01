@@ -2,22 +2,26 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { HrSalaryComponentCode, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../shared/email/email.service';
-import { PdfService } from '../../shared/pdf/pdf.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { GlAutoPostService } from '../gl/gl-auto-post.service';
-import { CurrentUser } from '../users/interfaces/current-user.interface';
+} from "@nestjs/common";
+import { HrSalaryComponentCode, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../shared/email/email.service";
+import { PdfService } from "../../shared/pdf/pdf.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { GlAutoPostService } from "../gl/gl-auto-post.service";
+import { CurrentUser } from "../users/interfaces/current-user.interface";
 import {
   CreatePayrollRunDto,
   GratuityQueryDto,
   PayrollGlSettingDto,
   PayslipEmailDto,
   SalaryComponentDto,
-} from './dto/hr-payroll.dto';
-import { calculateUaeGratuity, formatDateOnly, toUtcDateOnly } from './utils/hr-date.util';
+} from "./dto/hr-payroll.dto";
+import {
+  calculateUaeGratuity,
+  formatDateOnly,
+  toUtcDateOnly,
+} from "./utils/hr-date.util";
 
 const DEFAULT_SALARY_COMPONENTS: Array<{
   code: HrSalaryComponentCode;
@@ -25,12 +29,22 @@ const DEFAULT_SALARY_COMPONENTS: Array<{
   is_earning: boolean;
   sort_order: number;
 }> = [
-  { code: 'BASIC', name: 'Basic Salary', is_earning: true, sort_order: 1 },
-  { code: 'HOUSING', name: 'Housing Allowance', is_earning: true, sort_order: 2 },
-  { code: 'TRANSPORT', name: 'Transport Allowance', is_earning: true, sort_order: 3 },
-  { code: 'MOBILE', name: 'Mobile Allowance', is_earning: true, sort_order: 4 },
-  { code: 'OVERTIME', name: 'Overtime', is_earning: true, sort_order: 5 },
-  { code: 'OTHER', name: 'Other Allowance', is_earning: true, sort_order: 6 },
+  { code: "BASIC", name: "Basic Salary", is_earning: true, sort_order: 1 },
+  {
+    code: "HOUSING",
+    name: "Housing Allowance",
+    is_earning: true,
+    sort_order: 2,
+  },
+  {
+    code: "TRANSPORT",
+    name: "Transport Allowance",
+    is_earning: true,
+    sort_order: 3,
+  },
+  { code: "MOBILE", name: "Mobile Allowance", is_earning: true, sort_order: 4 },
+  { code: "OVERTIME", name: "Overtime", is_earning: true, sort_order: 5 },
+  { code: "OTHER", name: "Other Allowance", is_earning: true, sort_order: 6 },
 ];
 
 @Injectable()
@@ -47,34 +61,41 @@ export class HrPayrollService {
     const data = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrSalaryComponent.findMany({
         where: { tenant_id: user.tenantId, deleted_at: null },
-        orderBy: { sort_order: 'asc' },
+        orderBy: { sort_order: "asc" },
       }),
     );
     return { success: true, data };
   }
 
   async seedSalaryComponents(user: CurrentUser) {
-    const created = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
-      const rows = [];
-      for (const seed of DEFAULT_SALARY_COMPONENTS) {
-        const row = await tx.hrSalaryComponent.upsert({
-          where: {
-            tenant_id_code: { tenant_id: user.tenantId, code: seed.code },
-          },
-          create: {
-            tenant_id: user.tenantId,
-            code: seed.code,
-            name: seed.name,
-            is_earning: seed.is_earning,
-            sort_order: seed.sort_order,
-            created_by: user.id,
-          },
-          update: { name: seed.name, is_earning: seed.is_earning, sort_order: seed.sort_order },
-        });
-        rows.push(row);
-      }
-      return rows;
-    });
+    const created = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) => {
+        const rows = [];
+        for (const seed of DEFAULT_SALARY_COMPONENTS) {
+          const row = await tx.hrSalaryComponent.upsert({
+            where: {
+              tenant_id_code: { tenant_id: user.tenantId, code: seed.code },
+            },
+            create: {
+              tenant_id: user.tenantId,
+              code: seed.code,
+              name: seed.name,
+              is_earning: seed.is_earning,
+              sort_order: seed.sort_order,
+              created_by: user.id,
+            },
+            update: {
+              name: seed.name,
+              is_earning: seed.is_earning,
+              sort_order: seed.sort_order,
+            },
+          });
+          rows.push(row);
+        }
+        return rows;
+      },
+    );
     return { success: true, data: created };
   }
 
@@ -101,8 +122,12 @@ export class HrPayrollService {
   }
 
   async createPayrollRun(user: CurrentUser, dto: CreatePayrollRunDto) {
-    const periodStart = new Date(Date.UTC(dto.payroll_year, dto.payroll_month - 1, 1));
-    const periodEnd = new Date(Date.UTC(dto.payroll_year, dto.payroll_month, 0));
+    const periodStart = new Date(
+      Date.UTC(dto.payroll_year, dto.payroll_month - 1, 1),
+    );
+    const periodEnd = new Date(
+      Date.UTC(dto.payroll_year, dto.payroll_month, 0),
+    );
 
     const run = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrPayrollRun.create({
@@ -113,8 +138,8 @@ export class HrPayrollService {
           payroll_month: dto.payroll_month,
           period_start: periodStart,
           period_end: periodEnd,
-          currency_code: dto.currency_code ?? 'AED',
-          status: 'DRAFT',
+          currency_code: dto.currency_code ?? "AED",
+          status: "DRAFT",
           created_by: user.id,
           updated_by: user.id,
         },
@@ -128,7 +153,7 @@ export class HrPayrollService {
     const data = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrPayrollRun.findMany({
         where: { tenant_id: user.tenantId, deleted_at: null },
-        orderBy: [{ payroll_year: 'desc' }, { payroll_month: 'desc' }],
+        orderBy: [{ payroll_year: "desc" }, { payroll_month: "desc" }],
         include: { _count: { select: { lines: true } } },
       }),
     );
@@ -142,16 +167,21 @@ export class HrPayrollService {
 
   async generateLines(user: CurrentUser, runId: string) {
     const run = await this.requireRun(user.tenantId, runId);
-    if (run.status !== 'DRAFT') {
-      throw new BadRequestException('Payroll run must be in DRAFT status to generate lines.');
+    if (run.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Payroll run must be in DRAFT status to generate lines.",
+      );
     }
 
-    const settings = await this.resolveGlSettings(user.tenantId, run.company_id);
+    const settings = await this.resolveGlSettings(
+      user.tenantId,
+      run.company_id,
+    );
     const bonusRate = Number(settings?.bonus_percent_per_score_point ?? 0.1);
 
     const employees = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployee.findMany({
-        where: { tenant_id: user.tenantId, deleted_at: null, status: 'ACTIVE' },
+        where: { tenant_id: user.tenantId, deleted_at: null, status: "ACTIVE" },
       }),
     );
 
@@ -166,7 +196,7 @@ export class HrPayrollService {
             tenant_id: user.tenantId,
             employee_id: emp.id,
             deleted_at: null,
-            status: 'APPROVED',
+            status: "APPROVED",
             work_date: { gte: monthStart, lte: monthEnd },
           },
         }),
@@ -184,7 +214,7 @@ export class HrPayrollService {
             tenant_id: user.tenantId,
             due_date: { gte: monthStart, lte: monthEnd },
             paid_at: null,
-            loan: { employee_id: emp.id, status: 'ACTIVE' },
+            loan: { employee_id: emp.id, status: "ACTIVE" },
           },
         }),
       );
@@ -196,12 +226,15 @@ export class HrPayrollService {
             tenant_id: user.tenantId,
             employee_id: emp.id,
             deleted_at: null,
-            status: 'OPEN',
+            status: "OPEN",
             outstanding: { gt: 0 },
           },
         }),
       );
-      const advanceDeduction = advances.reduce((s, a) => s + Number(a.outstanding), 0);
+      const advanceDeduction = advances.reduce(
+        (s, a) => s + Number(a.outstanding),
+        0,
+      );
 
       const basic = Number(emp.basic_salary);
       const housing = Number(emp.housing_allowance);
@@ -210,14 +243,18 @@ export class HrPayrollService {
       const other = Number(emp.other_allowance);
       const social = Number(emp.social_security_amount);
 
-      const gross = basic + housing + transport + mobile + other + overtime + bonus;
+      const gross =
+        basic + housing + transport + mobile + other + overtime + bonus;
       const totalDeductions = loanDeduction + advanceDeduction + social;
       const net = gross - totalDeductions;
 
       const line = await this.prisma.runWithTenant(user.tenantId, (tx) =>
         tx.hrPayrollLine.upsert({
           where: {
-            payroll_run_id_employee_id: { payroll_run_id: runId, employee_id: emp.id },
+            payroll_run_id_employee_id: {
+              payroll_run_id: runId,
+              employee_id: emp.id,
+            },
           },
           create: {
             tenant_id: user.tenantId,
@@ -266,26 +303,41 @@ export class HrPayrollService {
       }),
     );
 
-    return { success: true, data: { run_id: runId, lines_generated: lines.length, lines } };
+    return {
+      success: true,
+      data: { run_id: runId, lines_generated: lines.length, lines },
+    };
   }
 
   async finalizeRun(user: CurrentUser, runId: string) {
     const run = await this.requireRun(user.tenantId, runId);
-    if (run.status !== 'DRAFT') {
-      throw new BadRequestException('Only DRAFT payroll runs can be finalized.');
+    if (run.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only DRAFT payroll runs can be finalized.",
+      );
     }
 
     const companyId = run.company_id;
     const company = companyId
       ? await this.prisma.runWithTenant(user.tenantId, (tx) =>
-          tx.company.findFirst({ where: { id: companyId, tenant_id: user.tenantId } }),
+          tx.company.findFirst({
+            where: { id: companyId, tenant_id: user.tenantId },
+          }),
         )
       : await this.prisma.runWithTenant(user.tenantId, (tx) =>
-          tx.company.findFirst({ where: { tenant_id: user.tenantId, is_default: true, deleted_at: null } }),
+          tx.company.findFirst({
+            where: {
+              tenant_id: user.tenantId,
+              is_default: true,
+              deleted_at: null,
+            },
+          }),
         );
 
     if (!company?.wps_employer_mol_id) {
-      throw new BadRequestException('Company WPS employer MOL ID (wps_employer_mol_id) is required.');
+      throw new BadRequestException(
+        "Company WPS employer MOL ID (wps_employer_mol_id) is required.",
+      );
     }
 
     const lines = run.lines ?? [];
@@ -302,7 +354,11 @@ export class HrPayrollService {
     const updated = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrPayrollRun.update({
         where: { id: runId },
-        data: { status: 'FINALIZED', finalized_at: new Date(), updated_by: user.id },
+        data: {
+          status: "FINALIZED",
+          finalized_at: new Date(),
+          updated_by: user.id,
+        },
       }),
     );
 
@@ -310,12 +366,20 @@ export class HrPayrollService {
   }
 
   async postToGl(user: CurrentUser, runId: string) {
-    const result = await this.glAutoPost.postPayrollRunToGl(user.tenantId, runId, user.id);
+    const result = await this.glAutoPost.postPayrollRunToGl(
+      user.tenantId,
+      runId,
+      user.id,
+    );
     if (result.voucher_id) {
       await this.prisma.runWithTenant(user.tenantId, (tx) =>
         tx.hrPayrollRun.update({
           where: { id: runId },
-          data: { status: 'GL_POSTED', posted_at: new Date(), updated_by: user.id },
+          data: {
+            status: "GL_POSTED",
+            posted_at: new Date(),
+            updated_by: user.id,
+          },
         }),
       );
     }
@@ -325,10 +389,14 @@ export class HrPayrollService {
   async calculateGratuity(user: CurrentUser, query: GratuityQueryDto) {
     const employee = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployee.findFirst({
-        where: { id: query.employee_id, tenant_id: user.tenantId, deleted_at: null },
+        where: {
+          id: query.employee_id,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+        },
       }),
     );
-    if (!employee) throw new NotFoundException('Employee not found.');
+    if (!employee) throw new NotFoundException("Employee not found.");
 
     const asOf = query.as_of ? toUtcDateOnly(query.as_of) : new Date();
     const join = employee.joining_date;
@@ -341,8 +409,8 @@ export class HrPayrollService {
           tenant_id: user.tenantId,
           employee_id: employee.id,
           deleted_at: null,
-          status: 'APPROVED',
-          leave_type: 'UNPAID',
+          status: "APPROVED",
+          leave_type: "UNPAID",
           end_date: { lte: asOf },
         },
         select: { days: true },
@@ -351,7 +419,10 @@ export class HrPayrollService {
     const totalUnpaid = unpaidDays.reduce((s, r) => s + Number(r.days), 0);
     serviceYears = Math.max(0, serviceYears - totalUnpaid / 365.25);
 
-    const result = calculateUaeGratuity(Number(employee.basic_salary), serviceYears);
+    const result = calculateUaeGratuity(
+      Number(employee.basic_salary),
+      serviceYears,
+    );
     return {
       success: true,
       data: {
@@ -370,37 +441,47 @@ export class HrPayrollService {
           tx.company.findFirst({ where: { id: run.company_id! } }),
         )
       : await this.prisma.runWithTenant(user.tenantId, (tx) =>
-          tx.company.findFirst({ where: { tenant_id: user.tenantId, is_default: true } }),
+          tx.company.findFirst({
+            where: { tenant_id: user.tenantId, is_default: true },
+          }),
         );
 
-    const employerMol = company?.wps_employer_mol_id ?? '';
-    const agentRouting = company?.wps_agent_routing_code ?? '';
-    const payStart = formatDateOnly(run.period_start).replace(/-/g, '');
-    const payEnd = formatDateOnly(run.period_end).replace(/-/g, '');
+    const employerMol = company?.wps_employer_mol_id ?? "";
+    const agentRouting = company?.wps_agent_routing_code ?? "";
+    const payStart = formatDateOnly(run.period_start).replace(/-/g, "");
+    const payEnd = formatDateOnly(run.period_end).replace(/-/g, "");
 
-    const header = ['EDR', employerMol, agentRouting, payStart, payEnd, run.currency_code].join(',');
+    const header = [
+      "EDR",
+      employerMol,
+      agentRouting,
+      payStart,
+      payEnd,
+      run.currency_code,
+    ].join(",");
     const edrRows = (run.lines ?? []).map((line) => {
       const emp = line.employee!;
       return [
-        'EDR',
-        emp.mol_employee_id ?? '',
-        emp.iban ?? '',
+        "EDR",
+        emp.mol_employee_id ?? "",
+        emp.iban ?? "",
         payStart,
         payEnd,
         Number(line.net_pay).toFixed(2),
-        '0.00',
-        '0.00',
-      ].join(',');
+        "0.00",
+        "0.00",
+      ].join(",");
     });
 
-    const csv = [header, ...edrRows].join('\n');
+    const csv = [header, ...edrRows].join("\n");
     return { success: true, data: { payroll_run_id: runId, csv } };
   }
 
   async generatePayslip(user: CurrentUser, runId: string, employeeId: string) {
     const run = await this.requireRun(user.tenantId, runId);
     const line = run.lines?.find((l) => l.employee_id === employeeId);
-    if (!line) throw new NotFoundException('Payroll line not found for employee.');
+    if (!line)
+      throw new NotFoundException("Payroll line not found for employee.");
 
     const emp = line.employee!;
     const html = this.buildPayslipHtml(run, line, emp);
@@ -418,13 +499,21 @@ export class HrPayrollService {
       }),
     );
 
-    return { success: true, data: { payslip_path: stored.s3Key, file_url: stored.fileUrl } };
+    return {
+      success: true,
+      data: { payslip_path: stored.s3Key, file_url: stored.fileUrl },
+    };
   }
 
-  async emailPayslip(user: CurrentUser, runId: string, employeeId: string, dto: PayslipEmailDto) {
+  async emailPayslip(
+    user: CurrentUser,
+    runId: string,
+    employeeId: string,
+    dto: PayslipEmailDto,
+  ) {
     const run = await this.requireRun(user.tenantId, runId);
     const line = run.lines?.find((l) => l.employee_id === employeeId);
-    if (!line?.employee) throw new NotFoundException('Payroll line not found.');
+    if (!line?.employee) throw new NotFoundException("Payroll line not found.");
 
     let payslipPath = line.payslip_path;
     if (!payslipPath) {
@@ -433,18 +522,19 @@ export class HrPayrollService {
     }
 
     const emp = line.employee;
-    if (!emp.email) throw new BadRequestException('Employee has no email address.');
+    if (!emp.email)
+      throw new BadRequestException("Employee has no email address.");
 
     const subject =
       dto.subject ??
-      `Payslip ${run.payroll_year}-${String(run.payroll_month).padStart(2, '0')} — ${emp.first_name} ${emp.last_name}`;
+      `Payslip ${run.payroll_year}-${String(run.payroll_month).padStart(2, "0")} — ${emp.first_name} ${emp.last_name}`;
     const body =
       dto.body ??
       `Dear ${emp.first_name},\n\nPlease find attached your payslip for ${run.payroll_year}-${run.payroll_month}.\n\nRegards,\nHR`;
 
     await this.email.send({
       tenantId: user.tenantId,
-      eventType: 'OTHER',
+      eventType: "OTHER",
       to: emp.email,
       subject,
       body,
@@ -459,15 +549,17 @@ export class HrPayrollService {
   async upsertGlSettings(user: CurrentUser, dto: PayrollGlSettingDto) {
     const salaryAccount =
       dto.salary_expense_account_id ??
-      (await this.findAccountByCode(user.tenantId, '6200'))?.id ??
-      (await this.findAccountByCode(user.tenantId, '6100'))?.id;
+      (await this.findAccountByCode(user.tenantId, "6200"))?.id ??
+      (await this.findAccountByCode(user.tenantId, "6100"))?.id;
     const payableAccount =
       dto.payroll_payable_account_id ??
-      (await this.findAccountByCode(user.tenantId, '2300'))?.id ??
-      (await this.findAccountByCode(user.tenantId, '2100'))?.id;
+      (await this.findAccountByCode(user.tenantId, "2300"))?.id ??
+      (await this.findAccountByCode(user.tenantId, "2100"))?.id;
 
     if (!salaryAccount || !payableAccount) {
-      throw new BadRequestException('Salary expense and payroll payable GL accounts are required.');
+      throw new BadRequestException(
+        "Salary expense and payroll payable GL accounts are required.",
+      );
     }
 
     const companyId = dto.company_id ?? null;
@@ -486,7 +578,10 @@ export class HrPayrollService {
       };
 
       if (existing) {
-        return tx.hrPayrollGlSetting.update({ where: { id: existing.id }, data });
+        return tx.hrPayrollGlSetting.update({
+          where: { id: existing.id },
+          data,
+        });
       }
 
       return tx.hrPayrollGlSetting.create({
@@ -502,7 +597,13 @@ export class HrPayrollService {
   }
 
   private buildPayslipHtml(
-    run: { payroll_year: number; payroll_month: number; currency_code: string; period_start: Date; period_end: Date },
+    run: {
+      payroll_year: number;
+      payroll_month: number;
+      currency_code: string;
+      period_start: Date;
+      period_end: Date;
+    },
     line: {
       basic: Prisma.Decimal;
       housing: Prisma.Decimal;
@@ -523,7 +624,7 @@ export class HrPayrollService {
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payslip</title>
 <style>body{font-family:Arial,sans-serif;padding:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style>
 </head><body>
-<h1>Payslip — ${run.payroll_year}-${String(run.payroll_month).padStart(2, '0')}</h1>
+<h1>Payslip — ${run.payroll_year}-${String(run.payroll_month).padStart(2, "0")}</h1>
 <p><strong>${emp.first_name} ${emp.last_name}</strong> (${emp.employee_code})</p>
 <p>Period: ${formatDateOnly(run.period_start)} to ${formatDateOnly(run.period_end)}</p>
 <h2>Earnings</h2>
@@ -572,7 +673,7 @@ export class HrPayrollService {
         },
       }),
     );
-    if (!run) throw new NotFoundException('Payroll run not found.');
+    if (!run) throw new NotFoundException("Payroll run not found.");
     return run;
   }
 

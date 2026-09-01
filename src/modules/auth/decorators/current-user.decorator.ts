@@ -1,11 +1,8 @@
 // src/modules/auth/decorators/current-user.decorator.ts
 
-import {
-  createParamDecorator,
-  ExecutionContext,
-} from '@nestjs/common';
+import { createParamDecorator, ExecutionContext } from "@nestjs/common";
 
-import { AuthenticatedUser } from '../interfaces/request-with-user.interface';
+import { AuthenticatedUser } from "../interfaces/request-with-user.interface";
 
 export const CurrentUser = createParamDecorator(
   (data: keyof AuthenticatedUser | undefined, ctx: ExecutionContext) => {
@@ -16,4 +13,3 @@ export const CurrentUser = createParamDecorator(
     return data ? user?.[data] : user;
   },
 );
-

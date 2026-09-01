@@ -4,10 +4,10 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { AwbStockBatch, AwbStockStatus, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../shared/email/email.service';
+} from "@nestjs/common";
+import { AwbStockBatch, AwbStockStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../shared/email/email.service";
 import {
   AllocateAwbDto,
   AwbStockQueryDto,
@@ -15,7 +15,7 @@ import {
   TransferAwbBatchDto,
   UpdateAwbStockBatchDto,
   VoidAwbAllocationDto,
-} from './dto/awb-stock.dto';
+} from "./dto/awb-stock.dto";
 
 @Injectable()
 export class AwbStockService {
@@ -39,7 +39,7 @@ export class AwbStockService {
           airline: { select: { id: true, name: true, iata_code: true } },
           _count: { select: { allocations: true } },
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
   }
@@ -51,7 +51,7 @@ export class AwbStockService {
         include: {
           airline: { select: { id: true, name: true, iata_code: true } },
           allocations: {
-            orderBy: { allocated_at: 'desc' },
+            orderBy: { allocated_at: "desc" },
             take: 50,
             include: { job: { select: { id: true, job_number: true } } },
           },
@@ -59,7 +59,7 @@ export class AwbStockService {
       });
 
       if (!batch) {
-        throw new NotFoundException('AWB stock batch not found.');
+        throw new NotFoundException("AWB stock batch not found.");
       }
 
       return {
@@ -69,17 +69,25 @@ export class AwbStockService {
     });
   }
 
-  async createBatch(tenantId: string, dto: CreateAwbStockBatchDto, actorId?: string) {
+  async createBatch(
+    tenantId: string,
+    dto: CreateAwbStockBatchDto,
+    actorId?: string,
+  ) {
     if (dto.range_from > dto.range_to) {
-      throw new BadRequestException('range_from must be less than or equal to range_to.');
+      throw new BadRequestException(
+        "range_from must be less than or equal to range_to.",
+      );
     }
 
     const airline = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.airline.findFirst({ where: { id: dto.airline_id, tenant_id: tenantId, deleted_at: null } }),
+      tx.airline.findFirst({
+        where: { id: dto.airline_id, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!airline) {
-      throw new NotFoundException('Airline not found.');
+      throw new NotFoundException("Airline not found.");
     }
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
@@ -97,19 +105,28 @@ export class AwbStockService {
           created_by: actorId,
           updated_by: actorId,
         },
-        include: { airline: { select: { id: true, name: true, iata_code: true } } },
+        include: {
+          airline: { select: { id: true, name: true, iata_code: true } },
+        },
       }),
     );
   }
 
-  async updateBatch(tenantId: string, id: string, dto: UpdateAwbStockBatchDto, actorId?: string) {
+  async updateBatch(
+    tenantId: string,
+    id: string,
+    dto: UpdateAwbStockBatchDto,
+    actorId?: string,
+  ) {
     await this.getBatchOrThrow(tenantId, id);
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.awbStockBatch.update({
         where: { id },
         data: {
-          ...(dto.low_stock_threshold !== undefined ? { low_stock_threshold: dto.low_stock_threshold } : {}),
+          ...(dto.low_stock_threshold !== undefined
+            ? { low_stock_threshold: dto.low_stock_threshold }
+            : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
           updated_by: actorId,
         },
@@ -122,12 +139,18 @@ export class AwbStockService {
 
     const activeAllocations = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.awbStockAllocation.count({
-        where: { batch_id: id, tenant_id: tenantId, status: { in: ['ALLOCATED', 'AVAILABLE'] } },
+        where: {
+          batch_id: id,
+          tenant_id: tenantId,
+          status: { in: ["ALLOCATED", "AVAILABLE"] },
+        },
       }),
     );
 
     if (activeAllocations > 0) {
-      throw new ConflictException('Cannot delete a batch with active allocations.');
+      throw new ConflictException(
+        "Cannot delete a batch with active allocations.",
+      );
     }
 
     await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -152,24 +175,29 @@ export class AwbStockService {
           batch: { select: { id: true, prefix: true, airline_id: true } },
           job: { select: { id: true, job_number: true } },
         },
-        orderBy: { allocated_at: 'desc' },
+        orderBy: { allocated_at: "desc" },
         take: 100,
       }),
     );
   }
 
-  async allocate(tenantId: string, batchId: string, dto: AllocateAwbDto, actorId?: string) {
+  async allocate(
+    tenantId: string,
+    batchId: string,
+    dto: AllocateAwbDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const batch = await tx.awbStockBatch.findFirst({
         where: { id: batchId, tenant_id: tenantId, deleted_at: null },
       });
 
       if (!batch) {
-        throw new NotFoundException('AWB stock batch not found.');
+        throw new NotFoundException("AWB stock batch not found.");
       }
 
-      if (batch.status === 'DEPLETED' || batch.next_number > batch.range_to) {
-        throw new ConflictException('AWB stock batch is depleted.');
+      if (batch.status === "DEPLETED" || batch.next_number > batch.range_to) {
+        throw new ConflictException("AWB stock batch is depleted.");
       }
 
       const job = await tx.job.findFirst({
@@ -178,11 +206,13 @@ export class AwbStockService {
       });
 
       if (!job) {
-        throw new NotFoundException('Job not found.');
+        throw new NotFoundException("Job not found.");
       }
 
-      if (job.job_type !== 'AIR_EXPORT' && job.job_type !== 'AIR_IMPORT') {
-        throw new BadRequestException('AWB allocation is only supported for air jobs.');
+      if (job.job_type !== "AIR_EXPORT" && job.job_type !== "AIR_IMPORT") {
+        throw new BadRequestException(
+          "AWB allocation is only supported for air jobs.",
+        );
       }
 
       const serial = batch.next_number;
@@ -194,7 +224,7 @@ export class AwbStockService {
           batch_id: batchId,
           job_id: dto.job_id,
           awb_number: awbNumber,
-          status: 'ALLOCATED',
+          status: "ALLOCATED",
           created_by: actorId,
           updated_by: actorId,
         },
@@ -207,13 +237,14 @@ export class AwbStockService {
         where: { id: batchId },
         data: {
           next_number: nextNumber,
-          status: depleted ? 'DEPLETED' : batch.status,
+          status: depleted ? "DEPLETED" : batch.status,
           updated_by: actorId,
         },
       });
 
       if (job.air_details) {
-        const awbField = job.job_type === 'AIR_EXPORT' ? 'hawb_number' : 'mawb_number';
+        const awbField =
+          job.job_type === "AIR_EXPORT" ? "hawb_number" : "mawb_number";
         await tx.airJobDetail.update({
           where: { id: job.air_details.id },
           data: { [awbField]: awbNumber, updated_by: actorId },
@@ -223,7 +254,9 @@ export class AwbStockService {
       const remaining = batch.range_to - serial;
       if (remaining <= batch.low_stock_threshold) {
         this.notifyLowStock(tenantId, batch, remaining).catch((err) =>
-          this.logger.warn(`Low stock alert failed: ${err instanceof Error ? err.message : err}`),
+          this.logger.warn(
+            `Low stock alert failed: ${err instanceof Error ? err.message : err}`,
+          ),
         );
       }
 
@@ -231,28 +264,33 @@ export class AwbStockService {
     });
   }
 
-  async voidAllocation(tenantId: string, allocationId: string, dto: VoidAwbAllocationDto, actorId?: string) {
+  async voidAllocation(
+    tenantId: string,
+    allocationId: string,
+    dto: VoidAwbAllocationDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const allocation = await tx.awbStockAllocation.findFirst({
         where: { id: allocationId, tenant_id: tenantId },
       });
 
       if (!allocation) {
-        throw new NotFoundException('AWB allocation not found.');
+        throw new NotFoundException("AWB allocation not found.");
       }
 
-      if (allocation.status === 'VOIDED') {
-        throw new ConflictException('Allocation is already voided.');
+      if (allocation.status === "VOIDED") {
+        throw new ConflictException("Allocation is already voided.");
       }
 
-      if (allocation.status === 'USED') {
-        throw new ConflictException('Cannot void a used AWB.');
+      if (allocation.status === "USED") {
+        throw new ConflictException("Cannot void a used AWB.");
       }
 
       return tx.awbStockAllocation.update({
         where: { id: allocationId },
         data: {
-          status: 'VOIDED',
+          status: "VOIDED",
           void_reason: dto.void_reason,
           voided_at: new Date(),
           updated_by: actorId,
@@ -268,29 +306,38 @@ export class AwbStockService {
       });
 
       if (!allocation) {
-        throw new NotFoundException('AWB allocation not found.');
+        throw new NotFoundException("AWB allocation not found.");
       }
 
-      if (allocation.status !== 'ALLOCATED') {
-        throw new ConflictException('Only allocated AWBs can be marked as used.');
+      if (allocation.status !== "ALLOCATED") {
+        throw new ConflictException(
+          "Only allocated AWBs can be marked as used.",
+        );
       }
 
       return tx.awbStockAllocation.update({
         where: { id: allocationId },
-        data: { status: 'USED', used_at: new Date(), updated_by: actorId },
+        data: { status: "USED", used_at: new Date(), updated_by: actorId },
       });
     });
   }
 
-  async transferBranch(tenantId: string, batchId: string, dto: TransferAwbBatchDto, actorId?: string) {
+  async transferBranch(
+    tenantId: string,
+    batchId: string,
+    dto: TransferAwbBatchDto,
+    actorId?: string,
+  ) {
     await this.getBatchOrThrow(tenantId, batchId);
 
     const branch = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.branch.findFirst({ where: { id: dto.branch_id, tenant_id: tenantId, deleted_at: null } }),
+      tx.branch.findFirst({
+        where: { id: dto.branch_id, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!branch) {
-      throw new NotFoundException('Branch not found.');
+      throw new NotFoundException("Branch not found.");
     }
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
@@ -304,8 +351,14 @@ export class AwbStockService {
   async getLowStockReport(tenantId: string) {
     const batches = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.awbStockBatch.findMany({
-        where: { tenant_id: tenantId, deleted_at: null, status: { not: 'DEPLETED' } },
-        include: { airline: { select: { id: true, name: true, iata_code: true } } },
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          status: { not: "DEPLETED" },
+        },
+        include: {
+          airline: { select: { id: true, name: true, iata_code: true } },
+        },
       }),
     );
 
@@ -327,30 +380,36 @@ export class AwbStockService {
   }
 
   private formatAwbNumber(prefix: string, serial: number): string {
-    return `${prefix}-${String(serial).padStart(8, '0')}`;
+    return `${prefix}-${String(serial).padStart(8, "0")}`;
   }
 
   private async getBatchOrThrow(tenantId: string, id: string) {
     const batch = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.awbStockBatch.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } }),
+      tx.awbStockBatch.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!batch) {
-      throw new NotFoundException('AWB stock batch not found.');
+      throw new NotFoundException("AWB stock batch not found.");
     }
 
     return batch;
   }
 
-  private async notifyLowStock(tenantId: string, batch: AwbStockBatch, remaining: number) {
+  private async notifyLowStock(
+    tenantId: string,
+    batch: AwbStockBatch,
+    remaining: number,
+  ) {
     const airline = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.airline.findFirst({ where: { id: batch.airline_id } }),
     );
 
     await this.emailService.send({
       tenantId,
-      eventType: 'AWB_LOW_STOCK_ALERT',
-      to: process.env.OPS_ALERT_EMAIL ?? 'ops@kingfisherwings.com',
+      eventType: "AWB_LOW_STOCK_ALERT",
+      to: process.env.OPS_ALERT_EMAIL ?? "ops@kingfisherwings.com",
       subject: `Low AWB stock alert — prefix ${batch.prefix}`,
       body: `<p>AWB stock for ${airline?.name ?? batch.prefix} is low.</p><p>Remaining: <strong>${remaining}</strong> (threshold: ${batch.low_stock_threshold})</p>`,
       createdBy: batch.updated_by ?? undefined,

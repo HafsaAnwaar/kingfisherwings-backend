@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../shared/email/email.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../shared/email/email.service";
 
 @Injectable()
 export class NvoccCronService {
@@ -17,12 +17,17 @@ export class NvoccCronService {
   @Cron(CronExpression.EVERY_DAY_AT_7AM)
   async processCutoffReminders(): Promise<void> {
     if (this.running) {
-      this.logger.warn('NVOCC cutoff cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "NVOCC cutoff cron skipped — previous run still in progress.",
+      );
       return;
     }
     this.running = true;
     try {
-      const tenants = await this.prisma.tenant.findMany({ where: { deleted_at: null }, select: { id: true } });
+      const tenants = await this.prisma.tenant.findMany({
+        where: { deleted_at: null },
+        select: { id: true },
+      });
       const horizon = new Date();
       horizon.setDate(horizon.getDate() + 3);
       const now = new Date();
@@ -34,7 +39,7 @@ export class NvoccCronService {
             where: {
               tenant_id: tenant.id,
               deleted_at: null,
-              voyage_status: { in: ['OPEN', 'FULL'] },
+              voyage_status: { in: ["OPEN", "FULL"] },
               OR: [
                 { si_cutoff: { gte: now, lte: horizon } },
                 { vgm_cutoff: { gte: now, lte: horizon } },
@@ -44,7 +49,10 @@ export class NvoccCronService {
             },
             include: {
               bookings: {
-                where: { deleted_at: null, booking_status: { in: ['CONFIRMED', 'CONVERTED'] } },
+                where: {
+                  deleted_at: null,
+                  booking_status: { in: ["CONFIRMED", "CONVERTED"] },
+                },
               },
             },
           }),
@@ -55,22 +63,28 @@ export class NvoccCronService {
           const lines = [
             `Voyage ${voyage.voyage_number} — upcoming cut-offs:`,
             voyage.si_cutoff ? `SI: ${voyage.si_cutoff.toISOString()}` : null,
-            voyage.vgm_cutoff ? `VGM: ${voyage.vgm_cutoff.toISOString()}` : null,
+            voyage.vgm_cutoff
+              ? `VGM: ${voyage.vgm_cutoff.toISOString()}`
+              : null,
             voyage.cy_cutoff ? `CY: ${voyage.cy_cutoff.toISOString()}` : null,
-            voyage.cargo_cutoff ? `Cargo: ${voyage.cargo_cutoff.toISOString()}` : null,
+            voyage.cargo_cutoff
+              ? `Cargo: ${voyage.cargo_cutoff.toISOString()}`
+              : null,
           ].filter(Boolean);
 
           try {
             await this.emailService.send({
               tenantId: tenant.id,
-              eventType: 'OTHER',
-              to: 'ops@kingfisher.local',
+              eventType: "OTHER",
+              to: "ops@kingfisher.local",
               subject: `NVOCC cut-off reminder — ${voyage.voyage_number}`,
-              body: lines.join('\n'),
+              body: lines.join("\n"),
             });
             sent++;
           } catch (err) {
-            this.logger.error(`Cutoff email failed for voyage ${voyage.id}: ${(err as Error).message}`);
+            this.logger.error(
+              `Cutoff email failed for voyage ${voyage.id}: ${(err as Error).message}`,
+            );
           }
         }
       }

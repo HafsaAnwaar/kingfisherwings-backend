@@ -1,18 +1,27 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from "class-validator";
 
-const BL_TYPES = ['Original', 'Seaway', 'Express Release', 'Surrendered'];
-const FREIGHT_TERMS = ['Prepaid', 'Collect', 'Third Party'];
-const STUFFING_LOCATIONS = ['CY', 'CFS', 'SHIPPER_PREMISES'];
-const VGM_METHODS = ['SM1', 'SM2'];
+const BL_TYPES = ["Original", "Seaway", "Express Release", "Surrendered"];
+const FREIGHT_TERMS = ["Prepaid", "Collect", "Third Party"];
+const STUFFING_LOCATIONS = ["CY", "CFS", "SHIPPER_PREMISES"];
+const VGM_METHODS = ["SM1", "SM2"];
 
 export class UpdateSeaFclJobDetailDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   shipping_line_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   vessel_id?: string;
@@ -92,7 +101,7 @@ export class UpdateSeaFclJobDetailDto {
   @IsDateString()
   cy_cutoff?: string;
 
-  @ApiPropertyOptional({ description: 'SI submission datetime' })
+  @ApiPropertyOptional({ description: "SI submission datetime" })
   @IsOptional()
   @IsDateString()
   si_submitted_at?: string;
@@ -103,7 +112,7 @@ export class UpdateSeaFclJobDetailDto {
   @Min(1)
   si_version?: number;
 
-  @ApiPropertyOptional({ description: 'VGM submission datetime' })
+  @ApiPropertyOptional({ description: "VGM submission datetime" })
   @IsOptional()
   @IsDateString()
   vgm_submitted_at?: string;
@@ -113,12 +122,12 @@ export class UpdateSeaFclJobDetailDto {
   @IsIn(VGM_METHODS)
   vgm_method?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   port_of_loading_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   port_of_discharge_id?: string;
@@ -133,12 +142,12 @@ export class UpdateSeaFclJobDetailDto {
   @IsIn(FREIGHT_TERMS)
   freight_terms?: string;
 
-  @ApiPropertyOptional({ description: 'Transhipment port name' })
+  @ApiPropertyOptional({ description: "Transhipment port name" })
   @IsOptional()
   @IsString()
   transhipment_port?: string;
 
-  @ApiPropertyOptional({ description: 'Actual vessel sailed datetime' })
+  @ApiPropertyOptional({ description: "Actual vessel sailed datetime" })
   @IsOptional()
   @IsDateString()
   sailed_at?: string;
@@ -187,17 +196,19 @@ export class UpdateSeaFclJobDetailDto {
   @IsDateString()
   customs_clearance_date?: string;
 
-  @ApiPropertyOptional({ enum: ['PENDING', 'FILED', 'QUERY', 'CLEARED', 'RELEASED'] })
+  @ApiPropertyOptional({
+    enum: ["PENDING", "FILED", "QUERY", "CLEARED", "RELEASED"],
+  })
   @IsOptional()
-  @IsIn(['PENDING', 'FILED', 'QUERY', 'CLEARED', 'RELEASED'])
+  @IsIn(["PENDING", "FILED", "QUERY", "CLEARED", "RELEASED"])
   customs_status?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   customs_broker_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   linked_export_job_id?: string;
@@ -215,7 +226,7 @@ export class UpdateSeaFclJobDetailDto {
 }
 
 export class SubmitSiDto {
-  @ApiPropertyOptional({ description: 'Defaults to now' })
+  @ApiPropertyOptional({ description: "Defaults to now" })
   @IsOptional()
   @IsDateString()
   si_submitted_at?: string;
@@ -228,12 +239,12 @@ export class SubmitSiDto {
 }
 
 export class SubmitVgmDto {
-  @ApiPropertyOptional({ description: 'Defaults to now' })
+  @ApiPropertyOptional({ description: "Defaults to now" })
   @IsOptional()
   @IsDateString()
   vgm_submitted_at?: string;
 
-  @ApiPropertyOptional({ enum: VGM_METHODS, default: 'SM1' })
+  @ApiPropertyOptional({ enum: VGM_METHODS, default: "SM1" })
   @IsOptional()
   @IsIn(VGM_METHODS)
   vgm_method?: string;

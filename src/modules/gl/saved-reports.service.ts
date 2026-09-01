@@ -1,17 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 import {
   CreateSavedReportDto,
   SavedReportQueryDto,
   UpdateSavedReportDto,
-} from './dto/financial-reports.dto';
+} from "./dto/financial-reports.dto";
 
 @Injectable()
 export class SavedReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(tenantId: string, userId: string | undefined, query: SavedReportQueryDto) {
+  async findAll(
+    tenantId: string,
+    userId: string | undefined,
+    query: SavedReportQueryDto,
+  ) {
     const where: Prisma.SavedReportWhereInput = {
       tenant_id: tenantId,
       deleted_at: null,
@@ -26,7 +30,7 @@ export class SavedReportsService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.savedReport.findMany({
         where,
-        orderBy: { updated_at: 'desc' },
+        orderBy: { updated_at: "desc" },
       }),
     );
   }
@@ -37,7 +41,7 @@ export class SavedReportsService {
         where: { id, tenant_id: tenantId, deleted_at: null },
       }),
     );
-    if (!row) throw new NotFoundException('Saved report not found.');
+    if (!row) throw new NotFoundException("Saved report not found.");
     return row;
   }
 
@@ -59,17 +63,30 @@ export class SavedReportsService {
     );
   }
 
-  async update(tenantId: string, id: string, dto: UpdateSavedReportDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateSavedReportDto,
+    actorId?: string,
+  ) {
     await this.findOne(tenantId, id);
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.savedReport.update({
         where: { id },
         data: {
           ...(dto.name !== undefined ? { name: dto.name } : {}),
-          ...(dto.report_type !== undefined ? { report_type: dto.report_type } : {}),
-          ...(dto.description !== undefined ? { description: dto.description } : {}),
-          ...(dto.filters !== undefined ? { filters: dto.filters as Prisma.InputJsonValue } : {}),
-          ...(dto.company_id !== undefined ? { company_id: dto.company_id } : {}),
+          ...(dto.report_type !== undefined
+            ? { report_type: dto.report_type }
+            : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description }
+            : {}),
+          ...(dto.filters !== undefined
+            ? { filters: dto.filters as Prisma.InputJsonValue }
+            : {}),
+          ...(dto.company_id !== undefined
+            ? { company_id: dto.company_id }
+            : {}),
           ...(dto.is_shared !== undefined ? { is_shared: dto.is_shared } : {}),
           updated_by: actorId,
         },

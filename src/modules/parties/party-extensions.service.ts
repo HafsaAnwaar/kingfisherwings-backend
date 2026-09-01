@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 export class UpsertPartyEdiCodeDto {
   edi_type!: string;
@@ -24,7 +24,7 @@ export class PartyExtensionsService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.partyEdiCode.findMany({
         where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
-        orderBy: { edi_type: 'asc' },
+        orderBy: { edi_type: "asc" },
       }),
     );
   }
@@ -65,7 +65,7 @@ export class PartyExtensionsService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.partyStandardCharge.findMany({
         where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
-        orderBy: { sort_order: 'asc' },
+        orderBy: { sort_order: "asc" },
       }),
     );
   }
@@ -95,8 +95,10 @@ export class PartyExtensionsService {
 
   private async assertParty(tenantId: string, partyId: string) {
     const party = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.party.findFirst({ where: { id: partyId, tenant_id: tenantId, deleted_at: null } }),
+      tx.party.findFirst({
+        where: { id: partyId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!party) throw new NotFoundException('Party not found.');
+    if (!party) throw new NotFoundException("Party not found.");
   }
 }

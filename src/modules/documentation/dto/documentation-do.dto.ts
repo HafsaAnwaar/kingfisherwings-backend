@@ -1,7 +1,14 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { DocumentationDoStatus } from '@prisma/client';
-import { IsDateString, IsEnum, IsOptional, IsString, IsUUID, Length } from 'class-validator';
-import { DocumentationPaginationDto } from './documentation-pagination.dto';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { DocumentationDoStatus } from "@prisma/client";
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+} from "class-validator";
+import { DocumentationPaginationDto } from "./documentation-pagination.dto";
 
 export class UpdateDeliveryOrderDto {
   @ApiProperty()
@@ -26,7 +33,7 @@ export class ClosedJobsQueryDto extends DocumentationPaginationDto {
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;

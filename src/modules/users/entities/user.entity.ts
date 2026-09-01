@@ -1,5 +1,5 @@
-import { Exclude, Expose } from 'class-transformer';
-import { UserRole, UserStatus } from '@prisma/client';
+import { Exclude, Expose } from "class-transformer";
+import { UserRole, UserStatus } from "@prisma/client";
 
 /**
  * Internal representation of a User with sensitive fields stripped via

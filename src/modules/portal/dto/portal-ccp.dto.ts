@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform, Type } from "class-transformer";
 import {
   IsEnum,
   IsIn,
@@ -12,11 +12,11 @@ import {
   Max,
   Min,
   MinLength,
-} from 'class-validator';
-import { CreditLimitRequestStatus, PortalDisputeStatus } from '@prisma/client';
+} from "class-validator";
+import { CreditLimitRequestStatus, PortalDisputeStatus } from "@prisma/client";
 
 export class CreatePortalMessageDto {
-  @ApiProperty({ example: 'Question about shipment' })
+  @ApiProperty({ example: "Question about shipment" })
   @IsString()
   @Length(3, 200)
   subject!: string;
@@ -26,19 +26,19 @@ export class CreatePortalMessageDto {
   @MinLength(5)
   body!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   invoice_id?: string;
 }
 
 export class PortalMessageReplyDto {
-  @ApiProperty({ example: 'Thanks — we will check and get back to you.' })
+  @ApiProperty({ example: "Thanks — we will check and get back to you." })
   @IsString()
   @MinLength(1)
   body!: string;
@@ -62,11 +62,11 @@ export class PortalMessageQueryDto {
 }
 
 export class CreatePortalDisputeDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   invoice_id!: string;
 
-  @ApiProperty({ example: 'Incorrect charge amount' })
+  @ApiProperty({ example: "Incorrect charge amount" })
   @IsString()
   @Length(3, 200)
   reason!: string;
@@ -101,7 +101,7 @@ export class PortalDisputeQueryDto {
 
 /** Staff desk list — includes optional party filter (whitelist-safe). */
 export class StaffDisputeQueryDto extends PortalDisputeQueryDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
@@ -114,16 +114,16 @@ export class CreateCreditLimitRequestDto {
   @Min(1)
   requested_limit!: number;
 
-  @ApiProperty({ example: 'Expanding monthly volume into Q4.' })
+  @ApiProperty({ example: "Expanding monthly volume into Q4." })
   @IsString()
   @MinLength(10)
   justification!: string;
 }
 
 export class ReviewPortalDisputeDto {
-  @ApiProperty({ enum: ['UNDER_REVIEW', 'RESOLVED', 'REJECTED'] })
-  @IsIn(['UNDER_REVIEW', 'RESOLVED', 'REJECTED'])
-  status!: 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED';
+  @ApiProperty({ enum: ["UNDER_REVIEW", "RESOLVED", "REJECTED"] })
+  @IsIn(["UNDER_REVIEW", "RESOLVED", "REJECTED"])
+  status!: "UNDER_REVIEW" | "RESOLVED" | "REJECTED";
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -132,9 +132,9 @@ export class ReviewPortalDisputeDto {
 }
 
 export class ReviewCreditLimitRequestDto {
-  @ApiProperty({ enum: ['APPROVED', 'REJECTED'] })
-  @IsIn(['APPROVED', 'REJECTED'])
-  status!: 'APPROVED' | 'REJECTED';
+  @ApiProperty({ enum: ["APPROVED", "REJECTED"] })
+  @IsIn(["APPROVED", "REJECTED"])
+  status!: "APPROVED" | "REJECTED";
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -142,7 +142,8 @@ export class ReviewCreditLimitRequestDto {
   review_notes?: string;
 
   @ApiPropertyOptional({
-    description: 'When APPROVED, optionally set a different approved limit (defaults to requested).',
+    description:
+      "When APPROVED, optionally set a different approved limit (defaults to requested).",
   })
   @IsOptional()
   @Type(() => Number)
@@ -167,12 +168,12 @@ export class StaffPortalInboxQueryDto {
   @Max(100)
   limit: number = 20;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ description: 'Only unread by staff' })
+  @ApiPropertyOptional({ description: "Only unread by staff" })
   @IsOptional()
   @IsString()
   unread_only?: string;

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 
 export type NotificationListQuery = {
   page?: number;
@@ -12,11 +12,19 @@ export type NotificationListQuery = {
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listForStaff(tenantId: string, userId: string, query: NotificationListQuery) {
+  async listForStaff(
+    tenantId: string,
+    userId: string,
+    query: NotificationListQuery,
+  ) {
     return this.list(tenantId, { user_id: userId }, query);
   }
 
-  async listForPortal(tenantId: string, portalUserId: string, query: NotificationListQuery) {
+  async listForPortal(
+    tenantId: string,
+    portalUserId: string,
+    query: NotificationListQuery,
+  ) {
     return this.list(tenantId, { portal_user_id: portalUserId }, query);
   }
 
@@ -32,7 +40,11 @@ export class NotificationsService {
   async unreadCountForPortal(tenantId: string, portalUserId: string) {
     const count = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.notification.count({
-        where: { tenant_id: tenantId, portal_user_id: portalUserId, is_read: false },
+        where: {
+          tenant_id: tenantId,
+          portal_user_id: portalUserId,
+          is_read: false,
+        },
       }),
     );
     return { success: true, data: { unread_count: count } };
@@ -67,16 +79,18 @@ export class NotificationsService {
       ...(query.unread_only ? { is_read: false } : {}),
     };
 
-    const [rows, total] = await this.prisma.runWithTenant(tenantId, async (tx) =>
-      Promise.all([
-        tx.notification.findMany({
-          where,
-          orderBy: [{ is_read: 'asc' }, { created_at: 'desc' }],
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-        tx.notification.count({ where }),
-      ]),
+    const [rows, total] = await this.prisma.runWithTenant(
+      tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.notification.findMany({
+            where,
+            orderBy: [{ is_read: "asc" }, { created_at: "desc" }],
+            skip: (page - 1) * limit,
+            take: limit,
+          }),
+          tx.notification.count({ where }),
+        ]),
     );
 
     return {
@@ -95,7 +109,7 @@ export class NotificationsService {
       const existing = await tx.notification.findFirst({
         where: { id, tenant_id: tenantId, ...owner },
       });
-      if (!existing) throw new NotFoundException('Notification not found.');
+      if (!existing) throw new NotFoundException("Notification not found.");
 
       if (existing.is_read) return existing;
 

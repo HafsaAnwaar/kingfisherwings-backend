@@ -1,14 +1,22 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
-import { CampaignStatus, PartyType, Prisma } from '@prisma/client';
-import { parse } from 'csv-parse/sync';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../shared/email/email.service';
-import { EMAIL_CAMPAIGN_QUEUE } from '../../shared/queue/queue.constants';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { CurrentUser } from '../users/interfaces/current-user.interface';
-import { CreateCampaignDto, CreateCampaignTemplateDto, CreateSubscriberDto } from './dto/crm.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bull";
+import { Queue } from "bull";
+import { CampaignStatus, PartyType, Prisma } from "@prisma/client";
+import { parse } from "csv-parse/sync";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../shared/email/email.service";
+import { EMAIL_CAMPAIGN_QUEUE } from "../../shared/queue/queue.constants";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { CurrentUser } from "../users/interfaces/current-user.interface";
+import {
+  CreateCampaignDto,
+  CreateCampaignTemplateDto,
+  CreateSubscriberDto,
+} from "./dto/crm.dto";
 
 @Injectable()
 export class CrmEmailService {
@@ -48,7 +56,7 @@ export class CrmEmailService {
     const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.crmSubscriber.findMany({
         where: { tenant_id: user.tenantId },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
         take: 2000,
       }),
     );
@@ -59,7 +67,7 @@ export class CrmEmailService {
     const existing = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.crmSubscriber.findFirst({ where: { id, tenant_id: user.tenantId } }),
     );
-    if (!existing) throw new NotFoundException('Subscriber not found.');
+    if (!existing) throw new NotFoundException("Subscriber not found.");
     const updated = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.crmSubscriber.update({
         where: { id },
@@ -79,16 +87,24 @@ export class CrmEmailService {
     const errors: Array<{ row: number; message: string }> = [];
     for (const [index, row] of records.entries()) {
       try {
-        if (!row.email) throw new Error('email is required.');
+        if (!row.email) throw new Error("email is required.");
         await this.createSubscriber(user, {
           email: row.email,
           full_name: row.full_name || undefined,
           country_code: row.country_code || undefined,
-          tags: row.tags ? row.tags.split('|').map((t) => t.trim()).filter(Boolean) : undefined,
+          tags: row.tags
+            ? row.tags
+                .split("|")
+                .map((t) => t.trim())
+                .filter(Boolean)
+            : undefined,
         });
         created += 1;
       } catch (err) {
-        errors.push({ row: index + 2, message: err instanceof Error ? err.message : String(err) });
+        errors.push({
+          row: index + 2,
+          message: err instanceof Error ? err.message : String(err),
+        });
       }
     }
     return { success: true, data: { created, failed: errors.length, errors } };
@@ -113,7 +129,7 @@ export class CrmEmailService {
     const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.emailCampaignTemplate.findMany({
         where: { tenant_id: user.tenantId, deleted_at: null },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
     return { success: true, data: rows };
@@ -127,7 +143,7 @@ export class CrmEmailService {
           name: dto.name.trim(),
           subject: dto.subject.trim(),
           body: dto.body,
-          status: dto.scheduled_at ? 'SCHEDULED' : 'DRAFT',
+          status: dto.scheduled_at ? "SCHEDULED" : "DRAFT",
           scheduled_at: dto.scheduled_at ? new Date(dto.scheduled_at) : null,
           filter_party_type: dto.filter_party_type ?? null,
           filter_country: dto.filter_country ?? null,
@@ -142,7 +158,7 @@ export class CrmEmailService {
     const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.emailCampaign.findMany({
         where: { tenant_id: user.tenantId, deleted_at: null },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
     return { success: true, data: rows };
@@ -150,13 +166,15 @@ export class CrmEmailService {
 
   async schedule(user: CurrentUser, id: string, scheduledAt: string) {
     const campaign = await this.requireCampaign(user.tenantId, id);
-    if (campaign.status !== 'DRAFT' && campaign.status !== 'SCHEDULED') {
-      throw new BadRequestException('Only draft or scheduled campaigns can be rescheduled.');
+    if (campaign.status !== "DRAFT" && campaign.status !== "SCHEDULED") {
+      throw new BadRequestException(
+        "Only draft or scheduled campaigns can be rescheduled.",
+      );
     }
     const updated = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.emailCampaign.update({
         where: { id },
-        data: { status: 'SCHEDULED', scheduled_at: new Date(scheduledAt) },
+        data: { status: "SCHEDULED", scheduled_at: new Date(scheduledAt) },
       }),
     );
     return { success: true, data: updated };
@@ -164,19 +182,29 @@ export class CrmEmailService {
 
   async sendNow(user: CurrentUser, id: string) {
     const campaign = await this.requireCampaign(user.tenantId, id);
-    if (campaign.status === 'SENT' || campaign.status === 'SENDING') {
-      throw new BadRequestException('Campaign has already been sent.');
+    if (campaign.status === "SENT" || campaign.status === "SENDING") {
+      throw new BadRequestException("Campaign has already been sent.");
     }
-    const result = await this.dispatchCampaign(user.tenantId, campaign.id, user.id);
+    const result = await this.dispatchCampaign(
+      user.tenantId,
+      campaign.id,
+      user.id,
+    );
     if (!result) {
-      throw new BadRequestException('Campaign is already being sent or has been sent.');
+      throw new BadRequestException(
+        "Campaign is already being sent or has been sent.",
+      );
     }
     return result;
   }
 
   async processScheduledCampaigns() {
     const tenants = await this.prisma.tenant.findMany({
-      where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
+      where: {
+        status: { in: ["ACTIVE", "TRIAL"] },
+        is_active: true,
+        deleted_at: null,
+      },
       select: { id: true },
     });
     let sent = 0;
@@ -186,14 +214,18 @@ export class CrmEmailService {
           where: {
             tenant_id: tenant.id,
             deleted_at: null,
-            status: 'SCHEDULED',
+            status: "SCHEDULED",
             scheduled_at: { lte: new Date() },
           },
           take: 20,
         }),
       );
       for (const campaign of due) {
-        const result = await this.dispatchCampaign(tenant.id, campaign.id, campaign.created_by ?? undefined);
+        const result = await this.dispatchCampaign(
+          tenant.id,
+          campaign.id,
+          campaign.created_by ?? undefined,
+        );
         if (result) {
           sent += 1;
         }
@@ -202,7 +234,11 @@ export class CrmEmailService {
     return sent;
   }
 
-  private async dispatchCampaign(tenantId: string, campaignId: string, actorId?: string) {
+  private async dispatchCampaign(
+    tenantId: string,
+    campaignId: string,
+    actorId?: string,
+  ) {
     const claimed = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.emailCampaign.updateMany({
         where: {
@@ -230,19 +266,25 @@ export class CrmEmailService {
     }
 
     await this.campaignQueue.add(
-      'dispatch-batch',
+      "dispatch-batch",
       { tenantId, campaignId, actorId, offset: 0, batchSize: 50 },
       { jobId: `${campaignId}:0`, removeOnComplete: true },
     );
 
-    return { success: true, data: campaign, message: 'Campaign dispatch queued.' };
+    return {
+      success: true,
+      data: campaign,
+      message: "Campaign dispatch queued.",
+    };
   }
 
   private async requireCampaign(tenantId: string, id: string) {
     const campaign = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.emailCampaign.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } }),
+      tx.emailCampaign.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!campaign) throw new NotFoundException('Campaign not found.');
+    if (!campaign) throw new NotFoundException("Campaign not found.");
     return campaign;
   }
 }

@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsDateString,
   IsEnum,
@@ -10,28 +10,31 @@ import {
   MaxLength,
   Min,
   MinLength,
-} from 'class-validator';
-import { JobType } from '@prisma/client';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+} from "class-validator";
+import { JobType } from "@prisma/client";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
 /** Operational sub-job under a parent job (Week 4). */
 export class CreateSubJobDto {
-  @ApiPropertyOptional({ enum: JobType, description: 'Defaults to the parent job type.' })
+  @ApiPropertyOptional({
+    enum: JobType,
+    description: "Defaults to the parent job type.",
+  })
   @IsOptional()
   @IsEnum(JobType)
   job_type?: JobType;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   shipper_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   consignee_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   agent_id?: string;
@@ -50,11 +53,11 @@ export class CreateSubJobDto {
 }
 
 export class SchedulePreAlertDto {
-  @ApiProperty({ example: 'consignee@example.com' })
+  @ApiProperty({ example: "consignee@example.com" })
   @IsStrictEmail()
   to_email!: string;
 
-  @ApiProperty({ example: '2026-07-20T10:00:00.000Z' })
+  @ApiProperty({ example: "2026-07-20T10:00:00.000Z" })
   @IsDateString()
   scheduled_at!: string;
 
@@ -66,7 +69,7 @@ export class SchedulePreAlertDto {
 }
 
 export class CreatePaymentRequestFromJobDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
@@ -83,7 +86,7 @@ export class CreatePaymentRequestFromJobDto {
   @Min(0.01)
   amount?: number;
 
-  @ApiPropertyOptional({ example: 'AED' })
+  @ApiPropertyOptional({ example: "AED" })
   @IsOptional()
   @IsString()
   @Length(3, 3)
@@ -91,7 +94,7 @@ export class CreatePaymentRequestFromJobDto {
 }
 
 export class SendWhatsAppStatusDto {
-  @ApiProperty({ example: '+971501234567' })
+  @ApiProperty({ example: "+971501234567" })
   @IsString()
   @MinLength(8)
   to_phone!: string;

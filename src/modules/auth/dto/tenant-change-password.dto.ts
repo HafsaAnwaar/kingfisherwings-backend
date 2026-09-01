@@ -1,6 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength } from 'class-validator';
-import { IsStrongPassword, Match } from '../../users/validators/password.validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { IsString, MinLength } from "class-validator";
+import {
+  IsStrongPassword,
+  Match,
+} from "../../users/validators/password.validator";
 
 /**
  * Changes Tenant.password_hash — the credential checked by
@@ -15,13 +18,15 @@ export class TenantChangePasswordDto {
   @MinLength(1)
   current_password!: string;
 
-  @ApiProperty({ description: 'New password meeting the platform strength policy.' })
+  @ApiProperty({
+    description: "New password meeting the platform strength policy.",
+  })
   @IsString()
   @IsStrongPassword()
   new_password!: string;
 
-  @ApiProperty({ description: 'Must match new_password.' })
+  @ApiProperty({ description: "Must match new_password." })
   @IsString()
-  @Match('new_password')
+  @Match("new_password")
   confirm_password!: string;
 }

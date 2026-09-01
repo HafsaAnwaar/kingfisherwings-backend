@@ -1,9 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DocumentNumberType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
-import { CurrentUser } from '../users/interfaces/current-user.interface';
-import { CreateGdoDto } from './dto/wms.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { DocumentNumberType, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { CurrentUser } from "../users/interfaces/current-user.interface";
+import { CreateGdoDto } from "./dto/wms.dto";
 
 @Injectable()
 export class WmsGdoService {
@@ -13,7 +17,10 @@ export class WmsGdoService {
   ) {}
 
   async create(user: CurrentUser, dto: CreateGdoDto) {
-    const number = await this.numberGenerator.generate(user.tenantId, DocumentNumberType.GDO);
+    const number = await this.numberGenerator.generate(
+      user.tenantId,
+      DocumentNumberType.GDO,
+    );
     return this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.wmsGdo.create({
         data: {
@@ -22,13 +29,24 @@ export class WmsGdoService {
           warehouse_id: dto.warehouse_id,
           party_id: dto.party_id,
           job_id: dto.job_id,
-          delivered_at: dto.delivered_at ? new Date(dto.delivered_at) : new Date(),
+          delivered_at: dto.delivered_at
+            ? new Date(dto.delivered_at)
+            : new Date(),
           remarks: dto.remarks,
           created_by: user.id,
           updated_by: user.id,
-          lines: { create: dto.lines.map((line, index) => ({ tenant_id: user.tenantId, ...line, sort_order: index })) },
+          lines: {
+            create: dto.lines.map((line, index) => ({
+              tenant_id: user.tenantId,
+              ...line,
+              sort_order: index,
+            })),
+          },
         },
-        include: { warehouse: true, lines: { include: { item: true }, orderBy: { sort_order: 'asc' } } },
+        include: {
+          warehouse: true,
+          lines: { include: { item: true }, orderBy: { sort_order: "asc" } },
+        },
       }),
     );
   }
@@ -38,7 +56,7 @@ export class WmsGdoService {
       tx.wmsGdo.findMany({
         where: { tenant_id: user.tenantId, deleted_at: null },
         include: { warehouse: true, lines: { include: { item: true } } },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
   }
@@ -53,25 +71,31 @@ export class WmsGdoService {
         where: { id, tenant_id: user.tenantId, deleted_at: null },
         include: { lines: true },
       });
-      if (!gdo) throw new NotFoundException('GDO not found.');
+      if (!gdo) throw new NotFoundException("GDO not found.");
       const claimed = await tx.wmsGdo.updateMany({
-        where: { id, tenant_id: user.tenantId, status: 'DRAFT' },
-        data: { status: 'POSTED', posted_at: new Date(), updated_by: user.id },
+        where: { id, tenant_id: user.tenantId, status: "DRAFT" },
+        data: { status: "POSTED", posted_at: new Date(), updated_by: user.id },
       });
-      if (!claimed.count) throw new BadRequestException('Only a draft GDO can be posted.');
-      const settings = await tx.wmsSettings.findUnique({ where: { tenant_id: user.tenantId } });
+      if (!claimed.count)
+        throw new BadRequestException("Only a draft GDO can be posted.");
+      const settings = await tx.wmsSettings.findUnique({
+        where: { tenant_id: user.tenantId },
+      });
 
       for (const line of gdo.lines) {
         await this.consumeLots(tx, user, {
           warehouseId: gdo.warehouse_id,
           itemId: line.item_id,
           quantity: Number(line.quantity),
-          order: settings?.valuation_method === 'LIFO' ? 'desc' : 'asc',
+          order: settings?.valuation_method === "LIFO" ? "desc" : "asc",
           referenceId: gdo.id,
           remarks: line.remarks,
         });
       }
-      return tx.wmsGdo.findUniqueOrThrow({ where: { id }, include: { lines: true, warehouse: true } });
+      return tx.wmsGdo.findUniqueOrThrow({
+        where: { id },
+        include: { lines: true, warehouse: true },
+      });
     });
   }
 
@@ -79,18 +103,26 @@ export class WmsGdoService {
     await this.require(user.tenantId, id);
     const result = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.wmsGdo.updateMany({
-        where: { id, tenant_id: user.tenantId, status: 'DRAFT' },
-        data: { status: 'CANCELLED', updated_by: user.id },
+        where: { id, tenant_id: user.tenantId, status: "DRAFT" },
+        data: { status: "CANCELLED", updated_by: user.id },
       }),
     );
-    if (!result.count) throw new BadRequestException('Only a draft GDO can be cancelled.');
-    return { id, status: 'CANCELLED' };
+    if (!result.count)
+      throw new BadRequestException("Only a draft GDO can be cancelled.");
+    return { id, status: "CANCELLED" };
   }
 
   private async consumeLots(
     tx: Prisma.TransactionClient,
     user: CurrentUser,
-    input: { warehouseId: string; itemId: string; quantity: number; order: Prisma.SortOrder; referenceId: string; remarks?: string | null },
+    input: {
+      warehouseId: string;
+      itemId: string;
+      quantity: number;
+      order: Prisma.SortOrder;
+      referenceId: string;
+      remarks?: string | null;
+    },
   ) {
     const lots = await tx.wmsStockLot.findMany({
       where: {
@@ -102,24 +134,33 @@ export class WmsGdoService {
       },
       orderBy: [{ received_at: input.order }, { created_at: input.order }],
     });
-    const available = lots.reduce((sum, lot) => sum + Number(lot.qty_remaining), 0);
-    if (available < input.quantity) throw new BadRequestException(`Insufficient stock for item ${input.itemId}.`);
+    const available = lots.reduce(
+      (sum, lot) => sum + Number(lot.qty_remaining),
+      0,
+    );
+    if (available < input.quantity)
+      throw new BadRequestException(
+        `Insufficient stock for item ${input.itemId}.`,
+      );
 
     let remaining = input.quantity;
     for (const lot of lots) {
       if (remaining <= 0) break;
       const consumed = Math.min(remaining, Number(lot.qty_remaining));
-      await tx.wmsStockLot.update({ where: { id: lot.id }, data: { qty_remaining: { decrement: consumed } } });
+      await tx.wmsStockLot.update({
+        where: { id: lot.id },
+        data: { qty_remaining: { decrement: consumed } },
+      });
       await tx.wmsStockMovement.create({
         data: {
           tenant_id: user.tenantId,
           warehouse_id: input.warehouseId,
           item_id: input.itemId,
           lot_id: lot.id,
-          movement_type: 'GDO_OUT',
+          movement_type: "GDO_OUT",
           quantity: -consumed,
           unit_cost: lot.unit_cost,
-          reference_type: 'GDO',
+          reference_type: "GDO",
           reference_id: input.referenceId,
           remarks: input.remarks,
           created_by: user.id,
@@ -133,10 +174,13 @@ export class WmsGdoService {
     const value = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.wmsGdo.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
-        include: { warehouse: true, lines: { include: { item: true }, orderBy: { sort_order: 'asc' } } },
+        include: {
+          warehouse: true,
+          lines: { include: { item: true }, orderBy: { sort_order: "asc" } },
+        },
       }),
     );
-    if (!value) throw new NotFoundException('GDO not found.');
+    if (!value) throw new NotFoundException("GDO not found.");
     return value;
   }
 }

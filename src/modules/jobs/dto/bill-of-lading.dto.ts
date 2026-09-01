@@ -1,8 +1,22 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Min,
+} from "class-validator";
 
 export class CreateBillOfLadingDto {
-  @ApiProperty({ example: 'HBL', description: 'HBL | MBL | FIATA | SWITCH | PROXY | BACK_TO_BACK | Express Release' })
+  @ApiProperty({
+    example: "HBL",
+    description:
+      "HBL | MBL | FIATA | SWITCH | PROXY | BACK_TO_BACK | Express Release",
+  })
   @IsString()
   @Length(1, 40)
   bl_type!: string;
@@ -13,17 +27,17 @@ export class CreateBillOfLadingDto {
   @Length(1, 50)
   bl_number?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   shipper_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   consignee_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   notify_id?: string;
@@ -127,12 +141,12 @@ export class CreateBillOfLadingDto {
   @IsString()
   switched_from_bl_number?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   switch_consignee_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   switch_notify_id?: string;
@@ -147,7 +161,7 @@ export class CreateBillOfLadingDto {
   @IsString()
   proxy_forwarder_address?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   paired_bl_id?: string;

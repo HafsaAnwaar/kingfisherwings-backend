@@ -1,8 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { JobsService } from '../jobs/jobs.service';
-import { BulkCostBatchDto } from './dto/documentation-bulk-cost.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { JobsService } from "../jobs/jobs.service";
+import { BulkCostBatchDto } from "./dto/documentation-bulk-cost.dto";
 
 @Injectable()
 export class DocumentationBulkCostService {
@@ -25,7 +29,9 @@ export class DocumentationBulkCostService {
 
     const invalid = lines.filter((l) => !l.valid);
     if (invalid.length) {
-      throw new BadRequestException(`${invalid.length} line(s) have invalid amounts.`);
+      throw new BadRequestException(
+        `${invalid.length} line(s) have invalid amounts.`,
+      );
     }
 
     return {
@@ -51,7 +57,7 @@ export class DocumentationBulkCostService {
           vessel_id: dto.vessel_id,
           voyage_number: dto.voyage_number,
           prorate_method: dto.prorate_method,
-          status: 'SUBMITTED',
+          status: "SUBMITTED",
           submitted_at: new Date(),
           created_by: actorId,
           updated_by: actorId,
@@ -67,8 +73,8 @@ export class DocumentationBulkCostService {
                 exchange_rate: exchangeRate,
                 fcy_amount: line.fcy_amount,
                 amount_aed: Number(line.fcy_amount) * exchangeRate,
-                sale_or_cost: line.sale_or_cost ?? 'COST',
-                dr_cr: line.dr_cr ?? 'Dr',
+                sale_or_cost: line.sale_or_cost ?? "COST",
+                dr_cr: line.dr_cr ?? "Dr",
                 tax_group_id: line.tax_group_id,
               };
             }),
@@ -88,7 +94,7 @@ export class DocumentationBulkCostService {
             unit_price: Number(line.fcy_amount),
             currency_code: line.currency_code,
             exchange_rate: Number(line.exchange_rate),
-            is_cost: line.sale_or_cost === 'COST',
+            is_cost: line.sale_or_cost === "COST",
           },
           actorId,
         );
@@ -105,7 +111,7 @@ export class DocumentationBulkCostService {
         include: { lines: true },
       }),
     );
-    if (!batch) throw new NotFoundException('Bulk cost batch not found.');
+    if (!batch) throw new NotFoundException("Bulk cost batch not found.");
     return batch;
   }
 }

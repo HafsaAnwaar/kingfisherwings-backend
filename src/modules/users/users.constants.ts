@@ -5,13 +5,13 @@ export const USERS_CONSTANTS = {
 
   MAX_LIMIT: 100,
 
-  DEFAULT_SORT: 'created_at',
+  DEFAULT_SORT: "created_at",
 
-  DEFAULT_ORDER: 'desc',
+  DEFAULT_ORDER: "desc",
 
   TEMP_PASSWORD_LENGTH: 14,
 
   PASSWORD_HISTORY_LIMIT: 5,
 
-  DEFAULT_ROLE_CODE: 'READ_ONLY',
+  DEFAULT_ROLE_CODE: "READ_ONLY",
 } as const;

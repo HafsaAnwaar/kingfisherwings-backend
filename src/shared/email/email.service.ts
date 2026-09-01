@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import { EmailEventType, EmailStatus, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as nodemailer from "nodemailer";
+import { EmailEventType, EmailStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 
 export interface SendEmailOptions {
   tenantId: string;
@@ -29,16 +29,16 @@ export class EmailService {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    const host = this.config.get<string>('smtp.host');
-    const port = this.config.get<number>('smtp.port');
-    const user = this.config.get<string>('smtp.user');
-    const pass = this.config.get<string>('smtp.pass');
+    const host = this.config.get<string>("smtp.host");
+    const port = this.config.get<number>("smtp.port");
+    const user = this.config.get<string>("smtp.user");
+    const pass = this.config.get<string>("smtp.pass");
 
     if (host) {
       this.transporter = nodemailer.createTransport({
         host,
         port,
-        secure: this.config.get<boolean>('smtp.secure'),
+        secure: this.config.get<boolean>("smtp.secure"),
         auth: user && pass ? { user, pass } : undefined,
       });
     }
@@ -54,7 +54,7 @@ export class EmailService {
           cc_email: options.cc,
           subject: options.subject,
           body: options.body,
-          status: 'PENDING',
+          status: "PENDING",
           attachment_url: options.attachmentPath,
           attachment_name: options.attachmentName,
           quotation_id: options.quotationId,
@@ -66,22 +66,31 @@ export class EmailService {
     );
 
     if (!this.transporter) {
-      this.logger.warn(`SMTP not configured — email logged only (id=${log.id})`);
+      this.logger.warn(
+        `SMTP not configured — email logged only (id=${log.id})`,
+      );
       await this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.update({
           where: { id: log.id },
-          data: { status: 'SENT', sent_at: new Date(), error_message: 'SMTP not configured — logged only.' },
+          data: {
+            status: "SENT",
+            sent_at: new Date(),
+            error_message: "SMTP not configured — logged only.",
+          },
         }),
       );
       return log;
     }
 
     try {
-      const from = this.config.get<string>('smtp.from');
-      const attachments: nodemailer.SendMailOptions['attachments'] = [];
+      const from = this.config.get<string>("smtp.from");
+      const attachments: nodemailer.SendMailOptions["attachments"] = [];
 
       if (options.attachmentBuffer && options.attachmentName) {
-        attachments.push({ filename: options.attachmentName, content: options.attachmentBuffer });
+        attachments.push({
+          filename: options.attachmentName,
+          content: options.attachmentBuffer,
+        });
       }
 
       await this.transporter.sendMail({
@@ -96,27 +105,32 @@ export class EmailService {
       return this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.update({
           where: { id: log.id },
-          data: { status: 'SENT', sent_at: new Date() },
+          data: { status: "SENT", sent_at: new Date() },
         }),
       );
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown email error';
+      const message =
+        error instanceof Error ? error.message : "Unknown email error";
       this.logger.error(`Email failed: ${message}`);
 
       return this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.update({
           where: { id: log.id },
-          data: { status: 'FAILED', error_message: message },
+          data: { status: "FAILED", error_message: message },
         }),
       );
     }
   }
 
-  async listLogs(tenantId: string, filters: Prisma.EmailLogWhereInput = {}, limit = 50) {
+  async listLogs(
+    tenantId: string,
+    filters: Prisma.EmailLogWhereInput = {},
+    limit = 50,
+  ) {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.emailLog.findMany({
         where: { tenant_id: tenantId, ...filters },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
         take: limit,
       }),
     );

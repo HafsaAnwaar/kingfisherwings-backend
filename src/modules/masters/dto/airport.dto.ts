@@ -1,29 +1,41 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsLatitude, IsLongitude, IsOptional, IsString, Length, Matches } from 'class-validator';
-import { IsCountryCode, IsIata3Code, IsIcao4Code } from '../../../common/validators/input-format.validators';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsLatitude,
+  IsLongitude,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+} from "class-validator";
+import {
+  IsCountryCode,
+  IsIata3Code,
+  IsIcao4Code,
+} from "../../../common/validators/input-format.validators";
 
 export class CreateAirportDto {
-  @ApiProperty({ example: 'DXB', description: 'IATA code' })
+  @ApiProperty({ example: "DXB", description: "IATA code" })
   @IsIata3Code()
   iata_code!: string;
 
-  @ApiPropertyOptional({ example: 'OMDB', description: 'ICAO code' })
+  @ApiPropertyOptional({ example: "OMDB", description: "ICAO code" })
   @IsOptional()
   @IsIcao4Code()
   icao_code?: string;
 
-  @ApiProperty({ example: 'Dubai International Airport' })
+  @ApiProperty({ example: "Dubai International Airport" })
   @IsString()
   @Length(2, 200)
   name!: string;
 
-  @ApiPropertyOptional({ example: 'Dubai' })
+  @ApiPropertyOptional({ example: "Dubai" })
   @IsOptional()
   @IsString()
   @Length(1, 100)
   city?: string;
 
-  @ApiProperty({ example: 'AE' })
+  @ApiProperty({ example: "AE" })
   @IsCountryCode()
   country_code!: string;
 
@@ -37,10 +49,12 @@ export class CreateAirportDto {
   @IsLongitude()
   longitude?: number;
 
-  @ApiPropertyOptional({ example: 'Asia/Dubai' })
+  @ApiPropertyOptional({ example: "Asia/Dubai" })
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Za-z_+\-/]+$/, { message: 'timezone must look like Asia/Dubai' })
+  @Matches(/^[A-Za-z_+\-/]+$/, {
+    message: "timezone must look like Asia/Dubai",
+  })
   @Length(3, 64)
   timezone?: string;
 

@@ -1,16 +1,16 @@
 export const WMS_PERMISSION_CONSTANTS = {
-  MODULE: 'wms',
+  MODULE: "wms",
   ACTIONS: {
-    VIEW: 'view',
-    MANAGE_ITEMS: 'manage_items',
-    MANAGE_ASN: 'manage_asn',
-    MANAGE_GRN: 'manage_grn',
-    MANAGE_GDO: 'manage_gdo',
-    MANAGE_STOCK: 'manage_stock',
-    MANAGE_TRANSFERS: 'manage_transfers',
-    MANAGE_STORAGE: 'manage_storage',
-    MANAGE_SETTINGS: 'manage_settings',
-    VIEW_REPORTS: 'view_reports',
+    VIEW: "view",
+    MANAGE_ITEMS: "manage_items",
+    MANAGE_ASN: "manage_asn",
+    MANAGE_GRN: "manage_grn",
+    MANAGE_GDO: "manage_gdo",
+    MANAGE_STOCK: "manage_stock",
+    MANAGE_TRANSFERS: "manage_transfers",
+    MANAGE_STORAGE: "manage_storage",
+    MANAGE_SETTINGS: "manage_settings",
+    VIEW_REPORTS: "view_reports",
   },
 } as const;
 

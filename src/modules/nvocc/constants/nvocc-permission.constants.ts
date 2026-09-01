@@ -1,8 +1,8 @@
 export const NVOCC_PERMISSION_CONSTANTS = {
-  MODULE: 'nvocc',
+  MODULE: "nvocc",
   ACTIONS: {
-    VIEW: 'view',
-    MANAGE: 'manage',
+    VIEW: "view",
+    MANAGE: "manage",
   },
 } as const;
 

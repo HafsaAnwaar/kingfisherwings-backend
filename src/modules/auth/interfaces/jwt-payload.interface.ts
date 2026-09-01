@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { UserRole } from "@prisma/client";
 
 /**
  * Payload for a regular User (staff, or the tenant's auto-created
@@ -7,7 +7,7 @@ import { UserRole } from '@prisma/client';
  * JwtStrategy can hand this straight to request.user with no renaming.
  */
 export interface UserJwtPayload {
-  principal: 'user';
+  principal: "user";
 
   sub: string; // user id
   tenantId: string;
@@ -21,14 +21,14 @@ export interface UserJwtPayload {
   email: string;
   permissions: string[];
 
-  type: 'access' | 'refresh';
+  type: "access" | "refresh";
 }
 
 /**
  * Payload for a SuperAdmin — platform owner, not tied to any tenant.
  */
 export interface SuperAdminJwtPayload {
-  principal: 'super_admin';
+  principal: "super_admin";
 
   sub: string; // super admin id
   email: string;
@@ -36,7 +36,7 @@ export interface SuperAdminJwtPayload {
   /** = SuperAdminSession.jti */
   sessionId: string;
 
-  type: 'access' | 'refresh';
+  type: "access" | "refresh";
 }
 
 export type JwtPayload = UserJwtPayload | SuperAdminJwtPayload;

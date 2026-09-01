@@ -5,48 +5,72 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma, Quotation, QuotationStatus, JobType, QuotationPdfMode } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
-import { TariffsService } from './tariffs/tariffs.service';
-import { seedJobTypeExtras } from '../jobs/utils/job-type-seed.util';
-import { mintTrackingToken } from '../jobs/utils/tracking-token.util';
+} from "@nestjs/common";
+import {
+  Prisma,
+  Quotation,
+  QuotationStatus,
+  JobType,
+  QuotationPdfMode,
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { TariffsService } from "./tariffs/tariffs.service";
+import { seedJobTypeExtras } from "../jobs/utils/job-type-seed.util";
+import { mintTrackingToken } from "../jobs/utils/tracking-token.util";
 
-import { CreateQuotationDto, UpdateQuotationDto } from './dto/quotation.dto';
-import { CreateQuotationLineDto, UpdateQuotationLineDto } from './dto/quotation-line.dto';
-import { QuotationQueryDto } from './dto/quotation-query.dto';
-import { QuotationAnalyticsQueryDto } from './dto/quotation-analytics-query.dto';
-import { CreateOnlineQuoteDto } from './dto/online-quote.dto';
-import { MarkLostDto, ApprovalDecisionDto } from './dto/quotation-actions.dto';
-import { GenerateQuotationPdfDto, SendQuotationEmailDto } from './dto/quotation-pdf.dto';
-import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
-import { EmailService } from '../../shared/email/email.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
+import { CreateQuotationDto, UpdateQuotationDto } from "./dto/quotation.dto";
+import {
+  CreateQuotationLineDto,
+  UpdateQuotationLineDto,
+} from "./dto/quotation-line.dto";
+import { QuotationQueryDto } from "./dto/quotation-query.dto";
+import { QuotationAnalyticsQueryDto } from "./dto/quotation-analytics-query.dto";
+import { CreateOnlineQuoteDto } from "./dto/online-quote.dto";
+import { MarkLostDto, ApprovalDecisionDto } from "./dto/quotation-actions.dto";
+import {
+  GenerateQuotationPdfDto,
+  SendQuotationEmailDto,
+} from "./dto/quotation-pdf.dto";
+import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
+import { EmailService } from "../../shared/email/email.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
-  AIR_EXPORT: 'AE',
-  AIR_IMPORT: 'AI',
-  SEA_FCL_EXPORT: 'FE',
-  SEA_FCL_IMPORT: 'FI',
-  SEA_LCL_EXPORT: 'LE',
-  SEA_LCL_IMPORT: 'LI',
-  LAND: 'LD',
-  COURIER: 'CR',
-  CUSTOMS_CLEARANCE: 'CC',
-  NVOCC_EXPORT: 'NE',
-  NVOCC_IMPORT: 'NI',
-  SERVICE_JOB: 'SJ',
-  WAREHOUSE: 'WH',
+  AIR_EXPORT: "AE",
+  AIR_IMPORT: "AI",
+  SEA_FCL_EXPORT: "FE",
+  SEA_FCL_IMPORT: "FI",
+  SEA_LCL_EXPORT: "LE",
+  SEA_LCL_IMPORT: "LI",
+  LAND: "LD",
+  COURIER: "CR",
+  CUSTOMS_CLEARANCE: "CC",
+  NVOCC_EXPORT: "NE",
+  NVOCC_IMPORT: "NI",
+  SERVICE_JOB: "SJ",
+  WAREHOUSE: "WH",
 };
 
-const EDITABLE_STATUSES: QuotationStatus[] = ['DRAFT', 'REJECTED'];
+const EDITABLE_STATUSES: QuotationStatus[] = ["DRAFT", "REJECTED"];
 
-const ARCHIVABLE_STATUSES: QuotationStatus[] = ['SENT', 'WON', 'LOST', 'EXPIRED', 'CONVERTED', 'APPROVED'];
+const ARCHIVABLE_STATUSES: QuotationStatus[] = [
+  "SENT",
+  "WON",
+  "LOST",
+  "EXPIRED",
+  "CONVERTED",
+  "APPROVED",
+];
 
-const EXPIRABLE_STATUSES: QuotationStatus[] = ['SENT', 'APPROVED', 'DRAFT', 'SUBMITTED'];
+const EXPIRABLE_STATUSES: QuotationStatus[] = [
+  "SENT",
+  "APPROVED",
+  "DRAFT",
+  "SUBMITTED",
+];
 
 @Injectable()
 export class QuotationsService {
@@ -66,20 +90,28 @@ export class QuotationsService {
   // CREATE
   // ============================================================
 
-  async create(tenantId: string, dto: CreateQuotationDto, actorId?: string): Promise<Quotation> {
-    await this.assertPartyExists(tenantId, dto.customer_id, 'Customer');
-    await this.assertPartyExists(tenantId, dto.carrier_id, 'Carrier');
+  async create(
+    tenantId: string,
+    dto: CreateQuotationDto,
+    actorId?: string,
+  ): Promise<Quotation> {
+    await this.assertPartyExists(tenantId, dto.customer_id, "Customer");
+    await this.assertPartyExists(tenantId, dto.carrier_id, "Carrier");
     await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
     await this.assertDepartmentExists(tenantId, dto.department_id);
-    await this.assertPortExists(tenantId, dto.origin_port_id, 'Origin port');
-    await this.assertPortExists(tenantId, dto.dest_port_id, 'Destination port');
+    await this.assertPortExists(tenantId, dto.origin_port_id, "Origin port");
+    await this.assertPortExists(tenantId, dto.dest_port_id, "Destination port");
 
     const branchCode = await this.resolveBranchCode(tenantId, dto.branch_id);
-    const quotationNumber = await this.numberGenerator.generate(tenantId, 'QUOTATION', {
-      extraSegment: JOB_TYPE_CODE[dto.job_type],
-      branchCode,
-    });
+    const quotationNumber = await this.numberGenerator.generate(
+      tenantId,
+      "QUOTATION",
+      {
+        extraSegment: JOB_TYPE_CODE[dto.job_type],
+        branchCode,
+      },
+    );
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.create({
@@ -87,7 +119,7 @@ export class QuotationsService {
           tenant_id: tenantId,
           company_id: dto.company_id,
           quotation_number: quotationNumber,
-          status: 'DRAFT',
+          status: "DRAFT",
           job_type: dto.job_type,
           customer_id: dto.customer_id,
           salesperson_id: dto.salesperson_id,
@@ -129,8 +161,14 @@ export class QuotationsService {
   // READ
   // ============================================================
 
-  private buildListWhere(tenantId: string, query: QuotationQueryDto): Prisma.QuotationWhereInput {
-    const where: Prisma.QuotationWhereInput = { tenant_id: tenantId, deleted_at: null };
+  private buildListWhere(
+    tenantId: string,
+    query: QuotationQueryDto,
+  ): Prisma.QuotationWhereInput {
+    const where: Prisma.QuotationWhereInput = {
+      tenant_id: tenantId,
+      deleted_at: null,
+    };
 
     if (query.status) where.status = query.status;
     if (query.job_type) where.job_type = query.job_type;
@@ -142,7 +180,8 @@ export class QuotationsService {
     if (query.carrier_id) where.carrier_id = query.carrier_id;
     if (query.origin_port_id) where.origin_port_id = query.origin_port_id;
     if (query.dest_port_id) where.dest_port_id = query.dest_port_id;
-    if (query.container_type_id) where.container_type_id = query.container_type_id;
+    if (query.container_type_id)
+      where.container_type_id = query.container_type_id;
     if (query.incoterm) where.incoterm = query.incoterm;
     if (query.created_by) where.created_by = query.created_by;
 
@@ -155,8 +194,8 @@ export class QuotationsService {
 
     if (query.search) {
       where.OR = [
-        { quotation_number: { contains: query.search, mode: 'insensitive' } },
-        { commodity: { contains: query.search, mode: 'insensitive' } },
+        { quotation_number: { contains: query.search, mode: "insensitive" } },
+        { commodity: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
@@ -204,7 +243,7 @@ export class QuotationsService {
           skip: (query.page - 1) * query.limit,
           take: query.limit,
           orderBy: { created_at: query.order },
-          include: { lines: { orderBy: { sort_order: 'asc' } } },
+          include: { lines: { orderBy: { sort_order: "asc" } } },
         }),
         tx.quotation.count({ where }),
       ]);
@@ -228,7 +267,7 @@ export class QuotationsService {
       });
 
       if (!quotation) {
-        throw new NotFoundException('Quotation not found.');
+        throw new NotFoundException("Quotation not found.");
       }
 
       const rootId = quotation.parent_quotation_id ?? quotation.id;
@@ -239,7 +278,7 @@ export class QuotationsService {
           deleted_at: null,
           OR: [{ id: rootId }, { parent_quotation_id: rootId }],
         },
-        orderBy: { version: 'asc' },
+        orderBy: { version: "asc" },
         select: {
           id: true,
           quotation_number: true,
@@ -266,14 +305,14 @@ export class QuotationsService {
       const quotation = await tx.quotation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
-          lines: { orderBy: { sort_order: 'asc' } },
-          status_history: { orderBy: { created_at: 'asc' } },
-          approvals: { orderBy: { level: 'asc' } },
+          lines: { orderBy: { sort_order: "asc" } },
+          status_history: { orderBy: { created_at: "asc" } },
+          approvals: { orderBy: { level: "asc" } },
         },
       });
 
       if (!quotation) {
-        throw new NotFoundException('Quotation not found.');
+        throw new NotFoundException("Quotation not found.");
       }
 
       return quotation;
@@ -284,19 +323,24 @@ export class QuotationsService {
   // UPDATE (header) — only while DRAFT or REJECTED (resubmittable)
   // ============================================================
 
-  async update(tenantId: string, id: string, dto: UpdateQuotationDto, actorId?: string): Promise<Quotation> {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateQuotationDto,
+    actorId?: string,
+  ): Promise<Quotation> {
     await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
     await this.assertDepartmentExists(tenantId, dto.department_id);
-    await this.assertPortExists(tenantId, dto.origin_port_id, 'Origin port');
-    await this.assertPortExists(tenantId, dto.dest_port_id, 'Destination port');
+    await this.assertPortExists(tenantId, dto.origin_port_id, "Origin port");
+    await this.assertPortExists(tenantId, dto.dest_port_id, "Destination port");
 
     if (dto.customer_id) {
-      await this.assertPartyExists(tenantId, dto.customer_id, 'Customer');
+      await this.assertPartyExists(tenantId, dto.customer_id, "Customer");
     }
 
     if (dto.carrier_id) {
-      await this.assertPartyExists(tenantId, dto.carrier_id, 'Carrier');
+      await this.assertPartyExists(tenantId, dto.carrier_id, "Carrier");
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -316,15 +360,22 @@ export class QuotationsService {
     });
   }
 
-  async softDelete(tenantId: string, id: string, actorId?: string): Promise<void> {
+  async softDelete(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<void> {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await this.getOrThrow(tx, tenantId, id);
 
-      if (existing.status !== 'DRAFT') {
-        throw new BadRequestException('Only DRAFT quotations can be deleted.');
+      if (existing.status !== "DRAFT") {
+        throw new BadRequestException("Only DRAFT quotations can be deleted.");
       }
 
-      await tx.quotation.update({ where: { id }, data: { deleted_at: new Date(), updated_by: actorId } });
+      await tx.quotation.update({
+        where: { id },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      });
     });
   }
 
@@ -332,7 +383,12 @@ export class QuotationsService {
   // CHARGE LINES — every mutation recalculates GP
   // ============================================================
 
-  async addLine(tenantId: string, quotationId: string, dto: CreateQuotationLineDto, actorId?: string) {
+  async addLine(
+    tenantId: string,
+    quotationId: string,
+    dto: CreateQuotationLineDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, quotationId);
       this.assertEditable(quotation);
@@ -385,11 +441,13 @@ export class QuotationsService {
    */
   async applyTariff(tenantId: string, quotationId: string, actorId?: string) {
     const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.quotation.findFirst({ where: { id: quotationId, tenant_id: tenantId, deleted_at: null } }),
+      tx.quotation.findFirst({
+        where: { id: quotationId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!quotation) {
-      throw new NotFoundException('Quotation not found.');
+      throw new NotFoundException("Quotation not found.");
     }
 
     const tariff = await this.tariffsService.findMatch(tenantId, {
@@ -401,11 +459,19 @@ export class QuotationsService {
     });
 
     if (!tariff) {
-      throw new NotFoundException("No matching tariff found for this quotation's lane and service type.");
+      throw new NotFoundException(
+        "No matching tariff found for this quotation's lane and service type.",
+      );
     }
 
     const chargeCode = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.chargeCode.findFirst({ where: { id: tariff.charge_code_id, tenant_id: tenantId, deleted_at: null } }),
+      tx.chargeCode.findFirst({
+        where: {
+          id: tariff.charge_code_id,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
+      }),
     );
 
     return this.addLine(
@@ -413,7 +479,7 @@ export class QuotationsService {
       quotationId,
       {
         charge_code_id: tariff.charge_code_id,
-        description: chargeCode?.description ?? 'Tariff charge',
+        description: chargeCode?.description ?? "Tariff charge",
         unit: tariff.unit ?? undefined,
         quantity: 1,
         unit_price: Number(tariff.sale_rate),
@@ -439,7 +505,7 @@ export class QuotationsService {
       });
 
       if (!existingLine) {
-        throw new NotFoundException('Charge line not found.');
+        throw new NotFoundException("Charge line not found.");
       }
 
       if (dto.charge_code_id) {
@@ -448,12 +514,17 @@ export class QuotationsService {
 
       const quantity = dto.quantity ?? Number(existingLine.quantity);
       const unitPrice = dto.unit_price ?? Number(existingLine.unit_price);
-      const exchangeRate = dto.exchange_rate ?? Number(existingLine.exchange_rate);
+      const exchangeRate =
+        dto.exchange_rate ?? Number(existingLine.exchange_rate);
       const amount = quantity * unitPrice;
       const amountBase = amount * exchangeRate;
       const taxAmount =
         dto.tax_rate_id !== undefined
-          ? await this.computeTax(tx, tenantId, { ...dto, unit_price: unitPrice, quantity })
+          ? await this.computeTax(tx, tenantId, {
+              ...dto,
+              unit_price: unitPrice,
+              quantity,
+            })
           : Number(existingLine.tax_amount);
 
       const line = await tx.quotationLine.update({
@@ -476,7 +547,11 @@ export class QuotationsService {
     });
   }
 
-  async removeLine(tenantId: string, quotationId: string, lineId: string): Promise<void> {
+  async removeLine(
+    tenantId: string,
+    quotationId: string,
+    lineId: string,
+  ): Promise<void> {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, quotationId);
       this.assertEditable(quotation);
@@ -486,7 +561,7 @@ export class QuotationsService {
       });
 
       if (!existingLine) {
-        throw new NotFoundException('Charge line not found.');
+        throw new NotFoundException("Charge line not found.");
       }
 
       await tx.quotationLine.delete({ where: { id: lineId } });
@@ -504,7 +579,7 @@ export class QuotationsService {
 
       if (!ARCHIVABLE_STATUSES.includes(quotation.status)) {
         throw new BadRequestException(
-          `Only closed quotations (${ARCHIVABLE_STATUSES.join(', ')}) can be archived.`,
+          `Only closed quotations (${ARCHIVABLE_STATUSES.join(", ")}) can be archived.`,
         );
       }
 
@@ -515,31 +590,50 @@ export class QuotationsService {
     });
   }
 
-  async expire(tenantId: string, id: string, actorId?: string): Promise<Quotation> {
+  async expire(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<Quotation> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
       if (!EXPIRABLE_STATUSES.includes(quotation.status)) {
-        throw new BadRequestException(`Cannot expire a quotation in ${quotation.status} status.`);
+        throw new BadRequestException(
+          `Cannot expire a quotation in ${quotation.status} status.`,
+        );
       }
 
       if (quotation.valid_until && quotation.valid_until > new Date()) {
-        throw new BadRequestException('Quotation is still within its validity period.');
+        throw new BadRequestException(
+          "Quotation is still within its validity period.",
+        );
       }
 
       const updated = await tx.quotation.update({
         where: { id },
-        data: { status: 'EXPIRED', updated_by: actorId },
+        data: { status: "EXPIRED", updated_by: actorId },
       });
 
-      await this.recordStatusChange(tx, tenantId, id, quotation.status, 'EXPIRED', actorId, 'Manually expired.');
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "EXPIRED",
+        actorId,
+        "Manually expired.",
+      );
 
       return updated;
     });
   }
 
   /** Batch-expire all quotations past valid_until — intended for a daily cron. */
-  async expireDue(tenantId: string, actorId?: string): Promise<{ expired: number }> {
+  async expireDue(
+    tenantId: string,
+    actorId?: string,
+  ): Promise<{ expired: number }> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const due = await tx.quotation.findMany({
         where: {
@@ -553,7 +647,7 @@ export class QuotationsService {
       for (const quotation of due) {
         await tx.quotation.update({
           where: { id: quotation.id },
-          data: { status: 'EXPIRED', updated_by: actorId },
+          data: { status: "EXPIRED", updated_by: actorId },
         });
 
         await this.recordStatusChange(
@@ -561,9 +655,9 @@ export class QuotationsService {
           tenantId,
           quotation.id,
           quotation.status,
-          'EXPIRED',
+          "EXPIRED",
           actorId,
-          'Auto-expired past valid_until.',
+          "Auto-expired past valid_until.",
         );
       }
 
@@ -574,7 +668,11 @@ export class QuotationsService {
   /** HTTP cron helper — expire across all active tenants. */
   async expireDueAllTenants(): Promise<{ tenants: number; expired: number }> {
     const tenants = await this.prisma.tenant.findMany({
-      where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
+      where: {
+        status: { in: ["ACTIVE", "TRIAL"] },
+        is_active: true,
+        deleted_at: null,
+      },
       select: { id: true },
     });
 
@@ -590,7 +688,12 @@ export class QuotationsService {
   // PDF & EMAIL (Ch.7)
   // ============================================================
 
-  async generatePdf(tenantId: string, quotationId: string, dto: GenerateQuotationPdfDto, actorId?: string) {
+  async generatePdf(
+    tenantId: string,
+    quotationId: string,
+    dto: GenerateQuotationPdfDto,
+    actorId?: string,
+  ) {
     await this.findOne(tenantId, quotationId);
 
     const task = await this.documentGeneration.enqueueQuotationPdf(
@@ -605,14 +708,16 @@ export class QuotationsService {
       task_id: task.id,
       status: task.status,
       mode: dto.mode,
-      message: 'PDF generation queued.',
+      message: "PDF generation queued.",
     };
   }
 
   async getPdfInfo(tenantId: string, quotationId: string) {
     const quotation = await this.findOne(tenantId, quotationId);
 
-    const tasks = await this.documentGeneration.listTasks(tenantId, { quotationId });
+    const tasks = await this.documentGeneration.listTasks(tenantId, {
+      quotationId,
+    });
 
     return {
       quotation_id: quotationId,
@@ -640,12 +745,19 @@ export class QuotationsService {
     return this.documentGeneration.listTasks(tenantId, { quotationId });
   }
 
-  async sendEmail(tenantId: string, quotationId: string, dto: SendQuotationEmailDto, actorId?: string) {
+  async sendEmail(
+    tenantId: string,
+    quotationId: string,
+    dto: SendQuotationEmailDto,
+    actorId?: string,
+  ) {
     const quotation = await this.findOne(tenantId, quotationId);
     const mode = dto.pdf_mode ?? QuotationPdfMode.CUSTOMER;
 
     let pdfUrl =
-      mode === QuotationPdfMode.CUSTOMER ? quotation.customer_pdf_url : quotation.internal_pdf_url;
+      mode === QuotationPdfMode.CUSTOMER
+        ? quotation.customer_pdf_url
+        : quotation.internal_pdf_url;
 
     let attachmentBuffer: Buffer | undefined;
     let attachmentName: string | undefined;
@@ -661,12 +773,17 @@ export class QuotationsService {
 
       const refreshed = await this.findOne(tenantId, quotationId);
       pdfUrl =
-        mode === QuotationPdfMode.CUSTOMER ? refreshed.customer_pdf_url : refreshed.internal_pdf_url;
+        mode === QuotationPdfMode.CUSTOMER
+          ? refreshed.customer_pdf_url
+          : refreshed.internal_pdf_url;
 
-      if (pdfUrl && !pdfUrl.startsWith('http')) {
-        const filename = pdfUrl.split('/').pop();
+      if (pdfUrl && !pdfUrl.startsWith("http")) {
+        const filename = pdfUrl.split("/").pop();
         if (filename) {
-          attachmentBuffer = await this.storage.readBuffer(tenantId, decodeURIComponent(filename));
+          attachmentBuffer = await this.storage.readBuffer(
+            tenantId,
+            decodeURIComponent(filename),
+          );
           attachmentName = filename;
         }
       }
@@ -678,7 +795,7 @@ export class QuotationsService {
 
     const emailLog = await this.emailService.send({
       tenantId,
-      eventType: 'QUOTATION_PDF',
+      eventType: "QUOTATION_PDF",
       to: dto.to_email,
       cc: dto.cc_email,
       subject: `Quotation ${quotation.quotation_number}`,
@@ -702,7 +819,7 @@ export class QuotationsService {
     );
 
     return {
-      success: emailLog.status === 'SENT',
+      success: emailLog.status === "SENT",
       email_log_id: emailLog.id,
       status: emailLog.status,
       to_email: dto.to_email,
@@ -713,8 +830,14 @@ export class QuotationsService {
   // ANALYTICS (Ch.7.7)
   // ============================================================
 
-  private buildAnalyticsWhere(tenantId: string, query: QuotationAnalyticsQueryDto): Prisma.QuotationWhereInput {
-    const where: Prisma.QuotationWhereInput = { tenant_id: tenantId, deleted_at: null };
+  private buildAnalyticsWhere(
+    tenantId: string,
+    query: QuotationAnalyticsQueryDto,
+  ): Prisma.QuotationWhereInput {
+    const where: Prisma.QuotationWhereInput = {
+      tenant_id: tenantId,
+      deleted_at: null,
+    };
 
     if (query.branch_id) where.branch_id = query.branch_id;
     if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
@@ -737,11 +860,11 @@ export class QuotationsService {
 
       const [total, won, lost, sent, byStatus, byJobType] = await Promise.all([
         tx.quotation.count({ where }),
-        tx.quotation.count({ where: { ...where, status: 'WON' } }),
-        tx.quotation.count({ where: { ...where, status: 'LOST' } }),
-        tx.quotation.count({ where: { ...where, status: 'SENT' } }),
-        tx.quotation.groupBy({ by: ['status'], where, _count: { id: true } }),
-        tx.quotation.groupBy({ by: ['job_type'], where, _count: { id: true } }),
+        tx.quotation.count({ where: { ...where, status: "WON" } }),
+        tx.quotation.count({ where: { ...where, status: "LOST" } }),
+        tx.quotation.count({ where: { ...where, status: "SENT" } }),
+        tx.quotation.groupBy({ by: ["status"], where, _count: { id: true } }),
+        tx.quotation.groupBy({ by: ["job_type"], where, _count: { id: true } }),
       ]);
 
       const closed = won + lost;
@@ -764,20 +887,29 @@ export class QuotationsService {
           total_gp: Number(valueAgg._sum.gp_amount ?? 0),
           average_gp_percent: Number(valueAgg._avg.gp_percent ?? 0),
         },
-        by_status: byStatus.map((row) => ({ status: row.status, count: row._count.id })),
-        by_job_type: byJobType.map((row) => ({ job_type: row.job_type, count: row._count.id })),
+        by_status: byStatus.map((row) => ({
+          status: row.status,
+          count: row._count.id,
+        })),
+        by_job_type: byJobType.map((row) => ({
+          job_type: row.job_type,
+          count: row._count.id,
+        })),
       };
     });
   }
 
-  async getConversionAnalytics(tenantId: string, query: QuotationAnalyticsQueryDto) {
+  async getConversionAnalytics(
+    tenantId: string,
+    query: QuotationAnalyticsQueryDto,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where = this.buildAnalyticsWhere(tenantId, query);
 
       const [won, lost, converted] = await Promise.all([
-        tx.quotation.count({ where: { ...where, status: 'WON' } }),
-        tx.quotation.count({ where: { ...where, status: 'LOST' } }),
-        tx.quotation.count({ where: { ...where, status: 'CONVERTED' } }),
+        tx.quotation.count({ where: { ...where, status: "WON" } }),
+        tx.quotation.count({ where: { ...where, status: "LOST" } }),
+        tx.quotation.count({ where: { ...where, status: "CONVERTED" } }),
       ]);
 
       const closed = won + lost;
@@ -788,24 +920,28 @@ export class QuotationsService {
         lost,
         converted,
         win_rate: Math.round(winRate * 100) / 100,
-        conversion_to_job_rate: won > 0 ? Math.round((converted / won) * 10000) / 100 : 0,
+        conversion_to_job_rate:
+          won > 0 ? Math.round((converted / won) * 10000) / 100 : 0,
       };
     });
   }
 
-  async getLostReasonAnalytics(tenantId: string, query: QuotationAnalyticsQueryDto) {
+  async getLostReasonAnalytics(
+    tenantId: string,
+    query: QuotationAnalyticsQueryDto,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.QuotationWhereInput = {
         ...this.buildAnalyticsWhere(tenantId, query),
-        status: 'LOST',
+        status: "LOST",
         lost_reason: { not: null },
       };
 
       const rows = await tx.quotation.groupBy({
-        by: ['lost_reason'],
+        by: ["lost_reason"],
         where,
         _count: { id: true },
-        orderBy: { _count: { id: 'desc' } },
+        orderBy: { _count: { id: "desc" } },
       });
 
       return rows.map((row) => ({
@@ -815,7 +951,10 @@ export class QuotationsService {
     });
   }
 
-  async getResponseTimeAnalytics(tenantId: string, query: QuotationAnalyticsQueryDto) {
+  async getResponseTimeAnalytics(
+    tenantId: string,
+    query: QuotationAnalyticsQueryDto,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotations = await tx.quotation.findMany({
         where: {
@@ -834,14 +973,18 @@ export class QuotationsService {
       let sendHours = 0;
 
       for (const q of quotations) {
-        submitHours += (q.submitted_at!.getTime() - q.created_at.getTime()) / 3_600_000;
-        sendHours += (q.sent_at!.getTime() - q.created_at.getTime()) / 3_600_000;
+        submitHours +=
+          (q.submitted_at!.getTime() - q.created_at.getTime()) / 3_600_000;
+        sendHours +=
+          (q.sent_at!.getTime() - q.created_at.getTime()) / 3_600_000;
       }
 
       return {
         sample_size: quotations.length,
-        avg_hours_to_submit: Math.round((submitHours / quotations.length) * 100) / 100,
-        avg_hours_to_send: Math.round((sendHours / quotations.length) * 100) / 100,
+        avg_hours_to_submit:
+          Math.round((submitHours / quotations.length) * 100) / 100,
+        avg_hours_to_send:
+          Math.round((sendHours / quotations.length) * 100) / 100,
       };
     });
   }
@@ -856,7 +999,7 @@ export class QuotationsService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Tenant not found.');
+      throw new NotFoundException("Tenant not found.");
     }
 
     const tenantId = tenant.id;
@@ -865,12 +1008,18 @@ export class QuotationsService {
 
     if (!customerId) {
       if (!dto.contact_email || !dto.contact_name) {
-        throw new BadRequestException('contact_email and contact_name are required when customer_id is not provided.');
+        throw new BadRequestException(
+          "contact_email and contact_name are required when customer_id is not provided.",
+        );
       }
 
       const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.party.findFirst({
-          where: { tenant_id: tenantId, email: dto.contact_email!.toLowerCase(), deleted_at: null },
+          where: {
+            tenant_id: tenantId,
+            email: dto.contact_email!.toLowerCase(),
+            deleted_at: null,
+          },
         }),
       );
 
@@ -881,7 +1030,7 @@ export class QuotationsService {
           tx.party.create({
             data: {
               tenant_id: tenantId,
-              party_type: 'CUSTOMER',
+              party_type: "CUSTOMER",
               code: `WEB-${Date.now()}`,
               name: dto.contact_name!,
               email: dto.contact_email!.toLowerCase(),
@@ -909,7 +1058,7 @@ export class QuotationsService {
         special_requirements: dto.special_requirements,
         valid_until: dto.valid_until,
         currency_code: dto.currency_code,
-        remarks: 'Submitted via online quote widget.',
+        remarks: "Submitted via online quote widget.",
       },
       undefined,
     );
@@ -924,7 +1073,8 @@ export class QuotationsService {
 
     return {
       success: true,
-      message: 'Online quote request received. Our sales team will follow up shortly.',
+      message:
+        "Online quote request received. Our sales team will follow up shortly.",
       data: {
         quotation_id: refreshed.id,
         quotation_number: refreshed.quotation_number,
@@ -944,10 +1094,13 @@ export class QuotationsService {
   async createPortalQuoteRequest(
     tenantId: string,
     partyId: string,
-    dto: Omit<CreateOnlineQuoteDto, 'tenant_slug' | 'customer_id' | 'contact_email' | 'contact_name'>,
+    dto: Omit<
+      CreateOnlineQuoteDto,
+      "tenant_slug" | "customer_id" | "contact_email" | "contact_name"
+    >,
     portalUserId?: string,
   ) {
-    await this.assertPartyExists(tenantId, partyId, 'Customer');
+    await this.assertPartyExists(tenantId, partyId, "Customer");
 
     const quotation = await this.create(
       tenantId,
@@ -965,7 +1118,7 @@ export class QuotationsService {
         special_requirements: dto.special_requirements,
         valid_until: dto.valid_until,
         currency_code: dto.currency_code,
-        remarks: `Submitted via customer portal by user ${portalUserId ?? 'unknown'}.`,
+        remarks: `Submitted via customer portal by user ${portalUserId ?? "unknown"}.`,
       },
       portalUserId,
     );
@@ -981,12 +1134,15 @@ export class QuotationsService {
 
     return {
       success: true,
-      message: 'Quote request received. Our sales team will follow up shortly.',
+      message: "Quote request received. Our sales team will follow up shortly.",
       data: {
         quotation_id: refreshed.id,
         quotation_number: refreshed.quotation_number,
         status: refreshed.status,
-        revenue_total: revenueLines.reduce((sum, line) => sum + Number(line.amount), 0),
+        revenue_total: revenueLines.reduce(
+          (sum, line) => sum + Number(line.amount),
+          0,
+        ),
         line_count: revenueLines.length,
       },
     };
@@ -1004,46 +1160,101 @@ export class QuotationsService {
    * General Settings module, not built yet. Wiring 3 levels here would
    * mean guessing at config that doesn't exist anywhere yet.
    */
-  async submit(tenantId: string, id: string, actorId?: string): Promise<Quotation> {
+  async submit(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<Quotation> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
       if (!EDITABLE_STATUSES.includes(quotation.status)) {
-        throw new BadRequestException(`Cannot submit a quotation in ${quotation.status} status.`);
+        throw new BadRequestException(
+          `Cannot submit a quotation in ${quotation.status} status.`,
+        );
       }
 
-      const lineCount = await tx.quotationLine.count({ where: { quotation_id: id, tenant_id: tenantId } });
+      const lineCount = await tx.quotationLine.count({
+        where: { quotation_id: id, tenant_id: tenantId },
+      });
 
       if (lineCount === 0) {
-        throw new BadRequestException('Add at least one charge line before submitting.');
+        throw new BadRequestException(
+          "Add at least one charge line before submitting.",
+        );
       }
 
       await tx.quotationApproval.upsert({
-        where: { tenant_id_quotation_id_level: { tenant_id: tenantId, quotation_id: id, level: 1 } },
-        create: { tenant_id: tenantId, quotation_id: id, level: 1, status: 'PENDING' },
-        update: { status: 'PENDING', approver_id: null, decided_at: null, comments: null },
+        where: {
+          tenant_id_quotation_id_level: {
+            tenant_id: tenantId,
+            quotation_id: id,
+            level: 1,
+          },
+        },
+        create: {
+          tenant_id: tenantId,
+          quotation_id: id,
+          level: 1,
+          status: "PENDING",
+        },
+        update: {
+          status: "PENDING",
+          approver_id: null,
+          decided_at: null,
+          comments: null,
+        },
       });
 
       const updated = await tx.quotation.update({
         where: { id },
-        data: { status: 'SUBMITTED', submitted_at: new Date(), updated_by: actorId },
+        data: {
+          status: "SUBMITTED",
+          submitted_at: new Date(),
+          updated_by: actorId,
+        },
       });
 
-      await this.recordStatusChange(tx, tenantId, id, quotation.status, 'SUBMITTED', actorId);
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "SUBMITTED",
+        actorId,
+      );
 
       return updated;
     });
   }
 
-  async approve(tenantId: string, id: string, actorId: string | undefined, dto: ApprovalDecisionDto): Promise<Quotation> {
-    const updated = await this.decide(tenantId, id, actorId, 'APPROVED', dto);
-    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_APPROVED', 'Quotation approved');
+  async approve(
+    tenantId: string,
+    id: string,
+    actorId: string | undefined,
+    dto: ApprovalDecisionDto,
+  ): Promise<Quotation> {
+    const updated = await this.decide(tenantId, id, actorId, "APPROVED", dto);
+    await this.notifyCustomerQuotationStatus(
+      updated,
+      "QUOTATION_APPROVED",
+      "Quotation approved",
+    );
     return updated;
   }
 
-  async reject(tenantId: string, id: string, actorId: string | undefined, dto: ApprovalDecisionDto): Promise<Quotation> {
-    const updated = await this.decide(tenantId, id, actorId, 'REJECTED', dto);
-    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_REJECTED', 'Quotation rejected');
+  async reject(
+    tenantId: string,
+    id: string,
+    actorId: string | undefined,
+    dto: ApprovalDecisionDto,
+  ): Promise<Quotation> {
+    const updated = await this.decide(tenantId, id, actorId, "REJECTED", dto);
+    await this.notifyCustomerQuotationStatus(
+      updated,
+      "QUOTATION_REJECTED",
+      "Quotation rejected",
+    );
     return updated;
   }
 
@@ -1051,152 +1262,244 @@ export class QuotationsService {
     tenantId: string,
     id: string,
     actorId: string | undefined,
-    decision: 'APPROVED' | 'REJECTED',
+    decision: "APPROVED" | "REJECTED",
     dto: ApprovalDecisionDto,
   ): Promise<Quotation> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      if (quotation.status !== 'SUBMITTED') {
-        throw new BadRequestException('Only a SUBMITTED quotation can be approved or rejected.');
+      if (quotation.status !== "SUBMITTED") {
+        throw new BadRequestException(
+          "Only a SUBMITTED quotation can be approved or rejected.",
+        );
       }
 
       const approval = await tx.quotationApproval.findFirst({
-        where: { tenant_id: tenantId, quotation_id: id, level: 1, status: 'PENDING' },
+        where: {
+          tenant_id: tenantId,
+          quotation_id: id,
+          level: 1,
+          status: "PENDING",
+        },
       });
 
       if (!approval) {
-        throw new ConflictException('No pending approval found for this quotation.');
+        throw new ConflictException(
+          "No pending approval found for this quotation.",
+        );
       }
 
       await tx.quotationApproval.update({
         where: { id: approval.id },
-        data: { status: decision, approver_id: actorId, decided_at: new Date(), comments: dto.comments },
+        data: {
+          status: decision,
+          approver_id: actorId,
+          decided_at: new Date(),
+          comments: dto.comments,
+        },
       });
 
-      const newStatus: QuotationStatus = decision === 'APPROVED' ? 'APPROVED' : 'REJECTED';
+      const newStatus: QuotationStatus =
+        decision === "APPROVED" ? "APPROVED" : "REJECTED";
 
       const updated = await tx.quotation.update({
         where: { id },
         data: {
           status: newStatus,
-          ...(decision === 'APPROVED' ? { approved_at: new Date(), approved_by: actorId } : {}),
+          ...(decision === "APPROVED"
+            ? { approved_at: new Date(), approved_by: actorId }
+            : {}),
           updated_by: actorId,
         },
       });
 
-      await this.recordStatusChange(tx, tenantId, id, quotation.status, newStatus, actorId, dto.comments);
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        newStatus,
+        actorId,
+        dto.comments,
+      );
 
       return updated;
     });
   }
 
-  async send(tenantId: string, id: string, actorId?: string): Promise<Quotation> {
+  async send(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<Quotation> {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      if (quotation.status !== 'APPROVED') {
-        throw new BadRequestException('Only an APPROVED quotation can be sent.');
+      if (quotation.status !== "APPROVED") {
+        throw new BadRequestException(
+          "Only an APPROVED quotation can be sent.",
+        );
       }
 
       const result = await tx.quotation.update({
         where: { id },
-        data: { status: 'SENT', sent_at: new Date(), updated_by: actorId },
+        data: { status: "SENT", sent_at: new Date(), updated_by: actorId },
       });
 
-      await this.recordStatusChange(tx, tenantId, id, quotation.status, 'SENT', actorId);
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "SENT",
+        actorId,
+      );
 
       return result;
     });
 
-    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_APPROVED', 'Quotation sent');
+    await this.notifyCustomerQuotationStatus(
+      updated,
+      "QUOTATION_APPROVED",
+      "Quotation sent",
+    );
     return updated;
   }
 
-  async markWon(tenantId: string, id: string, actorId?: string): Promise<Quotation> {
+  async markWon(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<Quotation> {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      if (quotation.status !== 'SENT') {
-        throw new BadRequestException('Only a SENT quotation can be marked won.');
+      if (quotation.status !== "SENT") {
+        throw new BadRequestException(
+          "Only a SENT quotation can be marked won.",
+        );
       }
 
       const result = await tx.quotation.update({
         where: { id },
-        data: { status: 'WON', won_at: new Date(), updated_by: actorId },
+        data: { status: "WON", won_at: new Date(), updated_by: actorId },
       });
 
-      await this.recordStatusChange(tx, tenantId, id, quotation.status, 'WON', actorId);
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "WON",
+        actorId,
+      );
 
       return result;
     });
 
-    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_APPROVED', 'Quotation won');
+    await this.notifyCustomerQuotationStatus(
+      updated,
+      "QUOTATION_APPROVED",
+      "Quotation won",
+    );
     return updated;
   }
 
-  async markLost(tenantId: string, id: string, dto: MarkLostDto, actorId?: string): Promise<Quotation> {
+  async markLost(
+    tenantId: string,
+    id: string,
+    dto: MarkLostDto,
+    actorId?: string,
+  ): Promise<Quotation> {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      if (quotation.status !== 'SENT') {
-        throw new BadRequestException('Only a SENT quotation can be marked lost.');
+      if (quotation.status !== "SENT") {
+        throw new BadRequestException(
+          "Only a SENT quotation can be marked lost.",
+        );
       }
 
       const result = await tx.quotation.update({
         where: { id },
         data: {
-          status: 'LOST',
+          status: "LOST",
           lost_at: new Date(),
           lost_reason: dto.reason,
           updated_by: actorId,
         },
       });
 
-      await this.recordStatusChange(tx, tenantId, id, quotation.status, 'LOST', actorId, dto.notes ?? dto.reason);
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "LOST",
+        actorId,
+        dto.notes ?? dto.reason,
+      );
 
       return result;
     });
 
-    await this.notifyCustomerQuotationStatus(updated, 'QUOTATION_REJECTED', 'Quotation lost');
+    await this.notifyCustomerQuotationStatus(
+      updated,
+      "QUOTATION_REJECTED",
+      "Quotation lost",
+    );
     return updated;
   }
 
   private async notifyCustomerQuotationStatus(
     quotation: Quotation,
-    type: 'QUOTATION_APPROVED' | 'QUOTATION_REJECTED',
+    type: "QUOTATION_APPROVED" | "QUOTATION_REJECTED",
     title: string,
   ) {
     if (!quotation.customer_id) return;
-    await this.notifications.notifyPartyPortalUsers(quotation.tenant_id, quotation.customer_id, {
-      type,
-      title,
-      message: `${title}: ${quotation.quotation_number}`,
-      entity_type: 'quotation',
-      entity_id: quotation.id,
-      link_path: `/portal/quotations/${quotation.id}`,
-    });
+    await this.notifications.notifyPartyPortalUsers(
+      quotation.tenant_id,
+      quotation.customer_id,
+      {
+        type,
+        title,
+        message: `${title}: ${quotation.quotation_number}`,
+        entity_type: "quotation",
+        entity_id: quotation.id,
+        link_path: `/portal/quotations/${quotation.id}`,
+      },
+    );
   }
 
   // ============================================================
   // REVISIONS — clone into a new DRAFT, incrementing version
   // ============================================================
 
-  async duplicate(tenantId: string, id: string, actorId?: string): Promise<Quotation> {
+  async duplicate(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<Quotation> {
     // Phase 1: read (own transaction).
     const original = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.quotation.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null }, include: { lines: true } }),
+      tx.quotation.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+        include: { lines: true },
+      }),
     );
 
     if (!original) {
-      throw new NotFoundException('Quotation not found.');
+      throw new NotFoundException("Quotation not found.");
     }
 
     const rootId = original.parent_quotation_id ?? original.id;
 
     const latestVersion = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.aggregate({
-        where: { tenant_id: tenantId, OR: [{ id: rootId }, { parent_quotation_id: rootId }] },
+        where: {
+          tenant_id: tenantId,
+          OR: [{ id: rootId }, { parent_quotation_id: rootId }],
+        },
         _max: { version: true },
       }),
     );
@@ -1205,11 +1508,18 @@ export class QuotationsService {
     // these is its own atomic operation (numberGenerator manages its
     // own transaction internally), deliberately NOT nested inside the
     // write transaction below.
-    const branchCode = await this.resolveBranchCode(tenantId, original.branch_id ?? undefined);
-    const quotationNumber = await this.numberGenerator.generate(tenantId, 'QUOTATION', {
-      extraSegment: JOB_TYPE_CODE[original.job_type],
-      branchCode,
-    });
+    const branchCode = await this.resolveBranchCode(
+      tenantId,
+      original.branch_id ?? undefined,
+    );
+    const quotationNumber = await this.numberGenerator.generate(
+      tenantId,
+      "QUOTATION",
+      {
+        extraSegment: JOB_TYPE_CODE[original.job_type],
+        branchCode,
+      },
+    );
 
     // Phase 3: write everything atomically.
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -1217,7 +1527,7 @@ export class QuotationsService {
         data: {
           tenant_id: tenantId,
           quotation_number: quotationNumber,
-          status: 'DRAFT',
+          status: "DRAFT",
           job_type: original.job_type,
           company_id: original.company_id,
           customer_id: original.customer_id,
@@ -1294,30 +1604,48 @@ export class QuotationsService {
   // a substitute for that module.
   // ============================================================
 
-  async convertToJob(tenantId: string, id: string, actorId?: string): Promise<{ jobId: string; jobNumber: string }> {
+  async convertToJob(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<{ jobId: string; jobNumber: string }> {
     // Phase 1: read + validate (own transaction).
     const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.quotation.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null }, include: { lines: true } }),
+      tx.quotation.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+        include: { lines: true },
+      }),
     );
 
     if (!quotation) {
-      throw new NotFoundException('Quotation not found.');
+      throw new NotFoundException("Quotation not found.");
     }
 
-    if (quotation.status !== 'WON') {
-      throw new BadRequestException('Only a WON quotation can be converted to a job.');
+    if (quotation.status !== "WON") {
+      throw new BadRequestException(
+        "Only a WON quotation can be converted to a job.",
+      );
     }
 
     if (quotation.converted_job_id) {
-      throw new ConflictException('This quotation has already been converted to a job.');
+      throw new ConflictException(
+        "This quotation has already been converted to a job.",
+      );
     }
 
     // Phase 2: mint the job number — not nested inside the write transaction.
-    const branchCode = await this.resolveBranchCode(tenantId, quotation.branch_id ?? undefined);
-    const jobNumber = await this.numberGenerator.generate(tenantId, 'JOB_NUMBER', {
-      extraSegment: JOB_TYPE_CODE[quotation.job_type],
-      branchCode,
-    });
+    const branchCode = await this.resolveBranchCode(
+      tenantId,
+      quotation.branch_id ?? undefined,
+    );
+    const jobNumber = await this.numberGenerator.generate(
+      tenantId,
+      "JOB_NUMBER",
+      {
+        extraSegment: JOB_TYPE_CODE[quotation.job_type],
+        branchCode,
+      },
+    );
 
     // Phase 3: write everything atomically.
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -1327,7 +1655,7 @@ export class QuotationsService {
           job_number: jobNumber,
           tracking_token: mintTrackingToken(),
           job_type: quotation.job_type,
-          status: 'BOOKING_CONFIRMED',
+          status: "BOOKING_CONFIRMED",
           created_from_quote_id: id,
           company_id: quotation.company_id,
           branch_id: quotation.branch_id,
@@ -1376,7 +1704,13 @@ export class QuotationsService {
         });
       }
 
-      await seedJobTypeExtras(tx, tenantId, job.id, quotation.job_type, actorId);
+      await seedJobTypeExtras(
+        tx,
+        tenantId,
+        job.id,
+        quotation.job_type,
+        actorId,
+      );
 
       // Re-fetch inside this transaction
       // Phase 1 came from a different (already-closed) transaction, and
@@ -1385,12 +1719,25 @@ export class QuotationsService {
       // re-derive from-status from it explicitly for clarity).
       await tx.quotation.update({
         where: { id },
-        data: { status: 'CONVERTED', converted_job_id: job.id, updated_by: actorId },
+        data: {
+          status: "CONVERTED",
+          converted_job_id: job.id,
+          updated_by: actorId,
+        },
       });
 
-      await this.recordStatusChange(tx, tenantId, id, 'WON', 'CONVERTED', actorId);
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        "WON",
+        "CONVERTED",
+        actorId,
+      );
 
-      this.logger.log(`[CONVERT_TO_JOB] Quotation ${quotation.quotation_number} -> Job ${jobNumber}`);
+      this.logger.log(
+        `[CONVERT_TO_JOB] Quotation ${quotation.quotation_number} -> Job ${jobNumber}`,
+      );
 
       return { jobId: job.id, jobNumber };
     });
@@ -1400,11 +1747,17 @@ export class QuotationsService {
   // PRIVATE HELPERS
   // ============================================================
 
-  private async getOrThrow(tx: Prisma.TransactionClient, tenantId: string, id: string): Promise<Quotation> {
-    const quotation = await tx.quotation.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } });
+  private async getOrThrow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    id: string,
+  ): Promise<Quotation> {
+    const quotation = await tx.quotation.findFirst({
+      where: { id, tenant_id: tenantId, deleted_at: null },
+    });
 
     if (!quotation) {
-      throw new NotFoundException('Quotation not found.');
+      throw new NotFoundException("Quotation not found.");
     }
 
     return quotation;
@@ -1418,8 +1771,14 @@ export class QuotationsService {
     }
   }
 
-  private async recalculateTotals(tx: Prisma.TransactionClient, tenantId: string, quotationId: string): Promise<void> {
-    const lines = await tx.quotationLine.findMany({ where: { tenant_id: tenantId, quotation_id: quotationId } });
+  private async recalculateTotals(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    quotationId: string,
+  ): Promise<void> {
+    const lines = await tx.quotationLine.findMany({
+      where: { tenant_id: tenantId, quotation_id: quotationId },
+    });
 
     let revenue = 0;
     let cost = 0;
@@ -1438,7 +1797,12 @@ export class QuotationsService {
 
     await tx.quotation.update({
       where: { id: quotationId },
-      data: { revenue_total: revenue, cost_total: cost, gp_amount: gp, gp_percent: gpPercent },
+      data: {
+        revenue_total: revenue,
+        cost_total: cost,
+        gp_amount: gp,
+        gp_percent: gpPercent,
+      },
     });
   }
 
@@ -1456,7 +1820,7 @@ export class QuotationsService {
     });
 
     if (!taxRate) {
-      throw new NotFoundException('Tax rate not found.');
+      throw new NotFoundException("Tax rate not found.");
     }
 
     const amount = (dto.quantity ?? 1) * dto.unit_price;
@@ -1489,20 +1853,28 @@ export class QuotationsService {
     tenantId: string,
     chargeCodeId: string,
   ): Promise<void> {
-    const exists = await tx.chargeCode.findFirst({ where: { id: chargeCodeId, tenant_id: tenantId, deleted_at: null } });
+    const exists = await tx.chargeCode.findFirst({
+      where: { id: chargeCodeId, tenant_id: tenantId, deleted_at: null },
+    });
 
     if (!exists) {
-      throw new NotFoundException('Charge code not found.');
+      throw new NotFoundException("Charge code not found.");
     }
   }
 
-  private async assertPartyExists(tenantId: string, partyId: string | undefined, label: string): Promise<void> {
+  private async assertPartyExists(
+    tenantId: string,
+    partyId: string | undefined,
+    label: string,
+  ): Promise<void> {
     if (!partyId) {
       return;
     }
 
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.party.findFirst({ where: { id: partyId, tenant_id: tenantId, deleted_at: null } }),
+      tx.party.findFirst({
+        where: { id: partyId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {
@@ -1510,45 +1882,60 @@ export class QuotationsService {
     }
   }
 
-  private async assertCompanyExists(tenantId: string, companyId?: string): Promise<void> {
+  private async assertCompanyExists(
+    tenantId: string,
+    companyId?: string,
+  ): Promise<void> {
     if (!companyId) {
       return;
     }
 
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } }),
+      tx.company.findFirst({
+        where: { id: companyId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
   }
 
-  private async assertDepartmentExists(tenantId: string, departmentId?: string): Promise<void> {
+  private async assertDepartmentExists(
+    tenantId: string,
+    departmentId?: string,
+  ): Promise<void> {
     if (!departmentId) {
       return;
     }
 
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.department.findFirst({ where: { id: departmentId, tenant_id: tenantId, deleted_at: null } }),
+      tx.department.findFirst({
+        where: { id: departmentId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {
-      throw new NotFoundException('Department not found.');
+      throw new NotFoundException("Department not found.");
     }
   }
 
-  private async assertBranchExists(tenantId: string, branchId?: string): Promise<void> {
+  private async assertBranchExists(
+    tenantId: string,
+    branchId?: string,
+  ): Promise<void> {
     if (!branchId) {
       return;
     }
 
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.branch.findFirst({ where: { id: branchId, tenant_id: tenantId, deleted_at: null } }),
+      tx.branch.findFirst({
+        where: { id: branchId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {
-      throw new NotFoundException('Branch not found.');
+      throw new NotFoundException("Branch not found.");
     }
   }
 
@@ -1563,22 +1950,31 @@ export class QuotationsService {
 
     const run = existingTx
       ? (fn: (tx: Prisma.TransactionClient) => Promise<any>) => fn(existingTx)
-      : (fn: (tx: Prisma.TransactionClient) => Promise<any>) => this.prisma.runWithTenant(tenantId, fn);
+      : (fn: (tx: Prisma.TransactionClient) => Promise<any>) =>
+          this.prisma.runWithTenant(tenantId, fn);
 
     const branch = await run((tx) =>
-      tx.branch.findFirst({ where: { id: branchId, tenant_id: tenantId, deleted_at: null } }),
+      tx.branch.findFirst({
+        where: { id: branchId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     return branch?.code;
   }
 
-  private async assertPortExists(tenantId: string, portId: string | undefined, label: string): Promise<void> {
+  private async assertPortExists(
+    tenantId: string,
+    portId: string | undefined,
+    label: string,
+  ): Promise<void> {
     if (!portId) {
       return;
     }
 
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.port.findFirst({ where: { id: portId, tenant_id: tenantId, deleted_at: null } }),
+      tx.port.findFirst({
+        where: { id: portId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {

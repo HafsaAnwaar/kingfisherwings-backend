@@ -1,8 +1,8 @@
-import { Global, Module, OnModuleInit } from '@nestjs/common';
-import { CountryLocaleService } from './country-locale.service';
-import { setCountryLocaleService } from './country-locale.accessor';
-import { TenantContextStorage } from '../context/tenant-context.storage';
-import { LocaleController } from './locale.controller';
+import { Global, Module, OnModuleInit } from "@nestjs/common";
+import { CountryLocaleService } from "./country-locale.service";
+import { setCountryLocaleService } from "./country-locale.accessor";
+import { TenantContextStorage } from "../context/tenant-context.storage";
+import { LocaleController } from "./locale.controller";
 
 @Global()
 @Module({

@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { WmsValuationMethod } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { WmsValuationMethod } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
@@ -17,7 +17,7 @@ import {
   Max,
   Min,
   ValidateNested,
-} from 'class-validator';
+} from "class-validator";
 
 export class UpsertWmsSettingsDto {
   @ApiProperty({ enum: WmsValuationMethod })
@@ -36,7 +36,7 @@ export class UpsertWmsSettingsDto {
   @Min(0)
   default_storage_rate!: number;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   default_currency!: string;
@@ -198,7 +198,11 @@ export class CreateGrnDto {
 
 export class GdoLineDto {
   @ApiProperty() @IsUUID() item_id!: string;
-  @ApiProperty({ minimum: 0 }) @Type(() => Number) @IsNumber() @Min(0.0001) quantity!: number;
+  @ApiProperty({ minimum: 0 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.0001)
+  quantity!: number;
   @ApiPropertyOptional() @IsOptional() @IsString() remarks?: string;
 }
 
@@ -209,13 +213,20 @@ export class CreateGdoDto {
   @ApiPropertyOptional() @IsOptional() @IsDateString() delivered_at?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() remarks?: string;
   @ApiProperty({ type: [GdoLineDto] })
-  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => GdoLineDto)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => GdoLineDto)
   lines!: GdoLineDto[];
 }
 
 export class TransferLineDto {
   @ApiProperty() @IsUUID() item_id!: string;
-  @ApiProperty({ minimum: 0 }) @Type(() => Number) @IsNumber() @Min(0.0001) quantity!: number;
+  @ApiProperty({ minimum: 0 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.0001)
+  quantity!: number;
 }
 
 export class CreateTransferDto {
@@ -223,14 +234,20 @@ export class CreateTransferDto {
   @ApiProperty() @IsUUID() to_warehouse_id!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() remarks?: string;
   @ApiProperty({ type: [TransferLineDto] })
-  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => TransferLineDto)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => TransferLineDto)
   lines!: TransferLineDto[];
 }
 
 export class AdjustStockDto {
   @ApiProperty() @IsUUID() warehouse_id!: string;
   @ApiProperty() @IsUUID() item_id!: string;
-  @ApiProperty({ description: 'Signed adjustment quantity' }) @Type(() => Number) @IsNumber() quantity!: number;
+  @ApiProperty({ description: "Signed adjustment quantity" })
+  @Type(() => Number)
+  @IsNumber()
+  quantity!: number;
   @ApiProperty() @IsString() @IsNotEmpty() remarks!: string;
 }
 
@@ -239,14 +256,30 @@ export class CalculateStorageDto {
   @ApiProperty() @IsUUID() party_id!: string;
   @ApiProperty() @IsDateString() period_from!: string;
   @ApiProperty() @IsDateString() period_to!: string;
-  @ApiPropertyOptional({ minimum: 0 }) @IsOptional() @Type(() => Number) @IsInt() @Min(0) free_days?: number;
-  @ApiPropertyOptional({ minimum: 0 }) @IsOptional() @Type(() => Number) @IsNumber() @Min(0) rate_per_day?: number;
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(3, 3) currency_code?: string;
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  free_days?: number;
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  rate_per_day?: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency_code?: string;
 }
 
 export class InvoiceStorageDto {
   @ApiProperty({ type: [String] })
-  @IsArray() @ArrayMinSize(1) @IsUUID('4', { each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID("4", { each: true })
   charge_ids!: string[];
 }
 

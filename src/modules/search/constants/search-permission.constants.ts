@@ -1,7 +1,7 @@
 export const SEARCH_PERMISSION_CONSTANTS = {
-  MODULE: 'search',
+  MODULE: "search",
   ACTIONS: {
-    VIEW: 'view',
+    VIEW: "view",
   },
 } as const;
 

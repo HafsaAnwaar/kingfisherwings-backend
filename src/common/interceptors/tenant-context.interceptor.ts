@@ -1,6 +1,11 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { TenantContextStorage } from '../context/tenant-context.storage';
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+} from "@nestjs/common";
+import { Observable } from "rxjs";
+import { TenantContextStorage } from "../context/tenant-context.storage";
 
 /**
  * Sets tenant id + optional locale onto ALS for the request.
@@ -24,15 +29,11 @@ export class TenantContextInterceptor implements NestInterceptor {
 
     const tenantId = principal?.tenantId ?? null;
 
-    return this.tenantContext.run(
-      tenantId,
-      () => next.handle(),
-      {
-        countryCode: principal?.countryCode ?? null,
-        preferredCountryCode: principal?.preferredCountryCode ?? null,
-        baseCurrency: principal?.baseCurrency ?? null,
-        timezone: principal?.timezone ?? null,
-      },
-    );
+    return this.tenantContext.run(tenantId, () => next.handle(), {
+      countryCode: principal?.countryCode ?? null,
+      preferredCountryCode: principal?.preferredCountryCode ?? null,
+      baseCurrency: principal?.baseCurrency ?? null,
+      timezone: principal?.timezone ?? null,
+    });
   }
 }

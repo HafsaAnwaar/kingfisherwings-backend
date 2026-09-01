@@ -3,14 +3,14 @@
  * Staff JwtStrategy rejects principal === 'portal'.
  */
 export interface PortalJwtPayload {
-  principal: 'portal';
+  principal: "portal";
   sub: string;
   tenantId: string;
   partyId: string;
   email: string;
   /** = PortalSession.jti */
   sessionId: string;
-  type: 'access' | 'refresh';
+  type: "access" | "refresh";
 }
 
 /** Populated on request after PortalAuthGuard. */

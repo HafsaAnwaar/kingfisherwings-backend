@@ -1,6 +1,14 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from "class-validator";
 
 export class CreateAwbStockBatchDto {
   @ApiProperty()
@@ -12,7 +20,7 @@ export class CreateAwbStockBatchDto {
   @IsUUID()
   branch_id?: string;
 
-  @ApiProperty({ example: '176', description: '3-digit IATA airline prefix' })
+  @ApiProperty({ example: "176", description: "3-digit IATA airline prefix" })
   @IsString()
   @MaxLength(3)
   prefix!: string;

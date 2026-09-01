@@ -1,16 +1,10 @@
 // src/modules/tenants/dto/tenant-query.dto.ts
 
-import {
-  IsOptional,
-  IsString,
-  IsInt,
-  Min,
-} from 'class-validator';
+import { IsOptional, IsString, IsInt, Min } from "class-validator";
 
-import { Type } from 'class-transformer';
+import { Type } from "class-transformer";
 
 export class TenantQueryDto {
-
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -29,10 +23,9 @@ export class TenantQueryDto {
 
   @IsOptional()
   @IsString()
-  sortBy = 'created_at';
+  sortBy = "created_at";
 
   @IsOptional()
   @IsString()
-  order: 'asc' | 'desc' = 'desc';
-
+  order: "asc" | "desc" = "desc";
 }

@@ -1,12 +1,12 @@
 export const DOCUMENTATION_PERMISSION_CONSTANTS = {
-  MODULE: 'documentation',
+  MODULE: "documentation",
   ACTIONS: {
-    READ: 'read',
-    MANAGE: 'manage',
-    EDI_READ: 'edi.read',
-    EDI_SUBMIT: 'edi.submit',
-    UPLOAD: 'upload',
-    MPCI: 'mpci',
+    READ: "read",
+    MANAGE: "manage",
+    EDI_READ: "edi.read",
+    EDI_SUBMIT: "edi.submit",
+    UPLOAD: "upload",
+    MPCI: "mpci",
   },
 } as const;
 

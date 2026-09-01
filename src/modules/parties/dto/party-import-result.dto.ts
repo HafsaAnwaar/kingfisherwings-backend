@@ -1,7 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from "@nestjs/swagger";
 
 export class ImportRowError {
-  @ApiProperty({ description: '1-indexed data row number (header row not counted).' })
+  @ApiProperty({
+    description: "1-indexed data row number (header row not counted).",
+  })
   row!: number;
 
   @ApiProperty({ required: false })

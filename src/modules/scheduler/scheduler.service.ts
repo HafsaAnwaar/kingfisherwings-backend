@@ -1,12 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService, isTransientDbError } from '../../prisma/prisma.service';
-import { QuotationsService } from '../quotations/quotations.service';
-import { SeaFclImportService } from '../jobs/sea-fcl-import.service';
-import { JobsService } from '../jobs/jobs.service';
-import { AirImportService } from '../jobs/air-import.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { HrCronService } from '../hr/hr-cron.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PrismaService, isTransientDbError } from "../../prisma/prisma.service";
+import { QuotationsService } from "../quotations/quotations.service";
+import { SeaFclImportService } from "../jobs/sea-fcl-import.service";
+import { JobsService } from "../jobs/jobs.service";
+import { AirImportService } from "../jobs/air-import.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { HrCronService } from "../hr/hr-cron.service";
 
 @Injectable()
 export class SchedulerService {
@@ -34,15 +34,17 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
   async handleQuotationExpiry() {
     if (this.running) {
-      this.logger.warn('Quotation expiry cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "Quotation expiry cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.running = true;
-    this.logger.log('Starting daily quotation expiry cron.');
+    this.logger.log("Starting daily quotation expiry cron.");
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('quotation expiry');
+      const tenants = await this.listActiveTenantsOrSkip("quotation expiry");
       if (!tenants) return;
 
       let totalExpired = 0;
@@ -51,12 +53,17 @@ export class SchedulerService {
         try {
           const result = await this.quotationsService.expireDue(tenant.id);
           if (result.expired > 0) {
-            this.logger.log(`Tenant ${tenant.name}: expired ${result.expired} quotation(s).`);
+            this.logger.log(
+              `Tenant ${tenant.name}: expired ${result.expired} quotation(s).`,
+            );
             totalExpired += result.expired;
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`Quotation expiry failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `Quotation expiry failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
@@ -72,32 +79,43 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async handleDemurrageRecalc() {
     if (this.demurrageRunning) {
-      this.logger.warn('Demurrage cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "Demurrage cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.demurrageRunning = true;
-    this.logger.log('Starting daily demurrage/detention recalculation cron.');
+    this.logger.log("Starting daily demurrage/detention recalculation cron.");
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('demurrage recalc');
+      const tenants = await this.listActiveTenantsOrSkip("demurrage recalc");
       if (!tenants) return;
 
       let total = 0;
       for (const tenant of tenants) {
         try {
-          const count = await this.seaFclImport.recalculateAllForTenant(tenant.id);
+          const count = await this.seaFclImport.recalculateAllForTenant(
+            tenant.id,
+          );
           total += count;
           if (count > 0) {
-            this.logger.log(`Tenant ${tenant.name}: recalculated ${count} free-day row(s).`);
+            this.logger.log(
+              `Tenant ${tenant.name}: recalculated ${count} free-day row(s).`,
+            );
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`Demurrage recalc failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `Demurrage recalc failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
-      this.logger.log(`Demurrage cron complete — ${total} container free-day row(s) updated.`);
+      this.logger.log(
+        `Demurrage cron complete — ${total} container free-day row(s) updated.`,
+      );
     } finally {
       this.demurrageRunning = false;
     }
@@ -107,15 +125,17 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async handleInvoiceOverdue() {
     if (this.invoiceOverdueRunning) {
-      this.logger.warn('Invoice overdue cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "Invoice overdue cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.invoiceOverdueRunning = true;
-    this.logger.log('Starting daily invoice overdue notification cron.');
+    this.logger.log("Starting daily invoice overdue notification cron.");
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('invoice overdue');
+      const tenants = await this.listActiveTenantsOrSkip("invoice overdue");
       if (!tenants) return;
 
       const today = new Date();
@@ -129,8 +149,8 @@ export class SchedulerService {
               where: {
                 tenant_id: tenant.id,
                 deleted_at: null,
-                invoice_type: { in: ['CUSTOMER_INVOICE', 'DEBIT_NOTE'] },
-                status: { in: ['POSTED', 'SENT', 'PARTIALLY_PAID'] },
+                invoice_type: { in: ["CUSTOMER_INVOICE", "DEBIT_NOTE"] },
+                status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
                 balance_due: { gt: 0 },
                 due_date: { lt: today },
               },
@@ -144,36 +164,48 @@ export class SchedulerService {
           }
 
           for (const [partyId, count] of counts) {
-            await this.notifications.notifyPartyPortalUsers(tenant.id, partyId, {
-              type: 'INVOICE_OVERDUE',
-              title: 'Overdue invoices',
-              message:
-                count === 1
-                  ? 'You have 1 overdue invoice. Please review your account.'
-                  : `You have ${count} overdue invoices. Please review your account.`,
-              entity_type: 'invoice',
-              link_path: '/portal/invoices',
-            });
+            await this.notifications.notifyPartyPortalUsers(
+              tenant.id,
+              partyId,
+              {
+                type: "INVOICE_OVERDUE",
+                title: "Overdue invoices",
+                message:
+                  count === 1
+                    ? "You have 1 overdue invoice. Please review your account."
+                    : `You have ${count} overdue invoices. Please review your account.`,
+                entity_type: "invoice",
+                link_path: "/portal/invoices",
+              },
+            );
             notified += 1;
           }
 
           if (counts.size > 0) {
-            const totalOverdue = [...counts.values()].reduce((a, b) => a + b, 0);
+            const totalOverdue = [...counts.values()].reduce(
+              (a, b) => a + b,
+              0,
+            );
             await this.notifications.notifyFinanceStaff(tenant.id, {
-              type: 'INVOICE_OVERDUE',
-              title: 'Customer invoices overdue',
+              type: "INVOICE_OVERDUE",
+              title: "Customer invoices overdue",
               message: `${totalOverdue} overdue invoice(s) across ${counts.size} customer(s).`,
-              entity_type: 'invoice',
-              link_path: '/invoices?status=overdue',
+              entity_type: "invoice",
+              link_path: "/invoices?status=overdue",
             });
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`Invoice overdue cron failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `Invoice overdue cron failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
-      this.logger.log(`Invoice overdue cron complete — notified ${notified} party group(s).`);
+      this.logger.log(
+        `Invoice overdue cron complete — notified ${notified} party group(s).`,
+      );
     } finally {
       this.invoiceOverdueRunning = false;
     }
@@ -183,15 +215,17 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async handlePdcMaturity() {
     if (this.pdcMaturityRunning) {
-      this.logger.warn('PDC maturity cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "PDC maturity cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.pdcMaturityRunning = true;
-    this.logger.log('Starting daily PDC maturity notification cron.');
+    this.logger.log("Starting daily PDC maturity notification cron.");
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('PDC maturity');
+      const tenants = await this.listActiveTenantsOrSkip("PDC maturity");
       if (!tenants) return;
 
       const today = new Date();
@@ -209,7 +243,7 @@ export class SchedulerService {
                 tenant_id: tenant.id,
                 deleted_at: null,
                 is_pdc: true,
-                status: { in: ['PENDING', 'DEPOSITED'] },
+                status: { in: ["PENDING", "DEPOSITED"] },
                 due_date: { gte: today, lte: inSevenDays },
               },
               select: {
@@ -226,35 +260,44 @@ export class SchedulerService {
           for (const cheque of cheques) {
             const dueLabel = cheque.due_date
               ? cheque.due_date.toISOString().slice(0, 10)
-              : 'soon';
+              : "soon";
             const msg = `PDC cheque ${cheque.cheque_number} (${cheque.currency_code} ${cheque.amount}) is due on ${dueLabel}.`;
 
             if (cheque.party_id) {
-              await this.notifications.notifyPartyPortalUsers(tenant.id, cheque.party_id, {
-                type: 'PDC_MATURITY_APPROACHING',
-                title: 'PDC maturity approaching',
-                message: msg,
-                entity_type: 'cheque',
-                entity_id: cheque.id,
-                link_path: '/portal/payments',
-              });
+              await this.notifications.notifyPartyPortalUsers(
+                tenant.id,
+                cheque.party_id,
+                {
+                  type: "PDC_MATURITY_APPROACHING",
+                  title: "PDC maturity approaching",
+                  message: msg,
+                  entity_type: "cheque",
+                  entity_id: cheque.id,
+                  link_path: "/portal/payments",
+                },
+              );
             }
             await this.notifications.notifyFinanceStaff(tenant.id, {
-              type: 'PDC_MATURITY_APPROACHING',
-              title: 'PDC maturity approaching',
+              type: "PDC_MATURITY_APPROACHING",
+              title: "PDC maturity approaching",
               message: msg,
-              entity_type: 'cheque',
+              entity_type: "cheque",
               entity_id: cheque.id,
             });
             notified += 1;
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`PDC maturity cron failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `PDC maturity cron failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
-      this.logger.log(`PDC maturity cron complete — ${notified} cheque notification(s).`);
+      this.logger.log(
+        `PDC maturity cron complete — ${notified} cheque notification(s).`,
+      );
     } finally {
       this.pdcMaturityRunning = false;
     }
@@ -264,32 +307,45 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleScheduledPreAlerts() {
     if (this.preAlertRunning) {
-      this.logger.warn('Pre-alert cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "Pre-alert cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.preAlertRunning = true;
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('scheduled pre-alerts');
+      const tenants = await this.listActiveTenantsOrSkip(
+        "scheduled pre-alerts",
+      );
       if (!tenants) return;
 
       let total = 0;
       for (const tenant of tenants) {
         try {
-          const result = await this.jobsService.processScheduledPreAlerts(tenant.id);
+          const result = await this.jobsService.processScheduledPreAlerts(
+            tenant.id,
+          );
           total += result.sent;
           if (result.sent > 0) {
-            this.logger.log(`Tenant ${tenant.name}: sent ${result.sent} scheduled pre-alert(s).`);
+            this.logger.log(
+              `Tenant ${tenant.name}: sent ${result.sent} scheduled pre-alert(s).`,
+            );
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`Scheduled pre-alert failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `Scheduled pre-alert failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
       if (total > 0) {
-        this.logger.log(`Pre-alert scheduler complete — ${total} email(s) sent.`);
+        this.logger.log(
+          `Pre-alert scheduler complete — ${total} email(s) sent.`,
+        );
       }
     } finally {
       this.preAlertRunning = false;
@@ -297,35 +353,46 @@ export class SchedulerService {
   }
 
   /** Week 15 — customs deposit expiry alerts (FCL + Air import, 90/60/30 bands). */
-  @Cron('30 2 * * *')
+  @Cron("30 2 * * *")
   async handleDepositExpiryAlerts() {
     if (this.depositExpiryRunning) {
-      this.logger.warn('Deposit expiry cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "Deposit expiry cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.depositExpiryRunning = true;
-    this.logger.log('Starting daily customs deposit expiry cron.');
+    this.logger.log("Starting daily customs deposit expiry cron.");
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('deposit expiry');
+      const tenants = await this.listActiveTenantsOrSkip("deposit expiry");
       if (!tenants) return;
 
       let total = 0;
       for (const tenant of tenants) {
         try {
-          const notified = await this.seaFclImport.processDepositExpiryAlerts(tenant.id);
+          const notified = await this.seaFclImport.processDepositExpiryAlerts(
+            tenant.id,
+          );
           total += notified;
           if (notified > 0) {
-            this.logger.log(`Tenant ${tenant.name}: ${notified} deposit expiry alert(s).`);
+            this.logger.log(
+              `Tenant ${tenant.name}: ${notified} deposit expiry alert(s).`,
+            );
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`Deposit expiry cron failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `Deposit expiry cron failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
-      this.logger.log(`Deposit expiry cron complete — ${total} notification(s).`);
+      this.logger.log(
+        `Deposit expiry cron complete — ${total} notification(s).`,
+      );
     } finally {
       this.depositExpiryRunning = false;
     }
@@ -335,32 +402,45 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleScheduledImportNotices() {
     if (this.importNoticeRunning) {
-      this.logger.warn('Import notice cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "Import notice cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.importNoticeRunning = true;
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('scheduled import notices');
+      const tenants = await this.listActiveTenantsOrSkip(
+        "scheduled import notices",
+      );
       if (!tenants) return;
 
       let total = 0;
       for (const tenant of tenants) {
         try {
-          const result = await this.airImport.processScheduledImportNotices(tenant.id);
+          const result = await this.airImport.processScheduledImportNotices(
+            tenant.id,
+          );
           total += result.sent;
           if (result.sent > 0) {
-            this.logger.log(`Tenant ${tenant.name}: sent ${result.sent} scheduled import notice(s).`);
+            this.logger.log(
+              `Tenant ${tenant.name}: sent ${result.sent} scheduled import notice(s).`,
+            );
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`Scheduled import notice failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `Scheduled import notice failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
       if (total > 0) {
-        this.logger.log(`Import notice scheduler complete — ${total} email(s) sent.`);
+        this.logger.log(
+          `Import notice scheduler complete — ${total} email(s) sent.`,
+        );
       }
     } finally {
       this.importNoticeRunning = false;
@@ -368,18 +448,20 @@ export class SchedulerService {
   }
 
   /** Week 16 — HR document / dependent visa expiry alerts (90/60/30/7 bands). */
-  @Cron('45 2 * * *')
+  @Cron("45 2 * * *")
   async handleHrDocumentExpiry() {
     if (this.hrDocumentExpiryRunning) {
-      this.logger.warn('HR document expiry cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "HR document expiry cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.hrDocumentExpiryRunning = true;
-    this.logger.log('Starting daily HR document expiry cron.');
+    this.logger.log("Starting daily HR document expiry cron.");
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('HR document expiry');
+      const tenants = await this.listActiveTenantsOrSkip("HR document expiry");
       if (!tenants) return;
 
       let total = 0;
@@ -388,33 +470,44 @@ export class SchedulerService {
           const notified = await this.hrCron.processDocumentExpiry(tenant.id);
           total += notified;
           if (notified > 0) {
-            this.logger.log(`Tenant ${tenant.name}: ${notified} HR document expiry alert(s).`);
+            this.logger.log(
+              `Tenant ${tenant.name}: ${notified} HR document expiry alert(s).`,
+            );
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`HR document expiry cron failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `HR document expiry cron failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
-      this.logger.log(`HR document expiry cron complete — ${total} notification(s).`);
+      this.logger.log(
+        `HR document expiry cron complete — ${total} notification(s).`,
+      );
     } finally {
       this.hrDocumentExpiryRunning = false;
     }
   }
 
   /** Week 16 — missing timesheets for previous working day. */
-  @Cron('0 8 * * *')
+  @Cron("0 8 * * *")
   async handleHrMissingTimesheets() {
     if (this.hrMissingTimesheetRunning) {
-      this.logger.warn('HR missing timesheet cron skipped — previous run still in progress.');
+      this.logger.warn(
+        "HR missing timesheet cron skipped — previous run still in progress.",
+      );
       return;
     }
 
     this.hrMissingTimesheetRunning = true;
-    this.logger.log('Starting daily HR missing timesheet cron.');
+    this.logger.log("Starting daily HR missing timesheet cron.");
 
     try {
-      const tenants = await this.listActiveTenantsOrSkip('HR missing timesheets');
+      const tenants = await this.listActiveTenantsOrSkip(
+        "HR missing timesheets",
+      );
       if (!tenants) return;
 
       let total = 0;
@@ -423,15 +516,22 @@ export class SchedulerService {
           const count = await this.hrCron.processMissingTimesheets(tenant.id);
           total += count;
           if (count > 0) {
-            this.logger.log(`Tenant ${tenant.name}: ${count} missing timesheet alert(s).`);
+            this.logger.log(
+              `Tenant ${tenant.name}: ${count} missing timesheet alert(s).`,
+            );
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`HR missing timesheet cron failed for tenant ${tenant.id}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `HR missing timesheet cron failed for tenant ${tenant.id}: ${message}`,
+          );
         }
       }
 
-      this.logger.log(`HR missing timesheet cron complete — ${total} employee(s) flagged.`);
+      this.logger.log(
+        `HR missing timesheet cron complete — ${total} employee(s) flagged.`,
+      );
     } finally {
       this.hrMissingTimesheetRunning = false;
     }
@@ -441,9 +541,11 @@ export class SchedulerService {
     try {
       return await this.prisma.listActiveTenants();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       if (isTransientDbError(error)) {
-        this.logger.warn(`${jobName} skipped — database unreachable (${message}). Will retry next tick.`);
+        this.logger.warn(
+          `${jobName} skipped — database unreachable (${message}). Will retry next tick.`,
+        );
         return null;
       }
       this.logger.error(`${jobName} failed listing tenants: ${message}`);

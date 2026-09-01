@@ -1,14 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { JobsService } from '../jobs/jobs.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { JobsService } from "../jobs/jobs.service";
 import {
   ApplyChargeTemplateDto,
   ChargeTemplateQueryDto,
   CreateChargeTemplateDto,
   UpdateChargeTemplateDto,
-} from './dto/documentation-charge-template.dto';
-import { paginated } from './dto/documentation-pagination.dto';
+} from "./dto/documentation-charge-template.dto";
+import { paginated } from "./dto/documentation-pagination.dto";
 
 @Injectable()
 export class DocumentationChargeTemplateService {
@@ -25,19 +25,21 @@ export class DocumentationChargeTemplateService {
       const where: Prisma.DocumentationChargeTemplateWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        ...(query.is_active !== undefined ? { is_active: query.is_active } : {}),
+        ...(query.is_active !== undefined
+          ? { is_active: query.is_active }
+          : {}),
         ...(query.search
-          ? { name: { contains: query.search, mode: 'insensitive' } }
+          ? { name: { contains: query.search, mode: "insensitive" } }
           : {}),
       };
 
       const [items, total] = await Promise.all([
         tx.documentationChargeTemplate.findMany({
           where,
-          include: { lines: { orderBy: { sort_order: 'asc' } } },
+          include: { lines: { orderBy: { sort_order: "asc" } } },
           skip: (page - 1) * limit,
           take: limit,
-          orderBy: { name: 'asc' },
+          orderBy: { name: "asc" },
         }),
         tx.documentationChargeTemplate.count({ where }),
       ]);
@@ -50,14 +52,18 @@ export class DocumentationChargeTemplateService {
     const template = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentationChargeTemplate.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
-        include: { lines: { orderBy: { sort_order: 'asc' } } },
+        include: { lines: { orderBy: { sort_order: "asc" } } },
       }),
     );
-    if (!template) throw new NotFoundException('Charge template not found.');
+    if (!template) throw new NotFoundException("Charge template not found.");
     return template;
   }
 
-  async create(tenantId: string, dto: CreateChargeTemplateDto, actorId?: string) {
+  async create(
+    tenantId: string,
+    dto: CreateChargeTemplateDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentationChargeTemplate.create({
         data: {
@@ -73,8 +79,8 @@ export class DocumentationChargeTemplateService {
               tenant_id: tenantId,
               charge_code_id: line.charge_code_id,
               description: line.description,
-              sale_or_cost: line.sale_or_cost ?? 'SALE',
-              dr_cr: line.dr_cr ?? 'Dr',
+              sale_or_cost: line.sale_or_cost ?? "SALE",
+              dr_cr: line.dr_cr ?? "Dr",
               currency_code: line.currency_code,
               default_amount: line.default_amount,
               tax_group_id: line.tax_group_id,
@@ -87,7 +93,12 @@ export class DocumentationChargeTemplateService {
     );
   }
 
-  async update(tenantId: string, id: string, dto: UpdateChargeTemplateDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateChargeTemplateDto,
+    actorId?: string,
+  ) {
     await this.findOne(tenantId, id);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -101,7 +112,9 @@ export class DocumentationChargeTemplateService {
         where: { id },
         data: {
           ...(dto.name !== undefined ? { name: dto.name } : {}),
-          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description }
+            : {}),
           ...(dto.job_types !== undefined ? { job_types: dto.job_types } : {}),
           ...(dto.is_active !== undefined ? { is_active: dto.is_active } : {}),
           updated_by: actorId,
@@ -112,8 +125,8 @@ export class DocumentationChargeTemplateService {
                     tenant_id: tenantId,
                     charge_code_id: line.charge_code_id,
                     description: line.description,
-                    sale_or_cost: line.sale_or_cost ?? 'SALE',
-                    dr_cr: line.dr_cr ?? 'Dr',
+                    sale_or_cost: line.sale_or_cost ?? "SALE",
+                    dr_cr: line.dr_cr ?? "Dr",
                     currency_code: line.currency_code,
                     default_amount: line.default_amount,
                     tax_group_id: line.tax_group_id,
@@ -138,7 +151,12 @@ export class DocumentationChargeTemplateService {
     );
   }
 
-  async apply(tenantId: string, id: string, dto: ApplyChargeTemplateDto, actorId?: string) {
+  async apply(
+    tenantId: string,
+    id: string,
+    dto: ApplyChargeTemplateDto,
+    actorId?: string,
+  ) {
     const template = await this.findOne(tenantId, id);
     const created: string[] = [];
 
@@ -152,7 +170,7 @@ export class DocumentationChargeTemplateService {
           description: line.description,
           unit_price: Number(line.default_amount),
           currency_code: line.currency_code,
-          is_cost: line.sale_or_cost === 'COST',
+          is_cost: line.sale_or_cost === "COST",
         },
         actorId,
       );

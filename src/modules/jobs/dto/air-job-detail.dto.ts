@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsBoolean,
   IsDateString,
@@ -11,24 +11,24 @@ import {
   Max,
   MaxLength,
   Min,
-} from 'class-validator';
-import { CustomsClearanceStatus, StorageRateBasis } from '@prisma/client';
+} from "class-validator";
+import { CustomsClearanceStatus, StorageRateBasis } from "@prisma/client";
 
-const AWB_TYPES = ['Direct', 'Back-to-Back', 'Consol'];
-const FREIGHT_TYPES = ['Prepaid', 'Collect'];
+const AWB_TYPES = ["Direct", "Back-to-Back", "Consol"];
+const FREIGHT_TYPES = ["Prepaid", "Collect"];
 
 export class UpdateAirJobDetailDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   airline_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   origin_airport_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   dest_airport_id?: string;
@@ -73,7 +73,10 @@ export class UpdateAirJobDetailDto {
   @IsIn(FREIGHT_TYPES)
   freight_type?: string;
 
-  @ApiPropertyOptional({ default: 167, description: 'kg per CBM; IATA standard is 167.' })
+  @ApiPropertyOptional({
+    default: 167,
+    description: "kg per CBM; IATA standard is 167.",
+  })
   @IsOptional()
   @IsNumber()
   @Min(1)
@@ -105,12 +108,12 @@ export class UpdateAirJobDetailDto {
   @IsDateString()
   actual_eta?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   agent_at_origin_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   notify_party_id?: string;
@@ -170,7 +173,7 @@ export class UpdateAirJobDetailDto {
   @IsEnum(CustomsClearanceStatus)
   customs_status?: CustomsClearanceStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   customs_broker_id?: string;
@@ -197,7 +200,7 @@ export class UpdateAirJobDetailDto {
   @IsEnum(StorageRateBasis)
   storage_rate_basis?: StorageRateBasis;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   originating_branch_id?: string;

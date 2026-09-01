@@ -1,6 +1,10 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { NvoccCargoType, NvoccTariffCommodityType, NvoccTariffStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  NvoccCargoType,
+  NvoccTariffCommodityType,
+  NvoccTariffStatus,
+} from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
@@ -9,7 +13,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
-} from 'class-validator';
+} from "class-validator";
 
 export class CreateNvoccTariffDto {
   @ApiProperty()

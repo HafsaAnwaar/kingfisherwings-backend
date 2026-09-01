@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { HrSalaryComponentCode } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { HrSalaryComponentCode } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsEnum,
@@ -12,7 +12,7 @@ import {
   Length,
   Max,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class CreatePayrollRunDto {
   @ApiProperty()
@@ -34,7 +34,7 @@ export class CreatePayrollRunDto {
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ default: 'AED' })
+  @ApiPropertyOptional({ default: "AED" })
   @IsOptional()
   @IsString()
   @Length(3, 3)

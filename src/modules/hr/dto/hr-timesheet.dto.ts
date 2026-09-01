@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { HrTimesheetStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { HrTimesheetStatus } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsDateString,
@@ -12,8 +12,8 @@ import {
   IsUUID,
   Max,
   Min,
-} from 'class-validator';
-import { HrPaginationQueryDto } from './hr-employee.dto';
+} from "class-validator";
+import { HrPaginationQueryDto } from "./hr-employee.dto";
 
 export class CreateTimesheetDto {
   @ApiProperty()

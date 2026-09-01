@@ -2,8 +2,8 @@ import {
   registerDecorator,
   ValidationOptions,
   ValidationArguments,
-} from 'class-validator';
-import { PASSWORD_CONSTANTS } from '../constants/password.constants';
+} from "class-validator";
+import { PASSWORD_CONSTANTS } from "../constants/password.constants";
 
 /**
  * Enforces the platform password policy: length bounds plus at least one
@@ -12,13 +12,13 @@ import { PASSWORD_CONSTANTS } from '../constants/password.constants';
 export function IsStrongPassword(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
-      name: 'isStrongPassword',
+      name: "isStrongPassword",
       target: object.constructor,
       propertyName,
       options: validationOptions,
       validator: {
         validate(value: unknown): boolean {
-          if (typeof value !== 'string') {
+          if (typeof value !== "string") {
             return false;
           }
 
@@ -45,7 +45,7 @@ export function IsStrongPassword(validationOptions?: ValidationOptions) {
 export function Match(property: string, validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
-      name: 'match',
+      name: "match",
       target: object.constructor,
       propertyName,
       constraints: [property],
@@ -53,7 +53,9 @@ export function Match(property: string, validationOptions?: ValidationOptions) {
       validator: {
         validate(value: unknown, args: ValidationArguments): boolean {
           const [relatedPropertyName] = args.constraints;
-          const relatedValue = (args.object as Record<string, unknown>)[relatedPropertyName];
+          const relatedValue = (args.object as Record<string, unknown>)[
+            relatedPropertyName
+          ];
           return value === relatedValue;
         },
         defaultMessage(args: ValidationArguments): string {

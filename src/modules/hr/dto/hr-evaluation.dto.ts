@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
@@ -11,7 +11,7 @@ import {
   IsUUID,
   Length,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class TemplateDto {
   @ApiProperty()
@@ -19,7 +19,7 @@ export class TemplateDto {
   @Length(1, 200)
   name!: string;
 
-  @ApiProperty({ description: 'KPI definitions as JSON array' })
+  @ApiProperty({ description: "KPI definitions as JSON array" })
   @IsArray()
   kpis!: Record<string, unknown>[];
 }
@@ -73,7 +73,7 @@ export class EvaluationDto {
 }
 
 export class SubmitScoresDto {
-  @ApiProperty({ description: 'KPI id → score map' })
+  @ApiProperty({ description: "KPI id → score map" })
   @IsObject()
   scores!: Record<string, number>;
 

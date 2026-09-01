@@ -1,10 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { DocumentType, NotificationType, PortalDocumentType, UserRole } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, Logger } from "@nestjs/common";
+import {
+  DocumentType,
+  NotificationType,
+  PortalDocumentType,
+  UserRole,
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 import {
   isPortalVisibleDocumentType,
   toPortalDocumentType,
-} from '../portal/helpers/portal-document-type.helper';
+} from "../portal/helpers/portal-document-type.helper";
 
 export type EmitNotificationInput = {
   type: NotificationType;
@@ -47,7 +52,9 @@ export class NotificationEmitterService {
         }),
       );
     } catch (err) {
-      this.logger.warn(`Failed to notify portal user ${portalUserId}: ${String(err)}`);
+      this.logger.warn(
+        `Failed to notify portal user ${portalUserId}: ${String(err)}`,
+      );
     }
   }
 
@@ -72,7 +79,9 @@ export class NotificationEmitterService {
         }),
       );
     } catch (err) {
-      this.logger.warn(`Failed to notify vendor user ${vendorUserId}: ${String(err)}`);
+      this.logger.warn(
+        `Failed to notify vendor user ${vendorUserId}: ${String(err)}`,
+      );
     }
   }
 
@@ -87,7 +96,7 @@ export class NotificationEmitterService {
           where: {
             tenant_id: tenantId,
             party_id: partyId,
-            status: 'ACTIVE',
+            status: "ACTIVE",
             deleted_at: null,
           },
           select: { id: true },
@@ -115,7 +124,11 @@ export class NotificationEmitterService {
     }
   }
 
-  async notifyStaffUser(tenantId: string, userId: string, input: EmitNotificationInput) {
+  async notifyStaffUser(
+    tenantId: string,
+    userId: string,
+    input: EmitNotificationInput,
+  ) {
     try {
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.notification.create({
@@ -140,15 +153,18 @@ export class NotificationEmitterService {
    * Fan-out to tenant staff who should see portal CCP events
    * (Tenant Admin, Finance, Sales, CS, Branch Manager).
    */
-  async notifyStaffOfPortalEvent(tenantId: string, input: EmitNotificationInput) {
+  async notifyStaffOfPortalEvent(
+    tenantId: string,
+    input: EmitNotificationInput,
+  ) {
     await this.notifyStaffByRoles(
       tenantId,
       [
-        'TENANT_ADMIN',
-        'BRANCH_MANAGER',
-        'FINANCE_MANAGER',
-        'SALES_MANAGER',
-        'CUSTOMER_SUPPORT',
+        "TENANT_ADMIN",
+        "BRANCH_MANAGER",
+        "FINANCE_MANAGER",
+        "SALES_MANAGER",
+        "CUSTOMER_SUPPORT",
       ],
       input,
     );
@@ -158,7 +174,7 @@ export class NotificationEmitterService {
   async notifyFinanceStaff(tenantId: string, input: EmitNotificationInput) {
     await this.notifyStaffByRoles(
       tenantId,
-      ['TENANT_ADMIN', 'FINANCE_MANAGER', 'ACCOUNTANT', 'BRANCH_MANAGER'],
+      ["TENANT_ADMIN", "FINANCE_MANAGER", "ACCOUNTANT", "BRANCH_MANAGER"],
       input,
     );
   }
@@ -168,11 +184,11 @@ export class NotificationEmitterService {
     await this.notifyStaffByRoles(
       tenantId,
       [
-        'TENANT_ADMIN',
-        'OPERATIONS_MANAGER',
-        'OPERATIONS_EXECUTIVE',
-        'DOCUMENTATION',
-        'BRANCH_MANAGER',
+        "TENANT_ADMIN",
+        "OPERATIONS_MANAGER",
+        "OPERATIONS_EXECUTIVE",
+        "DOCUMENTATION",
+        "BRANCH_MANAGER",
       ],
       input,
     );
@@ -189,7 +205,7 @@ export class NotificationEmitterService {
           where: {
             tenant_id: tenantId,
             deleted_at: null,
-            status: 'ACTIVE',
+            status: "ACTIVE",
             role: { in: roles },
           },
           select: { id: true },
@@ -229,7 +245,7 @@ export class NotificationEmitterService {
           where: {
             tenant_id: tenantId,
             party_id: partyId,
-            status: 'ACTIVE',
+            status: "ACTIVE",
             deleted_at: null,
           },
           select: { id: true },
@@ -272,7 +288,7 @@ export class NotificationEmitterService {
           where: {
             tenant_id: tenantId,
             party_id: partyId,
-            status: 'ACTIVE',
+            status: "ACTIVE",
             deleted_at: null,
             preference: { milestone_alerts_enabled: true },
           },
@@ -316,7 +332,7 @@ export class NotificationEmitterService {
           where: {
             tenant_id: tenantId,
             party_id: partyId,
-            status: 'ACTIVE',
+            status: "ACTIVE",
             deleted_at: null,
             OR: [
               { preference: null },
@@ -355,7 +371,11 @@ export class NotificationEmitterService {
   async notifyPortalDocumentReadyForJob(
     tenantId: string,
     jobId: string,
-    document: { id: string; document_type: DocumentType; file_url?: string | null },
+    document: {
+      id: string;
+      document_type: DocumentType;
+      file_url?: string | null;
+    },
   ) {
     try {
       if (!document.file_url) return;
@@ -379,29 +399,37 @@ export class NotificationEmitterService {
 
       const partyIds = [
         ...new Set(
-          [job.shipper_id, job.consignee_id, job.billing_party_id].filter(Boolean) as string[],
+          [job.shipper_id, job.consignee_id, job.billing_party_id].filter(
+            Boolean,
+          ) as string[],
         ),
       ];
       if (!partyIds.length) return;
 
       const title = `Document ready: ${job.job_number}`;
-      const message = `${document.document_type.replace(/_/g, ' ')} is available for shipment ${job.job_number}.`;
+      const message = `${document.document_type.replace(/_/g, " ")} is available for shipment ${job.job_number}.`;
 
       for (const partyId of partyIds) {
-        const canView = await this.partyCanViewDocument(tenantId, partyId, portalType);
+        const canView = await this.partyCanViewDocument(
+          tenantId,
+          partyId,
+          portalType,
+        );
         if (!canView) continue;
 
         await this.notifyPartyPortalUsersDocumentReady(tenantId, partyId, {
-          type: 'DOCUMENT_READY',
+          type: "DOCUMENT_READY",
           title,
           message,
-          entity_type: 'job_document',
+          entity_type: "job_document",
           entity_id: document.id,
           link_path: `/portal/shipments/${job.id}/documents`,
         });
       }
     } catch (err) {
-      this.logger.warn(`Failed DOCUMENT_READY notify for job ${jobId}: ${String(err)}`);
+      this.logger.warn(
+        `Failed DOCUMENT_READY notify for job ${jobId}: ${String(err)}`,
+      );
     }
   }
 

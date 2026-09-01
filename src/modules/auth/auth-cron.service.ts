@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class AuthCronService {
@@ -22,22 +22,34 @@ export class AuthCronService {
       const [staff, superAdmin, portal, vendor] = await Promise.all([
         this.prisma.session.deleteMany({
           where: {
-            OR: [{ expires_at: { lt: now } }, { revoked_at: { lt: revokedCutoff } }],
+            OR: [
+              { expires_at: { lt: now } },
+              { revoked_at: { lt: revokedCutoff } },
+            ],
           },
         }),
         this.prisma.superAdminSession.deleteMany({
           where: {
-            OR: [{ expires_at: { lt: now } }, { revoked_at: { lt: revokedCutoff } }],
+            OR: [
+              { expires_at: { lt: now } },
+              { revoked_at: { lt: revokedCutoff } },
+            ],
           },
         }),
         this.prisma.portalSession.deleteMany({
           where: {
-            OR: [{ expires_at: { lt: now } }, { revoked_at: { lt: revokedCutoff } }],
+            OR: [
+              { expires_at: { lt: now } },
+              { revoked_at: { lt: revokedCutoff } },
+            ],
           },
         }),
         this.prisma.vendorSession.deleteMany({
           where: {
-            OR: [{ expires_at: { lt: now } }, { revoked_at: { lt: revokedCutoff } }],
+            OR: [
+              { expires_at: { lt: now } },
+              { revoked_at: { lt: revokedCutoff } },
+            ],
           },
         }),
       ]);
@@ -46,7 +58,9 @@ export class AuthCronService {
         `Session purge: staff=${staff.count}, superAdmin=${superAdmin.count}, portal=${portal.count}, vendor=${vendor.count}`,
       );
     } catch (err) {
-      this.logger.error(`Session purge failed: ${err instanceof Error ? err.message : err}`);
+      this.logger.error(
+        `Session purge failed: ${err instanceof Error ? err.message : err}`,
+      );
     } finally {
       this.running = false;
     }

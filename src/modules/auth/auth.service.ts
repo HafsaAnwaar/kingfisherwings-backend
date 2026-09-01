@@ -4,49 +4,59 @@ import {
   ForbiddenException,
   NotFoundException,
   BadRequestException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { randomUUID, randomBytes } from 'crypto';
-import * as speakeasy from 'speakeasy';
-import * as QRCode from 'qrcode';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { randomUUID, randomBytes } from "crypto";
+import * as speakeasy from "speakeasy";
+import * as QRCode from "qrcode";
 
-import { Prisma, TenantStatus, UserStatus, User, Tenant } from '@prisma/client';
+import { Prisma, TenantStatus, UserStatus, User, Tenant } from "@prisma/client";
 
-import { PrismaService } from '../../prisma/prisma.service';
-import { PasswordUtil } from '../../common/utils/password.util';
-import { TwoFactorCrypto } from '../../common/utils/two-factor-crypto.util';
-import { EmailService } from '../../shared/email/email.service';
+import { PrismaService } from "../../prisma/prisma.service";
+import { PasswordUtil } from "../../common/utils/password.util";
+import { TwoFactorCrypto } from "../../common/utils/two-factor-crypto.util";
+import { EmailService } from "../../shared/email/email.service";
 
-import { UsersService } from '../users/users.service';
-import { UserMapper } from '../users/mappers/user.mapper';
-import { UsersHelper } from '../users/helpers/users.helper';
-import { PasswordHelper } from '../users/helpers/password.helper';
-import { AUTH_2FA_LINKED } from './constants/auth-2fa.constants';
-import { ChangePasswordDto } from '../users/dto/change-password.dto';
-import { TenantChangePasswordDto } from './dto/tenant-change-password.dto';
-import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
+import { UsersService } from "../users/users.service";
+import { UserMapper } from "../users/mappers/user.mapper";
+import { UsersHelper } from "../users/helpers/users.helper";
+import { PasswordHelper } from "../users/helpers/password.helper";
+import { AUTH_2FA_LINKED } from "./constants/auth-2fa.constants";
+import { ChangePasswordDto } from "../users/dto/change-password.dto";
+import { TenantChangePasswordDto } from "./dto/tenant-change-password.dto";
+import { UpdateMyProfileDto } from "./dto/update-my-profile.dto";
 import {
   AcceptInviteDto,
   DisableTwoFactorDto,
   InviteUserDto,
   TotpVerifyDto,
-} from './dto/invite-2fa.dto';
-import { LoginDto } from './dto/login.dto';
-import { TenantLoginDto } from './dto/tenant-login.dto';
-import { SuperAdminSignupDto } from './dto/super-admin-signup.dto';
-import { SuperAdminLoginDto } from './dto/super-admin-login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
+} from "./dto/invite-2fa.dto";
+import { LoginDto } from "./dto/login.dto";
+import { TenantLoginDto } from "./dto/tenant-login.dto";
+import { SuperAdminSignupDto } from "./dto/super-admin-signup.dto";
+import { SuperAdminLoginDto } from "./dto/super-admin-login.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 
-import { LoginMeta } from './interfaces/login-meta.interface';
-import { JwtPayload, UserJwtPayload, SuperAdminJwtPayload } from './interfaces/jwt-payload.interface';
-import { RequestPrincipal, isSuperAdmin } from './interfaces/request-with-user.interface';
-import { SessionCacheService } from './session-cache.service';
-import { generateInviteToken, hashInviteToken } from '../../common/utils/invite-token.util';
+import { LoginMeta } from "./interfaces/login-meta.interface";
+import {
+  JwtPayload,
+  UserJwtPayload,
+  SuperAdminJwtPayload,
+} from "./interfaces/jwt-payload.interface";
+import {
+  RequestPrincipal,
+  isSuperAdmin,
+} from "./interfaces/request-with-user.interface";
+import { SessionCacheService } from "./session-cache.service";
+import {
+  generateInviteToken,
+  hashInviteToken,
+} from "../../common/utils/invite-token.util";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 30;
-const OWNER_ROLE_CODE = 'TENANT_ADMIN';
+const OWNER_ROLE_CODE = "TENANT_ADMIN";
 
 @Injectable()
 export class AuthService {
@@ -69,14 +79,18 @@ export class AuthService {
     });
 
     if (!tenant) {
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new UnauthorizedException("Invalid credentials.");
     }
 
     this.assertTenantActive(tenant);
 
     return this.prisma.runWithTenant(tenant.id, async (tx) => {
       const user = await tx.user.findFirst({
-        where: { tenant_id: tenant.id, email: dto.email.toLowerCase(), deleted_at: null },
+        where: {
+          tenant_id: tenant.id,
+          email: dto.email.toLowerCase(),
+          deleted_at: null,
+        },
       });
 
       if (!user) {
@@ -86,21 +100,31 @@ export class AuthService {
           email: dto.email,
           meta,
           success: false,
-          failure_reason: 'USER_NOT_FOUND',
+          failure_reason: "USER_NOT_FOUND",
         });
 
-        throw new UnauthorizedException('Invalid credentials.');
+        throw new UnauthorizedException("Invalid credentials.");
       }
 
       if (user.locked_until && user.locked_until > new Date()) {
-        throw new ForbiddenException('Account is temporarily locked due to failed login attempts.');
+        throw new ForbiddenException(
+          "Account is temporarily locked due to failed login attempts.",
+        );
       }
 
-      if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.INVITED) {
-        throw new ForbiddenException(`Account is ${user.status.toLowerCase()}. Contact your administrator.`);
+      if (
+        user.status !== UserStatus.ACTIVE &&
+        user.status !== UserStatus.INVITED
+      ) {
+        throw new ForbiddenException(
+          `Account is ${user.status.toLowerCase()}. Contact your administrator.`,
+        );
       }
 
-      const passwordValid = await PasswordUtil.verify(user.password_hash, dto.password);
+      const passwordValid = await PasswordUtil.verify(
+        user.password_hash,
+        dto.password,
+      );
 
       if (!passwordValid) {
         await this.handleFailedUserLogin(tx, user.id, user.failed_login_count);
@@ -111,10 +135,10 @@ export class AuthService {
           email: dto.email,
           meta,
           success: false,
-          failure_reason: 'INVALID_PASSWORD',
+          failure_reason: "INVALID_PASSWORD",
         });
 
-        throw new UnauthorizedException('Invalid credentials.');
+        throw new UnauthorizedException("Invalid credentials.");
       }
 
       this.assertLoginRestrictions(user, meta);
@@ -140,7 +164,7 @@ export class AuthService {
     });
 
     if (!tenant) {
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new UnauthorizedException("Invalid credentials.");
     }
 
     this.assertTenantActive(tenant);
@@ -149,21 +173,30 @@ export class AuthService {
       const owner = await tx.user.findFirst({
         where: {
           tenant_id: tenant.id,
-          role: 'TENANT_ADMIN',
+          role: "TENANT_ADMIN",
           deleted_at: null,
         },
-        orderBy: { created_at: 'asc' },
+        orderBy: { created_at: "asc" },
       });
 
       if (owner?.locked_until && owner.locked_until > new Date()) {
-        throw new ForbiddenException('Account is temporarily locked due to failed login attempts.');
+        throw new ForbiddenException(
+          "Account is temporarily locked due to failed login attempts.",
+        );
       }
 
-      const passwordValid = await PasswordUtil.verify(tenant.password_hash, dto.password);
+      const passwordValid = await PasswordUtil.verify(
+        tenant.password_hash,
+        dto.password,
+      );
 
       if (!passwordValid) {
         if (owner) {
-          await this.handleFailedUserLogin(tx, owner.id, owner.failed_login_count);
+          await this.handleFailedUserLogin(
+            tx,
+            owner.id,
+            owner.failed_login_count,
+          );
         }
 
         await this.recordLoginHistory(tx, {
@@ -172,20 +205,22 @@ export class AuthService {
           email: tenant.email ?? tenant.slug,
           meta,
           success: false,
-          failure_reason: 'INVALID_TENANT_PASSWORD',
+          failure_reason: "INVALID_TENANT_PASSWORD",
         });
 
-        throw new UnauthorizedException('Invalid credentials.');
+        throw new UnauthorizedException("Invalid credentials.");
       }
 
       if (!owner) {
         throw new NotFoundException(
-          'This tenant has no admin user provisioned. Contact platform support.',
+          "This tenant has no admin user provisioned. Contact platform support.",
         );
       }
 
       if (owner.status !== UserStatus.ACTIVE) {
-        throw new ForbiddenException(`Tenant admin account is ${owner.status.toLowerCase()}.`);
+        throw new ForbiddenException(
+          `Tenant admin account is ${owner.status.toLowerCase()}.`,
+        );
       }
 
       this.assertLoginRestrictions(owner, meta);
@@ -214,7 +249,9 @@ export class AuthService {
     });
 
     if (existing) {
-      throw new ForbiddenException('An account with this email already exists.');
+      throw new ForbiddenException(
+        "An account with this email already exists.",
+      );
     }
 
     const passwordHash = await PasswordUtil.hash(dto.password);
@@ -237,18 +274,23 @@ export class AuthService {
     });
 
     if (!superAdmin) {
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new UnauthorizedException("Invalid credentials.");
     }
 
     if (superAdmin.locked_until && superAdmin.locked_until > new Date()) {
-      throw new ForbiddenException('Account is temporarily locked due to failed login attempts.');
+      throw new ForbiddenException(
+        "Account is temporarily locked due to failed login attempts.",
+      );
     }
 
     if (!superAdmin.is_active) {
-      throw new ForbiddenException('Account is inactive.');
+      throw new ForbiddenException("Account is inactive.");
     }
 
-    const passwordValid = await PasswordUtil.verify(superAdmin.password_hash, dto.password);
+    const passwordValid = await PasswordUtil.verify(
+      superAdmin.password_hash,
+      dto.password,
+    );
 
     if (!passwordValid) {
       const nextCount = superAdmin.failed_login_count + 1;
@@ -264,23 +306,29 @@ export class AuthService {
         },
       });
 
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new UnauthorizedException("Invalid credentials.");
     }
 
     return this.completeSuperAdminLogin(superAdmin, meta);
   }
 
   private async completeSuperAdminLogin(
-    superAdmin: { id: string; email: string; first_name: string; last_name: string },
+    superAdmin: {
+      id: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+    },
     meta: LoginMeta,
   ) {
     const sessionId = randomUUID();
 
-    const { access_token, refresh_token, expires_in } = await this.issueSuperAdminTokens(
-      superAdmin.id,
-      superAdmin.email,
-      sessionId,
-    );
+    const { access_token, refresh_token, expires_in } =
+      await this.issueSuperAdminTokens(
+        superAdmin.id,
+        superAdmin.email,
+        sessionId,
+      );
 
     const refreshTokenHash = await PasswordUtil.hash(refresh_token);
 
@@ -308,7 +356,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Login successful.',
+      message: "Login successful.",
       data: {
         access_token,
         refresh_token,
@@ -331,18 +379,21 @@ export class AuthService {
     let payload: JwtPayload;
 
     try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(dto.refresh_token, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      });
+      payload = await this.jwtService.verifyAsync<JwtPayload>(
+        dto.refresh_token,
+        {
+          secret: this.configService.get<string>("JWT_REFRESH_SECRET"),
+        },
+      );
     } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token.');
+      throw new UnauthorizedException("Invalid or expired refresh token.");
     }
 
-    if (payload.type !== 'refresh') {
-      throw new UnauthorizedException('Invalid token type.');
+    if (payload.type !== "refresh") {
+      throw new UnauthorizedException("Invalid token type.");
     }
 
-    if (payload.principal === 'super_admin') {
+    if (payload.principal === "super_admin") {
       return this.refreshSuperAdmin(payload, dto.refresh_token);
     }
 
@@ -350,21 +401,37 @@ export class AuthService {
   }
 
   private async refreshUser(payload: UserJwtPayload, presentedToken: string) {
-    const session = await this.prisma.session.findUnique({ where: { jti: payload.sessionId } });
+    const session = await this.prisma.session.findUnique({
+      where: { jti: payload.sessionId },
+    });
 
-    if (!session || !session.is_active || session.revoked_at || session.expires_at < new Date()) {
-      throw new UnauthorizedException('Session is no longer valid.');
+    if (
+      !session ||
+      !session.is_active ||
+      session.revoked_at ||
+      session.expires_at < new Date()
+    ) {
+      throw new UnauthorizedException("Session is no longer valid.");
     }
 
-    const tokenMatches = await PasswordUtil.verify(session.refresh_token_hash, presentedToken);
+    const tokenMatches = await PasswordUtil.verify(
+      session.refresh_token_hash,
+      presentedToken,
+    );
 
     if (!tokenMatches) {
       await this.prisma.session.updateMany({
         where: { user_id: session.user_id, is_active: true },
-        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'REUSE_DETECTED' },
+        data: {
+          is_active: false,
+          revoked_at: new Date(),
+          revoked_reason: "REUSE_DETECTED",
+        },
       });
 
-      throw new UnauthorizedException('Refresh token reuse detected. All sessions revoked.');
+      throw new UnauthorizedException(
+        "Refresh token reuse detected. All sessions revoked.",
+      );
     }
 
     const user = await this.prisma.runWithTenant(session.tenant_id, (tx) =>
@@ -372,27 +439,33 @@ export class AuthService {
     );
 
     if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Account is no longer active.');
+      throw new UnauthorizedException("Account is no longer active.");
     }
 
-    const tenantForRefresh = await this.prisma.tenant.findUnique({ where: { id: session.tenant_id } });
+    const tenantForRefresh = await this.prisma.tenant.findUnique({
+      where: { id: session.tenant_id },
+    });
 
     if (!tenantForRefresh) {
-      throw new UnauthorizedException('Account is no longer active.');
+      throw new UnauthorizedException("Account is no longer active.");
     }
 
     this.assertTenantActive(tenantForRefresh);
 
-    const { roleId, permissions } = await this.resolveRbac(session.tenant_id, user.id);
+    const { roleId, permissions } = await this.resolveRbac(
+      session.tenant_id,
+      user.id,
+    );
     const newSessionId = randomUUID();
 
-    const { access_token, refresh_token, expires_in } = await this.issueUserTokens({
-      user,
-      tenantId: session.tenant_id,
-      roleId,
-      permissions,
-      sessionId: newSessionId,
-    });
+    const { access_token, refresh_token, expires_in } =
+      await this.issueUserTokens({
+        user,
+        tenantId: session.tenant_id,
+        roleId,
+        permissions,
+        sessionId: newSessionId,
+      });
 
     const newRefreshTokenHash = await PasswordUtil.hash(refresh_token);
 
@@ -401,7 +474,11 @@ export class AuthService {
     await this.prisma.$transaction([
       this.prisma.session.update({
         where: { jti: payload.sessionId },
-        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'ROTATED' },
+        data: {
+          is_active: false,
+          revoked_at: new Date(),
+          revoked_reason: "ROTATED",
+        },
       }),
       this.prisma.session.create({
         data: {
@@ -422,29 +499,46 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Token refreshed successfully.',
+      message: "Token refreshed successfully.",
       data: { access_token, refresh_token, expires_in },
     };
   }
 
-  private async refreshSuperAdmin(payload: SuperAdminJwtPayload, presentedToken: string) {
+  private async refreshSuperAdmin(
+    payload: SuperAdminJwtPayload,
+    presentedToken: string,
+  ) {
     const session = await this.prisma.superAdminSession.findUnique({
       where: { jti: payload.sessionId },
     });
 
-    if (!session || !session.is_active || session.revoked_at || session.expires_at < new Date()) {
-      throw new UnauthorizedException('Session is no longer valid.');
+    if (
+      !session ||
+      !session.is_active ||
+      session.revoked_at ||
+      session.expires_at < new Date()
+    ) {
+      throw new UnauthorizedException("Session is no longer valid.");
     }
 
-    const tokenMatches = await PasswordUtil.verify(session.refresh_token_hash, presentedToken);
+    const tokenMatches = await PasswordUtil.verify(
+      session.refresh_token_hash,
+      presentedToken,
+    );
 
     if (!tokenMatches) {
       await this.prisma.superAdminSession.updateMany({
         where: { super_admin_id: session.super_admin_id, is_active: true },
-        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'REUSE_DETECTED' },
+        data: {
+          is_active: false,
+          revoked_at: new Date(),
+          revoked_reason: "REUSE_DETECTED",
+        },
       });
 
-      throw new UnauthorizedException('Refresh token reuse detected. All sessions revoked.');
+      throw new UnauthorizedException(
+        "Refresh token reuse detected. All sessions revoked.",
+      );
     }
 
     const superAdmin = await this.prisma.superAdmin.findFirst({
@@ -452,23 +546,28 @@ export class AuthService {
     });
 
     if (!superAdmin) {
-      throw new UnauthorizedException('Account is no longer active.');
+      throw new UnauthorizedException("Account is no longer active.");
     }
 
     const newSessionId = randomUUID();
 
-    const { access_token, refresh_token, expires_in } = await this.issueSuperAdminTokens(
-      superAdmin.id,
-      superAdmin.email,
-      newSessionId,
-    );
+    const { access_token, refresh_token, expires_in } =
+      await this.issueSuperAdminTokens(
+        superAdmin.id,
+        superAdmin.email,
+        newSessionId,
+      );
 
     const newRefreshTokenHash = await PasswordUtil.hash(refresh_token);
 
     await this.prisma.$transaction([
       this.prisma.superAdminSession.update({
         where: { jti: payload.sessionId },
-        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'ROTATED' },
+        data: {
+          is_active: false,
+          revoked_at: new Date(),
+          revoked_reason: "ROTATED",
+        },
       }),
       this.prisma.superAdminSession.create({
         data: {
@@ -484,7 +583,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Token refreshed successfully.',
+      message: "Token refreshed successfully.",
       data: { access_token, refresh_token, expires_in },
     };
   }
@@ -496,19 +595,35 @@ export class AuthService {
   async logout(principal: RequestPrincipal) {
     if (isSuperAdmin(principal)) {
       await this.prisma.superAdminSession.updateMany({
-        where: { super_admin_id: principal.id, jti: principal.sessionId, is_active: true },
-        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT' },
+        where: {
+          super_admin_id: principal.id,
+          jti: principal.sessionId,
+          is_active: true,
+        },
+        data: {
+          is_active: false,
+          revoked_at: new Date(),
+          revoked_reason: "LOGOUT",
+        },
       });
       await this.sessionCache.invalidateSuperAdminSession(principal.sessionId);
     } else {
       await this.prisma.session.updateMany({
-        where: { user_id: principal.id, jti: principal.sessionId, is_active: true },
-        data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT' },
+        where: {
+          user_id: principal.id,
+          jti: principal.sessionId,
+          is_active: true,
+        },
+        data: {
+          is_active: false,
+          revoked_at: new Date(),
+          revoked_reason: "LOGOUT",
+        },
       });
       await this.sessionCache.invalidateStaffSession(principal.sessionId);
     }
 
-    return { success: true, message: 'Logged out successfully.' };
+    return { success: true, message: "Logged out successfully." };
   }
 
   // =====================================================
@@ -522,7 +637,7 @@ export class AuthService {
       });
 
       if (!superAdmin) {
-        throw new UnauthorizedException('Account not found.');
+        throw new UnauthorizedException("Account not found.");
       }
 
       return {
@@ -536,7 +651,10 @@ export class AuthService {
       };
     }
 
-    const response = await this.usersService.findOne(principal.tenantId, principal.id);
+    const response = await this.usersService.findOne(
+      principal.tenantId,
+      principal.id,
+    );
 
     return { success: true, data: response };
   }
@@ -549,7 +667,7 @@ export class AuthService {
   async updateMyProfile(principal: RequestPrincipal, dto: UpdateMyProfileDto) {
     if (isSuperAdmin(principal)) {
       throw new BadRequestException(
-        'SuperAdmin has no preferred country on the platform account. Set country on each tenant via PATCH /tenants/:id (optional).',
+        "SuperAdmin has no preferred country on the platform account. Set country on each tenant via PATCH /tenants/:id (optional).",
       );
     }
 
@@ -575,24 +693,32 @@ export class AuthService {
       );
     }
 
-    return { success: true, message: 'Profile updated.', data: updated };
+    return { success: true, message: "Profile updated.", data: updated };
   }
 
   // =====================================================
   // CHANGE PASSWORD (regular users only, for now)
   // =====================================================
 
-  async changePassword(tenantId: string, userId: string, dto: ChangePasswordDto) {
+  async changePassword(
+    tenantId: string,
+    userId: string,
+    dto: ChangePasswordDto,
+  ) {
     await this.usersService.changePassword(tenantId, userId, dto);
 
     await this.prisma.session.updateMany({
       where: { user_id: userId, is_active: true },
-      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'PASSWORD_CHANGED' },
+      data: {
+        is_active: false,
+        revoked_at: new Date(),
+        revoked_reason: "PASSWORD_CHANGED",
+      },
     });
 
     return {
       success: true,
-      message: 'Password changed successfully. Please log in again.',
+      message: "Password changed successfully. Please log in again.",
     };
   }
 
@@ -612,13 +738,16 @@ export class AuthService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Tenant not found.');
+      throw new NotFoundException("Tenant not found.");
     }
 
-    const currentValid = await PasswordUtil.verify(tenant.password_hash, dto.current_password);
+    const currentValid = await PasswordUtil.verify(
+      tenant.password_hash,
+      dto.current_password,
+    );
 
     if (!currentValid) {
-      throw new UnauthorizedException('Current tenant password is incorrect.');
+      throw new UnauthorizedException("Current tenant password is incorrect.");
     }
 
     const newPasswordHash = await PasswordUtil.hash(dto.new_password);
@@ -630,7 +759,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Tenant password changed successfully.',
+      message: "Tenant password changed successfully.",
     };
   }
 
@@ -639,10 +768,13 @@ export class AuthService {
   // =====================================================
 
   private assertTenantActive(tenant: Tenant): void {
-    const activeTenantStatuses: TenantStatus[] = [TenantStatus.ACTIVE, TenantStatus.TRIAL];
+    const activeTenantStatuses: TenantStatus[] = [
+      TenantStatus.ACTIVE,
+      TenantStatus.TRIAL,
+    ];
 
     if (!tenant.is_active || !activeTenantStatuses.includes(tenant.status)) {
-      throw new ForbiddenException('This account is not active.');
+      throw new ForbiddenException("This account is not active.");
     }
   }
 
@@ -664,16 +796,21 @@ export class AuthService {
       await this.enforceSessionLimit(user.id, user.max_concurrent_sessions);
     }
 
-    const { roleId, permissions } = await this.resolveRbac(tenant.id, user.id, tx);
+    const { roleId, permissions } = await this.resolveRbac(
+      tenant.id,
+      user.id,
+      tx,
+    );
     const sessionId = randomUUID();
 
-    const { access_token, refresh_token, expires_in } = await this.issueUserTokens({
-      user,
-      tenantId: tenant.id,
-      roleId,
-      permissions,
-      sessionId,
-    });
+    const { access_token, refresh_token, expires_in } =
+      await this.issueUserTokens({
+        user,
+        tenantId: tenant.id,
+        roleId,
+        permissions,
+        sessionId,
+      });
 
     const refreshTokenHash = await PasswordUtil.hash(refresh_token);
     const refreshExpiryDays = dto.remember_me ? 30 : 7;
@@ -694,7 +831,9 @@ export class AuthService {
           browser: meta.browser,
           operating_system: meta.operating_system,
           remember_me: dto.remember_me ?? false,
-          expires_at: new Date(Date.now() + refreshExpiryDays * 24 * 60 * 60 * 1000),
+          expires_at: new Date(
+            Date.now() + refreshExpiryDays * 24 * 60 * 60 * 1000,
+          ),
         },
       }),
       tx.user.update({
@@ -725,7 +864,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Login successful.',
+      message: "Login successful.",
       data: {
         access_token,
         refresh_token,
@@ -753,15 +892,21 @@ export class AuthService {
     existingTx?: Prisma.TransactionClient,
   ): Promise<{ roleId: string | null; permissions: string[] }> {
     const run = existingTx
-      ? (fn: (tx: Prisma.TransactionClient) => Promise<{ roleId: string | null; permissions: string[] }>) =>
-          fn(existingTx)
-      : (fn: (tx: Prisma.TransactionClient) => Promise<{ roleId: string | null; permissions: string[] }>) =>
-          this.prisma.runWithTenant(tenantId, fn);
+      ? (
+          fn: (
+            tx: Prisma.TransactionClient,
+          ) => Promise<{ roleId: string | null; permissions: string[] }>,
+        ) => fn(existingTx)
+      : (
+          fn: (
+            tx: Prisma.TransactionClient,
+          ) => Promise<{ roleId: string | null; permissions: string[] }>,
+        ) => this.prisma.runWithTenant(tenantId, fn);
 
     return run(async (tx) => {
       const roleAssignments = await tx.userRoleAssignment.findMany({
         where: { tenant_id: tenantId, user_id: userId },
-        orderBy: { assigned_at: 'asc' },
+        orderBy: { assigned_at: "asc" },
         include: {
           role: {
             include: { role_permissions: { include: { permission: true } } },
@@ -775,14 +920,17 @@ export class AuthService {
       });
 
       const activeAssignments = roleAssignments.filter(
-        (assignment) => assignment.role.is_active && !assignment.role.deleted_at,
+        (assignment) =>
+          assignment.role.is_active && !assignment.role.deleted_at,
       );
 
       const codes = new Set<string>();
 
       for (const assignment of activeAssignments) {
         for (const rolePermission of assignment.role.role_permissions) {
-          codes.add(`${rolePermission.permission.module}.${rolePermission.permission.action}`);
+          codes.add(
+            `${rolePermission.permission.module}.${rolePermission.permission.action}`,
+          );
         }
       }
 
@@ -807,7 +955,7 @@ export class AuthService {
     const { user, tenantId, roleId, permissions, sessionId } = params;
 
     const basePayload = {
-      principal: 'user' as const,
+      principal: "user" as const,
       sub: user.id,
       tenantId,
       branchId: user.branch_id,
@@ -818,26 +966,46 @@ export class AuthService {
       permissions,
     };
 
-    return this.signTokenPair({ ...basePayload, type: 'access' }, { ...basePayload, type: 'refresh' });
+    return this.signTokenPair(
+      { ...basePayload, type: "access" },
+      { ...basePayload, type: "refresh" },
+    );
   }
 
-  private async issueSuperAdminTokens(superAdminId: string, email: string, sessionId: string) {
-    const basePayload = { principal: 'super_admin' as const, sub: superAdminId, email, sessionId };
+  private async issueSuperAdminTokens(
+    superAdminId: string,
+    email: string,
+    sessionId: string,
+  ) {
+    const basePayload = {
+      principal: "super_admin" as const,
+      sub: superAdminId,
+      email,
+      sessionId,
+    };
 
-    return this.signTokenPair({ ...basePayload, type: 'access' }, { ...basePayload, type: 'refresh' });
+    return this.signTokenPair(
+      { ...basePayload, type: "access" },
+      { ...basePayload, type: "refresh" },
+    );
   }
 
-  private async signTokenPair(accessPayload: JwtPayload, refreshPayload: JwtPayload) {
-    const accessExpiresIn = this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m';
-    const refreshExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+  private async signTokenPair(
+    accessPayload: JwtPayload,
+    refreshPayload: JwtPayload,
+  ) {
+    const accessExpiresIn =
+      this.configService.get<string>("JWT_ACCESS_EXPIRES_IN") ?? "15m";
+    const refreshExpiresIn =
+      this.configService.get<string>("JWT_REFRESH_EXPIRES_IN") ?? "7d";
 
     const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(accessPayload, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+        secret: this.configService.get<string>("JWT_ACCESS_SECRET"),
         expiresIn: accessExpiresIn,
       }),
       this.jwtService.signAsync(refreshPayload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.get<string>("JWT_REFRESH_SECRET"),
         expiresIn: refreshExpiresIn,
       }),
     ]);
@@ -865,10 +1033,13 @@ export class AuthService {
     });
   }
 
-  private async enforceSessionLimit(userId: string, maxConcurrentSessions: number) {
+  private async enforceSessionLimit(
+    userId: string,
+    maxConcurrentSessions: number,
+  ) {
     const activeSessions = await this.prisma.session.findMany({
       where: { user_id: userId, is_active: true, revoked_at: null },
-      orderBy: { last_used_at: 'asc' },
+      orderBy: { last_used_at: "asc" },
     });
 
     if (activeSessions.length < maxConcurrentSessions) {
@@ -884,7 +1055,11 @@ export class AuthService {
 
     await this.prisma.session.updateMany({
       where: { id: { in: toRevoke } },
-      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'SESSION_LIMIT_EXCEEDED' },
+      data: {
+        is_active: false,
+        revoked_at: new Date(),
+        revoked_reason: "SESSION_LIMIT_EXCEEDED",
+      },
     });
   }
 
@@ -898,7 +1073,7 @@ export class AuthService {
    */
   private async enforceSingleDeviceLogin(
     userId: string,
-    policy: 'TERMINATE_OLDEST' | 'REJECT_NEW',
+    policy: "TERMINATE_OLDEST" | "REJECT_NEW",
   ): Promise<void> {
     const activeSessions = await this.prisma.session.findMany({
       where: { user_id: userId, is_active: true, revoked_at: null },
@@ -908,9 +1083,9 @@ export class AuthService {
       return;
     }
 
-    if (policy === 'REJECT_NEW') {
+    if (policy === "REJECT_NEW") {
       throw new ForbiddenException(
-        'This account is restricted to a single device. Log out of your other session first.',
+        "This account is restricted to a single device. Log out of your other session first.",
       );
     }
 
@@ -919,7 +1094,7 @@ export class AuthService {
       data: {
         is_active: false,
         revoked_at: new Date(),
-        revoked_reason: 'SINGLE_DEVICE_LOGIN_NEW_SESSION',
+        revoked_reason: "SINGLE_DEVICE_LOGIN_NEW_SESSION",
       },
     });
   }
@@ -932,7 +1107,7 @@ export class AuthService {
   async listSessions(userId: string) {
     const sessions = await this.prisma.session.findMany({
       where: { user_id: userId, is_active: true, revoked_at: null },
-      orderBy: { last_used_at: 'desc' },
+      orderBy: { last_used_at: "desc" },
       select: {
         id: true,
         jti: true,
@@ -957,25 +1132,33 @@ export class AuthService {
     });
 
     if (!session) {
-      throw new NotFoundException('Session not found.');
+      throw new NotFoundException("Session not found.");
     }
 
     await this.prisma.session.update({
       where: { id: sessionId },
-      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'REVOKED_BY_USER' },
+      data: {
+        is_active: false,
+        revoked_at: new Date(),
+        revoked_reason: "REVOKED_BY_USER",
+      },
     });
 
-    return { success: true, message: 'Session revoked.' };
+    return { success: true, message: "Session revoked." };
   }
 
   /** Logs out every device — revokes all of the calling user's active sessions, including the one making this request. */
   async logoutAll(userId: string) {
     await this.prisma.session.updateMany({
       where: { user_id: userId, is_active: true },
-      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'LOGOUT_ALL' },
+      data: {
+        is_active: false,
+        revoked_at: new Date(),
+        revoked_reason: "LOGOUT_ALL",
+      },
     });
 
-    return { success: true, message: 'Logged out of all devices.' };
+    return { success: true, message: "Logged out of all devices." };
   }
 
   private async recordLoginHistory(
@@ -1013,26 +1196,35 @@ export class AuthService {
 
   private assertLoginRestrictions(user: User, meta: LoginMeta) {
     if (!UsersHelper.isWithinOfficeHours(user)) {
-      throw new ForbiddenException('Login is only allowed during configured office hours.');
+      throw new ForbiddenException(
+        "Login is only allowed during configured office hours.",
+      );
     }
     if (!UsersHelper.isIpAllowed(user, meta.ip_address)) {
-      throw new ForbiddenException('Your IP address is not allowed for this account.');
+      throw new ForbiddenException(
+        "Your IP address is not allowed for this account.",
+      );
     }
     if (!UsersHelper.isMacAllowed(user, meta.mac_address)) {
-      throw new ForbiddenException('Your device MAC address is not allowed for this account.');
+      throw new ForbiddenException(
+        "Your device MAC address is not allowed for this account.",
+      );
     }
   }
 
   private twoFactorEncryptionKey(): string {
-    const key = this.configService.get<string>('TWO_FACTOR_ENCRYPTION_KEY');
+    const key = this.configService.get<string>("TWO_FACTOR_ENCRYPTION_KEY");
     if (!key) {
-      throw new Error('TWO_FACTOR_ENCRYPTION_KEY must be configured.');
+      throw new Error("TWO_FACTOR_ENCRYPTION_KEY must be configured.");
     }
     return key;
   }
 
   /** Backup codes are stored hashed (argon2); find the matching entry by verifying each. */
-  private async findBackupCodeIndex(hashedCodes: string[], candidate: string): Promise<number> {
+  private async findBackupCodeIndex(
+    hashedCodes: string[],
+    candidate: string,
+  ): Promise<number> {
     for (let i = 0; i < hashedCodes.length; i++) {
       try {
         if (await PasswordUtil.verify(hashedCodes[i], candidate)) {
@@ -1072,13 +1264,15 @@ export class AuthService {
       const ok = secret
         ? speakeasy.totp.verify({
             secret,
-            encoding: 'base32',
+            encoding: "base32",
             token: dto.totp_code,
             window: 1,
           })
         : false;
       if (!ok) {
-        throw new UnauthorizedException('Invalid two-factor authentication code.');
+        throw new UnauthorizedException(
+          "Invalid two-factor authentication code.",
+        );
       }
       return;
     }
@@ -1087,7 +1281,7 @@ export class AuthService {
       const codes = user.two_factor_backup_codes ?? [];
       const idx = await this.findBackupCodeIndex(codes, dto.backup_code);
       if (idx < 0) {
-        throw new UnauthorizedException('Invalid backup code.');
+        throw new UnauthorizedException("Invalid backup code.");
       }
       const remaining = codes.filter((_, i) => i !== idx);
       await tx.user.update({
@@ -1098,8 +1292,8 @@ export class AuthService {
     }
 
     throw new UnauthorizedException({
-      message: 'Two-factor authentication required.',
-      code: 'REQUIRES_2FA',
+      message: "Two-factor authentication required.",
+      code: "REQUIRES_2FA",
     });
   }
 
@@ -1109,7 +1303,7 @@ export class AuthService {
         where: { id: dto.user_id, tenant_id: tenantId, deleted_at: null },
       });
       if (!user) {
-        throw new NotFoundException('User not found.');
+        throw new NotFoundException("User not found.");
       }
 
       const { token, hash } = generateInviteToken();
@@ -1124,21 +1318,21 @@ export class AuthService {
         },
       });
 
-
       const to = dto.email ?? user.email;
-      const appUrl = this.configService.get<string>('APP_URL') ?? 'http://localhost:3000';
+      const appUrl =
+        this.configService.get<string>("APP_URL") ?? "http://localhost:3000";
       await this.emailService.send({
         tenantId,
-        eventType: 'USER_INVITE',
+        eventType: "USER_INVITE",
         to,
-        subject: 'You are invited to FreightSaas',
+        subject: "You are invited to FreightSaas",
         body: `You have been invited. Open ${appUrl}/accept-invite?token=${token} and set your password. This link expires at ${expiresAt.toISOString()}.`,
         createdBy: actorId,
       });
 
       return {
         success: true,
-        message: 'Invite sent.',
+        message: "Invite sent.",
         data: { user_id: user.id, email: to, expires_at: expiresAt },
       };
     });
@@ -1150,8 +1344,12 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { invite_token: hashInviteToken(dto.token), deleted_at: null },
     });
-    if (!user || !user.invite_expires_at || user.invite_expires_at < new Date()) {
-      throw new BadRequestException('Invite token is invalid or expired.');
+    if (
+      !user ||
+      !user.invite_expires_at ||
+      user.invite_expires_at < new Date()
+    ) {
+      throw new BadRequestException("Invite token is invalid or expired.");
     }
 
     const passwordHash = await PasswordUtil.hash(dto.password);
@@ -1176,16 +1374,18 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Invite accepted. You can now log in.',
+      message: "Invite accepted. You can now log in.",
       data: UserMapper.toResponse(updated),
     };
   }
 
   async setupTwoFactor(tenantId: string, userId: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const user = await tx.user.findFirst({ where: { id: userId, tenant_id: tenantId, deleted_at: null } });
+      const user = await tx.user.findFirst({
+        where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      });
       if (!user) {
-        throw new NotFoundException('User not found.');
+        throw new NotFoundException("User not found.");
       }
 
       const secret = speakeasy.generateSecret({
@@ -1196,11 +1396,14 @@ export class AuthService {
       await tx.user.update({
         where: { id: userId },
         data: {
-          two_factor_secret: TwoFactorCrypto.encrypt(secret.base32, this.twoFactorEncryptionKey()),
+          two_factor_secret: TwoFactorCrypto.encrypt(
+            secret.base32,
+            this.twoFactorEncryptionKey(),
+          ),
         },
       });
 
-      const otpauth = secret.otpauth_url ?? '';
+      const otpauth = secret.otpauth_url ?? "";
       const qr_data_url = await QRCode.toDataURL(otpauth);
 
       return {
@@ -1209,7 +1412,8 @@ export class AuthService {
           secret: secret.base32,
           otpauth_url: otpauth,
           qr_data_url,
-          message: 'Scan the QR code, then POST /auth/2fa/enable with a TOTP code to activate.',
+          message:
+            "Scan the QR code, then POST /auth/2fa/enable with a TOTP code to activate.",
         },
       };
     });
@@ -1217,54 +1421,72 @@ export class AuthService {
 
   async enableTwoFactor(tenantId: string, userId: string, dto: TotpVerifyDto) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const user = await tx.user.findFirst({ where: { id: userId, tenant_id: tenantId, deleted_at: null } });
+      const user = await tx.user.findFirst({
+        where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      });
       if (!user?.two_factor_secret) {
-        throw new BadRequestException('Call POST /auth/2fa/setup first.');
+        throw new BadRequestException("Call POST /auth/2fa/setup first.");
       }
 
       const secret = this.safeDecryptTwoFactorSecret(user.two_factor_secret);
       const ok = secret
         ? speakeasy.totp.verify({
             secret,
-            encoding: 'base32',
+            encoding: "base32",
             token: dto.code,
             window: 1,
           })
         : false;
       if (!ok) {
-        throw new BadRequestException('Invalid TOTP code.');
+        throw new BadRequestException("Invalid TOTP code.");
       }
 
       const backupCodes = PasswordHelper.generateBackupCodes();
-      const hashedBackupCodes = await Promise.all(backupCodes.map((code) => PasswordUtil.hash(code)));
+      const hashedBackupCodes = await Promise.all(
+        backupCodes.map((code) => PasswordUtil.hash(code)),
+      );
       await tx.user.update({
         where: { id: userId },
-        data: { two_factor_enabled: true, two_factor_backup_codes: hashedBackupCodes },
+        data: {
+          two_factor_enabled: true,
+          two_factor_backup_codes: hashedBackupCodes,
+        },
       });
 
       return {
         success: true,
-        message: 'Two-factor authentication enabled.',
+        message: "Two-factor authentication enabled.",
         data: { backup_codes: backupCodes },
       };
     });
   }
 
-  async disableTwoFactor(tenantId: string, userId: string, dto: DisableTwoFactorDto) {
+  async disableTwoFactor(
+    tenantId: string,
+    userId: string,
+    dto: DisableTwoFactorDto,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const user = await tx.user.findFirst({ where: { id: userId, tenant_id: tenantId, deleted_at: null } });
+      const user = await tx.user.findFirst({
+        where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      });
       if (!user) {
-        throw new NotFoundException('User not found.');
+        throw new NotFoundException("User not found.");
       }
 
-      const passwordValid = await PasswordUtil.verify(user.password_hash, dto.password);
+      const passwordValid = await PasswordUtil.verify(
+        user.password_hash,
+        dto.password,
+      );
       if (!passwordValid) {
-        throw new UnauthorizedException('Invalid password.');
+        throw new UnauthorizedException("Invalid password.");
       }
 
       if (user.two_factor_enabled) {
         if (!dto.code) {
-          throw new UnauthorizedException('Two-factor code required to disable 2FA.');
+          throw new UnauthorizedException(
+            "Two-factor code required to disable 2FA.",
+          );
         }
         const decryptedSecret = user.two_factor_secret
           ? this.safeDecryptTwoFactorSecret(user.two_factor_secret)
@@ -1272,7 +1494,7 @@ export class AuthService {
         const totpOk = decryptedSecret
           ? speakeasy.totp.verify({
               secret: decryptedSecret,
-              encoding: 'base32',
+              encoding: "base32",
               token: dto.code,
               window: 1,
             })
@@ -1281,7 +1503,9 @@ export class AuthService {
           const codes = user.two_factor_backup_codes ?? [];
           const idx = await this.findBackupCodeIndex(codes, dto.code);
           if (idx < 0) {
-            throw new UnauthorizedException('Invalid two-factor or backup code.');
+            throw new UnauthorizedException(
+              "Invalid two-factor or backup code.",
+            );
           }
         }
       }
@@ -1295,7 +1519,7 @@ export class AuthService {
         },
       });
 
-      return { success: true, message: 'Two-factor authentication disabled.' };
+      return { success: true, message: "Two-factor authentication disabled." };
     });
   }
 }

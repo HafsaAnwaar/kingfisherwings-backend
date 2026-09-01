@@ -1,4 +1,4 @@
-import { PartialType, ApiPropertyOptional } from '@nestjs/swagger';
+import { PartialType, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsArray,
   ArrayUnique,
@@ -14,12 +14,15 @@ import {
   Max,
   Min,
   ValidateIf,
-} from 'class-validator';
-import { UserRole, UserStatus, SingleDevicePolicy } from '@prisma/client';
-import { CreateUserDto } from './create-user.dto';
-import { USERS_CONSTANTS } from '../constants/users.constants';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
-import { CountryCodeField, IsPhoneForCountry } from '../../../common/validators/country-aware.validators';
+} from "class-validator";
+import { UserRole, UserStatus, SingleDevicePolicy } from "@prisma/client";
+import { CreateUserDto } from "./create-user.dto";
+import { USERS_CONSTANTS } from "../constants/users.constants";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
+import {
+  CountryCodeField,
+  IsPhoneForCountry,
+} from "../../../common/validators/country-aware.validators";
 
 const OFFICE_HOURS_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -45,12 +48,13 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsPhoneForCountry({ countryField: 'preferred_country_code' })
+  @IsPhoneForCountry({ countryField: "preferred_country_code" })
   phone?: string;
 
   @ApiPropertyOptional({
-    example: 'AE',
-    description: 'Optional preferred country. Change anytime after login. Send null to clear.',
+    example: "AE",
+    description:
+      "Optional preferred country. Change anytime after login. Send null to clear.",
     nullable: true,
   })
   @IsOptional()
@@ -63,12 +67,12 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsString()
   avatar_url?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   department_id?: string;
@@ -162,17 +166,21 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsString({ each: true })
   allowed_mac_addresses?: string[];
 
-  @ApiPropertyOptional({ example: '09:00' })
+  @ApiPropertyOptional({ example: "09:00" })
   @IsOptional()
-  @Matches(OFFICE_HOURS_REGEX, { message: 'office_hours_start must be in "HH:mm" 24h format.' })
+  @Matches(OFFICE_HOURS_REGEX, {
+    message: 'office_hours_start must be in "HH:mm" 24h format.',
+  })
   office_hours_start?: string;
 
-  @ApiPropertyOptional({ example: '18:00' })
+  @ApiPropertyOptional({ example: "18:00" })
   @IsOptional()
-  @Matches(OFFICE_HOURS_REGEX, { message: 'office_hours_end must be in "HH:mm" 24h format.' })
+  @Matches(OFFICE_HOURS_REGEX, {
+    message: 'office_hours_end must be in "HH:mm" 24h format.',
+  })
   office_hours_end?: string;
 
-  @ApiPropertyOptional({ example: 'Asia/Dubai' })
+  @ApiPropertyOptional({ example: "Asia/Dubai" })
   @IsOptional()
   @IsTimeZone()
   office_hours_timezone?: string;
@@ -182,34 +190,44 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsBoolean()
   two_factor_enabled?: boolean;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: USERS_CONSTANTS.MAX_CONCURRENT_SESSIONS_CEILING })
+  @ApiPropertyOptional({
+    minimum: 1,
+    maximum: USERS_CONSTANTS.MAX_CONCURRENT_SESSIONS_CEILING,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(USERS_CONSTANTS.MAX_CONCURRENT_SESSIONS_CEILING)
   max_concurrent_sessions?: number;
 
-  @ApiPropertyOptional({ description: 'Premium Single Device Login — restrict this user to one active session.' })
+  @ApiPropertyOptional({
+    description:
+      "Premium Single Device Login — restrict this user to one active session.",
+  })
   @IsOptional()
   @IsBoolean()
   single_device_login?: boolean;
 
-  @ApiPropertyOptional({ enum: SingleDevicePolicy, description: 'Behavior when single_device_login is enabled and a new login occurs.' })
+  @ApiPropertyOptional({
+    enum: SingleDevicePolicy,
+    description:
+      "Behavior when single_device_login is enabled and a new login occurs.",
+  })
   @IsOptional()
   @IsEnum(SingleDevicePolicy)
   single_device_policy?: SingleDevicePolicy;
 
-  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @ApiPropertyOptional({ type: [String], format: "uuid" })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   role_ids?: string[];
 
-  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @ApiPropertyOptional({ type: [String], format: "uuid" })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   permission_ids?: string[];
 }

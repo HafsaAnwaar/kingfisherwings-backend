@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { RedisService } from '../../shared/redis/redis.service';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { RedisService } from "../../shared/redis/redis.service";
 
 export type CachedStaffSession = {
   userId: string;
@@ -22,7 +22,7 @@ export class SessionCacheService {
     private readonly redis: RedisService,
     config: ConfigService,
   ) {
-    this.ttl = config.get<number>('redis.ttl.session') ?? 86400;
+    this.ttl = config.get<number>("redis.ttl.session") ?? 86400;
   }
 
   private staffKey(jti: string) {
@@ -51,7 +51,9 @@ export class SessionCacheService {
     await this.redis.del(this.staffKey(jti));
   }
 
-  async getSuperAdminSession(jti: string): Promise<CachedSuperAdminSession | null> {
+  async getSuperAdminSession(
+    jti: string,
+  ): Promise<CachedSuperAdminSession | null> {
     const raw = await this.redis.get(this.superAdminKey(jti));
     if (!raw) return null;
     try {
@@ -61,8 +63,15 @@ export class SessionCacheService {
     }
   }
 
-  async setSuperAdminSession(jti: string, data: CachedSuperAdminSession): Promise<void> {
-    await this.redis.set(this.superAdminKey(jti), JSON.stringify(data), this.ttl);
+  async setSuperAdminSession(
+    jti: string,
+    data: CachedSuperAdminSession,
+  ): Promise<void> {
+    await this.redis.set(
+      this.superAdminKey(jti),
+      JSON.stringify(data),
+      this.ttl,
+    );
   }
 
   async invalidateSuperAdminSession(jti: string): Promise<void> {

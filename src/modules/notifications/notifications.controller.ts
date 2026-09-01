@@ -1,13 +1,26 @@
-import { Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
-import { RolesGuard } from '../users/guards/roles.guard';
-import { PermissionsGuard } from '../users/guards/permissions.guard';
-import { RequirePermissions } from '../users/decorators/permissions.decorator';
-import { CurrentUser } from '../users/decorators/current-user.decorator';
-import { NOTIFICATIONS_PERMISSIONS } from './constants/notifications-permission.constants';
-import { NotificationsService } from './notifications.service';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiPropertyOptional,
+  ApiTags,
+} from "@nestjs/swagger";
+import { Transform } from "class-transformer";
+import { IsInt, IsOptional, Max, Min } from "class-validator";
+import { RolesGuard } from "../users/guards/roles.guard";
+import { PermissionsGuard } from "../users/guards/permissions.guard";
+import { RequirePermissions } from "../users/decorators/permissions.decorator";
+import { CurrentUser } from "../users/decorators/current-user.decorator";
+import { NOTIFICATIONS_PERMISSIONS } from "./constants/notifications-permission.constants";
+import { NotificationsService } from "./notifications.service";
 
 class NotificationQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -30,50 +43,56 @@ class NotificationQueryDto {
   unread_only?: string;
 }
 
-@ApiTags('Notifications')
+@ApiTags("Notifications")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
-@Controller('notifications')
+@Controller("notifications")
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Get()
   @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'List staff in-app notifications (unread first)' })
+  @ApiOperation({ summary: "List staff in-app notifications (unread first)" })
   list(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
     @Query() query: NotificationQueryDto,
   ) {
     return this.notifications.listForStaff(tenantId, userId, {
       page: query.page,
       limit: query.limit,
-      unread_only: query.unread_only === 'true' || query.unread_only === '1',
+      unread_only: query.unread_only === "true" || query.unread_only === "1",
     });
   }
 
-  @Get('unread-count')
+  @Get("unread-count")
   @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'Unread notification badge count' })
-  unreadCount(@CurrentUser('tenantId') tenantId: string, @CurrentUser('id') userId: string) {
+  @ApiOperation({ summary: "Unread notification badge count" })
+  unreadCount(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+  ) {
     return this.notifications.unreadCountForStaff(tenantId, userId);
   }
 
-  @Post(':id/read')
+  @Post(":id/read")
   @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'Mark one notification as read' })
+  @ApiOperation({ summary: "Mark one notification as read" })
   markRead(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.notifications.markReadStaff(tenantId, userId, id);
   }
 
-  @Post('read-all')
+  @Post("read-all")
   @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'Mark all notifications as read' })
-  markAll(@CurrentUser('tenantId') tenantId: string, @CurrentUser('id') userId: string) {
+  @ApiOperation({ summary: "Mark all notifications as read" })
+  markAll(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+  ) {
     return this.notifications.markAllReadStaff(tenantId, userId);
   }
 }

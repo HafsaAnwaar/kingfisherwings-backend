@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { VendorDocumentType } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { DEFAULT_VENDOR_DOCUMENT_TYPES } from './constants/vendor-permission.constants';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { VendorDocumentType } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { DEFAULT_VENDOR_DOCUMENT_TYPES } from "./constants/vendor-permission.constants";
 
 export class UpsertVendorPermissionsDto {
   permissions!: Array<{
@@ -20,7 +20,7 @@ export class VendorPermissionsService {
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.vendorPermission.findMany({
         where: { tenant_id: tenantId, party_id: partyId },
-        orderBy: { document_type: 'asc' },
+        orderBy: { document_type: "asc" },
       }),
     );
     return {
@@ -76,9 +76,15 @@ export class VendorPermissionsService {
     return this.getForParty(tenantId, partyId);
   }
 
-  async seedDefaultsIfEmpty(tenantId: string, partyId: string, actorId: string) {
+  async seedDefaultsIfEmpty(
+    tenantId: string,
+    partyId: string,
+    actorId: string,
+  ) {
     const count = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.vendorPermission.count({ where: { tenant_id: tenantId, party_id: partyId } }),
+      tx.vendorPermission.count({
+        where: { tenant_id: tenantId, party_id: partyId },
+      }),
     );
     if (count > 0) return;
     await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -88,7 +94,7 @@ export class VendorPermissionsService {
           party_id: partyId,
           document_type,
           can_view: true,
-          can_download: document_type !== 'TDS_CERTIFICATE',
+          can_download: document_type !== "TDS_CERTIFICATE",
           created_by: actorId,
         })),
       }),
@@ -97,8 +103,10 @@ export class VendorPermissionsService {
 
   private async assertParty(tenantId: string, partyId: string) {
     const party = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.party.findFirst({ where: { id: partyId, tenant_id: tenantId, deleted_at: null } }),
+      tx.party.findFirst({
+        where: { id: partyId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!party) throw new NotFoundException('Party not found.');
+    if (!party) throw new NotFoundException("Party not found.");
   }
 }

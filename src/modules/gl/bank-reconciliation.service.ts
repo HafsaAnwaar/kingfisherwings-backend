@@ -2,10 +2,10 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { DocumentNumberType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
+} from "@nestjs/common";
+import { DocumentNumberType, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import {
   BankReconciliationQueryDto,
   CreateBankReconciliationDto,
@@ -13,7 +13,7 @@ import {
   CreateBankTransferDto,
   UpdateBankReconciliationDto,
   UpdateBankReconciliationLineDto,
-} from './dto/ar-ap.dto';
+} from "./dto/ar-ap.dto";
 
 @Injectable()
 export class BankReconciliationService {
@@ -34,10 +34,12 @@ export class BankReconciliationService {
       tx.bankReconciliation.findMany({
         where,
         include: {
-          gl_account: { select: { id: true, account_code: true, account_name: true } },
+          gl_account: {
+            select: { id: true, account_code: true, account_name: true },
+          },
           _count: { select: { lines: true } },
         },
-        orderBy: { statement_date: 'desc' },
+        orderBy: { statement_date: "desc" },
       }),
     );
   }
@@ -47,17 +49,23 @@ export class BankReconciliationService {
       tx.bankReconciliation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
-          gl_account: { select: { id: true, account_code: true, account_name: true } },
+          gl_account: {
+            select: { id: true, account_code: true, account_name: true },
+          },
           lines: {
             where: { deleted_at: null },
-            orderBy: { txn_date: 'asc' },
+            orderBy: { txn_date: "asc" },
           },
         },
       }),
     );
-    if (!recon) throw new NotFoundException('Bank reconciliation not found.');
-    const matchedDebit = recon.lines.filter((l) => l.is_matched).reduce((s, l) => s + Number(l.debit_amount), 0);
-    const matchedCredit = recon.lines.filter((l) => l.is_matched).reduce((s, l) => s + Number(l.credit_amount), 0);
+    if (!recon) throw new NotFoundException("Bank reconciliation not found.");
+    const matchedDebit = recon.lines
+      .filter((l) => l.is_matched)
+      .reduce((s, l) => s + Number(l.debit_amount), 0);
+    const matchedCredit = recon.lines
+      .filter((l) => l.is_matched)
+      .reduce((s, l) => s + Number(l.credit_amount), 0);
     return {
       ...recon,
       summary: {
@@ -65,26 +73,42 @@ export class BankReconciliationService {
         matched_count: recon.lines.filter((l) => l.is_matched).length,
         matched_debit: matchedDebit,
         matched_credit: matchedCredit,
-        difference: Number(recon.statement_balance) - Number(recon.book_balance),
+        difference:
+          Number(recon.statement_balance) - Number(recon.book_balance),
       },
     };
   }
 
-  async create(tenantId: string, dto: CreateBankReconciliationDto, actorId?: string) {
+  async create(
+    tenantId: string,
+    dto: CreateBankReconciliationDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const account = await tx.chartOfAccount.findFirst({
         where: {
           id: dto.gl_account_id,
           tenant_id: tenantId,
           deleted_at: null,
-          OR: [{ is_bank_account: true }, { account_sub_type: 'BANK' }, { account_sub_type: 'CASH' }],
+          OR: [
+            { is_bank_account: true },
+            { account_sub_type: "BANK" },
+            { account_sub_type: "CASH" },
+          ],
         },
       });
       if (!account) {
-        throw new BadRequestException('GL account must be a bank or cash account.');
+        throw new BadRequestException(
+          "GL account must be a bank or cash account.",
+        );
       }
 
-      const bookBalance = await this.computeBookBalance(tx, tenantId, dto.gl_account_id, new Date(dto.statement_date));
+      const bookBalance = await this.computeBookBalance(
+        tx,
+        tenantId,
+        dto.gl_account_id,
+        new Date(dto.statement_date),
+      );
 
       return tx.bankReconciliation.create({
         data: {
@@ -103,23 +127,41 @@ export class BankReconciliationService {
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdateBankReconciliationDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateBankReconciliationDto,
+    actorId?: string,
+  ) {
     const existing = await this.findOne(tenantId, id);
-    if (existing.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft reconciliations can be updated.');
+    if (existing.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only draft reconciliations can be updated.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       let bookBalance = Number(existing.book_balance);
-      const statementDate = dto.statement_date ? new Date(dto.statement_date) : existing.statement_date;
+      const statementDate = dto.statement_date
+        ? new Date(dto.statement_date)
+        : existing.statement_date;
       if (dto.statement_date) {
-        bookBalance = await this.computeBookBalance(tx, tenantId, existing.gl_account_id, statementDate);
+        bookBalance = await this.computeBookBalance(
+          tx,
+          tenantId,
+          existing.gl_account_id,
+          statementDate,
+        );
       }
       return tx.bankReconciliation.update({
         where: { id },
         data: {
-          ...(dto.statement_date !== undefined ? { statement_date: statementDate } : {}),
-          ...(dto.statement_balance !== undefined ? { statement_balance: dto.statement_balance } : {}),
+          ...(dto.statement_date !== undefined
+            ? { statement_date: statementDate }
+            : {}),
+          ...(dto.statement_balance !== undefined
+            ? { statement_balance: dto.statement_balance }
+            : {}),
           ...(dto.remarks !== undefined ? { remarks: dto.remarks } : {}),
           book_balance: bookBalance,
           updated_by: actorId,
@@ -130,13 +172,19 @@ export class BankReconciliationService {
 
   async softDelete(tenantId: string, id: string, actorId?: string) {
     const existing = await this.findOne(tenantId, id);
-    if (existing.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft reconciliations can be deleted.');
+    if (existing.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only draft reconciliations can be deleted.",
+      );
     }
     await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.bankReconciliation.update({
         where: { id },
-        data: { deleted_at: new Date(), status: 'CANCELLED', updated_by: actorId },
+        data: {
+          deleted_at: new Date(),
+          status: "CANCELLED",
+          updated_by: actorId,
+        },
       }),
     );
   }
@@ -155,17 +203,23 @@ export class BankReconciliationService {
           account_id: recon.gl_account_id,
           ...(alreadyLinked.length ? { id: { notIn: alreadyLinked } } : {}),
           voucher: {
-            status: 'POSTED',
+            status: "POSTED",
             deleted_at: null,
             voucher_date: { lte: recon.statement_date },
           },
         },
         include: {
           voucher: {
-            select: { id: true, voucher_number: true, voucher_date: true, voucher_type: true, narration: true },
+            select: {
+              id: true,
+              voucher_number: true,
+              voucher_date: true,
+              voucher_type: true,
+              narration: true,
+            },
           },
         },
-        orderBy: { created_at: 'asc' },
+        orderBy: { created_at: "asc" },
       });
     });
   }
@@ -177,8 +231,10 @@ export class BankReconciliationService {
     actorId?: string,
   ) {
     const recon = await this.findOne(tenantId, reconId);
-    if (recon.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft reconciliations can be edited.');
+    if (recon.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only draft reconciliations can be edited.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -211,20 +267,28 @@ export class BankReconciliationService {
     actorId?: string,
   ) {
     const recon = await this.findOne(tenantId, reconId);
-    if (recon.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft reconciliations can be edited.');
+    if (recon.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only draft reconciliations can be edited.",
+      );
     }
     if (!recon.lines.some((l) => l.id === lineId)) {
-      throw new NotFoundException('Reconciliation line not found.');
+      throw new NotFoundException("Reconciliation line not found.");
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await tx.bankReconciliationLine.update({
         where: { id: lineId },
         data: {
-          ...(dto.is_matched !== undefined ? { is_matched: dto.is_matched } : {}),
-          ...(dto.statement_ref !== undefined ? { statement_ref: dto.statement_ref } : {}),
-          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.is_matched !== undefined
+            ? { is_matched: dto.is_matched }
+            : {}),
+          ...(dto.statement_ref !== undefined
+            ? { statement_ref: dto.statement_ref }
+            : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description }
+            : {}),
           updated_by: actorId,
         },
       });
@@ -232,13 +296,20 @@ export class BankReconciliationService {
     });
   }
 
-  async removeLine(tenantId: string, reconId: string, lineId: string, actorId?: string) {
+  async removeLine(
+    tenantId: string,
+    reconId: string,
+    lineId: string,
+    actorId?: string,
+  ) {
     const recon = await this.findOne(tenantId, reconId);
-    if (recon.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft reconciliations can be edited.');
+    if (recon.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only draft reconciliations can be edited.",
+      );
     }
     if (!recon.lines.some((l) => l.id === lineId)) {
-      throw new NotFoundException('Reconciliation line not found.');
+      throw new NotFoundException("Reconciliation line not found.");
     }
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await tx.bankReconciliationLine.update({
@@ -251,8 +322,10 @@ export class BankReconciliationService {
 
   async complete(tenantId: string, id: string, actorId?: string) {
     const recon = await this.findOne(tenantId, id);
-    if (recon.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft reconciliations can be completed.');
+    if (recon.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only draft reconciliations can be completed.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -265,14 +338,16 @@ export class BankReconciliationService {
       return tx.bankReconciliation.update({
         where: { id },
         data: {
-          status: 'COMPLETED',
+          status: "COMPLETED",
           book_balance: bookBalance,
           completed_at: new Date(),
           completed_by: actorId,
           updated_by: actorId,
         },
         include: {
-          gl_account: { select: { id: true, account_code: true, account_name: true } },
+          gl_account: {
+            select: { id: true, account_code: true, account_name: true },
+          },
           lines: { where: { deleted_at: null } },
         },
       });
@@ -280,9 +355,13 @@ export class BankReconciliationService {
   }
 
   /** Posted contra voucher moving funds between two cash/bank GL accounts. */
-  async createBankTransfer(tenantId: string, dto: CreateBankTransferDto, actorId?: string) {
+  async createBankTransfer(
+    tenantId: string,
+    dto: CreateBankTransferDto,
+    actorId?: string,
+  ) {
     if (dto.from_account_id === dto.to_account_id) {
-      throw new BadRequestException('From and to accounts must differ.');
+      throw new BadRequestException("From and to accounts must differ.");
     }
 
     const amount = Number(dto.amount);
@@ -290,7 +369,7 @@ export class BankReconciliationService {
     const voucherNumber = await this.numberGenerator.generate(
       tenantId,
       DocumentNumberType.VOUCHER,
-      { extraSegment: 'CV' },
+      { extraSegment: "CV" },
     );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -303,19 +382,23 @@ export class BankReconciliationService {
         },
       });
       if (accounts.length !== 2) {
-        throw new BadRequestException('Both from and to GL accounts must exist and be postable.');
+        throw new BadRequestException(
+          "Both from and to GL accounts must exist and be postable.",
+        );
       }
 
       return tx.voucher.create({
         data: {
           tenant_id: tenantId,
           voucher_number: voucherNumber,
-          voucher_type: 'CONTRA',
-          status: 'POSTED',
-          voucher_date: dto.transfer_date ? new Date(dto.transfer_date) : new Date(),
+          voucher_type: "CONTRA",
+          status: "POSTED",
+          voucher_date: dto.transfer_date
+            ? new Date(dto.transfer_date)
+            : new Date(),
           currency_code: dto.currency_code,
           exchange_rate: rate,
-          narration: dto.narration ?? 'Bank transfer',
+          narration: dto.narration ?? "Bank transfer",
           reference_number: dto.reference_number,
           company_id: dto.company_id,
           total_debit: amount,
@@ -336,7 +419,7 @@ export class BankReconciliationService {
                 exchange_rate: rate,
                 debit_base: amount * rate,
                 credit_base: 0,
-                narration: 'Bank transfer in',
+                narration: "Bank transfer in",
                 created_by: actorId,
                 updated_by: actorId,
               },
@@ -350,14 +433,16 @@ export class BankReconciliationService {
                 exchange_rate: rate,
                 debit_base: 0,
                 credit_base: amount * rate,
-                narration: 'Bank transfer out',
+                narration: "Bank transfer out",
                 created_by: actorId,
                 updated_by: actorId,
               },
             ],
           },
         },
-        include: { lines: { where: { deleted_at: null }, orderBy: { line_no: 'asc' } } },
+        include: {
+          lines: { where: { deleted_at: null }, orderBy: { line_no: "asc" } },
+        },
       });
     });
   }
@@ -371,11 +456,11 @@ export class BankReconciliationService {
     const account = await tx.chartOfAccount.findFirst({
       where: { id: accountId, tenant_id: tenantId, deleted_at: null },
     });
-    if (!account) throw new NotFoundException('GL account not found.');
+    if (!account) throw new NotFoundException("GL account not found.");
 
     const opening = Number(account.opening_balance);
     const openingSigned =
-      account.opening_balance_type === 'CREDIT' ? -opening : opening;
+      account.opening_balance_type === "CREDIT" ? -opening : opening;
 
     const lines = await tx.voucherLine.findMany({
       where: {
@@ -383,7 +468,7 @@ export class BankReconciliationService {
         account_id: accountId,
         deleted_at: null,
         voucher: {
-          status: 'POSTED',
+          status: "POSTED",
           deleted_at: null,
           voucher_date: { lte: asOf },
         },

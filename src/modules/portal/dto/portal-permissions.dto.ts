@@ -1,8 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { PortalDocumentType } from '@prisma/client';
-import { Type } from 'class-transformer';
-import { ArrayMinSize, IsBoolean, IsEnum, ValidateNested } from 'class-validator';
-import { DEFAULT_PORTAL_DOCUMENT_TYPES } from '../constants/portal-permission.constants';
+import { ApiProperty } from "@nestjs/swagger";
+import { PortalDocumentType } from "@prisma/client";
+import { Type } from "class-transformer";
+import {
+  ArrayMinSize,
+  IsBoolean,
+  IsEnum,
+  ValidateNested,
+} from "class-validator";
+import { DEFAULT_PORTAL_DOCUMENT_TYPES } from "../constants/portal-permission.constants";
 export class PortalPermissionEntryDto {
   @ApiProperty({ enum: PortalDocumentType })
   @IsEnum(PortalDocumentType)

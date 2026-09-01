@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsDateString,
   IsIn,
@@ -10,9 +10,9 @@ import {
   Max,
   Min,
   MinLength,
-} from 'class-validator';
+} from "class-validator";
 
-const SEARCH_TYPES = ['jobs', 'quotations', 'parties', 'invoices'] as const;
+const SEARCH_TYPES = ["jobs", "quotations", "parties", "invoices"] as const;
 export type SearchEntityType = (typeof SEARCH_TYPES)[number];
 
 /**
@@ -20,14 +20,17 @@ export type SearchEntityType = (typeof SEARCH_TYPES)[number];
  * covering the common freight lookup params (ref / party / dates / type / status / ports…).
  */
 export class SearchQueryDto {
-  @ApiProperty({ example: 'KFW/AE', description: 'Free-text search across jobs, quotations, parties, invoices' })
+  @ApiProperty({
+    example: "KFW/AE",
+    description: "Free-text search across jobs, quotations, parties, invoices",
+  })
   @IsString()
   @MinLength(2)
   q!: string;
 
   @ApiPropertyOptional({
-    example: 'jobs,quotations,parties,invoices',
-    description: 'Comma-separated entity types (default: all)',
+    example: "jobs,quotations,parties,invoices",
+    description: "Comma-separated entity types (default: all)",
   })
   @IsOptional()
   @IsString()
@@ -42,22 +45,22 @@ export class SearchQueryDto {
   limit?: number = 20;
 
   // Structured filters (optional)
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   customer_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   shipper_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   consignee_id?: string;
@@ -72,12 +75,12 @@ export class SearchQueryDto {
   @IsString()
   status?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
@@ -152,12 +155,12 @@ export class SearchQueryDto {
   @IsDateString()
   created_to?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
@@ -173,6 +176,6 @@ export function parseSearchTypes(types?: string): SearchEntityType[] {
     return [...SEARCH_TYPES];
   }
 
-  const requested = types.split(',').map((t) => t.trim().toLowerCase());
+  const requested = types.split(",").map((t) => t.trim().toLowerCase());
   return SEARCH_TYPES.filter((t) => requested.includes(t));
 }

@@ -1,8 +1,14 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsDateString, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  IsDateString,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+} from "class-validator";
 
 export class CreateStuffingRecordDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_id?: string;
@@ -12,11 +18,11 @@ export class CreateStuffingRecordDto {
   @Length(1, 200)
   supervisor_name!: string;
 
-  @ApiProperty({ description: 'ISO datetime of stuffing' })
+  @ApiProperty({ description: "ISO datetime of stuffing" })
   @IsDateString()
   stuffing_date!: string;
 
-  @ApiPropertyOptional({ description: 'Warehouse / CY location' })
+  @ApiPropertyOptional({ description: "Warehouse / CY location" })
   @IsOptional()
   @IsString()
   @Length(1, 200)
@@ -33,4 +39,6 @@ export class CreateStuffingRecordDto {
   notes?: string;
 }
 
-export class UpdateStuffingRecordDto extends PartialType(CreateStuffingRecordDto) {}
+export class UpdateStuffingRecordDto extends PartialType(
+  CreateStuffingRecordDto,
+) {}

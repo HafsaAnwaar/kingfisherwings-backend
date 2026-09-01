@@ -1,31 +1,47 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-import { setTenantContextQuery } from '../common/utils/rls.util';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+  BadRequestException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import { setTenantContextQuery } from "../common/utils/rls.util";
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
   private readonly pool: Pool;
 
   constructor(private readonly config: ConfigService) {
-    const connectionString = config.get<string>('DATABASE_URL');
+    const connectionString = config.get<string>("DATABASE_URL");
     if (!connectionString) {
-      throw new Error('DATABASE_URL is not configured.');
+      throw new Error("DATABASE_URL is not configured.");
     }
 
     const isNeon = /neon\.tech/i.test(connectionString);
     const pool = new Pool({
       connectionString: toNodePgConnectionString(connectionString),
       // Neon pooler + scale-to-zero: fewer sockets, longer connect wait for compute wake.
-      max: parseInt(config.get<string>('DATABASE_POOL_MAX') ?? (isNeon ? '10' : '20'), 10),
-      connectionTimeoutMillis: parseInt(
-        config.get<string>('DATABASE_CONNECT_TIMEOUT_MS') ?? (isNeon ? '30000' : '10000'),
+      max: parseInt(
+        config.get<string>("DATABASE_POOL_MAX") ?? (isNeon ? "10" : "20"),
         10,
       ),
-      idleTimeoutMillis: parseInt(config.get<string>('DATABASE_IDLE_TIMEOUT_MS') ?? '20000', 10),
+      connectionTimeoutMillis: parseInt(
+        config.get<string>("DATABASE_CONNECT_TIMEOUT_MS") ??
+          (isNeon ? "30000" : "10000"),
+        10,
+      ),
+      idleTimeoutMillis: parseInt(
+        config.get<string>("DATABASE_IDLE_TIMEOUT_MS") ?? "20000",
+        10,
+      ),
       keepAlive: true,
       keepAliveInitialDelayMillis: 10_000,
     });
@@ -64,7 +80,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async listActiveTenants() {
     return this.withTransientRetry(() =>
       this.tenant.findMany({
-        where: { status: { in: ['ACTIVE', 'TRIAL'] }, is_active: true, deleted_at: null },
+        where: {
+          status: { in: ["ACTIVE", "TRIAL"] },
+          is_active: true,
+          deleted_at: null,
+        },
         select: { id: true, name: true },
       }),
     );
@@ -107,7 +127,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     options?: { maxWait?: number; timeout?: number },
   ): Promise<T> {
     if (!tenantId?.trim()) {
-      throw new BadRequestException('Tenant context is required for this operation.');
+      throw new BadRequestException(
+        "Tenant context is required for this operation.",
+      );
     }
 
     return this.$transaction(
@@ -124,20 +146,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 }
 
 function toNodePgConnectionString(url: string): string {
-  const [base, query = ''] = url.split('?');
+  const [base, query = ""] = url.split("?");
   const params = query
-    .split('&')
+    .split("&")
     .filter(Boolean)
     // node-pg is not libpq; Neon’s channel_binding=require triggers SSL warnings and failed handshakes.
-    .filter((part) => !part.toLowerCase().startsWith('channel_binding='));
-  const keys = new Set(params.map((part) => part.split('=')[0]?.toLowerCase()));
-  if (!keys.has('connect_timeout')) {
-    params.push('connect_timeout=30');
+    .filter((part) => !part.toLowerCase().startsWith("channel_binding="));
+  const keys = new Set(params.map((part) => part.split("=")[0]?.toLowerCase()));
+  if (!keys.has("connect_timeout")) {
+    params.push("connect_timeout=30");
   }
-  if (!keys.has('sslmode')) {
-    params.push('sslmode=require');
+  if (!keys.has("sslmode")) {
+    params.push("sslmode=require");
   }
-  return params.length ? `${base}?${params.join('&')}` : base;
+  return params.length ? `${base}?${params.join("&")}` : base;
 }
 
 function sleep(ms: number) {
@@ -145,18 +167,20 @@ function sleep(ms: number) {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
+  return error instanceof Error ? error.message : "Unknown error";
 }
 
 /** Neon cold start, dropped pooler sockets, brief network blips. */
 export function isTransientDbError(error: unknown): boolean {
   const message = errorMessage(error);
   const code =
-    error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code) : '';
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
   return (
-    code === 'P1001' ||
-    code === 'P1017' ||
-    code === 'P2024' ||
+    code === "P1001" ||
+    code === "P1017" ||
+    code === "P2024" ||
     /can't reach database server/i.test(message) ||
     /connection terminated/i.test(message) ||
     /connection refused/i.test(message) ||

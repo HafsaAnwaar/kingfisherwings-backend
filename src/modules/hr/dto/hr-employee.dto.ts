@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   HrContractType,
   HrDependentRelation,
@@ -8,8 +8,8 @@ import {
   HrGender,
   HrMaritalStatus,
   HrStaffGrade,
-} from '@prisma/client';
-import { Transform, Type } from 'class-transformer';
+} from "@prisma/client";
+import { Transform, Type } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
@@ -21,7 +21,7 @@ import {
   Length,
   Max,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class HrPaginationQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -273,7 +273,7 @@ export class EmployeeQueryDto extends HrPaginationQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   search?: string;
 }
 

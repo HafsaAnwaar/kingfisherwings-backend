@@ -1,5 +1,14 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
-import { RequestWithUser, isSuperAdmin } from '../interfaces/request-with-user.interface';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+} from "@nestjs/common";
+import {
+  RequestWithUser,
+  isSuperAdmin,
+} from "../interfaces/request-with-user.interface";
 
 /**
  * Requires request.user to be a SuperAdmin (set by JwtStrategy for a
@@ -15,11 +24,13 @@ export class SuperAdminGuard implements CanActivate {
     const principal = request.user;
 
     if (!principal) {
-      throw new UnauthorizedException('Authentication required.');
+      throw new UnauthorizedException("Authentication required.");
     }
 
     if (!isSuperAdmin(principal)) {
-      throw new ForbiddenException('This action requires a platform super admin account.');
+      throw new ForbiddenException(
+        "This action requires a platform super admin account.",
+      );
     }
 
     return true;

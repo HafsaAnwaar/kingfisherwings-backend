@@ -1,36 +1,48 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Tariff } from '@prisma/client';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { BaseMasterService } from '../../masters/base-master.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Tariff } from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { BaseMasterService } from "../../masters/base-master.service";
 
 @Injectable()
 export class TariffsService extends BaseMasterService<Tariff> {
-  protected readonly modelName = 'tariff';
+  protected readonly modelName = "tariff";
   protected readonly searchFields: string[] = [];
-  protected readonly uniqueKeyLabel = 'tariff';
+  protected readonly uniqueKeyLabel = "tariff";
 
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
-  async create(tenantId: string, data: Record<string, unknown>, actorId?: string): Promise<Tariff> {
+  async create(
+    tenantId: string,
+    data: Record<string, unknown>,
+    actorId?: string,
+  ): Promise<Tariff> {
     await this.assertChargeCodeExists(tenantId, data.charge_code_id as string);
     return super.create(tenantId, this.coerceDates(data), actorId);
   }
 
-  async update(tenantId: string, id: string, data: Record<string, unknown>, actorId?: string): Promise<Tariff> {
+  async update(
+    tenantId: string,
+    id: string,
+    data: Record<string, unknown>,
+    actorId?: string,
+  ): Promise<Tariff> {
     if (data.charge_code_id) {
-      await this.assertChargeCodeExists(tenantId, data.charge_code_id as string);
+      await this.assertChargeCodeExists(
+        tenantId,
+        data.charge_code_id as string,
+      );
     }
     return super.update(tenantId, id, this.coerceDates(data), actorId);
   }
 
   private coerceDates(data: Record<string, unknown>): Record<string, unknown> {
     const next = { ...data };
-    if (typeof next.valid_from === 'string') {
+    if (typeof next.valid_from === "string") {
       next.valid_from = new Date(next.valid_from);
     }
-    if (typeof next.valid_to === 'string') {
+    if (typeof next.valid_to === "string") {
       next.valid_to = new Date(next.valid_to);
     }
     return next;
@@ -60,13 +72,15 @@ export class TariffsService extends BaseMasterService<Tariff> {
         OR: [{ valid_to: null }, { valid_to: { gte: new Date() } }],
         ...(params.originPortId ? { origin_port_id: params.originPortId } : {}),
         ...(params.destPortId ? { dest_port_id: params.destPortId } : {}),
-        ...(params.containerTypeId ? { container_type_id: params.containerTypeId } : {}),
+        ...(params.containerTypeId
+          ? { container_type_id: params.containerTypeId }
+          : {}),
       };
 
       const customerSpecific = params.customerId
         ? await tx.tariff.findFirst({
             where: { ...where, customer_id: params.customerId },
-            orderBy: { created_at: 'desc' },
+            orderBy: { created_at: "desc" },
           })
         : null;
 
@@ -74,17 +88,25 @@ export class TariffsService extends BaseMasterService<Tariff> {
         return customerSpecific;
       }
 
-      return tx.tariff.findFirst({ where: { ...where, customer_id: null }, orderBy: { created_at: 'desc' } });
+      return tx.tariff.findFirst({
+        where: { ...where, customer_id: null },
+        orderBy: { created_at: "desc" },
+      });
     });
   }
 
-  private async assertChargeCodeExists(tenantId: string, chargeCodeId: string): Promise<void> {
+  private async assertChargeCodeExists(
+    tenantId: string,
+    chargeCodeId: string,
+  ): Promise<void> {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.chargeCode.findFirst({ where: { id: chargeCodeId, tenant_id: tenantId, deleted_at: null } }),
+      tx.chargeCode.findFirst({
+        where: { id: chargeCodeId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {
-      throw new NotFoundException('Charge code not found.');
+      throw new NotFoundException("Charge code not found.");
     }
   }
 }

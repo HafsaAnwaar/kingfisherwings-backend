@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { CrmActivityService } from './crm-activity.service';
-import { CrmEmailService } from './crm-email.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { CrmActivityService } from "./crm-activity.service";
+import { CrmEmailService } from "./crm-email.service";
 
 @Injectable()
 export class CrmCronService {

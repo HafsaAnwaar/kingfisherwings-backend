@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   ArrayNotEmpty,
   IsArray,
@@ -8,16 +8,16 @@ import {
   IsString,
   IsUUID,
   Length,
-} from 'class-validator';
-import { ChargeGroup } from '@prisma/client';
+} from "class-validator";
+import { ChargeGroup } from "@prisma/client";
 
 export class CreateChargeCodeDto {
-  @ApiProperty({ example: 'OFT' })
+  @ApiProperty({ example: "OFT" })
   @IsString()
   @Length(1, 20)
   code!: string;
 
-  @ApiProperty({ example: 'Ocean Freight' })
+  @ApiProperty({ example: "Ocean Freight" })
   @IsString()
   @Length(2, 200)
   description!: string;
@@ -27,7 +27,11 @@ export class CreateChargeCodeDto {
   @IsEnum(ChargeGroup)
   charge_group?: ChargeGroup;
 
-  @ApiProperty({ type: [String], example: ['SEA', 'AIR'], description: 'ShipmentMode values this charge applies to.' })
+  @ApiProperty({
+    type: [String],
+    example: ["SEA", "AIR"],
+    description: "ShipmentMode values this charge applies to.",
+  })
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })
@@ -38,32 +42,44 @@ export class CreateChargeCodeDto {
   @IsBoolean()
   tax_applicable?: boolean;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   tax_rate_id?: string;
 
-  @ApiPropertyOptional({ example: '4001', description: 'Legacy revenue GL code string.' })
+  @ApiPropertyOptional({
+    example: "4001",
+    description: "Legacy revenue GL code string.",
+  })
   @IsOptional()
   @IsString()
   gl_revenue_code?: string;
 
-  @ApiPropertyOptional({ example: '5001', description: 'Legacy cost GL code string.' })
+  @ApiPropertyOptional({
+    example: "5001",
+    description: "Legacy cost GL code string.",
+  })
   @IsOptional()
   @IsString()
   gl_cost_code?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Linked revenue Chart of Account (Ch.17).' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Linked revenue Chart of Account (Ch.17).",
+  })
   @IsOptional()
   @IsUUID()
   gl_revenue_account_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Linked cost Chart of Account (Ch.17).' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Linked cost Chart of Account (Ch.17).",
+  })
   @IsOptional()
   @IsUUID()
   gl_cost_account_id?: string;
 
-  @ApiPropertyOptional({ example: 'Per Container' })
+  @ApiPropertyOptional({ example: "Per Container" })
   @IsOptional()
   @IsString()
   unit?: string;

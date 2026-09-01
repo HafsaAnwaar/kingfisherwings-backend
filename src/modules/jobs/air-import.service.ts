@@ -3,20 +3,20 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { DocumentType, JobType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../shared/email/email.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { InvoicesService } from '../invoices/invoices.service';
+} from "@nestjs/common";
+import { DocumentType, JobType, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../shared/email/email.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { InvoicesService } from "../invoices/invoices.service";
 import {
   AirStorageCalculationQueryDto,
   CreateCustomsExaminationDto,
   LinkAirTranshipmentDto,
   SendImportNoticeDto,
-} from './dto/air-import.dto';
+} from "./dto/air-import.dto";
 
-const AIR_IMPORT_TYPE: JobType = 'AIR_IMPORT';
+const AIR_IMPORT_TYPE: JobType = "AIR_IMPORT";
 
 @Injectable()
 export class AirImportService {
@@ -32,7 +32,7 @@ export class AirImportService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobCustomsExamination.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
-        orderBy: { examination_date: 'desc' },
+        orderBy: { examination_date: "desc" },
       }),
     );
   }
@@ -61,7 +61,11 @@ export class AirImportService {
     );
   }
 
-  async calculateStorage(tenantId: string, jobId: string, query: AirStorageCalculationQueryDto) {
+  async calculateStorage(
+    tenantId: string,
+    jobId: string,
+    query: AirStorageCalculationQueryDto,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getAirDetailOrThrow(tx, tenantId, jobId);
       const job = await tx.job.findFirstOrThrow({
@@ -81,7 +85,8 @@ export class AirImportService {
           storage_rate: rate,
           storage_rate_basis: basis,
           storage_amount: 0,
-          message: 'storage_start_date, storage_rate, and storage_rate_basis must be set on air-details.',
+          message:
+            "storage_start_date, storage_rate, and storage_rate_basis must be set on air-details.",
         };
       }
 
@@ -90,10 +95,11 @@ export class AirImportService {
       const elapsedDays = Math.max(Math.ceil(ms / (1000 * 60 * 60 * 24)), 0);
       const chargeableDays = Math.max(elapsedDays - freeDays, 0);
       const basisQty =
-        basis === 'KG'
+        basis === "KG"
           ? Number(job.chargeable_weight ?? job.gross_weight ?? 0)
           : Number(job.volume_cbm ?? 0);
-      const storageAmount = Math.round(chargeableDays * rate * basisQty * 10000) / 10000;
+      const storageAmount =
+        Math.round(chargeableDays * rate * basisQty * 10000) / 10000;
 
       return {
         job_id: jobId,
@@ -110,11 +116,16 @@ export class AirImportService {
     });
   }
 
-  async createStorageInvoice(tenantId: string, jobId: string, actorId?: string) {
+  async createStorageInvoice(
+    tenantId: string,
+    jobId: string,
+    actorId?: string,
+  ) {
     const calc = await this.calculateStorage(tenantId, jobId, {});
     if (calc.storage_amount <= 0) {
       throw new BadRequestException(
-        calc.message ?? 'Storage amount is zero — configure storage fields and ensure chargeable days > 0.',
+        calc.message ??
+          "Storage amount is zero — configure storage fields and ensure chargeable days > 0.",
       );
     }
 
@@ -123,39 +134,50 @@ export class AirImportService {
 
       if (detail.storage_invoice_id) {
         const existing = await tx.invoice.findFirst({
-          where: { id: detail.storage_invoice_id, tenant_id: tenantId, deleted_at: null },
+          where: {
+            id: detail.storage_invoice_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
         });
         if (existing) {
-          if (existing.status === 'DRAFT') {
+          if (existing.status === "DRAFT") {
             return existing;
           }
-          throw new ConflictException('Storage invoice has already been posted for this job.');
+          throw new ConflictException(
+            "Storage invoice has already been posted for this job.",
+          );
         }
       }
 
       const job = await tx.job.findFirstOrThrow({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
       });
-      const customerId = job.consignee_id ?? job.billing_party_id ?? job.shipper_id;
+      const customerId =
+        job.consignee_id ?? job.billing_party_id ?? job.shipper_id;
       if (!customerId) {
-        throw new BadRequestException('Job must have consignee, billing party, or shipper to invoice storage.');
+        throw new BadRequestException(
+          "Job must have consignee, billing party, or shipper to invoice storage.",
+        );
       }
 
       let storageChargeCode = await tx.chargeCode.findFirst({
         where: {
           tenant_id: tenantId,
           deleted_at: null,
-          code: { equals: 'STORAGE', mode: 'insensitive' },
+          code: { equals: "STORAGE", mode: "insensitive" },
         },
       });
       if (!storageChargeCode) {
         storageChargeCode = await tx.chargeCode.findFirst({
           where: { tenant_id: tenantId, deleted_at: null, is_active: true },
-          orderBy: { created_at: 'asc' },
+          orderBy: { created_at: "asc" },
         });
       }
       if (!storageChargeCode) {
-        throw new BadRequestException('No charge code available for storage line.');
+        throw new BadRequestException(
+          "No charge code available for storage line.",
+        );
       }
 
       const charge = await tx.jobCharge.create({
@@ -166,7 +188,7 @@ export class AirImportService {
           description: `Air import storage (${calc.chargeable_days} day(s))`,
           quantity: 1,
           unit_price: calc.storage_amount,
-          currency_code: 'AED',
+          currency_code: "AED",
           exchange_rate: 1,
           amount: calc.storage_amount,
           amount_base_currency: calc.storage_amount,
@@ -196,9 +218,14 @@ export class AirImportService {
     });
   }
 
-  async linkTranshipment(tenantId: string, jobId: string, dto: LinkAirTranshipmentDto, actorId?: string) {
+  async linkTranshipment(
+    tenantId: string,
+    jobId: string,
+    dto: LinkAirTranshipmentDto,
+    actorId?: string,
+  ) {
     if (dto.export_job_id === jobId) {
-      throw new BadRequestException('Cannot link a job to itself.');
+      throw new BadRequestException("Cannot link a job to itself.");
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -208,11 +235,13 @@ export class AirImportService {
           id: dto.export_job_id,
           tenant_id: tenantId,
           deleted_at: null,
-          job_type: { in: ['AIR_EXPORT', 'SEA_FCL_EXPORT'] },
+          job_type: { in: ["AIR_EXPORT", "SEA_FCL_EXPORT"] },
         },
       });
       if (!exportJob) {
-        throw new NotFoundException('Linked export job not found (must be AIR_EXPORT or SEA_FCL_EXPORT).');
+        throw new NotFoundException(
+          "Linked export job not found (must be AIR_EXPORT or SEA_FCL_EXPORT).",
+        );
       }
 
       return tx.airJobDetail.update({
@@ -225,7 +254,7 @@ export class AirImportService {
   async sendImportNotice(
     tenantId: string,
     jobId: string,
-    documentType: Extract<DocumentType, 'CAN' | 'DELIVERY_ORDER'>,
+    documentType: Extract<DocumentType, "CAN" | "DELIVERY_ORDER">,
     dto: SendImportNoticeDto,
     actorId?: string,
   ) {
@@ -236,20 +265,26 @@ export class AirImportService {
       });
     });
 
-    if (!job) throw new NotFoundException('Job not found.');
+    if (!job) throw new NotFoundException("Job not found.");
 
     let toEmail = dto.to_email;
     if (!toEmail && job.consignee_id) {
       const consignee = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.party.findFirst({
-          where: { id: job.consignee_id!, tenant_id: tenantId, deleted_at: null },
+          where: {
+            id: job.consignee_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
           select: { email: true },
         }),
       );
       toEmail = consignee?.email ?? undefined;
     }
     if (!toEmail) {
-      throw new BadRequestException('to_email is required when consignee has no email on file.');
+      throw new BadRequestException(
+        "to_email is required when consignee has no email on file.",
+      );
     }
 
     const doc = await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -260,21 +295,23 @@ export class AirImportService {
           document_type: documentType,
           deleted_at: null,
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
 
     if (!doc?.file_url) {
-      throw new BadRequestException(`Generate ${documentType} PDF first before sending.`);
+      throw new BadRequestException(
+        `Generate ${documentType} PDF first before sending.`,
+      );
     }
 
     const subject =
-      documentType === 'CAN'
+      documentType === "CAN"
         ? `Cargo Arrival Notice — ${job.job_number}`
         : `Delivery Order — ${job.job_number}`;
     const body =
       dto.message ??
-      `<p>Please find attached the ${documentType === 'CAN' ? 'Cargo Arrival Notice' : 'Delivery Order'} for job <strong>${job.job_number}</strong>.</p>`;
+      `<p>Please find attached the ${documentType === "CAN" ? "Cargo Arrival Notice" : "Delivery Order"} for job <strong>${job.job_number}</strong>.</p>`;
 
     if (dto.schedule_at) {
       const scheduledAt = new Date(dto.schedule_at);
@@ -282,12 +319,12 @@ export class AirImportService {
         tx.emailLog.create({
           data: {
             tenant_id: tenantId,
-            event_type: 'JOB_DOCUMENT',
+            event_type: "JOB_DOCUMENT",
             to_email: toEmail!,
             cc_email: dto.cc,
             subject,
             body,
-            status: 'PENDING',
+            status: "PENDING",
             job_id: jobId,
             job_document_id: doc.id,
             scheduled_at: scheduledAt,
@@ -307,7 +344,7 @@ export class AirImportService {
 
     const emailLog = await this.email.send({
       tenantId,
-      eventType: 'JOB_DOCUMENT',
+      eventType: "JOB_DOCUMENT",
       to: toEmail,
       cc: dto.cc,
       subject,
@@ -320,7 +357,7 @@ export class AirImportService {
     });
 
     return {
-      success: emailLog.status === 'SENT',
+      success: emailLog.status === "SENT",
       email_log_id: emailLog.id,
       status: emailLog.status,
       to_email: toEmail,
@@ -334,14 +371,14 @@ export class AirImportService {
       tx.emailLog.findMany({
         where: {
           tenant_id: tenantId,
-          event_type: 'JOB_DOCUMENT',
-          status: 'PENDING',
+          event_type: "JOB_DOCUMENT",
+          status: "PENDING",
           scheduled_at: { lte: new Date() },
           job_id: { not: null },
           job_document_id: { not: null },
         },
         take: 50,
-        orderBy: { scheduled_at: 'asc' },
+        orderBy: { scheduled_at: "asc" },
       }),
     );
 
@@ -351,7 +388,11 @@ export class AirImportService {
       try {
         const doc = await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.jobDocument.findFirst({
-            where: { id: log.job_document_id!, tenant_id: tenantId, deleted_at: null },
+            where: {
+              id: log.job_document_id!,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
           }),
         );
         if (!doc?.file_url) continue;
@@ -359,11 +400,11 @@ export class AirImportService {
         const stored = await this.storage.readByStoredFile(tenantId, doc);
         const emailLog = await this.email.send({
           tenantId,
-          eventType: 'JOB_DOCUMENT',
+          eventType: "JOB_DOCUMENT",
           to: log.to_email,
           cc: log.cc_email ?? undefined,
           subject: log.subject,
-          body: log.body ?? '',
+          body: log.body ?? "",
           jobId: log.job_id,
           jobDocumentId: doc.id,
           createdBy: log.created_by ?? undefined,
@@ -376,12 +417,12 @@ export class AirImportService {
             where: { id: log.id },
             data: {
               status: emailLog.status,
-              sent_at: emailLog.status === 'SENT' ? new Date() : undefined,
+              sent_at: emailLog.status === "SENT" ? new Date() : undefined,
               scheduled_at: null,
             },
           }),
         );
-        if (emailLog.status === 'SENT') sent += 1;
+        if (emailLog.status === "SENT") sent += 1;
       } catch {
         // leave PENDING for retry
       }
@@ -391,7 +432,9 @@ export class AirImportService {
   }
 
   async assertAirImportJob(tenantId: string, jobId: string) {
-    await this.prisma.runWithTenant(tenantId, (tx) => this.assertAirImportJobInTx(tx, tenantId, jobId));
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      this.assertAirImportJobInTx(tx, tenantId, jobId),
+    );
   }
 
   private async assertAirImportJobInTx(
@@ -399,18 +442,26 @@ export class AirImportService {
     tenantId: string,
     jobId: string,
   ) {
-    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
-    if (!job) throw new NotFoundException('Job not found.');
+    const job = await tx.job.findFirst({
+      where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!job) throw new NotFoundException("Job not found.");
     if (job.job_type !== AIR_IMPORT_TYPE) {
-      throw new BadRequestException('This endpoint requires an AIR_IMPORT job.');
+      throw new BadRequestException(
+        "This endpoint requires an AIR_IMPORT job.",
+      );
     }
     const detail = await tx.airJobDetail.findFirst({
       where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
     });
-    if (!detail) throw new NotFoundException('Air job details not found.');
+    if (!detail) throw new NotFoundException("Air job details not found.");
   }
 
-  private async getAirDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
+  private async getAirDetailOrThrow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+  ) {
     await this.assertAirImportJobInTx(tx, tenantId, jobId);
     return tx.airJobDetail.findFirstOrThrow({
       where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },

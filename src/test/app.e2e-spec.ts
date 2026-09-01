@@ -1,8 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import request = require('supertest');
+import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import request = require("supertest");
 
-import { AppModule } from '../src/app.module';
+import { AppModule } from "../src/app.module";
 
 /**
  * Requires a real, reachable PostgreSQL database at DATABASE_URL with
@@ -13,7 +13,7 @@ import { AppModule } from '../src/app.module';
  * Every email/slug is suffixed with a per-run timestamp so repeated
  * runs against the same database don't collide on unique constraints.
  */
-describe('KingFisher Tech Gold — critical path (e2e)', () => {
+describe("KingFisher Tech Gold — critical path (e2e)", () => {
   let app: INestApplication;
   const runId = Date.now();
 
@@ -33,7 +33,9 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   });
 
@@ -45,11 +47,11 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
   // HEALTH
   // ============================================================
 
-  describe('Health', () => {
-    it('GET /health — no auth required, reports DB connected', async () => {
-      const res = await request(app.getHttpServer()).get('/health').expect(200);
+  describe("Health", () => {
+    it("GET /health — no auth required, reports DB connected", async () => {
+      const res = await request(app.getHttpServer()).get("/health").expect(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.database).toBe('Connected');
+      expect(res.body.database).toBe("Connected");
     });
   });
 
@@ -57,15 +59,15 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
   // AUTH — bootstrap all three principal types
   // ============================================================
 
-  describe('Auth bootstrap', () => {
-    it('POST /auth/super-admin/signup — creates and auto-logs-in a super admin', async () => {
+  describe("Auth bootstrap", () => {
+    it("POST /auth/super-admin/signup — creates and auto-logs-in a super admin", async () => {
       const res = await request(app.getHttpServer())
-        .post('/auth/super-admin/signup')
+        .post("/auth/super-admin/signup")
         .send({
           email: `super.${runId}@kingfishertech.test`,
-          password: 'SuperSecure@2026',
-          first_name: 'Test',
-          last_name: 'SuperAdmin',
+          password: "SuperSecure@2026",
+          first_name: "Test",
+          last_name: "SuperAdmin",
         })
         .expect(201);
 
@@ -73,17 +75,17 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
       superAdminToken = res.body.data.access_token;
     });
 
-    it('POST /tenants — super admin creates a tenant (owner user auto-provisioned)', async () => {
+    it("POST /tenants — super admin creates a tenant (owner user auto-provisioned)", async () => {
       tenantSlug = `e2e-tenant-${runId}`;
 
       const res = await request(app.getHttpServer())
-        .post('/tenants')
-        .set('Authorization', `Bearer ${superAdminToken}`)
+        .post("/tenants")
+        .set("Authorization", `Bearer ${superAdminToken}`)
         .send({
           code: `E2E${runId}`.slice(0, 20),
-          name: 'E2E Test Freight LLC',
+          name: "E2E Test Freight LLC",
           slug: tenantSlug,
-          password: 'TenantPass@2026',
+          password: "TenantPass@2026",
           email: `owner.${runId}@e2etest.ae`,
         })
         .expect(201);
@@ -92,32 +94,38 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
       expect(res.body.data.owner.email).toContain(`owner.${runId}`);
     });
 
-    it('POST /tenants (no token) — rejected, tenant management is super-admin-only', async () => {
+    it("POST /tenants (no token) — rejected, tenant management is super-admin-only", async () => {
       await request(app.getHttpServer())
-        .post('/tenants')
-        .send({ code: 'SHOULDFAIL', name: 'x', slug: 'should-fail', password: 'x', email: 'x@x.com' })
+        .post("/tenants")
+        .send({
+          code: "SHOULDFAIL",
+          name: "x",
+          slug: "should-fail",
+          password: "x",
+          email: "x@x.com",
+        })
         .expect(401);
     });
 
-    it('POST /auth/tenant-login — tenant owner logs in with the tenant password', async () => {
+    it("POST /auth/tenant-login — tenant owner logs in with the tenant password", async () => {
       const res = await request(app.getHttpServer())
-        .post('/auth/tenant-login')
-        .send({ tenant_slug: tenantSlug, password: 'TenantPass@2026' })
+        .post("/auth/tenant-login")
+        .send({ tenant_slug: tenantSlug, password: "TenantPass@2026" })
         .expect(200);
 
       expect(res.body.data.access_token).toBeDefined();
       tenantOwnerToken = res.body.data.access_token;
     });
 
-    it('POST /users — tenant owner creates a staff user (status INVITED, temp password returned)', async () => {
+    it("POST /users — tenant owner creates a staff user (status INVITED, temp password returned)", async () => {
       const res = await request(app.getHttpServer())
-        .post('/users')
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
+        .post("/users")
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
         .send({
           email: `staff.${runId}@e2etest.ae`,
-          first_name: 'Staff',
-          last_name: 'Member',
-          role: 'SALES_EXECUTIVE',
+          first_name: "Staff",
+          last_name: "Member",
+          role: "SALES_EXECUTIVE",
         })
         .expect(201);
 
@@ -126,9 +134,9 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
       staffUserId = res.body.user.id;
     });
 
-    it('POST /auth/login — staff logs in with the temp password (INVITED must be allowed to log in)', async () => {
+    it("POST /auth/login — staff logs in with the temp password (INVITED must be allowed to log in)", async () => {
       const res = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post("/auth/login")
         .send({
           tenant_slug: tenantSlug,
           email: `staff.${runId}@e2etest.ae`,
@@ -140,10 +148,10 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
       staffToken = res.body.data.access_token;
     });
 
-    it('GET /auth/me — reflects the calling principal', async () => {
+    it("GET /auth/me — reflects the calling principal", async () => {
       const res = await request(app.getHttpServer())
-        .get('/auth/me')
-        .set('Authorization', `Bearer ${staffToken}`)
+        .get("/auth/me")
+        .set("Authorization", `Bearer ${staffToken}`)
         .expect(200);
 
       expect(res.body.data.email).toBe(`staff.${runId}@e2etest.ae`);
@@ -154,43 +162,43 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
   // MASTERS — representative sample (Country)
   // ============================================================
 
-  describe('Masters — Countries', () => {
-    it('POST /masters/countries — tenant owner creates a reference record', async () => {
+  describe("Masters — Countries", () => {
+    it("POST /masters/countries — tenant owner creates a reference record", async () => {
       const res = await request(app.getHttpServer())
-        .post('/masters/countries')
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
-        .send({ iso_code: 'ZZ', iso3_code: 'ZZZ', name: `Testland ${runId}` })
+        .post("/masters/countries")
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
+        .send({ iso_code: "ZZ", iso3_code: "ZZZ", name: `Testland ${runId}` })
         .expect(201);
 
       countryId = res.body.id;
       expect(countryId).toBeDefined();
     });
 
-    it('GET /masters/countries — lists it back', async () => {
+    it("GET /masters/countries — lists it back", async () => {
       const res = await request(app.getHttpServer())
-        .get('/masters/countries?search=Testland')
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
+        .get("/masters/countries?search=Testland")
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
         .expect(200);
 
       expect(res.body.data.some((c: any) => c.id === countryId)).toBe(true);
     });
 
-    it('PATCH /masters/countries/:id — updates it', async () => {
+    it("PATCH /masters/countries/:id — updates it", async () => {
       await request(app.getHttpServer())
         .patch(`/masters/countries/${countryId}`)
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
-        .send({ region: 'Nowhere' })
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
+        .send({ region: "Nowhere" })
         .expect(200);
     });
 
-    it('a staff user without masters.create cannot create a country', async () => {
+    it("a staff user without masters.create cannot create a country", async () => {
       // The staff user was created with role SALES_EXECUTIVE and no
       // explicit permission grants, so only whatever READ_ONLY's
       // default role provides — masters.view, not masters.create.
       await request(app.getHttpServer())
-        .post('/masters/countries')
-        .set('Authorization', `Bearer ${staffToken}`)
-        .send({ iso_code: 'YY', iso3_code: 'YYY', name: 'Should Fail' })
+        .post("/masters/countries")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ iso_code: "YY", iso3_code: "YYY", name: "Should Fail" })
         .expect(403);
     });
   });
@@ -199,67 +207,71 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
   // PARTIES — CRUD, credit status, CSV import
   // ============================================================
 
-  describe('Parties', () => {
-    it('POST /parties — creates a customer', async () => {
+  describe("Parties", () => {
+    it("POST /parties — creates a customer", async () => {
       const res = await request(app.getHttpServer())
-        .post('/parties')
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
+        .post("/parties")
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
         .send({
-          party_type: 'CUSTOMER',
+          party_type: "CUSTOMER",
           code: `CUST-${runId}`,
-          name: 'E2E Test Customer LLC',
+          name: "E2E Test Customer LLC",
           email: `customer.${runId}@e2etest.ae`,
         })
         .expect(201);
 
       partyId = res.body.id;
-      expect(res.body.credit_status).toBe('ACTIVE');
+      expect(res.body.credit_status).toBe("ACTIVE");
     });
 
-    it('POST /parties/:id/contacts — adds a primary contact', async () => {
+    it("POST /parties/:id/contacts — adds a primary contact", async () => {
       await request(app.getHttpServer())
         .post(`/parties/${partyId}/contacts`)
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
-        .send({ name: 'Jane Contact', email: `jane.${runId}@e2etest.ae`, is_primary: true })
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
+        .send({
+          name: "Jane Contact",
+          email: `jane.${runId}@e2etest.ae`,
+          is_primary: true,
+        })
         .expect(201);
     });
 
-    it('GET /parties/:id — includes the contact', async () => {
+    it("GET /parties/:id — includes the contact", async () => {
       const res = await request(app.getHttpServer())
         .get(`/parties/${partyId}`)
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
         .expect(200);
 
       expect(res.body.contacts.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('PATCH /parties/:id/credit-status — holds the customer, requires manage_credit permission', async () => {
+    it("PATCH /parties/:id/credit-status — holds the customer, requires manage_credit permission", async () => {
       const res = await request(app.getHttpServer())
         .patch(`/parties/${partyId}/credit-status`)
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
-        .send({ credit_status: 'ON_HOLD', reason: 'e2e test hold' })
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
+        .send({ credit_status: "ON_HOLD", reason: "e2e test hold" })
         .expect(200);
 
-      expect(res.body.credit_status).toBe('ON_HOLD');
+      expect(res.body.credit_status).toBe("ON_HOLD");
     });
 
-    it('a staff user without manage_credit cannot change credit status', async () => {
+    it("a staff user without manage_credit cannot change credit status", async () => {
       await request(app.getHttpServer())
         .patch(`/parties/${partyId}/credit-status`)
-        .set('Authorization', `Bearer ${staffToken}`)
-        .send({ credit_status: 'BLACKLISTED' })
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ credit_status: "BLACKLISTED" })
         .expect(403);
     });
 
-    it('POST /parties/import — CSV bulk import, one good row + one bad row', async () => {
+    it("POST /parties/import — CSV bulk import, one good row + one bad row", async () => {
       const goodRow = `CUSTOMER,IMPORT-OK-${runId},Import Good Row,import.ok.${runId}@e2etest.ae`;
       const badRow = `,IMPORT-BAD-${runId},,not-an-email`;
       const csv = `party_type,code,name,email\n${goodRow}\n${badRow}\n`;
 
       const res = await request(app.getHttpServer())
-        .post('/parties/import')
-        .set('Authorization', `Bearer ${tenantOwnerToken}`)
-        .attach('file', Buffer.from(csv), 'parties.csv')
+        .post("/parties/import")
+        .set("Authorization", `Bearer ${tenantOwnerToken}`)
+        .attach("file", Buffer.from(csv), "parties.csv")
         .expect(201);
 
       expect(res.body.total).toBe(2);
@@ -278,27 +290,27 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
   // tenant's data even via a guessed/known id.
   // ============================================================
 
-  describe('Cross-tenant isolation (RLS)', () => {
+  describe("Cross-tenant isolation (RLS)", () => {
     let secondTenantOwnerToken: string;
 
-    it('bootstraps a second, unrelated tenant', async () => {
+    it("bootstraps a second, unrelated tenant", async () => {
       const secondSlug = `e2e-tenant-2-${runId}`;
 
       await request(app.getHttpServer())
-        .post('/tenants')
-        .set('Authorization', `Bearer ${superAdminToken}`)
+        .post("/tenants")
+        .set("Authorization", `Bearer ${superAdminToken}`)
         .send({
           code: `E2E2${runId}`.slice(0, 20),
-          name: 'Second E2E Tenant LLC',
+          name: "Second E2E Tenant LLC",
           slug: secondSlug,
-          password: 'TenantPass2@2026',
+          password: "TenantPass2@2026",
           email: `owner2.${runId}@e2etest.ae`,
         })
         .expect(201);
 
       const res = await request(app.getHttpServer())
-        .post('/auth/tenant-login')
-        .send({ tenant_slug: secondSlug, password: 'TenantPass2@2026' })
+        .post("/auth/tenant-login")
+        .send({ tenant_slug: secondSlug, password: "TenantPass2@2026" })
         .expect(200);
 
       secondTenantOwnerToken = res.body.data.access_token;
@@ -307,21 +319,21 @@ describe('KingFisher Tech Gold — critical path (e2e)', () => {
     it("second tenant cannot fetch the first tenant's party by id", async () => {
       await request(app.getHttpServer())
         .get(`/parties/${partyId}`)
-        .set('Authorization', `Bearer ${secondTenantOwnerToken}`)
+        .set("Authorization", `Bearer ${secondTenantOwnerToken}`)
         .expect(404); // not 403 — must not confirm the record exists at all
     });
 
     it("second tenant cannot fetch the first tenant's user by id", async () => {
       await request(app.getHttpServer())
         .get(`/users/${staffUserId}`)
-        .set('Authorization', `Bearer ${secondTenantOwnerToken}`)
+        .set("Authorization", `Bearer ${secondTenantOwnerToken}`)
         .expect(404);
     });
 
     it("second tenant's party list does not include the first tenant's party", async () => {
       const res = await request(app.getHttpServer())
-        .get('/parties')
-        .set('Authorization', `Bearer ${secondTenantOwnerToken}`)
+        .get("/parties")
+        .set("Authorization", `Bearer ${secondTenantOwnerToken}`)
         .expect(200);
 
       expect(res.body.data.some((p: any) => p.id === partyId)).toBe(false);

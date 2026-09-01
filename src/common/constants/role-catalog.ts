@@ -1,21 +1,21 @@
-import { USERS_PERMISSIONS } from '../../modules/users/constants/permission.constants';
-import { MASTERS_PERMISSIONS } from '../../modules/masters/constants/masters-permission.constants';
-import { PARTIES_PERMISSIONS } from '../../modules/parties/constants/parties-permission.constants';
-import { QUOTATIONS_PERMISSIONS } from '../../modules/quotations/constants/quotations-permission.constants';
-import { JOBS_PERMISSIONS } from '../../modules/jobs/constants/jobs-permission.constants';
-import { AWB_STOCK_PERMISSIONS } from '../../modules/awb-stock/constants/awb-stock-permission.constants';
-import { SEARCH_PERMISSIONS } from '../../modules/search/constants/search-permission.constants';
-import { INVOICES_PERMISSIONS } from '../../modules/invoices/constants/invoices-permission.constants';
-import { GL_PERMISSIONS } from '../../modules/gl/constants/gl-permission.constants';
-import { PORTAL_PERMISSIONS } from '../../modules/portal/constants/portal-permission.constants';
-import { VENDOR_PERMISSIONS } from '../../modules/vendor/constants/vendor-permission.constants';
-import { CRM_PERMISSIONS } from '../../modules/crm/constants/crm-permission.constants';
-import { HR_PERMISSIONS } from '../../modules/hr/constants/hr-permission.constants';
-import { WMS_PERMISSIONS } from '../../modules/wms/constants/wms-permission.constants';
-import { TRANSPORT_PERMISSIONS } from '../../modules/transport/constants/transport-permission.constants';
-import { NVOCC_PERMISSIONS } from '../../modules/nvocc/constants/nvocc-permission.constants';
-import { NOTIFICATIONS_PERMISSIONS } from '../../modules/notifications/constants/notifications-permission.constants';
-import { DOCUMENTATION_PERMISSIONS } from '../../modules/documentation/constants/documentation-permission.constants';
+import { USERS_PERMISSIONS } from "../../modules/users/constants/permission.constants";
+import { MASTERS_PERMISSIONS } from "../../modules/masters/constants/masters-permission.constants";
+import { PARTIES_PERMISSIONS } from "../../modules/parties/constants/parties-permission.constants";
+import { QUOTATIONS_PERMISSIONS } from "../../modules/quotations/constants/quotations-permission.constants";
+import { JOBS_PERMISSIONS } from "../../modules/jobs/constants/jobs-permission.constants";
+import { AWB_STOCK_PERMISSIONS } from "../../modules/awb-stock/constants/awb-stock-permission.constants";
+import { SEARCH_PERMISSIONS } from "../../modules/search/constants/search-permission.constants";
+import { INVOICES_PERMISSIONS } from "../../modules/invoices/constants/invoices-permission.constants";
+import { GL_PERMISSIONS } from "../../modules/gl/constants/gl-permission.constants";
+import { PORTAL_PERMISSIONS } from "../../modules/portal/constants/portal-permission.constants";
+import { VENDOR_PERMISSIONS } from "../../modules/vendor/constants/vendor-permission.constants";
+import { CRM_PERMISSIONS } from "../../modules/crm/constants/crm-permission.constants";
+import { HR_PERMISSIONS } from "../../modules/hr/constants/hr-permission.constants";
+import { WMS_PERMISSIONS } from "../../modules/wms/constants/wms-permission.constants";
+import { TRANSPORT_PERMISSIONS } from "../../modules/transport/constants/transport-permission.constants";
+import { NVOCC_PERMISSIONS } from "../../modules/nvocc/constants/nvocc-permission.constants";
+import { NOTIFICATIONS_PERMISSIONS } from "../../modules/notifications/constants/notifications-permission.constants";
+import { DOCUMENTATION_PERMISSIONS } from "../../modules/documentation/constants/documentation-permission.constants";
 
 export interface RoleCatalogEntry {
   /** Matches a UserRole enum value — kept 1:1 so User.role and the Role row it's assigned agree. */
@@ -39,8 +39,8 @@ export interface RoleCatalogEntry {
  */
 export const ROLE_CATALOG: RoleCatalogEntry[] = [
   {
-    code: 'TENANT_ADMIN',
-    name: 'Tenant Admin',
+    code: "TENANT_ADMIN",
+    name: "Tenant Admin",
     permissions: [
       ...Object.values(USERS_PERMISSIONS),
       ...Object.values(MASTERS_PERMISSIONS),
@@ -63,8 +63,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'BRANCH_MANAGER',
-    name: 'Branch Manager',
+    code: "BRANCH_MANAGER",
+    name: "Branch Manager",
     permissions: [
       USERS_PERMISSIONS.VIEW,
       USERS_PERMISSIONS.CREATE,
@@ -110,8 +110,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'HR_MANAGER',
-    name: 'HR Manager',
+    code: "HR_MANAGER",
+    name: "HR Manager",
     permissions: [
       ...Object.values(HR_PERMISSIONS),
       NOTIFICATIONS_PERMISSIONS.VIEW,
@@ -120,8 +120,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'OPERATIONS_MANAGER',
-    name: 'Operations Staff',
+    code: "OPERATIONS_MANAGER",
+    name: "Operations Staff",
     permissions: [
       USERS_PERMISSIONS.VIEW,
       USERS_PERMISSIONS.UPDATE,
@@ -152,8 +152,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'SALES_MANAGER',
-    name: 'Sales',
+    code: "SALES_MANAGER",
+    name: "Sales",
     permissions: [
       USERS_PERMISSIONS.VIEW,
       USERS_PERMISSIONS.CREATE,
@@ -181,8 +181,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'SALES_EXECUTIVE',
-    name: 'Sales Executive',
+    code: "SALES_EXECUTIVE",
+    name: "Sales Executive",
     permissions: [
       USERS_PERMISSIONS.VIEW,
       MASTERS_PERMISSIONS.VIEW,
@@ -201,8 +201,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'FINANCE_MANAGER',
-    name: 'Finance',
+    code: "FINANCE_MANAGER",
+    name: "Finance",
     permissions: [
       USERS_PERMISSIONS.VIEW,
       MASTERS_PERMISSIONS.VIEW,
@@ -231,8 +231,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'DOCUMENTATION',
-    name: 'Documentation',
+    code: "DOCUMENTATION",
+    name: "Documentation",
     permissions: [
       USERS_PERMISSIONS.VIEW,
       MASTERS_PERMISSIONS.VIEW,
@@ -261,8 +261,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'CUSTOMER_SUPPORT',
-    name: 'Customer Support',
+    code: "CUSTOMER_SUPPORT",
+    name: "Customer Support",
     permissions: [
       USERS_PERMISSIONS.VIEW,
       MASTERS_PERMISSIONS.VIEW,
@@ -283,8 +283,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'WAREHOUSE_STAFF',
-    name: 'Warehouse',
+    code: "WAREHOUSE_STAFF",
+    name: "Warehouse",
     permissions: [
       USERS_PERMISSIONS.VIEW,
       MASTERS_PERMISSIONS.VIEW,
@@ -299,13 +299,13 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
     ],
   },
   {
-    code: 'DRIVER',
-    name: 'Driver',
+    code: "DRIVER",
+    name: "Driver",
     permissions: [MASTERS_PERMISSIONS.VIEW],
   },
   {
-    code: 'READ_ONLY',
-    name: 'Read Only',
+    code: "READ_ONLY",
+    name: "Read Only",
     isDefault: true,
     permissions: [
       USERS_PERMISSIONS.VIEW,

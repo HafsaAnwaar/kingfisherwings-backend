@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   IsArray,
   IsBoolean,
@@ -11,8 +11,8 @@ import {
   Length,
   Min,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 import {
   BankReconciliationStatus,
   ChequeStatus,
@@ -20,10 +20,10 @@ import {
   PaymentDirection,
   PaymentMethod,
   PaymentStatus,
-} from '@prisma/client';
+} from "@prisma/client";
 
 export class PaymentAllocationInputDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   invoice_id!: string;
 
@@ -38,12 +38,15 @@ export class CreatePaymentDto {
   @IsEnum(PaymentDirection)
   direction!: PaymentDirection;
 
-  @ApiPropertyOptional({ enum: PaymentMethod, default: PaymentMethod.BANK_TRANSFER })
+  @ApiPropertyOptional({
+    enum: PaymentMethod,
+    default: PaymentMethod.BANK_TRANSFER,
+  })
   @IsOptional()
   @IsEnum(PaymentMethod)
   payment_method?: PaymentMethod;
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   party_id!: string;
 
@@ -52,7 +55,7 @@ export class CreatePaymentDto {
   @Min(0.0001)
   amount!: number;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
@@ -67,22 +70,22 @@ export class CreatePaymentDto {
   @IsDateString()
   payment_date?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   bank_account_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   gl_account_id?: string;
@@ -105,7 +108,9 @@ export class CreatePaymentDto {
   @Type(() => PaymentAllocationInputDto)
   allocations?: PaymentAllocationInputDto[];
 
-  @ApiPropertyOptional({ description: 'Optional cheque details when payment_method=CHEQUE' })
+  @ApiPropertyOptional({
+    description: "Optional cheque details when payment_method=CHEQUE",
+  })
   @IsOptional()
   @IsString()
   cheque_number?: string;
@@ -144,7 +149,7 @@ export class PaymentQueryDto {
   @IsEnum(PaymentStatus)
   status?: PaymentStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
@@ -166,7 +171,7 @@ export class PaymentQueryDto {
 }
 
 export class CreateChequeDto {
-  @ApiProperty({ example: 'CHK-1001' })
+  @ApiProperty({ example: "CHK-1001" })
   @IsString()
   @Length(1, 50)
   cheque_number!: string;
@@ -175,7 +180,7 @@ export class CreateChequeDto {
   @IsEnum(ChequeType)
   cheque_type!: ChequeType;
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   party_id!: string;
 
@@ -184,7 +189,7 @@ export class CreateChequeDto {
   @Min(0.0001)
   amount!: number;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
@@ -203,12 +208,12 @@ export class CreateChequeDto {
   @IsBoolean()
   is_pdc?: boolean;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   bank_account_id?: string;
@@ -237,7 +242,7 @@ export class ChequeQueryDto {
   @IsEnum(ChequeStatus)
   status?: ChequeStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
@@ -263,24 +268,24 @@ export class BounceChequeDto {
 }
 
 export class AgingQueryDto {
-  @ApiPropertyOptional({ description: 'As-of date (default today)' })
+  @ApiPropertyOptional({ description: "As-of date (default today)" })
   @IsOptional()
   @IsDateString()
   as_of?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 }
 
 export class CreateBankReconciliationDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   gl_account_id!: string;
 
@@ -292,12 +297,12 @@ export class CreateBankReconciliationDto {
   @IsNumber()
   statement_balance!: number;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   bank_account_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
@@ -331,24 +336,24 @@ export class BankReconciliationQueryDto {
   @IsEnum(BankReconciliationStatus)
   status?: BankReconciliationStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   gl_account_id?: string;
 }
 
 export class CreateBankReconciliationLineDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   voucher_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   voucher_line_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   account_id?: string;
@@ -405,11 +410,11 @@ export class UpdateBankReconciliationLineDto {
 }
 
 export class CreateBankTransferDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   from_account_id!: string;
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   to_account_id!: string;
 
@@ -418,7 +423,7 @@ export class CreateBankTransferDto {
   @Min(0.0001)
   amount!: number;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
@@ -443,7 +448,7 @@ export class CreateBankTransferDto {
   @IsString()
   reference_number?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;

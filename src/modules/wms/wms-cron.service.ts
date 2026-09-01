@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { WmsStockService } from './wms-stock.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { WmsStockService } from "./wms-stock.service";
 
 @Injectable()
 export class WmsCronService {
@@ -21,7 +21,11 @@ export class WmsCronService {
     this.running = true;
     try {
       const tenants = await this.prisma.tenant.findMany({
-        where: { is_active: true, deleted_at: null, status: { in: ['TRIAL', 'ACTIVE'] } },
+        where: {
+          is_active: true,
+          deleted_at: null,
+          status: { in: ["TRIAL", "ACTIVE"] },
+        },
         select: { id: true, name: true },
       });
       for (const tenant of tenants) {
@@ -30,18 +34,27 @@ export class WmsCronService {
           if (!items.length) continue;
           await this.notifications.notifyStaffByRoles(
             tenant.id,
-            ['TENANT_ADMIN', 'WAREHOUSE_STAFF', 'OPERATIONS_MANAGER', 'BRANCH_MANAGER'],
+            [
+              "TENANT_ADMIN",
+              "WAREHOUSE_STAFF",
+              "OPERATIONS_MANAGER",
+              "BRANCH_MANAGER",
+            ],
             {
-            type: 'WMS_LOW_STOCK',
-            title: 'WMS low stock alert',
-            message: `${items.length} item(s) are at or below their low-stock threshold.`,
-            entity_type: 'wms_item',
-            link_path: '/wms/stock/low-stock',
-          },
+              type: "WMS_LOW_STOCK",
+              title: "WMS low stock alert",
+              message: `${items.length} item(s) are at or below their low-stock threshold.`,
+              entity_type: "wms_item",
+              link_path: "/wms/stock/low-stock",
+            },
           );
-          this.logger.log(`Tenant ${tenant.name}: ${items.length} low-stock item(s).`);
+          this.logger.log(
+            `Tenant ${tenant.name}: ${items.length} low-stock item(s).`,
+          );
         } catch (error) {
-          this.logger.error(`Low-stock check failed for tenant ${tenant.id}: ${String(error)}`);
+          this.logger.error(
+            `Low-stock check failed for tenant ${tenant.id}: ${String(error)}`,
+          );
         }
       }
     } finally {

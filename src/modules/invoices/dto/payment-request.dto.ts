@@ -1,10 +1,22 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
-import { PaymentRequestStatus } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { Transform, Type } from "class-transformer";
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Max,
+  Min,
+} from "class-validator";
+import { PaymentRequestStatus } from "@prisma/client";
 
 export class CreatePaymentRequestDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   party_id!: string;
 
@@ -13,17 +25,17 @@ export class CreatePaymentRequestDto {
   @Min(0.01)
   amount!: number;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   invoice_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
@@ -39,7 +51,9 @@ export class CreatePaymentRequestDto {
   remarks?: string;
 }
 
-export class UpdatePaymentRequestDto extends PartialType(CreatePaymentRequestDto) {}
+export class UpdatePaymentRequestDto extends PartialType(
+  CreatePaymentRequestDto,
+) {}
 
 export class RejectPaymentRequestDto {
   @ApiProperty()
@@ -69,29 +83,35 @@ export class PaymentRequestQueryDto {
   @IsEnum(PaymentRequestStatus)
   status?: PaymentRequestStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Filter by job branch (via job.branch_id join).' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Filter by job branch (via job.branch_id join).",
+  })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ description: 'Search linked job number.' })
+  @ApiPropertyOptional({ description: "Search linked job number." })
   @IsOptional()
   @IsString()
   job_number?: string;
 
-  @ApiPropertyOptional({ description: 'Approved requests with no posted voucher on the same job/party.' })
+  @ApiPropertyOptional({
+    description:
+      "Approved requests with no posted voucher on the same job/party.",
+  })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => value === "true" || value === true)
   @IsBoolean()
   voucher_pending?: boolean;
 }

@@ -1,23 +1,30 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+} from "class-validator";
 
 export class CreateZipDistanceDto {
-  @ApiProperty({ example: '00000' })
+  @ApiProperty({ example: "00000" })
   @IsString()
   @Length(1, 20)
   from_zip!: string;
 
-  @ApiPropertyOptional({ example: 'Dubai' })
+  @ApiPropertyOptional({ example: "Dubai" })
   @IsOptional()
   @IsString()
   from_city?: string;
 
-  @ApiProperty({ example: '11111' })
+  @ApiProperty({ example: "11111" })
   @IsString()
   @Length(1, 20)
   to_zip!: string;
 
-  @ApiPropertyOptional({ example: 'Abu Dhabi' })
+  @ApiPropertyOptional({ example: "Abu Dhabi" })
   @IsOptional()
   @IsString()
   to_city?: string;
@@ -27,7 +34,7 @@ export class CreateZipDistanceDto {
   @Min(0)
   distance!: number;
 
-  @ApiPropertyOptional({ default: 'KM' })
+  @ApiPropertyOptional({ default: "KM" })
   @IsOptional()
   @IsString()
   unit?: string;

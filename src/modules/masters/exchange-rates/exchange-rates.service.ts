@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { ExchangeRate } from '@prisma/client';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { MasterQueryDto } from '../dto/master-query.dto';
-import { CreateExchangeRateDto } from '../dto/exchange-rate.dto';
-import { CountryLocaleService } from '../../../common/locale/country-locale.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { ExchangeRate } from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { MasterQueryDto } from "../dto/master-query.dto";
+import { CreateExchangeRateDto } from "../dto/exchange-rate.dto";
+import { CountryLocaleService } from "../../../common/locale/country-locale.service";
 
 @Injectable()
 export class ExchangeRatesService {
@@ -13,7 +17,11 @@ export class ExchangeRatesService {
   ) {}
 
   /** Upsert rather than plain create — re-submitting today's rate (e.g. a corrected manual entry) should replace it, not conflict. */
-  async create(tenantId: string, dto: CreateExchangeRateDto, actorId?: string): Promise<ExchangeRate> {
+  async create(
+    tenantId: string,
+    dto: CreateExchangeRateDto,
+    actorId?: string,
+  ): Promise<ExchangeRate> {
     const tenant = await this.prisma.tenant.findFirst({
       where: { id: tenantId, deleted_at: null },
       select: { base_currency: true, country_code: true },
@@ -21,7 +29,7 @@ export class ExchangeRatesService {
     const expectedBase =
       tenant?.base_currency ??
       this.locale.getDefaultCurrency(tenant?.country_code) ??
-      'USD';
+      "USD";
     const baseCurrency = (dto.base_currency || expectedBase).toUpperCase();
 
     if (expectedBase && baseCurrency !== expectedBase.toUpperCase()) {
@@ -31,7 +39,9 @@ export class ExchangeRatesService {
     }
 
     if (!this.locale.isKnownCurrency(baseCurrency)) {
-      throw new BadRequestException('base_currency must be a valid ISO 4217 currency code.');
+      throw new BadRequestException(
+        "base_currency must be a valid ISO 4217 currency code.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
@@ -49,23 +59,26 @@ export class ExchangeRatesService {
           base_currency: baseCurrency,
           rate: dto.rate,
           rate_date: new Date(dto.rate_date),
-          source: dto.source ?? 'manual',
-          manual_override: (dto.source ?? 'manual') === 'manual',
+          source: dto.source ?? "manual",
+          manual_override: (dto.source ?? "manual") === "manual",
           created_by: actorId,
           updated_by: actorId,
         },
         update: {
           rate: dto.rate,
           base_currency: baseCurrency,
-          source: dto.source ?? 'manual',
-          manual_override: (dto.source ?? 'manual') === 'manual',
+          source: dto.source ?? "manual",
+          manual_override: (dto.source ?? "manual") === "manual",
           updated_by: actorId,
         },
       }),
     );
   }
 
-  async findAll(tenantId: string, query: MasterQueryDto & { currency_id?: string }) {
+  async findAll(
+    tenantId: string,
+    query: MasterQueryDto & { currency_id?: string },
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where = {
         tenant_id: tenantId,
@@ -78,8 +91,10 @@ export class ExchangeRatesService {
           where,
           skip: (query.page - 1) * query.limit,
           take: query.limit,
-          orderBy: { rate_date: 'desc' },
-          include: { currency: { select: { code: true, name: true, symbol: true } } },
+          orderBy: { rate_date: "desc" },
+          include: {
+            currency: { select: { code: true, name: true, symbol: true } },
+          },
         }),
         tx.exchangeRate.count({ where }),
       ]);
@@ -100,13 +115,20 @@ export class ExchangeRatesService {
   async latest(tenantId: string, currencyId: string): Promise<ExchangeRate> {
     const rate = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.exchangeRate.findFirst({
-        where: { tenant_id: tenantId, currency_id: currencyId, rate_date: { lte: new Date() }, deleted_at: null },
-        orderBy: { rate_date: 'desc' },
+        where: {
+          tenant_id: tenantId,
+          currency_id: currencyId,
+          rate_date: { lte: new Date() },
+          deleted_at: null,
+        },
+        orderBy: { rate_date: "desc" },
       }),
     );
 
     if (!rate) {
-      throw new NotFoundException('No exchange rate on file for this currency.');
+      throw new NotFoundException(
+        "No exchange rate on file for this currency.",
+      );
     }
 
     return rate;

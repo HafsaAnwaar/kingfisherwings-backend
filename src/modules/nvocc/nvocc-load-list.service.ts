@@ -1,14 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { NvoccLoadListCargoStatus } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { DocumentGenerationService } from '../../shared/queue/document-generation.service';
-import { markJobMilestoneIfPresent } from '../jobs/utils/mark-milestone.util';
-import { assertCargoStatusTransition } from './constants/nvocc-cargo-status-transitions';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { NvoccLoadListCargoStatus } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
+import { markJobMilestoneIfPresent } from "../jobs/utils/mark-milestone.util";
+import { assertCargoStatusTransition } from "./constants/nvocc-cargo-status-transitions";
 import {
   AssignLoadListContainerDto,
   UpdateNvoccLoadListItemDto,
-} from './dto/nvocc-load-list.dto';
-import { NvoccVoyagesService } from './nvocc-voyages.service';
+} from "./dto/nvocc-load-list.dto";
+import { NvoccVoyagesService } from "./nvocc-voyages.service";
 
 @Injectable()
 export class NvoccLoadListService {
@@ -34,7 +38,7 @@ export class NvoccLoadListService {
             },
           },
         },
-        orderBy: [{ container_number: 'asc' }, { created_at: 'asc' }],
+        orderBy: [{ container_number: "asc" }, { created_at: "asc" }],
       }),
     );
 
@@ -64,7 +68,11 @@ export class NvoccLoadListService {
     }
 
     if (dto.gross_weight_kg != null && dto.container_type_id) {
-      await this.validateContainerPayload(tenantId, dto.container_type_id, dto.gross_weight_kg);
+      await this.validateContainerPayload(
+        tenantId,
+        dto.container_type_id,
+        dto.gross_weight_kg,
+      );
     }
 
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -82,17 +90,17 @@ export class NvoccLoadListService {
           cargo_status: dto.cargo_status,
           cargo_received_date: dto.cargo_received_date
             ? new Date(dto.cargo_received_date)
-            : dto.cargo_status === 'RECEIVED_AT_CFS'
+            : dto.cargo_status === "RECEIVED_AT_CFS"
               ? new Date()
               : undefined,
           stuffing_date: dto.stuffing_date
             ? new Date(dto.stuffing_date)
-            : dto.cargo_status === 'STUFFED'
+            : dto.cargo_status === "STUFFED"
               ? new Date()
               : undefined,
           vessel_loaded_date: dto.vessel_loaded_date
             ? new Date(dto.vessel_loaded_date)
-            : dto.cargo_status === 'LOADED_ON_VESSEL'
+            : dto.cargo_status === "LOADED_ON_VESSEL"
               ? new Date()
               : undefined,
           updated_by: actorId,
@@ -100,7 +108,11 @@ export class NvoccLoadListService {
         include: { booking: { select: { converted_job_id: true } } },
       });
 
-      if (dto.cargo_status && dto.cargo_status !== item.cargo_status && row.booking?.converted_job_id) {
+      if (
+        dto.cargo_status &&
+        dto.cargo_status !== item.cargo_status &&
+        row.booking?.converted_job_id
+      ) {
         const milestone = cargoStatusToMilestone(dto.cargo_status);
         if (milestone) {
           await markJobMilestoneIfPresent(
@@ -134,7 +146,11 @@ export class NvoccLoadListService {
         tx.nvoccLoadListItem.findFirst({ where: { id: itemId } }),
       );
       if (item?.gross_weight_kg) {
-        await this.validateContainerPayload(tenantId, dto.container_type_id, Number(item.gross_weight_kg));
+        await this.validateContainerPayload(
+          tenantId,
+          dto.container_type_id,
+          Number(item.gross_weight_kg),
+        );
       }
     }
 
@@ -153,7 +169,10 @@ export class NvoccLoadListService {
 
   async containerWeightCheck(tenantId: string, voyageId: string) {
     const { items } = await this.listForVoyage(tenantId, voyageId);
-    const byContainer = new Map<string, { weight: number; maxPayload: number | null }>();
+    const byContainer = new Map<
+      string,
+      { weight: number; maxPayload: number | null }
+    >();
 
     for (const item of items) {
       if (!item.container_number) continue;
@@ -163,50 +182,79 @@ export class NvoccLoadListService {
 
       if (item.container_type_id) {
         const ct = await this.prisma.runWithTenant(tenantId, (tx) =>
-          tx.containerType.findFirst({ where: { id: item.container_type_id!, tenant_id: tenantId } }),
+          tx.containerType.findFirst({
+            where: { id: item.container_type_id!, tenant_id: tenantId },
+          }),
         );
         if (ct?.max_payload) existing.maxPayload = Number(ct.max_payload);
       }
       byContainer.set(key, existing);
     }
 
-    return Array.from(byContainer.entries()).map(([container_number, data]) => ({
-      container_number,
-      total_weight_kg: data.weight,
-      max_payload_kg: data.maxPayload,
-      utilization_percent:
-        data.maxPayload && data.maxPayload > 0
-          ? Number(((data.weight / data.maxPayload) * 100).toFixed(1))
-          : null,
-      over_weight: data.maxPayload != null && data.weight > data.maxPayload,
-    }));
+    return Array.from(byContainer.entries()).map(
+      ([container_number, data]) => ({
+        container_number,
+        total_weight_kg: data.weight,
+        max_payload_kg: data.maxPayload,
+        utilization_percent:
+          data.maxPayload && data.maxPayload > 0
+            ? Number(((data.weight / data.maxPayload) * 100).toFixed(1))
+            : null,
+        over_weight: data.maxPayload != null && data.weight > data.maxPayload,
+      }),
+    );
   }
 
-  async generateLoadListPdf(tenantId: string, voyageId: string, actorId?: string) {
+  async generateLoadListPdf(
+    tenantId: string,
+    voyageId: string,
+    actorId?: string,
+  ) {
     const voyage = await this.voyagesService.findOne(tenantId, voyageId);
-    const confirmedBooking = voyage.bookings.find((b) => b.booking_status === 'CONFIRMED' || b.booking_status === 'CONVERTED');
+    const confirmedBooking = voyage.bookings.find(
+      (b) =>
+        b.booking_status === "CONFIRMED" || b.booking_status === "CONVERTED",
+    );
     const jobId = confirmedBooking?.converted_job_id;
 
     if (!jobId) {
       throw new BadRequestException(
-        'At least one confirmed booking must be converted to a job before generating load list PDF.',
+        "At least one confirmed booking must be converted to a job before generating load list PDF.",
       );
     }
 
-    return this.documentGeneration.enqueueJobDocument(tenantId, jobId, 'NVOCC_LOAD_LIST', actorId);
+    return this.documentGeneration.enqueueJobDocument(
+      tenantId,
+      jobId,
+      "NVOCC_LOAD_LIST",
+      actorId,
+    );
   }
 
-  private async getItemOrThrow(tenantId: string, voyageId: string, itemId: string) {
+  private async getItemOrThrow(
+    tenantId: string,
+    voyageId: string,
+    itemId: string,
+  ) {
     const item = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccLoadListItem.findFirst({
-        where: { id: itemId, tenant_id: tenantId, voyage_id: voyageId, deleted_at: null },
+        where: {
+          id: itemId,
+          tenant_id: tenantId,
+          voyage_id: voyageId,
+          deleted_at: null,
+        },
       }),
     );
-    if (!item) throw new NotFoundException('Load list item not found.');
+    if (!item) throw new NotFoundException("Load list item not found.");
     return item;
   }
 
-  private async validateContainerPayload(tenantId: string, containerTypeId: string, weightKg: number) {
+  private async validateContainerPayload(
+    tenantId: string,
+    containerTypeId: string,
+    weightKg: number,
+  ) {
     const ct = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.containerType.findFirst({
         where: { id: containerTypeId, tenant_id: tenantId, deleted_at: null },
@@ -220,14 +268,16 @@ export class NvoccLoadListService {
   }
 }
 
-function cargoStatusToMilestone(status: NvoccLoadListCargoStatus): string | null {
+function cargoStatusToMilestone(
+  status: NvoccLoadListCargoStatus,
+): string | null {
   switch (status) {
-    case 'RECEIVED_AT_CFS':
-      return 'CARGO_RECEIVED_AT_CFS';
-    case 'STUFFED':
-      return 'CARGO_STUFFED';
-    case 'LOADED_ON_VESSEL':
-      return 'VESSEL_LOADED';
+    case "RECEIVED_AT_CFS":
+      return "CARGO_RECEIVED_AT_CFS";
+    case "STUFFED":
+      return "CARGO_STUFFED";
+    case "LOADED_ON_VESSEL":
+      return "VESSEL_LOADED";
     default:
       return null;
   }

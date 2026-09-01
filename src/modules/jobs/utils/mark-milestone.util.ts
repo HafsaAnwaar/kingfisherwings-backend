@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 
 /** Mark a job milestone complete when the row exists and is not yet done. */
 export async function markJobMilestoneIfPresent(

@@ -3,12 +3,15 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { resolveVendorAccessSecret } from '../../../common/utils/jwt-secrets.util';
-import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { CurrentVendorUser, VendorJwtPayload } from '../interfaces/vendor-auth.interfaces';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { resolveVendorAccessSecret } from "../../../common/utils/jwt-secrets.util";
+import { JwtService } from "@nestjs/jwt";
+import { PrismaService } from "../../../prisma/prisma.service";
+import {
+  CurrentVendorUser,
+  VendorJwtPayload,
+} from "../interfaces/vendor-auth.interfaces";
 
 @Injectable()
 export class VendorAuthGuard implements CanActivate {
@@ -25,13 +28,13 @@ export class VendorAuthGuard implements CanActivate {
     }>();
 
     const header = request.headers.authorization;
-    if (!header?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing vendor access token.');
+    if (!header?.startsWith("Bearer ")) {
+      throw new UnauthorizedException("Missing vendor access token.");
     }
 
-    const token = header.slice('Bearer '.length).trim();
+    const token = header.slice("Bearer ".length).trim();
     if (!token) {
-      throw new UnauthorizedException('Missing vendor access token.');
+      throw new UnauthorizedException("Missing vendor access token.");
     }
 
     let payload: VendorJwtPayload;
@@ -40,11 +43,11 @@ export class VendorAuthGuard implements CanActivate {
         secret: this.vendorAccessSecret(),
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired vendor token.');
+      throw new UnauthorizedException("Invalid or expired vendor token.");
     }
 
-    if (payload.principal !== 'vendor' || payload.type !== 'access') {
-      throw new UnauthorizedException('Invalid vendor token.');
+    if (payload.principal !== "vendor" || payload.type !== "access") {
+      throw new UnauthorizedException("Invalid vendor token.");
     }
 
     const session = await this.prisma.vendorSession.findUnique({
@@ -59,30 +62,41 @@ export class VendorAuthGuard implements CanActivate {
             full_name: true,
             status: true,
             deleted_at: true,
-            party: { select: { vendor_portal_access: true, deleted_at: true, is_active: true } },
+            party: {
+              select: {
+                vendor_portal_access: true,
+                deleted_at: true,
+                is_active: true,
+              },
+            },
           },
         },
       },
     });
 
-    if (!session || !session.is_active || session.revoked_at || session.expires_at < new Date()) {
-      throw new UnauthorizedException('Vendor session is no longer valid.');
+    if (
+      !session ||
+      !session.is_active ||
+      session.revoked_at ||
+      session.expires_at < new Date()
+    ) {
+      throw new UnauthorizedException("Vendor session is no longer valid.");
     }
 
     const user = session.vendor_user;
     if (
       !user ||
       user.deleted_at ||
-      user.status !== 'ACTIVE' ||
+      user.status !== "ACTIVE" ||
       !user.party.vendor_portal_access ||
       user.party.deleted_at ||
       !user.party.is_active
     ) {
-      throw new UnauthorizedException('Vendor account is not active.');
+      throw new UnauthorizedException("Vendor account is not active.");
     }
 
     if (user.id !== payload.sub || user.tenant_id !== payload.tenantId) {
-      throw new UnauthorizedException('Vendor token mismatch.');
+      throw new UnauthorizedException("Vendor token mismatch.");
     }
 
     request.vendorUser = {

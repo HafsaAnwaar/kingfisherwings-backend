@@ -1,10 +1,22 @@
-import { createHash } from 'crypto';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { DocumentationEdiStatus, DocumentationEdiType, JobType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { DocumentationPaginationDto, paginated } from './dto/documentation-pagination.dto';
+import { createHash } from "crypto";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import {
+  DocumentationEdiStatus,
+  DocumentationEdiType,
+  JobType,
+  Prisma,
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import {
+  DocumentationPaginationDto,
+  paginated,
+} from "./dto/documentation-pagination.dto";
 
 export interface EdiListQueryDto extends DocumentationPaginationDto {
   search?: string;
@@ -20,29 +32,44 @@ export class DocumentationEdiService {
     private readonly config: ConfigService,
   ) {}
 
-  async listJobsForEdi(tenantId: string, ediType: DocumentationEdiType, query: EdiListQueryDto) {
+  async listJobsForEdi(
+    tenantId: string,
+    ediType: DocumentationEdiType,
+    query: EdiListQueryDto,
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const exportTypes: JobType[] = [
-      'SEA_FCL_EXPORT',
-      'SEA_LCL_EXPORT',
-      'AIR_EXPORT',
-      'NVOCC_EXPORT',
+      "SEA_FCL_EXPORT",
+      "SEA_LCL_EXPORT",
+      "AIR_EXPORT",
+      "NVOCC_EXPORT",
     ];
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        parent_job_id: ediType === 'BAYAN_HOUSE' ? { not: null } : null,
+        parent_job_id: ediType === "BAYAN_HOUSE" ? { not: null } : null,
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
-        ...(ediType !== 'BAYAN_HOUSE' ? { job_type: { in: exportTypes } } : {}),
+        ...(ediType !== "BAYAN_HOUSE" ? { job_type: { in: exportTypes } } : {}),
         ...(query.search
           ? {
               OR: [
-                { job_number: { contains: query.search, mode: 'insensitive' } },
-                { sea_fcl_details: { mbl_number: { contains: query.search, mode: 'insensitive' } } },
-                { air_details: { mawb_number: { contains: query.search, mode: 'insensitive' } } },
+                { job_number: { contains: query.search, mode: "insensitive" } },
+                {
+                  sea_fcl_details: {
+                    mbl_number: { contains: query.search, mode: "insensitive" },
+                  },
+                },
+                {
+                  air_details: {
+                    mawb_number: {
+                      contains: query.search,
+                      mode: "insensitive",
+                    },
+                  },
+                },
               ],
             }
           : {}),
@@ -59,7 +86,7 @@ export class DocumentationEdiService {
           },
           skip: (page - 1) * limit,
           take: limit,
-          orderBy: { created_at: 'desc' },
+          orderBy: { created_at: "desc" },
         }),
         tx.job.count({ where }),
       ]);
@@ -71,11 +98,12 @@ export class DocumentationEdiService {
           reference_id: { in: jobs.map((j) => j.id) },
           deleted_at: null,
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       });
       const latestByJob = new Map<string, (typeof submissions)[0]>();
       for (const sub of submissions) {
-        if (!latestByJob.has(sub.reference_id)) latestByJob.set(sub.reference_id, sub);
+        if (!latestByJob.has(sub.reference_id))
+          latestByJob.set(sub.reference_id, sub);
       }
 
       const items = jobs.map((job) => ({
@@ -103,13 +131,18 @@ export class DocumentationEdiService {
     ediType: DocumentationEdiType,
     referenceId: string,
     actorId?: string,
-    referenceType = 'JOB',
+    referenceType = "JOB",
   ) {
     const payload = await this.buildPayload(tenantId, ediType, referenceId);
-    const buffer = Buffer.from(payload, 'utf8');
-    const hash = createHash('sha256').update(buffer).digest('hex');
+    const buffer = Buffer.from(payload, "utf8");
+    const hash = createHash("sha256").update(buffer).digest("hex");
     const filename = `${ediType.toLowerCase()}-${referenceId.slice(0, 8)}.xml`;
-    const stored = await this.storage.saveBuffer(tenantId, buffer, filename, 'application/xml');
+    const stored = await this.storage.saveBuffer(
+      tenantId,
+      buffer,
+      filename,
+      "application/xml",
+    );
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentationEdiSubmission.create({
@@ -118,7 +151,7 @@ export class DocumentationEdiService {
           edi_type: ediType,
           reference_type: referenceType,
           reference_id: referenceId,
-          status: 'GENERATED',
+          status: "GENERATED",
           file_storage_key: stored.s3Key,
           payload_hash: hash,
           created_by: actorId,
@@ -130,14 +163,17 @@ export class DocumentationEdiService {
 
   async submit(tenantId: string, submissionId: string, actorId?: string) {
     const submission = await this.findSubmission(tenantId, submissionId);
-    if (!['GENERATED', 'DRAFT'].includes(submission.status)) {
-      throw new BadRequestException('Only generated submissions can be submitted.');
+    if (!["GENERATED", "DRAFT"].includes(submission.status)) {
+      throw new BadRequestException(
+        "Only generated submissions can be submitted.",
+      );
     }
 
-    const submitEnabled = this.config.get<string>('EDI_SUBMIT_ENABLED') === 'true';
+    const submitEnabled =
+      this.config.get<string>("EDI_SUBMIT_ENABLED") === "true";
     let externalRef: string;
 
-    if (submitEnabled && submission.edi_type === 'MPCI') {
+    if (submitEnabled && submission.edi_type === "MPCI") {
       externalRef = await this.submitToMpciGateway(tenantId, submission);
     } else {
       externalRef = submitEnabled
@@ -149,7 +185,7 @@ export class DocumentationEdiService {
       tx.documentationEdiSubmission.update({
         where: { id: submissionId },
         data: {
-          status: 'SUBMITTED',
+          status: "SUBMITTED",
           external_ref: externalRef,
           submitted_at: new Date(),
           submitted_by: actorId,
@@ -161,33 +197,39 @@ export class DocumentationEdiService {
 
   private async submitToMpciGateway(
     tenantId: string,
-    submission: { id: string; edi_type: DocumentationEdiType; file_storage_key: string | null },
+    submission: {
+      id: string;
+      edi_type: DocumentationEdiType;
+      file_storage_key: string | null;
+    },
   ): Promise<string> {
-    const endpoint = this.config.get<string>('MPCI_EDI_ENDPOINT');
+    const endpoint = this.config.get<string>("MPCI_EDI_ENDPOINT");
     if (!endpoint) {
-      throw new BadRequestException('MPCI_EDI_ENDPOINT is not configured.');
+      throw new BadRequestException("MPCI_EDI_ENDPOINT is not configured.");
     }
     if (!submission.file_storage_key) {
-      throw new BadRequestException('No EDI payload file to submit.');
+      throw new BadRequestException("No EDI payload file to submit.");
     }
 
-    const filename = submission.file_storage_key.split('/').pop() ?? 'edi.xml';
+    const filename = submission.file_storage_key.split("/").pop() ?? "edi.xml";
     const payload = await this.storage.readBuffer(tenantId, filename);
 
     const res = await fetch(endpoint, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/xml',
-        'X-Tenant-Id': tenantId,
-        'X-Submission-Id': submission.id,
+        "Content-Type": "application/xml",
+        "X-Tenant-Id": tenantId,
+        "X-Submission-Id": submission.id,
       },
       body: new Uint8Array(payload),
       signal: AbortSignal.timeout(30_000),
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new BadRequestException(`MPCI gateway rejected submission: HTTP ${res.status} ${text.slice(0, 200)}`);
+      const text = await res.text().catch(() => "");
+      throw new BadRequestException(
+        `MPCI gateway rejected submission: HTTP ${res.status} ${text.slice(0, 200)}`,
+      );
     }
 
     const body = await res.text();
@@ -210,7 +252,7 @@ export class DocumentationEdiService {
         where: { id: amended.id },
         data: {
           amendment_of_id: submissionId,
-          status: 'AMENDED',
+          status: "AMENDED",
           updated_by: actorId,
         },
       }),
@@ -220,15 +262,21 @@ export class DocumentationEdiService {
   async getDownloadUrl(tenantId: string, submissionId: string) {
     const submission = await this.findSubmission(tenantId, submissionId);
     if (!submission.file_storage_key) {
-      throw new BadRequestException('No file generated for this submission.');
+      throw new BadRequestException("No file generated for this submission.");
     }
     try {
-      const url = await this.storage.presignedGetUrl(submission.file_storage_key);
+      const url = await this.storage.presignedGetUrl(
+        submission.file_storage_key,
+      );
       return { url, submission_id: submissionId };
     } catch {
-      const filename = submission.file_storage_key.split('/').pop() ?? 'edi.xml';
-      const base = this.config.get<string>('storage.publicBaseUrl') ?? '';
-      return { url: `${base}/${tenantId}/${encodeURIComponent(filename)}`, submission_id: submissionId };
+      const filename =
+        submission.file_storage_key.split("/").pop() ?? "edi.xml";
+      const base = this.config.get<string>("storage.publicBaseUrl") ?? "";
+      return {
+        url: `${base}/${tenantId}/${encodeURIComponent(filename)}`,
+        submission_id: submissionId,
+      };
     }
   }
 
@@ -238,7 +286,7 @@ export class DocumentationEdiService {
         where: { id, tenant_id: tenantId, deleted_at: null },
       }),
     );
-    if (!submission) throw new NotFoundException('EDI submission not found.');
+    if (!submission) throw new NotFoundException("EDI submission not found.");
     return submission;
   }
 
@@ -257,9 +305,11 @@ export class DocumentationEdiService {
         },
       }),
     );
-    if (!job) throw new NotFoundException('Job not found for EDI generation.');
+    if (!job) throw new NotFoundException("Job not found for EDI generation.");
 
-    const partyIds = [job.shipper_id, job.consignee_id].filter(Boolean) as string[];
+    const partyIds = [job.shipper_id, job.consignee_id].filter(
+      Boolean,
+    ) as string[];
     const ediCodes = partyIds.length
       ? await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.partyEdiCode.findMany({
@@ -275,14 +325,17 @@ export class DocumentationEdiService {
       : [];
 
     const escaped = (value: string | null | undefined) =>
-      (value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      (value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 
     const partyEdiXml = ediCodes
       .map(
         (c) =>
           `  <PartyEdiCode party_id="${c.party_id}" edi_type="${escaped(c.edi_type)}" code="${escaped(c.edi_code)}" />`,
       )
-      .join('\n');
+      .join("\n");
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <EdiMessage type="${ediType}">

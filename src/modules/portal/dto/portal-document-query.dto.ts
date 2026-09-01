@@ -1,7 +1,15 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsEnum, IsIn, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
-import { PortalDocumentType } from '@prisma/client';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+} from "class-validator";
+import { PortalDocumentType } from "@prisma/client";
 
 export class PortalDocumentQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -19,12 +27,15 @@ export class PortalDocumentQueryDto {
   @Max(100)
   limit: number = 20;
 
-  @ApiPropertyOptional({ enum: ['job', 'invoice'] })
+  @ApiPropertyOptional({ enum: ["job", "invoice"] })
   @IsOptional()
-  @IsIn(['job', 'invoice'])
-  source?: 'job' | 'invoice';
+  @IsIn(["job", "invoice"])
+  source?: "job" | "invoice";
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Filter job documents to one shipment.' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Filter job documents to one shipment.",
+  })
   @IsOptional()
   @IsUUID()
   job_id?: string;
@@ -34,8 +45,8 @@ export class PortalDocumentQueryDto {
   @IsEnum(PortalDocumentType)
   portal_document_type?: PortalDocumentType;
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @ApiPropertyOptional({ enum: ["asc", "desc"], default: "desc" })
   @IsOptional()
-  @IsIn(['asc', 'desc'])
-  order: 'asc' | 'desc' = 'desc';
+  @IsIn(["asc", "desc"])
+  order: "asc" | "desc" = "desc";
 }

@@ -1,7 +1,7 @@
 export const NOTIFICATIONS_PERMISSION_CONSTANTS = {
-  MODULE: 'notifications',
+  MODULE: "notifications",
   ACTIONS: {
-    VIEW: 'view',
+    VIEW: "view",
   },
 } as const;
 

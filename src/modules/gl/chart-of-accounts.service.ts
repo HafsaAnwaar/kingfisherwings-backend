@@ -2,16 +2,21 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { AccountGroup, AccountSubType, AccountType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+} from "@nestjs/common";
+import {
+  AccountGroup,
+  AccountSubType,
+  AccountType,
+  Prisma,
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 import {
   ChartOfAccountQueryDto,
   CreateChartOfAccountDto,
   LedgerQueryDto,
   TrialBalanceQueryDto,
   UpdateChartOfAccountDto,
-} from './dto/gl.dto';
+} from "./dto/gl.dto";
 
 type DefaultAccountSeed = {
   account_code: string;
@@ -27,26 +32,180 @@ type DefaultAccountSeed = {
 };
 
 const DEFAULT_COA: DefaultAccountSeed[] = [
-  { account_code: '1000', account_name: 'Current Assets', account_group: 'ASSETS', account_type: 'CURRENT_ASSET', account_sub_type: 'GENERAL', is_header: true, is_postable: false, sort_order: 10 },
-  { account_code: '1100', account_name: 'Cash on Hand', account_group: 'ASSETS', account_type: 'CURRENT_ASSET', account_sub_type: 'CASH', is_cash_account: true, sort_order: 11 },
-  { account_code: '1200', account_name: 'Bank Accounts', account_group: 'ASSETS', account_type: 'CURRENT_ASSET', account_sub_type: 'BANK', is_bank_account: true, sort_order: 12 },
-  { account_code: '1300', account_name: 'Trade Receivables', account_group: 'ASSETS', account_type: 'CURRENT_ASSET', account_sub_type: 'TRADE_RECEIVABLE', sort_order: 13 },
-  { account_code: '1400', account_name: 'Input VAT / Tax Recoverable', account_group: 'ASSETS', account_type: 'CURRENT_ASSET', account_sub_type: 'TAX', sort_order: 14 },
-  { account_code: '2000', account_name: 'Current Liabilities', account_group: 'LIABILITIES', account_type: 'CURRENT_LIABILITY', account_sub_type: 'GENERAL', is_header: true, is_postable: false, sort_order: 20 },
-  { account_code: '2100', account_name: 'Trade Payables', account_group: 'LIABILITIES', account_type: 'CURRENT_LIABILITY', account_sub_type: 'TRADE_PAYABLE', sort_order: 21 },
-  { account_code: '2200', account_name: 'Output VAT / Tax Payable', account_group: 'LIABILITIES', account_type: 'CURRENT_LIABILITY', account_sub_type: 'TAX', sort_order: 22 },
-  { account_code: '3000', account_name: 'Equity', account_group: 'EQUITY', account_type: 'EQUITY', account_sub_type: 'EQUITY', is_header: true, is_postable: false, sort_order: 30 },
-  { account_code: '3100', account_name: 'Owner Capital', account_group: 'EQUITY', account_type: 'EQUITY', account_sub_type: 'EQUITY', sort_order: 31 },
-  { account_code: '3200', account_name: 'Retained Earnings', account_group: 'EQUITY', account_type: 'EQUITY', account_sub_type: 'EQUITY', sort_order: 32 },
-  { account_code: '4000', account_name: 'Revenue', account_group: 'REVENUE', account_type: 'REVENUE', account_sub_type: 'REVENUE', is_header: true, is_postable: false, sort_order: 40 },
-  { account_code: '4100', account_name: 'Freight Revenue', account_group: 'REVENUE', account_type: 'REVENUE', account_sub_type: 'REVENUE', sort_order: 41 },
-  { account_code: '4200', account_name: 'Other Income', account_group: 'REVENUE', account_type: 'OTHER_INCOME', account_sub_type: 'REVENUE', sort_order: 42 },
-  { account_code: '5000', account_name: 'Cost of Sales', account_group: 'EXPENSES', account_type: 'COST_OF_SALES', account_sub_type: 'EXPENSE', is_header: true, is_postable: false, sort_order: 50 },
-  { account_code: '5100', account_name: 'Freight Cost', account_group: 'EXPENSES', account_type: 'COST_OF_SALES', account_sub_type: 'EXPENSE', sort_order: 51 },
-  { account_code: '6000', account_name: 'Operating Expenses', account_group: 'EXPENSES', account_type: 'EXPENSE', account_sub_type: 'EXPENSE', is_header: true, is_postable: false, sort_order: 60 },
-  { account_code: '6100', account_name: 'General & Admin Expenses', account_group: 'EXPENSES', account_type: 'EXPENSE', account_sub_type: 'EXPENSE', sort_order: 61 },
-  { account_code: '6200', account_name: 'Salaries & Wages', account_group: 'EXPENSES', account_type: 'EXPENSE', account_sub_type: 'EXPENSE', sort_order: 62 },
-  { account_code: '2300', account_name: 'Payroll Payable', account_group: 'LIABILITIES', account_type: 'CURRENT_LIABILITY', account_sub_type: 'GENERAL', sort_order: 23 },
+  {
+    account_code: "1000",
+    account_name: "Current Assets",
+    account_group: "ASSETS",
+    account_type: "CURRENT_ASSET",
+    account_sub_type: "GENERAL",
+    is_header: true,
+    is_postable: false,
+    sort_order: 10,
+  },
+  {
+    account_code: "1100",
+    account_name: "Cash on Hand",
+    account_group: "ASSETS",
+    account_type: "CURRENT_ASSET",
+    account_sub_type: "CASH",
+    is_cash_account: true,
+    sort_order: 11,
+  },
+  {
+    account_code: "1200",
+    account_name: "Bank Accounts",
+    account_group: "ASSETS",
+    account_type: "CURRENT_ASSET",
+    account_sub_type: "BANK",
+    is_bank_account: true,
+    sort_order: 12,
+  },
+  {
+    account_code: "1300",
+    account_name: "Trade Receivables",
+    account_group: "ASSETS",
+    account_type: "CURRENT_ASSET",
+    account_sub_type: "TRADE_RECEIVABLE",
+    sort_order: 13,
+  },
+  {
+    account_code: "1400",
+    account_name: "Input VAT / Tax Recoverable",
+    account_group: "ASSETS",
+    account_type: "CURRENT_ASSET",
+    account_sub_type: "TAX",
+    sort_order: 14,
+  },
+  {
+    account_code: "2000",
+    account_name: "Current Liabilities",
+    account_group: "LIABILITIES",
+    account_type: "CURRENT_LIABILITY",
+    account_sub_type: "GENERAL",
+    is_header: true,
+    is_postable: false,
+    sort_order: 20,
+  },
+  {
+    account_code: "2100",
+    account_name: "Trade Payables",
+    account_group: "LIABILITIES",
+    account_type: "CURRENT_LIABILITY",
+    account_sub_type: "TRADE_PAYABLE",
+    sort_order: 21,
+  },
+  {
+    account_code: "2200",
+    account_name: "Output VAT / Tax Payable",
+    account_group: "LIABILITIES",
+    account_type: "CURRENT_LIABILITY",
+    account_sub_type: "TAX",
+    sort_order: 22,
+  },
+  {
+    account_code: "3000",
+    account_name: "Equity",
+    account_group: "EQUITY",
+    account_type: "EQUITY",
+    account_sub_type: "EQUITY",
+    is_header: true,
+    is_postable: false,
+    sort_order: 30,
+  },
+  {
+    account_code: "3100",
+    account_name: "Owner Capital",
+    account_group: "EQUITY",
+    account_type: "EQUITY",
+    account_sub_type: "EQUITY",
+    sort_order: 31,
+  },
+  {
+    account_code: "3200",
+    account_name: "Retained Earnings",
+    account_group: "EQUITY",
+    account_type: "EQUITY",
+    account_sub_type: "EQUITY",
+    sort_order: 32,
+  },
+  {
+    account_code: "4000",
+    account_name: "Revenue",
+    account_group: "REVENUE",
+    account_type: "REVENUE",
+    account_sub_type: "REVENUE",
+    is_header: true,
+    is_postable: false,
+    sort_order: 40,
+  },
+  {
+    account_code: "4100",
+    account_name: "Freight Revenue",
+    account_group: "REVENUE",
+    account_type: "REVENUE",
+    account_sub_type: "REVENUE",
+    sort_order: 41,
+  },
+  {
+    account_code: "4200",
+    account_name: "Other Income",
+    account_group: "REVENUE",
+    account_type: "OTHER_INCOME",
+    account_sub_type: "REVENUE",
+    sort_order: 42,
+  },
+  {
+    account_code: "5000",
+    account_name: "Cost of Sales",
+    account_group: "EXPENSES",
+    account_type: "COST_OF_SALES",
+    account_sub_type: "EXPENSE",
+    is_header: true,
+    is_postable: false,
+    sort_order: 50,
+  },
+  {
+    account_code: "5100",
+    account_name: "Freight Cost",
+    account_group: "EXPENSES",
+    account_type: "COST_OF_SALES",
+    account_sub_type: "EXPENSE",
+    sort_order: 51,
+  },
+  {
+    account_code: "6000",
+    account_name: "Operating Expenses",
+    account_group: "EXPENSES",
+    account_type: "EXPENSE",
+    account_sub_type: "EXPENSE",
+    is_header: true,
+    is_postable: false,
+    sort_order: 60,
+  },
+  {
+    account_code: "6100",
+    account_name: "General & Admin Expenses",
+    account_group: "EXPENSES",
+    account_type: "EXPENSE",
+    account_sub_type: "EXPENSE",
+    sort_order: 61,
+  },
+  {
+    account_code: "6200",
+    account_name: "Salaries & Wages",
+    account_group: "EXPENSES",
+    account_type: "EXPENSE",
+    account_sub_type: "EXPENSE",
+    sort_order: 62,
+  },
+  {
+    account_code: "2300",
+    account_name: "Payroll Payable",
+    account_group: "LIABILITIES",
+    account_type: "CURRENT_LIABILITY",
+    account_sub_type: "GENERAL",
+    sort_order: 23,
+  },
 ];
 
 @Injectable()
@@ -64,15 +223,15 @@ export class ChartOfAccountsService {
     if (query.is_active !== undefined) where.is_active = query.is_active;
     if (query.search) {
       where.OR = [
-        { account_code: { contains: query.search, mode: 'insensitive' } },
-        { account_name: { contains: query.search, mode: 'insensitive' } },
+        { account_code: { contains: query.search, mode: "insensitive" } },
+        { account_name: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.chartOfAccount.findMany({
         where,
-        orderBy: [{ sort_order: 'asc' }, { account_code: 'asc' }],
+        orderBy: [{ sort_order: "asc" }, { account_code: "asc" }],
       }),
     );
   }
@@ -97,14 +256,23 @@ export class ChartOfAccountsService {
     const account = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.chartOfAccount.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
-        include: { children: { where: { deleted_at: null }, orderBy: { account_code: 'asc' } } },
+        include: {
+          children: {
+            where: { deleted_at: null },
+            orderBy: { account_code: "asc" },
+          },
+        },
       }),
     );
-    if (!account) throw new NotFoundException('Account not found.');
+    if (!account) throw new NotFoundException("Account not found.");
     return account;
   }
 
-  async create(tenantId: string, dto: CreateChartOfAccountDto, actorId?: string) {
+  async create(
+    tenantId: string,
+    dto: CreateChartOfAccountDto,
+    actorId?: string,
+  ) {
     if (dto.parent_id) {
       await this.findOne(tenantId, dto.parent_id);
     }
@@ -118,7 +286,7 @@ export class ChartOfAccountsService {
           account_name_ar: dto.account_name_ar,
           account_group: dto.account_group,
           account_type: dto.account_type,
-          account_sub_type: dto.account_sub_type ?? 'GENERAL',
+          account_sub_type: dto.account_sub_type ?? "GENERAL",
           company_id: dto.company_id,
           parent_id: dto.parent_id,
           is_header: isHeader,
@@ -127,7 +295,7 @@ export class ChartOfAccountsService {
           is_cash_account: dto.is_cash_account ?? false,
           currency_code: dto.currency_code,
           opening_balance: dto.opening_balance ?? 0,
-          opening_balance_type: dto.opening_balance_type ?? 'DEBIT',
+          opening_balance_type: dto.opening_balance_type ?? "DEBIT",
           allow_manual_entry: dto.allow_manual_entry ?? true,
           is_active: dto.is_active ?? true,
           sort_order: dto.sort_order ?? 0,
@@ -139,10 +307,15 @@ export class ChartOfAccountsService {
     );
   }
 
-  async update(tenantId: string, id: string, dto: UpdateChartOfAccountDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateChartOfAccountDto,
+    actorId?: string,
+  ) {
     await this.findOne(tenantId, id);
     if (dto.parent_id === id) {
-      throw new BadRequestException('An account cannot be its own parent.');
+      throw new BadRequestException("An account cannot be its own parent.");
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.chartOfAccount.update({
@@ -163,7 +336,9 @@ export class ChartOfAccountsService {
       }),
     );
     if (linked > 0) {
-      throw new BadRequestException('Cannot delete an account that has voucher lines. Deactivate it instead.');
+      throw new BadRequestException(
+        "Cannot delete an account that has voucher lines. Deactivate it instead.",
+      );
     }
     await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.chartOfAccount.update({
@@ -179,7 +354,9 @@ export class ChartOfAccountsService {
         where: { tenant_id: tenantId, deleted_at: null },
       });
       if (existing > 0) {
-        throw new BadRequestException('Chart of accounts already has accounts. Seed skipped.');
+        throw new BadRequestException(
+          "Chart of accounts already has accounts. Seed skipped.",
+        );
       }
 
       const created = [];
@@ -215,7 +392,7 @@ export class ChartOfAccountsService {
       deleted_at: null,
       voucher: {
         tenant_id: tenantId,
-        status: 'POSTED',
+        status: "POSTED",
         deleted_at: null,
       },
     };
@@ -244,12 +421,12 @@ export class ChartOfAccountsService {
             },
           },
         },
-        orderBy: [{ voucher: { voucher_date: 'asc' } }, { line_no: 'asc' }],
+        orderBy: [{ voucher: { voucher_date: "asc" } }, { line_no: "asc" }],
       }),
     );
 
     let opening = Number(account.opening_balance);
-    if (account.opening_balance_type === 'CREDIT') opening = -opening;
+    if (account.opening_balance_type === "CREDIT") opening = -opening;
 
     let running = opening;
     const entries = lines.map((line) => {
@@ -281,7 +458,7 @@ export class ChartOfAccountsService {
       deleted_at: null,
       voucher: {
         tenant_id: tenantId,
-        status: 'POSTED',
+        status: "POSTED",
         deleted_at: null,
         ...(query.from_date || query.to_date
           ? {
@@ -296,7 +473,7 @@ export class ChartOfAccountsService {
 
     const aggregates = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.voucherLine.groupBy({
-        by: ['account_id'],
+        by: ["account_id"],
         where: lineWhere,
         _sum: { debit_base: true, credit_base: true },
       }),
@@ -315,7 +492,7 @@ export class ChartOfAccountsService {
       .filter((a) => a.is_postable)
       .map((a) => {
         let opening = Number(a.opening_balance);
-        if (a.opening_balance_type === 'CREDIT') opening = -opening;
+        if (a.opening_balance_type === "CREDIT") opening = -opening;
         const move = byAccount.get(a.id) ?? { debit: 0, credit: 0 };
         const net = opening + move.debit - move.credit;
         const debit_balance = net >= 0 ? net : 0;
@@ -332,7 +509,14 @@ export class ChartOfAccountsService {
           credit_balance,
         };
       })
-      .filter((r) => !hideZero || r.debit_balance !== 0 || r.credit_balance !== 0 || r.period_debit !== 0 || r.period_credit !== 0);
+      .filter(
+        (r) =>
+          !hideZero ||
+          r.debit_balance !== 0 ||
+          r.credit_balance !== 0 ||
+          r.period_debit !== 0 ||
+          r.period_credit !== 0,
+      );
 
     const totals = rows.reduce(
       (acc, r) => {

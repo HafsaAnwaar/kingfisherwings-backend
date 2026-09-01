@@ -1,4 +1,4 @@
-import { User } from '@prisma/client';
+import { User } from "@prisma/client";
 
 export class UsersHelper {
   static normalizeEmail(email: string): string {
@@ -10,9 +10,9 @@ export class UsersHelper {
   }
 
   static maskEmail(email: string): string {
-    const [local, domain] = email.split('@');
+    const [local, domain] = email.split("@");
     if (!domain || local.length <= 2) {
-      return `${local?.[0] ?? '*'}***@${domain ?? ''}`;
+      return `${local?.[0] ?? "*"}***@${domain ?? ""}`;
     }
     return `${local.slice(0, 2)}***@${domain}`;
   }
@@ -28,11 +28,11 @@ export class UsersHelper {
       return true;
     }
 
-    const timeZone = user.office_hours_timezone ?? 'UTC';
+    const timeZone = user.office_hours_timezone ?? "UTC";
 
-    const formatter = new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
       hour12: false,
       timeZone,
     });
@@ -40,7 +40,8 @@ export class UsersHelper {
     const currentTime = formatter.format(at); // "HH:mm"
 
     return (
-      currentTime >= user.office_hours_start && currentTime <= user.office_hours_end
+      currentTime >= user.office_hours_start &&
+      currentTime <= user.office_hours_end
     );
   }
 
@@ -57,7 +58,10 @@ export class UsersHelper {
 
   /** Empty allow-list means unrestricted. */
   static isMacAllowed(user: User, mac?: string): boolean {
-    if (!user.allowed_mac_addresses || user.allowed_mac_addresses.length === 0) {
+    if (
+      !user.allowed_mac_addresses ||
+      user.allowed_mac_addresses.length === 0
+    ) {
       return true;
     }
     if (!mac) {
@@ -67,6 +71,8 @@ export class UsersHelper {
   }
 
   static isAccountLocked(user: User, at: Date = new Date()): boolean {
-    return Boolean(user.locked_until && user.locked_until.getTime() > at.getTime());
+    return Boolean(
+      user.locked_until && user.locked_until.getTime() > at.getTime(),
+    );
   }
 }

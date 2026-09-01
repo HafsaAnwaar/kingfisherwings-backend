@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { NvoccLoadListCargoStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { NvoccLoadListCargoStatus } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
@@ -10,7 +10,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
-} from 'class-validator';
+} from "class-validator";
 
 export class UpdateNvoccLoadListItemDto {
   @ApiPropertyOptional()

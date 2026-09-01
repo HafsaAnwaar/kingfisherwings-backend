@@ -1,6 +1,5 @@
-
-import { Request } from 'express';
-import { UserRole } from '@prisma/client';
+import { Request } from "express";
+import { UserRole } from "@prisma/client";
 
 /**
  * Shape of the authenticated principal attached to `request.user` by the

@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { UpdatePortalPreferencesDto } from './dto/portal-preferences.dto';
-import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
+import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { UpdatePortalPreferencesDto } from "./dto/portal-preferences.dto";
+import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 
 const DEFAULT_PREFS = {
   milestone_alerts_enabled: false,
@@ -81,8 +81,12 @@ export class PortalPreferencesService {
     return {
       milestone_alerts_enabled: prefs.milestone_alerts_enabled,
       document_alerts_enabled: prefs.document_alerts_enabled,
-      default_shipment_filters: (prefs.default_shipment_filters as Record<string, unknown> | null) ?? null,
-      default_invoice_filters: (prefs.default_invoice_filters as Record<string, unknown> | null) ?? null,
+      default_shipment_filters:
+        (prefs.default_shipment_filters as Record<string, unknown> | null) ??
+        null,
+      default_invoice_filters:
+        (prefs.default_invoice_filters as Record<string, unknown> | null) ??
+        null,
     };
   }
 

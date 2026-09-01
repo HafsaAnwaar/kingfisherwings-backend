@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 
 /**
  * Sets the `app.tenant_id` session variable for the current transaction

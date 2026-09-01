@@ -1,9 +1,9 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsOptional, IsString, MaxLength, ValidateIf } from "class-validator";
 import {
   CountryCodeField,
   IsPhoneForCountry,
-} from '../../../common/validators/country-aware.validators';
+} from "../../../common/validators/country-aware.validators";
 
 /**
  * Self-service profile fields any signed-in user can change after login.
@@ -11,9 +11,9 @@ import {
  */
 export class UpdateMyProfileDto {
   @ApiPropertyOptional({
-    example: 'AE',
+    example: "AE",
     description:
-      'Optional preferred country (ISO 3166-1 alpha-2). Omit to leave unchanged; send null to clear.',
+      "Optional preferred country (ISO 3166-1 alpha-2). Omit to leave unchanged; send null to clear.",
     nullable: true,
   })
   @IsOptional()
@@ -21,9 +21,9 @@ export class UpdateMyProfileDto {
   @CountryCodeField()
   preferred_country_code?: string | null;
 
-  @ApiPropertyOptional({ example: '+971501234567' })
+  @ApiPropertyOptional({ example: "+971501234567" })
   @IsOptional()
-  @IsPhoneForCountry({ countryField: 'preferred_country_code' })
+  @IsPhoneForCountry({ countryField: "preferred_country_code" })
   phone?: string;
 
   @ApiPropertyOptional()
@@ -32,7 +32,7 @@ export class UpdateMyProfileDto {
   @MaxLength(500)
   avatar_url?: string;
 
-  @ApiPropertyOptional({ example: 'en' })
+  @ApiPropertyOptional({ example: "en" })
   @IsOptional()
   @IsString()
   @MaxLength(10)

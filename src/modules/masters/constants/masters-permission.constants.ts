@@ -1,10 +1,10 @@
 export const MASTERS_PERMISSION_CONSTANTS = {
-  MODULE: 'masters',
+  MODULE: "masters",
   ACTIONS: {
-    VIEW: 'view',
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
+    VIEW: "view",
+    CREATE: "create",
+    UPDATE: "update",
+    DELETE: "delete",
   },
 } as const;
 

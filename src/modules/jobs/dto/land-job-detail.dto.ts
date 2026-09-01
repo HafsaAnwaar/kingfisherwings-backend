@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsBoolean,
   IsDateString,
@@ -10,13 +10,13 @@ import {
   Length,
   MaxLength,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
-const VEHICLE_TYPES = ['TRUCK', 'TRAILER', 'VAN'];
-const FREIGHT_TERMS = ['Prepaid', 'Collect', 'Third Party'];
+const VEHICLE_TYPES = ["TRUCK", "TRAILER", "VAN"];
+const FREIGHT_TERMS = ["Prepaid", "Collect", "Third Party"];
 
 export class UpdateLandJobDetailDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   trucker_id?: string;
@@ -120,7 +120,7 @@ export class UpdateLandJobDetailDto {
 }
 
 export class AssignLandTruckerDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   trucker_id!: string;
 
@@ -149,16 +149,19 @@ export class AssignLandTruckerDto {
 }
 
 export class RecordLandPickupDto {
-  @ApiPropertyOptional({ description: 'Defaults to now' })
+  @ApiPropertyOptional({ description: "Defaults to now" })
   @IsOptional()
   @IsDateString()
   picked_up_at?: string;
 }
 
 export class RecordLandBorderCrossingDto {
-  @ApiPropertyOptional({ enum: ['AT_BORDER', 'CUSTOMS_CLEARED_BORDER'], default: 'AT_BORDER' })
+  @ApiPropertyOptional({
+    enum: ["AT_BORDER", "CUSTOMS_CLEARED_BORDER"],
+    default: "AT_BORDER",
+  })
   @IsOptional()
-  @IsIn(['AT_BORDER', 'CUSTOMS_CLEARED_BORDER'])
+  @IsIn(["AT_BORDER", "CUSTOMS_CLEARED_BORDER"])
   milestone?: string;
 
   @ApiPropertyOptional()

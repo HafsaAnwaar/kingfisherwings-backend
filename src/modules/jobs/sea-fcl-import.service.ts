@@ -2,11 +2,16 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { ContainerStatus, DepositAlertBand, JobType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../shared/email/email.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
+} from "@nestjs/common";
+import {
+  ContainerStatus,
+  DepositAlertBand,
+  JobType,
+  Prisma,
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../shared/email/email.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import {
   CalculateCfsStorageDto,
   CreateDamageReportDto,
@@ -18,7 +23,7 @@ import {
   UpdateCustomsStatusDto,
   UpdateJobDepositDto,
   UpsertContainerFreeDaysDto,
-} from './dto/sea-fcl-import.dto';
+} from "./dto/sea-fcl-import.dto";
 
 @Injectable()
 export class SeaFclImportService {
@@ -35,33 +40,56 @@ export class SeaFclImportService {
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.containerFreeDays.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
-        orderBy: { created_at: 'asc' },
+        orderBy: { created_at: "asc" },
       }),
     );
     return rows.map((r) => this.withTrafficLight(r));
   }
 
-  async upsertFreeDays(tenantId: string, jobId: string, dto: UpsertContainerFreeDaysDto, actorId?: string) {
+  async upsertFreeDays(
+    tenantId: string,
+    jobId: string,
+    dto: UpsertContainerFreeDaysDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
-      await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      await this.assertContainerOnDetail(
+        tx,
+        tenantId,
+        detail.id,
+        dto.container_id,
+      );
 
       const data = {
         free_days_allowed: dto.free_days_allowed ?? 7,
-        last_free_day_date: dto.last_free_day_date ? new Date(dto.last_free_day_date) : undefined,
-        demurrage_start_date: dto.demurrage_start_date ? new Date(dto.demurrage_start_date) : undefined,
-        detention_start_date: dto.detention_start_date ? new Date(dto.detention_start_date) : undefined,
+        last_free_day_date: dto.last_free_day_date
+          ? new Date(dto.last_free_day_date)
+          : undefined,
+        demurrage_start_date: dto.demurrage_start_date
+          ? new Date(dto.demurrage_start_date)
+          : undefined,
+        detention_start_date: dto.detention_start_date
+          ? new Date(dto.detention_start_date)
+          : undefined,
         demurrage_rate_per_day: dto.demurrage_rate_per_day ?? 0,
         detention_rate_per_day: dto.detention_rate_per_day ?? 0,
         updated_by: actorId,
       };
 
       const existing = await tx.containerFreeDays.findFirst({
-        where: { container_id: dto.container_id, tenant_id: tenantId, deleted_at: null },
+        where: {
+          container_id: dto.container_id,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       const row = existing
-        ? await tx.containerFreeDays.update({ where: { id: existing.id }, data })
+        ? await tx.containerFreeDays.update({
+            where: { id: existing.id },
+            data,
+          })
         : await tx.containerFreeDays.create({
             data: {
               tenant_id: tenantId,
@@ -90,8 +118,14 @@ export class SeaFclImportService {
         job_id: jobId,
         containers: updated.map((r) => this.withTrafficLight(r)),
         totals: {
-          demurrage_accrued: updated.reduce((s, r) => s + Number(r.demurrage_accrued), 0),
-          detention_accrued: updated.reduce((s, r) => s + Number(r.detention_accrued), 0),
+          demurrage_accrued: updated.reduce(
+            (s, r) => s + Number(r.demurrage_accrued),
+            0,
+          ),
+          detention_accrued: updated.reduce(
+            (s, r) => s + Number(r.detention_accrued),
+            0,
+          ),
         },
       };
     });
@@ -120,13 +154,21 @@ export class SeaFclImportService {
     const deposits = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobDeposit.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
-    return deposits.map((d) => ({ ...d, expiry_alert: this.depositExpiryAlert(d.deposit_expiry_date) }));
+    return deposits.map((d) => ({
+      ...d,
+      expiry_alert: this.depositExpiryAlert(d.deposit_expiry_date),
+    }));
   }
 
-  async createDeposit(tenantId: string, jobId: string, dto: CreateJobDepositDto, actorId?: string) {
+  async createDeposit(
+    tenantId: string,
+    jobId: string,
+    dto: CreateJobDepositDto,
+    actorId?: string,
+  ) {
     await this.assertImportJob(tenantId, jobId);
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobDeposit.create({
@@ -135,9 +177,11 @@ export class SeaFclImportService {
           job_id: jobId,
           deposit_type: dto.deposit_type,
           deposit_amount: dto.deposit_amount,
-          currency_code: dto.currency_code ?? 'AED',
+          currency_code: dto.currency_code ?? "AED",
           deposit_receipt_number: dto.deposit_receipt_number,
-          deposit_expiry_date: dto.deposit_expiry_date ? new Date(dto.deposit_expiry_date) : undefined,
+          deposit_expiry_date: dto.deposit_expiry_date
+            ? new Date(dto.deposit_expiry_date)
+            : undefined,
           remarks: dto.remarks,
           created_by: actorId,
           updated_by: actorId,
@@ -156,29 +200,46 @@ export class SeaFclImportService {
     await this.assertImportJob(tenantId, jobId);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.jobDeposit.findFirst({
-        where: { id: depositId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: depositId,
+          job_id: jobId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
-      if (!existing) throw new NotFoundException('Deposit not found.');
+      if (!existing) throw new NotFoundException("Deposit not found.");
 
       const { deposit_expiry_date, ...rest } = dto;
       return tx.jobDeposit.update({
         where: { id: depositId },
         data: {
           ...rest,
-          ...(deposit_expiry_date ? { deposit_expiry_date: new Date(deposit_expiry_date) } : {}),
+          ...(deposit_expiry_date
+            ? { deposit_expiry_date: new Date(deposit_expiry_date) }
+            : {}),
           updated_by: actorId,
         },
       });
     });
   }
 
-  async removeDeposit(tenantId: string, jobId: string, depositId: string, actorId?: string) {
+  async removeDeposit(
+    tenantId: string,
+    jobId: string,
+    depositId: string,
+    actorId?: string,
+  ) {
     await this.assertImportJob(tenantId, jobId);
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.jobDeposit.findFirst({
-        where: { id: depositId, job_id: jobId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: depositId,
+          job_id: jobId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
-      if (!existing) throw new NotFoundException('Deposit not found.');
+      if (!existing) throw new NotFoundException("Deposit not found.");
       await tx.jobDeposit.update({
         where: { id: depositId },
         data: { deleted_at: new Date(), updated_by: actorId },
@@ -199,47 +260,80 @@ export class SeaFclImportService {
           deleted_at: null,
           deposit_expiry_date: { gte: today, lte: until },
         },
-        orderBy: { deposit_expiry_date: 'asc' },
+        orderBy: { deposit_expiry_date: "asc" },
       });
-      return deposits.map((d) => ({ ...d, expiry_alert: this.depositExpiryAlert(d.deposit_expiry_date) }));
+      return deposits.map((d) => ({
+        ...d,
+        expiry_alert: this.depositExpiryAlert(d.deposit_expiry_date),
+      }));
     });
   }
 
   // ── Customs status ────────────────────────────────────────────────────────
 
-  async updateCustomsStatus(tenantId: string, jobId: string, dto: UpdateCustomsStatusDto, actorId?: string) {
+  async updateCustomsStatus(
+    tenantId: string,
+    jobId: string,
+    dto: UpdateCustomsStatusDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.getSharedImportJobOrThrow(tx, tenantId, jobId);
 
-      if (job.job_type === 'AIR_IMPORT') {
+      if (job.job_type === "AIR_IMPORT") {
         const updated = await tx.airJobDetail.update({
           where: { job_id: jobId },
           data: {
             customs_status: dto.customs_status,
             ...(dto.customs_clearance_date
               ? { customs_clearance_date: new Date(dto.customs_clearance_date) }
-              : dto.customs_status === 'CLEARED' || dto.customs_status === 'RELEASED'
+              : dto.customs_status === "CLEARED" ||
+                  dto.customs_status === "RELEASED"
                 ? { customs_clearance_date: new Date() }
                 : {}),
             updated_by: actorId,
           },
         });
 
-        if (dto.customs_status === 'FILED') {
-          await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_ENTRY_FILED', actorId);
+        if (dto.customs_status === "FILED") {
+          await this.markMilestone(
+            tx,
+            tenantId,
+            jobId,
+            "CUSTOMS_ENTRY_FILED",
+            actorId,
+          );
         }
-        if (dto.customs_status === 'CLEARED') {
-          await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_CLEARED', actorId);
+        if (dto.customs_status === "CLEARED") {
+          await this.markMilestone(
+            tx,
+            tenantId,
+            jobId,
+            "CUSTOMS_CLEARED",
+            actorId,
+          );
         }
-        if (dto.customs_status === 'RELEASED') {
-          await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_CLEARED', actorId);
-          await this.markMilestone(tx, tenantId, jobId, 'CARGO_RELEASED_FROM_CUSTOMS', actorId);
+        if (dto.customs_status === "RELEASED") {
+          await this.markMilestone(
+            tx,
+            tenantId,
+            jobId,
+            "CUSTOMS_CLEARED",
+            actorId,
+          );
+          await this.markMilestone(
+            tx,
+            tenantId,
+            jobId,
+            "CARGO_RELEASED_FROM_CUSTOMS",
+            actorId,
+          );
         }
 
         return updated;
       }
 
-      if (job.job_type === 'SEA_LCL_IMPORT') {
+      if (job.job_type === "SEA_LCL_IMPORT") {
         await this.getLclImportDetailOrThrow(tx, tenantId, jobId);
         const updated = await tx.seaLclJobDetail.update({
           where: { job_id: jobId },
@@ -247,15 +341,25 @@ export class SeaFclImportService {
             customs_status: dto.customs_status,
             ...(dto.customs_clearance_date
               ? { customs_clearance_date: new Date(dto.customs_clearance_date) }
-              : dto.customs_status === 'CLEARED' || dto.customs_status === 'RELEASED'
+              : dto.customs_status === "CLEARED" ||
+                  dto.customs_status === "RELEASED"
                 ? { customs_clearance_date: new Date() }
                 : {}),
             updated_by: actorId,
           },
         });
 
-        if (dto.customs_status === 'CLEARED' || dto.customs_status === 'RELEASED') {
-          await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_CLEARED', actorId);
+        if (
+          dto.customs_status === "CLEARED" ||
+          dto.customs_status === "RELEASED"
+        ) {
+          await this.markMilestone(
+            tx,
+            tenantId,
+            jobId,
+            "CUSTOMS_CLEARED",
+            actorId,
+          );
         }
 
         return updated;
@@ -268,18 +372,34 @@ export class SeaFclImportService {
           customs_status: dto.customs_status,
           ...(dto.customs_clearance_date
             ? { customs_clearance_date: new Date(dto.customs_clearance_date) }
-            : dto.customs_status === 'CLEARED' || dto.customs_status === 'RELEASED'
+            : dto.customs_status === "CLEARED" ||
+                dto.customs_status === "RELEASED"
               ? { customs_clearance_date: new Date() }
               : {}),
           updated_by: actorId,
         },
       });
 
-      if (dto.customs_status === 'FILED') {
-        await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_ENTRY_FILED', actorId);
+      if (dto.customs_status === "FILED") {
+        await this.markMilestone(
+          tx,
+          tenantId,
+          jobId,
+          "CUSTOMS_ENTRY_FILED",
+          actorId,
+        );
       }
-      if (dto.customs_status === 'CLEARED' || dto.customs_status === 'RELEASED') {
-        await this.markMilestone(tx, tenantId, jobId, 'CUSTOMS_CLEARED', actorId);
+      if (
+        dto.customs_status === "CLEARED" ||
+        dto.customs_status === "RELEASED"
+      ) {
+        await this.markMilestone(
+          tx,
+          tenantId,
+          jobId,
+          "CUSTOMS_CLEARED",
+          actorId,
+        );
       }
 
       return updated;
@@ -299,7 +419,9 @@ export class SeaFclImportService {
       const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       await this.assertContainerOnDetail(tx, tenantId, detail.id, containerId);
 
-      const returnedAt = dto.returned_at ? new Date(dto.returned_at) : new Date();
+      const returnedAt = dto.returned_at
+        ? new Date(dto.returned_at)
+        : new Date();
       const container = await tx.jobContainer.update({
         where: { id: containerId },
         data: {
@@ -310,7 +432,14 @@ export class SeaFclImportService {
         },
       });
 
-      await this.markMilestone(tx, tenantId, jobId, 'CONTAINER_RETURNED_TO_SHIPPING_LINE', actorId, returnedAt);
+      await this.markMilestone(
+        tx,
+        tenantId,
+        jobId,
+        "CONTAINER_RETURNED_TO_SHIPPING_LINE",
+        actorId,
+        returnedAt,
+      );
       return container;
     });
   }
@@ -322,24 +451,40 @@ export class SeaFclImportService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.partDelivery.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
-        orderBy: { delivery_date: 'asc' },
+        orderBy: { delivery_date: "asc" },
       }),
     );
   }
 
-  async createPartDelivery(tenantId: string, jobId: string, dto: CreatePartDeliveryDto, actorId?: string) {
+  async createPartDelivery(
+    tenantId: string,
+    jobId: string,
+    dto: CreatePartDeliveryDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.getSharedImportJobOrThrow(tx, tenantId, jobId);
 
-      if (job.job_type === 'SEA_FCL_IMPORT' && dto.container_id) {
-        const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
-        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      if (job.job_type === "SEA_FCL_IMPORT" && dto.container_id) {
+        const detail = await this.getFclImportDetailOrThrow(
+          tx,
+          tenantId,
+          jobId,
+        );
+        await this.assertContainerOnDetail(
+          tx,
+          tenantId,
+          detail.id,
+          dto.container_id,
+        );
       }
 
       const previous = await tx.partDelivery.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
       });
-      const deliveredSoFar = previous.reduce((s, p) => s + p.packages_delivered, 0) + dto.packages_delivered;
+      const deliveredSoFar =
+        previous.reduce((s, p) => s + p.packages_delivered, 0) +
+        dto.packages_delivered;
       const totalPackages = job.pieces ?? null;
 
       if (totalPackages != null && deliveredSoFar > totalPackages) {
@@ -348,7 +493,10 @@ export class SeaFclImportService {
         );
       }
 
-      const remaining = totalPackages != null ? Math.max(totalPackages - deliveredSoFar, 0) : null;
+      const remaining =
+        totalPackages != null
+          ? Math.max(totalPackages - deliveredSoFar, 0)
+          : null;
 
       return tx.partDelivery.create({
         data: {
@@ -372,18 +520,32 @@ export class SeaFclImportService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.proofOfDelivery.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
-        orderBy: { actual_delivery_date: 'desc' },
+        orderBy: { actual_delivery_date: "desc" },
       }),
     );
   }
 
-  async createPod(tenantId: string, jobId: string, dto: CreateProofOfDeliveryDto, actorId?: string) {
+  async createPod(
+    tenantId: string,
+    jobId: string,
+    dto: CreateProofOfDeliveryDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.getSharedImportJobOrThrow(tx, tenantId, jobId);
 
-      if (job.job_type === 'SEA_FCL_IMPORT' && dto.container_id) {
-        const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
-        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      if (job.job_type === "SEA_FCL_IMPORT" && dto.container_id) {
+        const detail = await this.getFclImportDetailOrThrow(
+          tx,
+          tenantId,
+          jobId,
+        );
+        await this.assertContainerOnDetail(
+          tx,
+          tenantId,
+          detail.id,
+          dto.container_id,
+        );
       }
 
       const pod = await tx.proofOfDelivery.create({
@@ -402,17 +564,38 @@ export class SeaFclImportService {
       });
 
       const deliveryDate = new Date(dto.actual_delivery_date);
-      if (job.job_type === 'AIR_IMPORT') {
-        await this.markMilestone(tx, tenantId, jobId, 'POD_RECEIVED', actorId, deliveryDate);
-        await this.markMilestone(tx, tenantId, jobId, 'DELIVERED_TO_CONSIGNEE', actorId, deliveryDate);
-      } else if (job.job_type === 'SEA_LCL_IMPORT') {
-        await this.markMilestone(tx, tenantId, jobId, 'CARGO_DELIVERED', actorId, deliveryDate);
+      if (job.job_type === "AIR_IMPORT") {
+        await this.markMilestone(
+          tx,
+          tenantId,
+          jobId,
+          "POD_RECEIVED",
+          actorId,
+          deliveryDate,
+        );
+        await this.markMilestone(
+          tx,
+          tenantId,
+          jobId,
+          "DELIVERED_TO_CONSIGNEE",
+          actorId,
+          deliveryDate,
+        );
+      } else if (job.job_type === "SEA_LCL_IMPORT") {
+        await this.markMilestone(
+          tx,
+          tenantId,
+          jobId,
+          "CARGO_DELIVERED",
+          actorId,
+          deliveryDate,
+        );
       } else {
         await this.markMilestone(
           tx,
           tenantId,
           jobId,
-          'CONTAINER_DELIVERED_TO_CONSIGNEE',
+          "CONTAINER_DELIVERED_TO_CONSIGNEE",
           actorId,
           deliveryDate,
         );
@@ -426,18 +609,32 @@ export class SeaFclImportService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.damageReport.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
-        orderBy: { reported_at: 'desc' },
+        orderBy: { reported_at: "desc" },
       }),
     );
   }
 
-  async createDamageReport(tenantId: string, jobId: string, dto: CreateDamageReportDto, actorId?: string) {
+  async createDamageReport(
+    tenantId: string,
+    jobId: string,
+    dto: CreateDamageReportDto,
+    actorId?: string,
+  ) {
     const report = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.getSharedImportJobOrThrow(tx, tenantId, jobId);
 
-      if (job.job_type === 'SEA_FCL_IMPORT' && dto.container_id) {
-        const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
-        await this.assertContainerOnDetail(tx, tenantId, detail.id, dto.container_id);
+      if (job.job_type === "SEA_FCL_IMPORT" && dto.container_id) {
+        const detail = await this.getFclImportDetailOrThrow(
+          tx,
+          tenantId,
+          jobId,
+        );
+        await this.assertContainerOnDetail(
+          tx,
+          tenantId,
+          detail.id,
+          dto.container_id,
+        );
       }
 
       return tx.damageReport.create({
@@ -460,7 +657,9 @@ export class SeaFclImportService {
 
     if (dto.notify_to?.length) {
       const job = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } }),
+        tx.job.findFirst({
+          where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        }),
       );
       const subject = `Damage / short-landing report — ${job?.job_number ?? jobId}`;
       const body = `<p>${dto.damage_description}</p>`;
@@ -468,7 +667,7 @@ export class SeaFclImportService {
         try {
           await this.email.send({
             tenantId,
-            eventType: 'OTHER',
+            eventType: "OTHER",
             to,
             subject,
             body,
@@ -486,14 +685,24 @@ export class SeaFclImportService {
 
   // ── Transhipment link + CFS storage ───────────────────────────────────────
 
-  async linkTranshipment(tenantId: string, jobId: string, dto: LinkTranshipmentDto, actorId?: string) {
+  async linkTranshipment(
+    tenantId: string,
+    jobId: string,
+    dto: LinkTranshipmentDto,
+    actorId?: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       const exportJob = await tx.job.findFirst({
-        where: { id: dto.export_job_id, tenant_id: tenantId, deleted_at: null, job_type: 'SEA_FCL_EXPORT' },
+        where: {
+          id: dto.export_job_id,
+          tenant_id: tenantId,
+          deleted_at: null,
+          job_type: "SEA_FCL_EXPORT",
+        },
       });
       if (!exportJob) {
-        throw new NotFoundException('Linked SEA_FCL_EXPORT job not found.');
+        throw new NotFoundException("Linked SEA_FCL_EXPORT job not found.");
       }
       return tx.seaFclJobDetail.update({
         where: { job_id: jobId },
@@ -502,7 +711,11 @@ export class SeaFclImportService {
     });
   }
 
-  async calculateCfsStorage(tenantId: string, jobId: string, dto: CalculateCfsStorageDto) {
+  async calculateCfsStorage(
+    tenantId: string,
+    jobId: string,
+    dto: CalculateCfsStorageDto,
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
       const rate = Number(detail.cfs_storage_rate_per_day ?? 0);
@@ -513,7 +726,8 @@ export class SeaFclImportService {
           days: 0,
           rate_per_day: rate,
           storage_amount: 0,
-          message: 'CFS storage start date and rate_per_day must be set on sea-fcl-details.',
+          message:
+            "CFS storage start date and rate_per_day must be set on sea-fcl-details.",
         };
       }
       const asOf = dto.as_of_date ? new Date(dto.as_of_date) : new Date();
@@ -553,14 +767,14 @@ export class SeaFclImportService {
     for (const deposit of deposits) {
       const alert = this.depositExpiryAlert(deposit.deposit_expiry_date);
       const band = this.toDepositAlertBand(alert.band);
-      if (band === 'OK' || band === 'NONE') continue;
+      if (band === "OK" || band === "NONE") continue;
       if (deposit.last_alert_band === band) continue;
 
       await this.notifications.notifyFinanceStaff(tenantId, {
-        type: 'CUSTOMS_DEPOSIT_EXPIRING',
-        title: 'Customs deposit expiry alert',
-        message: `Deposit on job ${deposit.job.job_number} expires in ${alert.days_remaining ?? '?'} day(s) (${band}).`,
-        entity_type: 'job',
+        type: "CUSTOMS_DEPOSIT_EXPIRING",
+        title: "Customs deposit expiry alert",
+        message: `Deposit on job ${deposit.job.job_number} expires in ${alert.days_remaining ?? "?"} day(s) (${band}).`,
+        entity_type: "job",
         entity_id: deposit.job_id,
         link_path: `/jobs/${deposit.job_id}/deposits`,
       });
@@ -579,12 +793,20 @@ export class SeaFclImportService {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  private async recalculateOne(tx: Prisma.TransactionClient, freeDaysId: string) {
-    const row = await tx.containerFreeDays.findFirstOrThrow({ where: { id: freeDaysId } });
+  private async recalculateOne(
+    tx: Prisma.TransactionClient,
+    freeDaysId: string,
+  ) {
+    const row = await tx.containerFreeDays.findFirstOrThrow({
+      where: { id: freeDaysId },
+    });
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const demurrageDays = this.daysPast(row.demurrage_start_date ?? row.last_free_day_date, today);
+    const demurrageDays = this.daysPast(
+      row.demurrage_start_date ?? row.last_free_day_date,
+      today,
+    );
     const detentionDays = this.daysPast(row.detention_start_date, today);
 
     return tx.containerFreeDays.update({
@@ -601,94 +823,155 @@ export class SeaFclImportService {
     if (!from) return 0;
     const start = new Date(from);
     start.setHours(0, 0, 0, 0);
-    const diff = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const diff = Math.floor(
+      (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
     return Math.max(diff, 0);
   }
 
-  private withTrafficLight<T extends { last_free_day_date: Date | null }>(row: T) {
+  private withTrafficLight<T extends { last_free_day_date: Date | null }>(
+    row: T,
+  ) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (!row.last_free_day_date) {
-      return { ...row, days_remaining: null as number | null, status: 'NONE' as const };
+      return {
+        ...row,
+        days_remaining: null as number | null,
+        status: "NONE" as const,
+      };
     }
     const lfd = new Date(row.last_free_day_date);
     lfd.setHours(0, 0, 0, 0);
-    const daysRemaining = Math.ceil((lfd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    let status: 'GREEN' | 'AMBER' | 'RED' = 'GREEN';
-    if (daysRemaining <= 0) status = 'RED';
-    else if (daysRemaining <= 3) status = 'AMBER';
+    const daysRemaining = Math.ceil(
+      (lfd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    let status: "GREEN" | "AMBER" | "RED" = "GREEN";
+    if (daysRemaining <= 0) status = "RED";
+    else if (daysRemaining <= 3) status = "AMBER";
     return { ...row, days_remaining: daysRemaining, status };
   }
 
   private depositExpiryAlert(expiry: Date | null) {
-    if (!expiry) return { days_remaining: null as number | null, band: 'NONE' as const };
+    if (!expiry)
+      return { days_remaining: null as number | null, band: "NONE" as const };
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const e = new Date(expiry);
     e.setHours(0, 0, 0, 0);
-    const days = Math.ceil((e.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    let band: 'OK' | 'D90' | 'D60' | 'D30' | 'D7' | 'EXPIRED' = 'OK';
-    if (days < 0) band = 'EXPIRED';
-    else if (days <= 7) band = 'D7';
-    else if (days <= 30) band = 'D30';
-    else if (days <= 60) band = 'D60';
-    else if (days <= 90) band = 'D90';
+    const days = Math.ceil(
+      (e.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    let band: "OK" | "D90" | "D60" | "D30" | "D7" | "EXPIRED" = "OK";
+    if (days < 0) band = "EXPIRED";
+    else if (days <= 7) band = "D7";
+    else if (days <= 30) band = "D30";
+    else if (days <= 60) band = "D60";
+    else if (days <= 90) band = "D90";
     return { days_remaining: days, band };
   }
 
   private toDepositAlertBand(band: string): DepositAlertBand {
-    const allowed: DepositAlertBand[] = ['NONE', 'OK', 'D90', 'D60', 'D30', 'D7', 'EXPIRED'];
-    return allowed.includes(band as DepositAlertBand) ? (band as DepositAlertBand) : 'OK';
+    const allowed: DepositAlertBand[] = [
+      "NONE",
+      "OK",
+      "D90",
+      "D60",
+      "D30",
+      "D7",
+      "EXPIRED",
+    ];
+    return allowed.includes(band as DepositAlertBand)
+      ? (band as DepositAlertBand)
+      : "OK";
   }
 
   private isSharedImportJob(jobType: JobType): boolean {
-    return jobType === 'SEA_FCL_IMPORT' || jobType === 'AIR_IMPORT' || jobType === 'SEA_LCL_IMPORT';
+    return (
+      jobType === "SEA_FCL_IMPORT" ||
+      jobType === "AIR_IMPORT" ||
+      jobType === "SEA_LCL_IMPORT"
+    );
   }
 
   private async assertImportJob(tenantId: string, jobId: string) {
-    await this.prisma.runWithTenant(tenantId, (tx) => this.getSharedImportJobOrThrow(tx, tenantId, jobId));
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      this.getSharedImportJobOrThrow(tx, tenantId, jobId),
+    );
   }
 
   private async assertFclImportJob(tenantId: string, jobId: string) {
-    await this.prisma.runWithTenant(tenantId, (tx) => this.getFclImportDetailOrThrow(tx, tenantId, jobId));
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      this.getFclImportDetailOrThrow(tx, tenantId, jobId),
+    );
   }
 
-  private async getSharedImportJobOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
-    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
-    if (!job) throw new NotFoundException('Job not found.');
+  private async getSharedImportJobOrThrow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+  ) {
+    const job = await tx.job.findFirst({
+      where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!job) throw new NotFoundException("Job not found.");
     if (!this.isSharedImportJob(job.job_type)) {
-      throw new BadRequestException('This endpoint requires an import job (SEA_FCL_IMPORT, SEA_LCL_IMPORT, or AIR_IMPORT).');
+      throw new BadRequestException(
+        "This endpoint requires an import job (SEA_FCL_IMPORT, SEA_LCL_IMPORT, or AIR_IMPORT).",
+      );
     }
     return job;
   }
 
-  private async getLclImportDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
-    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
-    if (!job) throw new NotFoundException('Job not found.');
-    if (job.job_type !== 'SEA_LCL_IMPORT') {
-      throw new BadRequestException('This endpoint requires a SEA_LCL_IMPORT job.');
+  private async getLclImportDetailOrThrow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+  ) {
+    const job = await tx.job.findFirst({
+      where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!job) throw new NotFoundException("Job not found.");
+    if (job.job_type !== "SEA_LCL_IMPORT") {
+      throw new BadRequestException(
+        "This endpoint requires a SEA_LCL_IMPORT job.",
+      );
     }
     const detail = await tx.seaLclJobDetail.findFirst({
       where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
     });
-    if (!detail) throw new NotFoundException('Sea LCL details not found for this job.');
+    if (!detail)
+      throw new NotFoundException("Sea LCL details not found for this job.");
     return detail;
   }
 
-  private async getFclImportDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
-    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
-    if (!job) throw new NotFoundException('Job not found.');
-    if (job.job_type !== 'SEA_FCL_IMPORT') {
-      throw new BadRequestException('This endpoint requires a SEA_FCL_IMPORT job.');
+  private async getFclImportDetailOrThrow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+  ) {
+    const job = await tx.job.findFirst({
+      where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!job) throw new NotFoundException("Job not found.");
+    if (job.job_type !== "SEA_FCL_IMPORT") {
+      throw new BadRequestException(
+        "This endpoint requires a SEA_FCL_IMPORT job.",
+      );
     }
     const detail = await tx.seaFclJobDetail.findFirst({
       where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
     });
-    if (!detail) throw new NotFoundException('Sea FCL details not found for this job.');
+    if (!detail)
+      throw new NotFoundException("Sea FCL details not found for this job.");
     return detail;
   }
 
-  private async getImportDetailOrThrow(tx: Prisma.TransactionClient, tenantId: string, jobId: string) {
+  private async getImportDetailOrThrow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+  ) {
     return this.getFclImportDetailOrThrow(tx, tenantId, jobId);
   }
 
@@ -699,9 +982,15 @@ export class SeaFclImportService {
     containerId: string,
   ) {
     const container = await tx.jobContainer.findFirst({
-      where: { id: containerId, sea_fcl_detail_id: seaFclDetailId, tenant_id: tenantId, deleted_at: null },
+      where: {
+        id: containerId,
+        sea_fcl_detail_id: seaFclDetailId,
+        tenant_id: tenantId,
+        deleted_at: null,
+      },
     });
-    if (!container) throw new NotFoundException('Container not found on this job.');
+    if (!container)
+      throw new NotFoundException("Container not found on this job.");
     return container;
   }
 
@@ -725,7 +1014,11 @@ export class SeaFclImportService {
     if (!milestone) return;
     await tx.jobMilestone.update({
       where: { id: milestone.id },
-      data: { actual_date: actualDate, completed_by: actorId, updated_by: actorId },
+      data: {
+        actual_date: actualDate,
+        completed_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 }

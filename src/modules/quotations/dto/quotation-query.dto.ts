@@ -1,8 +1,21 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
-import { Transform } from 'class-transformer';
-import { QuotationStatus, JobType } from '@prisma/client';
-import { PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT } from '../../../common/dto/pagination.dto';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsDateString,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from "class-validator";
+import { Transform } from "class-transformer";
+import { QuotationStatus, JobType } from "@prisma/client";
+import {
+  PAGINATION_DEFAULT_LIMIT,
+  PAGINATION_MAX_LIMIT,
+} from "../../../common/dto/pagination.dto";
 
 export class QuotationQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -12,7 +25,11 @@ export class QuotationQueryDto {
   @Min(1)
   page: number = 1;
 
-  @ApiPropertyOptional({ default: PAGINATION_DEFAULT_LIMIT, minimum: 1, maximum: PAGINATION_MAX_LIMIT })
+  @ApiPropertyOptional({
+    default: PAGINATION_DEFAULT_LIMIT,
+    minimum: 1,
+    maximum: PAGINATION_MAX_LIMIT,
+  })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
@@ -20,7 +37,7 @@ export class QuotationQueryDto {
   @Max(PAGINATION_MAX_LIMIT)
   limit: number = PAGINATION_DEFAULT_LIMIT;
 
-  @ApiPropertyOptional({ description: 'Matches quotation_number, commodity.' })
+  @ApiPropertyOptional({ description: "Matches quotation_number, commodity." })
   @IsOptional()
   @IsString()
   search?: string;
@@ -30,62 +47,71 @@ export class QuotationQueryDto {
   @IsEnum(QuotationStatus)
   status?: QuotationStatus;
 
-  @ApiPropertyOptional({ enum: JobType, description: 'Service type — Air Export, FCL Export, NVOCC Export, etc.' })
+  @ApiPropertyOptional({
+    enum: JobType,
+    description: "Service type — Air Export, FCL Export, NVOCC Export, etc.",
+  })
   @IsOptional()
   @IsEnum(JobType)
   job_type?: JobType;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Client / customer.' })
+  @ApiPropertyOptional({ format: "uuid", description: "Client / customer." })
   @IsOptional()
   @IsUUID()
   customer_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   department_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'The quoted carrier (Party).' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "The quoted carrier (Party).",
+  })
   @IsOptional()
   @IsUUID()
   carrier_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_type_id?: string;
 
-  @ApiPropertyOptional({ description: 'e.g. FOB, CIF, EXW.' })
+  @ApiPropertyOptional({ description: "e.g. FOB, CIF, EXW." })
   @IsOptional()
   @IsString()
   incoterm?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Filter by who created the quotation.' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Filter by who created the quotation.",
+  })
   @IsOptional()
   @IsUUID()
   created_by?: string;
@@ -100,8 +126,8 @@ export class QuotationQueryDto {
   @IsDateString()
   to_date?: string;
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @ApiPropertyOptional({ enum: ["asc", "desc"], default: "desc" })
   @IsOptional()
-  @IsIn(['asc', 'desc'])
-  order: 'asc' | 'desc' = 'desc';
+  @IsIn(["asc", "desc"])
+  order: "asc" | "desc" = "desc";
 }

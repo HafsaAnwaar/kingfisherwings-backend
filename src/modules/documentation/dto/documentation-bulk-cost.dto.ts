@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { DocumentationDrCr, DocumentationSaleOrCost } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { DocumentationDrCr, DocumentationSaleOrCost } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
@@ -12,14 +12,14 @@ import {
   Length,
   Min,
   ValidateNested,
-} from 'class-validator';
+} from "class-validator";
 
 export class BulkCostLineDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   job_id!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   charge_code_id?: string;
@@ -29,7 +29,7 @@ export class BulkCostLineDto {
   @Length(1, 200)
   description!: string;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
@@ -54,19 +54,19 @@ export class BulkCostLineDto {
   @IsEnum(DocumentationDrCr)
   dr_cr?: DocumentationDrCr;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   tax_group_id?: string;
 }
 
 export class BulkCostBatchDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   organization_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   vessel_id?: string;
@@ -76,7 +76,7 @@ export class BulkCostBatchDto {
   @IsString()
   voyage_number?: string;
 
-  @ApiPropertyOptional({ description: 'e.g. BY_VOLUME, BY_WEIGHT, EQUAL' })
+  @ApiPropertyOptional({ description: "e.g. BY_VOLUME, BY_WEIGHT, EQUAL" })
   @IsOptional()
   @IsString()
   prorate_method?: string;

@@ -1,10 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PortalDocumentType } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
 import {
-  DEFAULT_PORTAL_DOCUMENT_TYPES,
-} from './constants/portal-permission.constants';
-import { UpsertPortalPermissionsDto } from './dto/portal-permissions.dto';
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { PortalDocumentType } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { DEFAULT_PORTAL_DOCUMENT_TYPES } from "./constants/portal-permission.constants";
+import { UpsertPortalPermissionsDto } from "./dto/portal-permissions.dto";
 
 export type PortalPermissionMatrix = Record<
   PortalDocumentType,
@@ -28,7 +30,7 @@ export class PortalPermissionsService {
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.portalPermission.findMany({
         where: { tenant_id: tenantId, party_id: partyId },
-        orderBy: { document_type: 'asc' },
+        orderBy: { document_type: "asc" },
       }),
     );
 
@@ -124,7 +126,11 @@ export class PortalPermissionsService {
   }
 
   /** Idempotent — skips when any row already exists for the party. */
-  async seedDefaultsIfEmpty(tenantId: string, partyId: string, actorId?: string) {
+  async seedDefaultsIfEmpty(
+    tenantId: string,
+    partyId: string,
+    actorId?: string,
+  ) {
     const count = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.portalPermission.count({
         where: { tenant_id: tenantId, party_id: partyId },
@@ -150,7 +156,10 @@ export class PortalPermissionsService {
     });
   }
 
-  async resolveMatrix(tenantId: string, partyId: string): Promise<PortalPermissionMatrix> {
+  async resolveMatrix(
+    tenantId: string,
+    partyId: string,
+  ): Promise<PortalPermissionMatrix> {
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.portalPermission.findMany({
         where: { tenant_id: tenantId, party_id: partyId },
@@ -160,11 +169,17 @@ export class PortalPermissionsService {
     return this.toMatrix(rows);
   }
 
-  assertCanView(matrix: PortalPermissionMatrix, portalType: PortalDocumentType): boolean {
+  assertCanView(
+    matrix: PortalPermissionMatrix,
+    portalType: PortalDocumentType,
+  ): boolean {
     return matrix[portalType]?.can_view ?? true;
   }
 
-  assertCanDownload(matrix: PortalPermissionMatrix, portalType: PortalDocumentType): boolean {
+  assertCanDownload(
+    matrix: PortalPermissionMatrix,
+    portalType: PortalDocumentType,
+  ): boolean {
     const rights = matrix[portalType];
     if (!rights?.can_view) return false;
     return rights.can_download;
@@ -181,7 +196,9 @@ export class PortalPermissionsService {
 
     for (const required of DEFAULT_PORTAL_DOCUMENT_TYPES) {
       if (!provided.has(required)) {
-        throw new BadRequestException(`Missing permission entry for ${required}.`);
+        throw new BadRequestException(
+          `Missing permission entry for ${required}.`,
+        );
       }
     }
 
@@ -246,7 +263,7 @@ export class PortalPermissionsService {
     );
 
     if (!party) {
-      throw new NotFoundException('Party not found.');
+      throw new NotFoundException("Party not found.");
     }
   }
 }

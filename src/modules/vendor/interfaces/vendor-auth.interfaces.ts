@@ -1,11 +1,11 @@
 export interface VendorJwtPayload {
-  principal: 'vendor';
+  principal: "vendor";
   sub: string;
   tenantId: string;
   partyId: string;
   email: string;
   sessionId: string;
-  type: 'access' | 'refresh';
+  type: "access" | "refresh";
 }
 
 export interface CurrentVendorUser {

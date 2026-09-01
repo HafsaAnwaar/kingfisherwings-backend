@@ -1,22 +1,37 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DocumentType, InvoiceStatus, InvoiceType, PortalDocumentType, Prisma } from '@prisma/client';
-import { Response } from 'express';
-import { PrismaService } from '../../prisma/prisma.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { PortalDocumentQueryDto } from './dto/portal-document-query.dto';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  DocumentType,
+  InvoiceStatus,
+  InvoiceType,
+  PortalDocumentType,
+  Prisma,
+} from "@prisma/client";
+import { Response } from "express";
+import { PrismaService } from "../../prisma/prisma.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { PortalDocumentQueryDto } from "./dto/portal-document-query.dto";
 import {
   isPortalVisibleDocumentType,
   toPortalDocumentType,
-} from './helpers/portal-document-type.helper';
-import { portalJobOwnershipWhere } from './helpers/portal-ownership.helper';
-import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
-import { PortalPermissionsService } from './portal-permissions.service';
+} from "./helpers/portal-document-type.helper";
+import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
+import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
+import { PortalPermissionsService } from "./portal-permissions.service";
 
-const PORTAL_INVOICE_STATUSES: InvoiceStatus[] = ['POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'];
+const PORTAL_INVOICE_STATUSES: InvoiceStatus[] = [
+  "POSTED",
+  "SENT",
+  "PARTIALLY_PAID",
+  "PAID",
+];
 
 export type PortalDocumentListItem = {
   id: string;
-  source: 'job' | 'invoice';
+  source: "job" | "invoice";
   portal_document_type: PortalDocumentType;
   document_type: string;
   reference_number: string | null;
@@ -44,15 +59,16 @@ export class PortalDocumentsService {
     const byType = {} as Record<PortalDocumentType, number>;
 
     for (const item of items) {
-      byType[item.portal_document_type] = (byType[item.portal_document_type] ?? 0) + 1;
+      byType[item.portal_document_type] =
+        (byType[item.portal_document_type] ?? 0) + 1;
     }
 
     return {
       success: true,
       data: {
         total: items.length,
-        job_documents: items.filter((i) => i.source === 'job').length,
-        invoice_documents: items.filter((i) => i.source === 'invoice').length,
+        job_documents: items.filter((i) => i.source === "job").length,
+        invoice_documents: items.filter((i) => i.source === "invoice").length,
         downloadable: items.filter((i) => i.can_download).length,
         by_portal_document_type: byType,
       },
@@ -69,12 +85,14 @@ export class PortalDocumentsService {
       items = items.filter((item) => item.job_id === query.job_id);
     }
     if (query.portal_document_type) {
-      items = items.filter((item) => item.portal_document_type === query.portal_document_type);
+      items = items.filter(
+        (item) => item.portal_document_type === query.portal_document_type,
+      );
     }
 
     items.sort((a, b) => {
       const diff = a.created_at.getTime() - b.created_at.getTime();
-      return query.order === 'asc' ? diff : -diff;
+      return query.order === "asc" ? diff : -diff;
     });
 
     const total = items.length;
@@ -96,7 +114,9 @@ export class PortalDocumentsService {
   async listForShipment(user: CurrentPortalUser, jobId: string) {
     await this.assertOwnedJob(user, jobId);
 
-    const items = (await this.collectAllDocuments(user)).filter((item) => item.job_id === jobId);
+    const items = (await this.collectAllDocuments(user)).filter(
+      (item) => item.job_id === jobId,
+    );
 
     return { success: true, data: items };
   }
@@ -116,19 +136,23 @@ export class PortalDocumentsService {
           tenant_id: user.tenantId,
           job_id: jobId,
           deleted_at: null,
-          generation_status: 'COMPLETED',
+          generation_status: "COMPLETED",
         },
       }),
     );
 
     if (!doc || !isPortalVisibleDocumentType(doc.document_type)) {
-      throw new NotFoundException('Document not found.');
+      throw new NotFoundException("Document not found.");
     }
 
     await this.streamJobDocument(user, doc.document_type, doc, res);
   }
 
-  async downloadInvoice(user: CurrentPortalUser, invoiceId: string, res: Response) {
+  async downloadInvoice(
+    user: CurrentPortalUser,
+    invoiceId: string,
+    res: Response,
+  ) {
     const invoice = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.invoice.findFirst({
         where: {
@@ -138,14 +162,18 @@ export class PortalDocumentsService {
           deleted_at: null,
           status: { in: PORTAL_INVOICE_STATUSES },
           invoice_type: {
-            in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.CREDIT_NOTE, InvoiceType.DEBIT_NOTE],
+            in: [
+              InvoiceType.CUSTOMER_INVOICE,
+              InvoiceType.CREDIT_NOTE,
+              InvoiceType.DEBIT_NOTE,
+            ],
           },
         },
       }),
     );
 
     if (!invoice?.pdf_url) {
-      throw new NotFoundException('Document not found.');
+      throw new NotFoundException("Document not found.");
     }
 
     const portalType =
@@ -153,33 +181,48 @@ export class PortalDocumentsService {
         ? PortalDocumentType.CREDIT_NOTE
         : PortalDocumentType.INVOICE;
 
-    const matrix = await this.permissions.resolveMatrix(user.tenantId, user.partyId);
+    const matrix = await this.permissions.resolveMatrix(
+      user.tenantId,
+      user.partyId,
+    );
     if (!this.permissions.assertCanView(matrix, portalType)) {
-      throw new NotFoundException('Document not found.');
+      throw new NotFoundException("Document not found.");
     }
     if (!this.permissions.assertCanDownload(matrix, portalType)) {
-      throw new ForbiddenException('Download is not permitted for this document type.');
+      throw new ForbiddenException(
+        "Download is not permitted for this document type.",
+      );
     }
 
     const file = await this.storage.readByStoredFile(user.tenantId, {
       file_name: `${invoice.invoice_number}.pdf`,
       file_url: invoice.pdf_url,
       s3_key: invoice.pdf_s3_key,
-      mime_type: 'application/pdf',
+      mime_type: "application/pdf",
     });
 
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${file.fileName}"`);
     res.send(file.buffer);
   }
 
   /** @deprecated Use downloadJobDocument — kept for shipment-nested route. */
-  async download(user: CurrentPortalUser, jobId: string, docId: string, res: Response) {
+  async download(
+    user: CurrentPortalUser,
+    jobId: string,
+    docId: string,
+    res: Response,
+  ) {
     return this.downloadJobDocument(user, jobId, docId, res);
   }
 
-  private async collectAllDocuments(user: CurrentPortalUser): Promise<PortalDocumentListItem[]> {
-    const matrix = await this.permissions.resolveMatrix(user.tenantId, user.partyId);
+  private async collectAllDocuments(
+    user: CurrentPortalUser,
+  ): Promise<PortalDocumentListItem[]> {
+    const matrix = await this.permissions.resolveMatrix(
+      user.tenantId,
+      user.partyId,
+    );
     const [jobDocs, invoices] = await Promise.all([
       this.fetchJobDocuments(user),
       this.fetchInvoiceDocuments(user),
@@ -195,7 +238,7 @@ export class PortalDocumentsService {
 
       items.push({
         id: doc.id,
-        source: 'job',
+        source: "job",
         portal_document_type: portalType,
         document_type: doc.document_type,
         reference_number: doc.reference_number,
@@ -221,13 +264,13 @@ export class PortalDocumentsService {
 
       items.push({
         id: invoice.id,
-        source: 'invoice',
+        source: "invoice",
         portal_document_type: portalType,
         document_type: invoice.invoice_type,
         reference_number: invoice.invoice_number,
         file_name: `${invoice.invoice_number}.pdf`,
         file_size: null,
-        mime_type: 'application/pdf',
+        mime_type: "application/pdf",
         can_download: this.permissions.assertCanDownload(matrix, portalType),
         created_at: invoice.created_at,
         job_id: invoice.job_id,
@@ -246,13 +289,13 @@ export class PortalDocumentsService {
         where: {
           tenant_id: user.tenantId,
           deleted_at: null,
-          generation_status: 'COMPLETED',
+          generation_status: "COMPLETED",
           job: {
             deleted_at: null,
             ...portalJobOwnershipWhere(user.partyId),
           },
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
         select: {
           id: true,
           job_id: true,
@@ -278,10 +321,14 @@ export class PortalDocumentsService {
           pdf_url: { not: null },
           status: { in: PORTAL_INVOICE_STATUSES },
           invoice_type: {
-            in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.CREDIT_NOTE, InvoiceType.DEBIT_NOTE],
+            in: [
+              InvoiceType.CUSTOMER_INVOICE,
+              InvoiceType.CREDIT_NOTE,
+              InvoiceType.DEBIT_NOTE,
+            ],
           },
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
         select: {
           id: true,
           invoice_number: true,
@@ -305,19 +352,24 @@ export class PortalDocumentsService {
     },
     res: Response,
   ) {
-    const matrix = await this.permissions.resolveMatrix(user.tenantId, user.partyId);
+    const matrix = await this.permissions.resolveMatrix(
+      user.tenantId,
+      user.partyId,
+    );
     const portalType = toPortalDocumentType(documentType);
 
     if (!this.permissions.assertCanView(matrix, portalType)) {
-      throw new NotFoundException('Document not found.');
+      throw new NotFoundException("Document not found.");
     }
     if (!this.permissions.assertCanDownload(matrix, portalType)) {
-      throw new ForbiddenException('Download is not permitted for this document type.');
+      throw new ForbiddenException(
+        "Download is not permitted for this document type.",
+      );
     }
 
     const file = await this.storage.readByStoredFile(user.tenantId, doc);
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${file.fileName}"`);
     res.send(file.buffer);
   }
 
@@ -335,7 +387,7 @@ export class PortalDocumentsService {
     );
 
     if (!job) {
-      throw new NotFoundException('Shipment not found.');
+      throw new NotFoundException("Shipment not found.");
     }
   }
 }

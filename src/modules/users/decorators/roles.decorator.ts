@@ -1,7 +1,7 @@
-import { SetMetadata } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { SetMetadata } from "@nestjs/common";
+import { UserRole } from "@prisma/client";
 
-export const ROLES_KEY = 'roles';
+export const ROLES_KEY = "roles";
 
 /**
  * Declares which legacy `role` enum values may access a route. Enforced

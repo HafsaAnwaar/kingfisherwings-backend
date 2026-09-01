@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { HrLoanStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { HrLoanStatus } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsEnum,
   IsInt,
@@ -10,7 +10,7 @@ import {
   IsUUID,
   Length,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class CreateLoanDto {
   @ApiProperty()

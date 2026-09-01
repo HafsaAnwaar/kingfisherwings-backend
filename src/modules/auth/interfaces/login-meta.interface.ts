@@ -1,7 +1,6 @@
 // src/modules/auth/interfaces/login-meta.interface.ts
 
 export interface LoginMeta {
-
   ip_address?: string;
 
   user_agent?: string;
@@ -14,5 +13,4 @@ export interface LoginMeta {
 
   /** Optional client-reported MAC for allow-list enforcement. */
   mac_address?: string;
-
 }

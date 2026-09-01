@@ -2,30 +2,30 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { DocumentNumberType, Prisma, VoucherType } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { lockVoucherRow } from '../../common/utils/row-lock.util';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
+} from "@nestjs/common";
+import { DocumentNumberType, Prisma, VoucherType } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { lockVoucherRow } from "../../common/utils/row-lock.util";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import {
   CreateVoucherDto,
   CreateVoucherLineDto,
   UpdateVoucherDto,
   UpdateVoucherLineDto,
   VoucherQueryDto,
-} from './dto/gl.dto';
+} from "./dto/gl.dto";
 
 const VOUCHER_TYPE_PREFIX: Record<VoucherType, string> = {
-  JOURNAL: 'JV',
-  BANK_PAYMENT: 'BPV',
-  CASH_PAYMENT: 'CPV',
-  BANK_RECEIPT: 'BRV',
-  CASH_RECEIPT: 'CRV',
-  CONTRA: 'CV',
-  PURCHASE_INVOICE: 'PIV',
-  PURCHASE_CREDIT_NOTE: 'PCN',
-  OPENING_BALANCE: 'OB',
-  RECURRING: 'RV',
+  JOURNAL: "JV",
+  BANK_PAYMENT: "BPV",
+  CASH_PAYMENT: "CPV",
+  BANK_RECEIPT: "BRV",
+  CASH_RECEIPT: "CRV",
+  CONTRA: "CV",
+  PURCHASE_INVOICE: "PIV",
+  PURCHASE_CREDIT_NOTE: "PCN",
+  OPENING_BALANCE: "OB",
+  RECURRING: "RV",
 };
 
 @Injectable()
@@ -52,13 +52,13 @@ export class VouchersService {
     }
     if (query.search) {
       where.OR = [
-        { voucher_number: { contains: query.search, mode: 'insensitive' } },
-        { narration: { contains: query.search, mode: 'insensitive' } },
-        { reference_number: { contains: query.search, mode: 'insensitive' } },
+        { voucher_number: { contains: query.search, mode: "insensitive" } },
+        { narration: { contains: query.search, mode: "insensitive" } },
+        { reference_number: { contains: query.search, mode: "insensitive" } },
       ];
     }
     if (query.batch_eligible) {
-      where.status = 'DRAFT';
+      where.status = "DRAFT";
       where.total_debit = { gt: 0 };
       where.total_credit = { gt: 0 };
     }
@@ -66,8 +66,10 @@ export class VouchersService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.voucher.findMany({
         where,
-        include: { lines: { where: { deleted_at: null }, orderBy: { line_no: 'asc' } } },
-        orderBy: [{ voucher_date: 'desc' }, { created_at: 'desc' }],
+        include: {
+          lines: { where: { deleted_at: null }, orderBy: { line_no: "asc" } },
+        },
+        orderBy: [{ voucher_date: "desc" }, { created_at: "desc" }],
       }),
     );
   }
@@ -79,17 +81,22 @@ export class VouchersService {
         include: {
           lines: {
             where: { deleted_at: null },
-            orderBy: { line_no: 'asc' },
+            orderBy: { line_no: "asc" },
             include: {
               account: {
-                select: { id: true, account_code: true, account_name: true, account_group: true },
+                select: {
+                  id: true,
+                  account_code: true,
+                  account_name: true,
+                  account_group: true,
+                },
               },
             },
           },
         },
       }),
     );
-    if (!voucher) throw new NotFoundException('Voucher not found.');
+    if (!voucher) throw new NotFoundException("Voucher not found.");
     return voucher;
   }
 
@@ -102,7 +109,11 @@ export class VouchersService {
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       if (dto.lines?.length) {
-        await this.assertPostableAccounts(tx, tenantId, dto.lines.map((l) => l.account_id));
+        await this.assertPostableAccounts(
+          tx,
+          tenantId,
+          dto.lines.map((l) => l.account_id),
+        );
       }
 
       const voucher = await tx.voucher.create({
@@ -110,9 +121,11 @@ export class VouchersService {
           tenant_id: tenantId,
           voucher_number: voucherNumber,
           voucher_type: dto.voucher_type,
-          currency_code: dto.currency_code ?? 'AED',
+          currency_code: dto.currency_code ?? "AED",
           exchange_rate: dto.exchange_rate ?? 1,
-          voucher_date: dto.voucher_date ? new Date(dto.voucher_date) : new Date(),
+          voucher_date: dto.voucher_date
+            ? new Date(dto.voucher_date)
+            : new Date(),
           narration: dto.narration,
           reference_number: dto.reference_number,
           company_id: dto.company_id,
@@ -125,22 +138,35 @@ export class VouchersService {
           lines: dto.lines?.length
             ? {
                 create: dto.lines.map((line, idx) =>
-                  this.mapLineCreate(tenantId, line, idx + 1, dto.exchange_rate ?? 1, actorId),
+                  this.mapLineCreate(
+                    tenantId,
+                    line,
+                    idx + 1,
+                    dto.exchange_rate ?? 1,
+                    actorId,
+                  ),
                 ),
               }
             : undefined,
         },
-        include: { lines: { where: { deleted_at: null }, orderBy: { line_no: 'asc' } } },
+        include: {
+          lines: { where: { deleted_at: null }, orderBy: { line_no: "asc" } },
+        },
       });
 
       return this.recalculateTotals(tx, voucher.id);
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdateVoucherDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateVoucherDto,
+    actorId?: string,
+  ) {
     const existing = await this.findOne(tenantId, id);
-    if (existing.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft vouchers can be updated.');
+    if (existing.status !== "DRAFT") {
+      throw new BadRequestException("Only draft vouchers can be updated.");
     }
 
     const { lines: _ignore, ...header } = dto;
@@ -148,17 +174,37 @@ export class VouchersService {
       tx.voucher.update({
         where: { id },
         data: {
-          ...(header.voucher_type !== undefined ? { voucher_type: header.voucher_type } : {}),
-          ...(header.currency_code !== undefined ? { currency_code: header.currency_code } : {}),
-          ...(header.exchange_rate !== undefined ? { exchange_rate: header.exchange_rate } : {}),
-          ...(header.voucher_date !== undefined ? { voucher_date: new Date(header.voucher_date) } : {}),
-          ...(header.narration !== undefined ? { narration: header.narration } : {}),
-          ...(header.reference_number !== undefined ? { reference_number: header.reference_number } : {}),
-          ...(header.company_id !== undefined ? { company_id: header.company_id } : {}),
-          ...(header.branch_id !== undefined ? { branch_id: header.branch_id } : {}),
-          ...(header.party_id !== undefined ? { party_id: header.party_id } : {}),
+          ...(header.voucher_type !== undefined
+            ? { voucher_type: header.voucher_type }
+            : {}),
+          ...(header.currency_code !== undefined
+            ? { currency_code: header.currency_code }
+            : {}),
+          ...(header.exchange_rate !== undefined
+            ? { exchange_rate: header.exchange_rate }
+            : {}),
+          ...(header.voucher_date !== undefined
+            ? { voucher_date: new Date(header.voucher_date) }
+            : {}),
+          ...(header.narration !== undefined
+            ? { narration: header.narration }
+            : {}),
+          ...(header.reference_number !== undefined
+            ? { reference_number: header.reference_number }
+            : {}),
+          ...(header.company_id !== undefined
+            ? { company_id: header.company_id }
+            : {}),
+          ...(header.branch_id !== undefined
+            ? { branch_id: header.branch_id }
+            : {}),
+          ...(header.party_id !== undefined
+            ? { party_id: header.party_id }
+            : {}),
           ...(header.job_id !== undefined ? { job_id: header.job_id } : {}),
-          ...(header.invoice_id !== undefined ? { invoice_id: header.invoice_id } : {}),
+          ...(header.invoice_id !== undefined
+            ? { invoice_id: header.invoice_id }
+            : {}),
           updated_by: actorId,
         },
       }),
@@ -168,25 +214,35 @@ export class VouchersService {
 
   async softDelete(tenantId: string, id: string, actorId?: string) {
     const existing = await this.findOne(tenantId, id);
-    if (existing.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft vouchers can be deleted.');
+    if (existing.status !== "DRAFT") {
+      throw new BadRequestException("Only draft vouchers can be deleted.");
     }
     await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.voucher.update({
         where: { id },
-        data: { deleted_at: new Date(), status: 'CANCELLED', updated_by: actorId },
+        data: {
+          deleted_at: new Date(),
+          status: "CANCELLED",
+          updated_by: actorId,
+        },
       }),
     );
   }
 
-  async addLine(tenantId: string, voucherId: string, dto: CreateVoucherLineDto, actorId?: string) {
+  async addLine(
+    tenantId: string,
+    voucherId: string,
+    dto: CreateVoucherLineDto,
+    actorId?: string,
+  ) {
     const voucher = await this.findOne(tenantId, voucherId);
-    if (voucher.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft vouchers can be edited.');
+    if (voucher.status !== "DRAFT") {
+      throw new BadRequestException("Only draft vouchers can be edited.");
     }
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.assertPostableAccounts(tx, tenantId, [dto.account_id]);
-      const nextNo = (voucher.lines.reduce((m, l) => Math.max(m, l.line_no), 0) || 0) + 1;
+      const nextNo =
+        (voucher.lines.reduce((m, l) => Math.max(m, l.line_no), 0) || 0) + 1;
       await tx.voucherLine.create({
         data: this.mapLineUncheckedCreate(
           tenantId,
@@ -209,15 +265,18 @@ export class VouchersService {
     actorId?: string,
   ) {
     const voucher = await this.findOne(tenantId, voucherId);
-    if (voucher.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft vouchers can be edited.');
+    if (voucher.status !== "DRAFT") {
+      throw new BadRequestException("Only draft vouchers can be edited.");
     }
     const line = voucher.lines.find((l) => l.id === lineId);
-    if (!line) throw new NotFoundException('Voucher line not found.');
+    if (!line) throw new NotFoundException("Voucher line not found.");
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      if (dto.account_id) await this.assertPostableAccounts(tx, tenantId, [dto.account_id]);
-      const rate = Number(dto.exchange_rate ?? line.exchange_rate ?? voucher.exchange_rate);
+      if (dto.account_id)
+        await this.assertPostableAccounts(tx, tenantId, [dto.account_id]);
+      const rate = Number(
+        dto.exchange_rate ?? line.exchange_rate ?? voucher.exchange_rate,
+      );
       const debit = Number(dto.debit_amount ?? line.debit_amount);
       const credit = Number(dto.credit_amount ?? line.credit_amount);
       this.assertLineAmounts(debit, credit);
@@ -225,15 +284,25 @@ export class VouchersService {
       await tx.voucherLine.update({
         where: { id: lineId },
         data: {
-          ...(dto.account_id !== undefined ? { account_id: dto.account_id } : {}),
-          ...(dto.debit_amount !== undefined ? { debit_amount: debit, debit_base: debit * rate } : {}),
-          ...(dto.credit_amount !== undefined ? { credit_amount: credit, credit_base: credit * rate } : {}),
-          ...(dto.currency_code !== undefined ? { currency_code: dto.currency_code } : {}),
+          ...(dto.account_id !== undefined
+            ? { account_id: dto.account_id }
+            : {}),
+          ...(dto.debit_amount !== undefined
+            ? { debit_amount: debit, debit_base: debit * rate }
+            : {}),
+          ...(dto.credit_amount !== undefined
+            ? { credit_amount: credit, credit_base: credit * rate }
+            : {}),
+          ...(dto.currency_code !== undefined
+            ? { currency_code: dto.currency_code }
+            : {}),
           ...(dto.exchange_rate !== undefined ? { exchange_rate: rate } : {}),
           ...(dto.narration !== undefined ? { narration: dto.narration } : {}),
           ...(dto.party_id !== undefined ? { party_id: dto.party_id } : {}),
           ...(dto.job_id !== undefined ? { job_id: dto.job_id } : {}),
-          ...(dto.cost_center !== undefined ? { cost_center: dto.cost_center } : {}),
+          ...(dto.cost_center !== undefined
+            ? { cost_center: dto.cost_center }
+            : {}),
           updated_by: actorId,
         },
       });
@@ -241,13 +310,18 @@ export class VouchersService {
     });
   }
 
-  async removeLine(tenantId: string, voucherId: string, lineId: string, actorId?: string) {
+  async removeLine(
+    tenantId: string,
+    voucherId: string,
+    lineId: string,
+    actorId?: string,
+  ) {
     const voucher = await this.findOne(tenantId, voucherId);
-    if (voucher.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft vouchers can be edited.');
+    if (voucher.status !== "DRAFT") {
+      throw new BadRequestException("Only draft vouchers can be edited.");
     }
     if (!voucher.lines.some((l) => l.id === lineId)) {
-      throw new NotFoundException('Voucher line not found.');
+      throw new NotFoundException("Voucher line not found.");
     }
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await tx.voucherLine.update({
@@ -260,11 +334,11 @@ export class VouchersService {
 
   async post(tenantId: string, id: string, actorId?: string) {
     const voucher = await this.findOne(tenantId, id);
-    if (voucher.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft vouchers can be posted.');
+    if (voucher.status !== "DRAFT") {
+      throw new BadRequestException("Only draft vouchers can be posted.");
     }
     if (!voucher.lines.length) {
-      throw new BadRequestException('Cannot post a voucher with no lines.');
+      throw new BadRequestException("Cannot post a voucher with no lines.");
     }
 
     const debit = Number(voucher.total_debit);
@@ -275,32 +349,36 @@ export class VouchersService {
       );
     }
     if (debit <= 0) {
-      throw new BadRequestException('Voucher totals must be greater than zero.');
+      throw new BadRequestException(
+        "Voucher totals must be greater than zero.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const locked = await lockVoucherRow(tx, tenantId, id);
-      if (!locked || locked.status !== 'DRAFT') {
-        throw new BadRequestException('Only draft vouchers can be posted.');
+      if (!locked || locked.status !== "DRAFT") {
+        throw new BadRequestException("Only draft vouchers can be posted.");
       }
 
       return tx.voucher.update({
         where: { id },
         data: {
-          status: 'POSTED',
+          status: "POSTED",
           posted_at: new Date(),
           posted_by: actorId,
           updated_by: actorId,
         },
-        include: { lines: { where: { deleted_at: null }, orderBy: { line_no: 'asc' } } },
+        include: {
+          lines: { where: { deleted_at: null }, orderBy: { line_no: "asc" } },
+        },
       });
     });
   }
 
   async reverse(tenantId: string, id: string, actorId?: string) {
     const original = await this.findOne(tenantId, id);
-    if (original.status !== 'POSTED') {
-      throw new BadRequestException('Only posted vouchers can be reversed.');
+    if (original.status !== "POSTED") {
+      throw new BadRequestException("Only posted vouchers can be reversed.");
     }
 
     const reversalNumber = await this.numberGenerator.generate(
@@ -315,11 +393,11 @@ export class VouchersService {
           tenant_id: tenantId,
           voucher_number: reversalNumber,
           voucher_type: original.voucher_type,
-          status: 'POSTED',
+          status: "POSTED",
           voucher_date: new Date(),
           currency_code: original.currency_code,
           exchange_rate: original.exchange_rate,
-          narration: `Reversal of ${original.voucher_number}${original.narration ? ` — ${original.narration}` : ''}`,
+          narration: `Reversal of ${original.voucher_number}${original.narration ? ` — ${original.narration}` : ""}`,
           reference_number: original.reference_number,
           company_id: original.company_id,
           branch_id: original.branch_id,
@@ -353,13 +431,15 @@ export class VouchersService {
             })),
           },
         },
-        include: { lines: { where: { deleted_at: null }, orderBy: { line_no: 'asc' } } },
+        include: {
+          lines: { where: { deleted_at: null }, orderBy: { line_no: "asc" } },
+        },
       });
 
       await tx.voucher.update({
         where: { id: original.id },
         data: {
-          status: 'REVERSED',
+          status: "REVERSED",
           reversed_at: new Date(),
           reversed_by: actorId,
           updated_by: actorId,
@@ -373,18 +453,18 @@ export class VouchersService {
   async batchUpdateStatus(
     tenantId: string,
     voucherIds: string[],
-    status: import('@prisma/client').VoucherStatus,
+    status: import("@prisma/client").VoucherStatus,
     actorId?: string,
   ) {
     if (!voucherIds.length) {
-      throw new BadRequestException('voucher_ids is required.');
+      throw new BadRequestException("voucher_ids is required.");
     }
 
     const results: Array<{ id: string; ok: boolean; error?: string }> = [];
 
     for (const id of voucherIds) {
       try {
-        if (status === 'POSTED') {
+        if (status === "POSTED") {
           await this.post(tenantId, id, actorId);
         } else {
           await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -399,7 +479,7 @@ export class VouchersService {
         results.push({
           id,
           ok: false,
-          error: err instanceof Error ? err.message : 'Update failed.',
+          error: err instanceof Error ? err.message : "Update failed.",
         });
       }
     }
@@ -478,13 +558,19 @@ export class VouchersService {
 
   private assertLineAmounts(debit: number, credit: number) {
     if (debit < 0 || credit < 0) {
-      throw new BadRequestException('Debit and credit amounts cannot be negative.');
+      throw new BadRequestException(
+        "Debit and credit amounts cannot be negative.",
+      );
     }
     if (debit > 0 && credit > 0) {
-      throw new BadRequestException('A voucher line cannot have both debit and credit.');
+      throw new BadRequestException(
+        "A voucher line cannot have both debit and credit.",
+      );
     }
     if (debit === 0 && credit === 0) {
-      throw new BadRequestException('A voucher line must have either a debit or a credit amount.');
+      throw new BadRequestException(
+        "A voucher line must have either a debit or a credit amount.",
+      );
     }
   }
 
@@ -498,7 +584,7 @@ export class VouchersService {
       where: { tenant_id: tenantId, id: { in: unique }, deleted_at: null },
     });
     if (accounts.length !== unique.length) {
-      throw new BadRequestException('One or more GL accounts were not found.');
+      throw new BadRequestException("One or more GL accounts were not found.");
     }
     for (const a of accounts) {
       if (!a.is_active || !a.is_postable || a.is_header) {
@@ -509,7 +595,10 @@ export class VouchersService {
     }
   }
 
-  private async recalculateTotals(tx: Prisma.TransactionClient, voucherId: string) {
+  private async recalculateTotals(
+    tx: Prisma.TransactionClient,
+    voucherId: string,
+  ) {
     const lines = await tx.voucherLine.findMany({
       where: { voucher_id: voucherId, deleted_at: null },
     });
@@ -521,10 +610,15 @@ export class VouchersService {
       include: {
         lines: {
           where: { deleted_at: null },
-          orderBy: { line_no: 'asc' },
+          orderBy: { line_no: "asc" },
           include: {
             account: {
-              select: { id: true, account_code: true, account_name: true, account_group: true },
+              select: {
+                id: true,
+                account_code: true,
+                account_name: true,
+                account_group: true,
+              },
             },
           },
         },

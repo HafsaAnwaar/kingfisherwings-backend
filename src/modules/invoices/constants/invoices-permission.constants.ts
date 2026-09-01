@@ -1,13 +1,13 @@
 export const INVOICES_PERMISSION_CONSTANTS = {
-  MODULE: 'invoices',
+  MODULE: "invoices",
   ACTIONS: {
-    VIEW: 'view',
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
-    POST: 'post',
-    SEND: 'send',
-    APPROVE_PAYMENT: 'approve_payment',
+    VIEW: "view",
+    CREATE: "create",
+    UPDATE: "update",
+    DELETE: "delete",
+    POST: "post",
+    SEND: "send",
+    APPROVE_PAYMENT: "approve_payment",
   },
 } as const;
 

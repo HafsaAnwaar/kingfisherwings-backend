@@ -1,10 +1,17 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { DocumentationBoeStatus, DocumentationBoeType } from '@prisma/client';
-import { IsDateString, IsEnum, IsOptional, IsString, IsUUID, Length } from 'class-validator';
-import { DocumentationPaginationDto } from './documentation-pagination.dto';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { DocumentationBoeStatus, DocumentationBoeType } from "@prisma/client";
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+} from "class-validator";
+import { DocumentationPaginationDto } from "./documentation-pagination.dto";
 
 export class BoeDashboardQueryDto extends DocumentationPaginationDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
@@ -36,7 +43,7 @@ export class BoeDashboardQueryDto extends DocumentationPaginationDto {
 }
 
 export class CreateBoeRecordDto {
-  @ApiProperty({ example: 'BOE-2026-001' })
+  @ApiProperty({ example: "BOE-2026-001" })
   @IsString()
   @Length(1, 50)
   boe_number!: string;
@@ -56,12 +63,12 @@ export class CreateBoeRecordDto {
   @IsEnum(DocumentationBoeStatus)
   status?: DocumentationBoeStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
@@ -71,12 +78,12 @@ export class CreateBoeRecordDto {
   @IsString()
   customs_office?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;

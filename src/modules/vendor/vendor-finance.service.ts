@@ -1,18 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InvoiceStatus, InvoiceType, Prisma } from '@prisma/client';
-import { Response } from 'express';
-import { PrismaService } from '../../prisma/prisma.service';
-import { PdfService } from '../../shared/pdf/pdf.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { ArApService } from '../gl/ar-ap.service';
-import { PaymentsService } from '../gl/payments.service';
-import { InvoicesService } from '../invoices/invoices.service';
-import { PaymentRequestsService } from '../invoices/payment-requests.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { PORTAL_CSV_EXPORT_MAX_ROWS, toCsv } from '../portal/helpers/portal-csv.helper';
-import { CurrentVendorUser } from './interfaces/vendor-auth.interfaces';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InvoiceStatus, InvoiceType, Prisma } from "@prisma/client";
+import { Response } from "express";
+import { PrismaService } from "../../prisma/prisma.service";
+import { PdfService } from "../../shared/pdf/pdf.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { ArApService } from "../gl/ar-ap.service";
+import { PaymentsService } from "../gl/payments.service";
+import { InvoicesService } from "../invoices/invoices.service";
+import { PaymentRequestsService } from "../invoices/payment-requests.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import {
+  PORTAL_CSV_EXPORT_MAX_ROWS,
+  toCsv,
+} from "../portal/helpers/portal-csv.helper";
+import { CurrentVendorUser } from "./interfaces/vendor-auth.interfaces";
 
-const VISIBLE: InvoiceStatus[] = ['DRAFT', 'POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'];
+const VISIBLE: InvoiceStatus[] = [
+  "DRAFT",
+  "POSTED",
+  "SENT",
+  "PARTIALLY_PAID",
+  "PAID",
+];
 
 @Injectable()
 export class VendorFinanceService {
@@ -27,7 +36,10 @@ export class VendorFinanceService {
     private readonly notifications: NotificationEmitterService,
   ) {}
 
-  async listInvoices(user: CurrentVendorUser, query: { page?: number; limit?: number; status?: InvoiceStatus }) {
+  async listInvoices(
+    user: CurrentVendorUser,
+    query: { page?: number; limit?: number; status?: InvoiceStatus },
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.InvoiceWhereInput = {
@@ -37,17 +49,19 @@ export class VendorFinanceService {
       invoice_type: InvoiceType.PURCHASE_INVOICE,
       status: query.status ?? { in: VISIBLE },
     };
-    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-      Promise.all([
-        tx.invoice.findMany({
-          where,
-          skip: (page - 1) * limit,
-          take: limit,
-          orderBy: { invoice_date: 'desc' },
-          include: { job: { select: { id: true, job_number: true } } },
-        }),
-        tx.invoice.count({ where }),
-      ]),
+    const [rows, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.invoice.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { invoice_date: "desc" },
+            include: { job: { select: { id: true, job_number: true } } },
+          }),
+          tx.invoice.count({ where }),
+        ]),
     );
     return {
       success: true,
@@ -86,8 +100,11 @@ export class VendorFinanceService {
 
   async getInvoice(user: CurrentVendorUser, id: string) {
     const invoice = await this.invoices.findOne(user.tenantId, id);
-    if (invoice.party_id !== user.partyId || invoice.invoice_type !== InvoiceType.PURCHASE_INVOICE) {
-      throw new NotFoundException('Invoice not found.');
+    if (
+      invoice.party_id !== user.partyId ||
+      invoice.invoice_type !== InvoiceType.PURCHASE_INVOICE
+    ) {
+      throw new NotFoundException("Invoice not found.");
     }
     return {
       success: true,
@@ -121,16 +138,19 @@ export class VendorFinanceService {
       invoice.invoice_type !== InvoiceType.PURCHASE_INVOICE ||
       !invoice.pdf_url
     ) {
-      throw new NotFoundException('Invoice PDF not available.');
+      throw new NotFoundException("Invoice PDF not available.");
     }
     const file = await this.storage.readByStoredFile(user.tenantId, {
       file_name: `${invoice.invoice_number}.pdf`,
       file_url: invoice.pdf_url,
       s3_key: invoice.pdf_s3_key,
-      mime_type: 'application/pdf',
+      mime_type: "application/pdf",
     });
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${file.fileName}"`,
+    );
     res.send(file.buffer);
   }
 
@@ -144,11 +164,20 @@ export class VendorFinanceService {
           invoice_type: InvoiceType.PURCHASE_INVOICE,
         },
         take: PORTAL_CSV_EXPORT_MAX_ROWS,
-        orderBy: { invoice_date: 'desc' },
+        orderBy: { invoice_date: "desc" },
       }),
     );
     const csv = toCsv(
-      ['invoice_number', 'status', 'invoice_date', 'due_date', 'currency_code', 'total_amount', 'amount_paid', 'balance_due'],
+      [
+        "invoice_number",
+        "status",
+        "invoice_date",
+        "due_date",
+        "currency_code",
+        "total_amount",
+        "amount_paid",
+        "balance_due",
+      ],
       rows.map((r) => [
         r.invoice_number,
         r.status,
@@ -160,16 +189,19 @@ export class VendorFinanceService {
         r.balance_due,
       ]),
     );
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="vendor-invoices.csv"');
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="vendor-invoices.csv"',
+    );
     res.send(csv);
   }
 
   async listPayments(user: CurrentVendorUser) {
     const rows = await this.payments.findAll(user.tenantId, {
-      direction: 'PAYMENT',
+      direction: "PAYMENT",
       party_id: user.partyId,
-      status: 'POSTED',
+      status: "POSTED",
     });
     return { success: true, data: rows.map((p) => this.toPaymentItem(p)) };
   }
@@ -180,38 +212,46 @@ export class VendorFinanceService {
         where: {
           tenant_id: user.tenantId,
           party_id: user.partyId,
-          direction: 'PAYMENT',
-          status: 'POSTED',
+          direction: "PAYMENT",
+          status: "POSTED",
           deleted_at: null,
           unallocated_amount: { gt: 0 },
         },
-        orderBy: { payment_date: 'desc' },
+        orderBy: { payment_date: "desc" },
       }),
     );
     return { success: true, data: rows.map((p) => this.toPaymentItem(p)) };
   }
 
-  async remittancePdf(user: CurrentVendorUser, paymentId: string, res: Response) {
+  async remittancePdf(
+    user: CurrentVendorUser,
+    paymentId: string,
+    res: Response,
+  ) {
     const payment = await this.payments.findOne(user.tenantId, paymentId);
-    if (payment.party_id !== user.partyId || payment.direction !== 'PAYMENT') {
-      throw new NotFoundException('Payment not found.');
+    if (payment.party_id !== user.partyId || payment.direction !== "PAYMENT") {
+      throw new NotFoundException("Payment not found.");
     }
     const html = `<!DOCTYPE html><html><body>
       <h1>Remittance Advice</h1>
       <p>Payment ${payment.payment_number}</p>
-      <p>Date: ${payment.payment_date?.toISOString().slice(0, 10) ?? ''}</p>
+      <p>Date: ${payment.payment_date?.toISOString().slice(0, 10) ?? ""}</p>
       <p>Amount: ${payment.currency_code} ${payment.amount}</p>
       <p>Unallocated: ${payment.unallocated_amount}</p>
       <table border="1" cellpadding="6"><tr><th>Invoice</th><th>Allocated</th></tr>
       ${(payment.allocations ?? [])
-        .map((a: { invoice?: { invoice_number?: string }; amount: unknown }) =>
-          `<tr><td>${a.invoice?.invoice_number ?? a}</td><td>${a.amount}</td></tr>`,
+        .map(
+          (a: { invoice?: { invoice_number?: string }; amount: unknown }) =>
+            `<tr><td>${a.invoice?.invoice_number ?? a}</td><td>${a.amount}</td></tr>`,
         )
-        .join('')}
+        .join("")}
       </table></body></html>`;
     const buffer = await this.pdf.renderHtmlToPdf(html);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="remittance-${payment.payment_number}.pdf"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="remittance-${payment.payment_number}.pdf"`,
+    );
     res.send(buffer);
   }
 
@@ -223,9 +263,9 @@ export class VendorFinanceService {
           party_id: user.partyId,
           deleted_at: null,
           invoice_type: InvoiceType.CREDIT_NOTE,
-          status: { in: ['POSTED', 'SENT', 'PAID', 'PARTIALLY_PAID'] },
+          status: { in: ["POSTED", "SENT", "PAID", "PARTIALLY_PAID"] },
         },
-        orderBy: { invoice_date: 'desc' },
+        orderBy: { invoice_date: "desc" },
       }),
     );
     return { success: true, data: rows.map((r) => this.toInvoiceItem(r)) };
@@ -241,17 +281,30 @@ export class VendorFinanceService {
   async statement(user: CurrentVendorUser) {
     return {
       success: true,
-      data: await this.arAp.partyStatement(user.tenantId, user.partyId, {}, 'AP'),
+      data: await this.arAp.partyStatement(
+        user.tenantId,
+        user.partyId,
+        {},
+        "AP",
+      ),
     };
   }
 
   async statementPdf(user: CurrentVendorUser, res: Response) {
-    const statement = await this.arAp.partyStatement(user.tenantId, user.partyId, {}, 'AP');
+    const statement = await this.arAp.partyStatement(
+      user.tenantId,
+      user.partyId,
+      {},
+      "AP",
+    );
     const html = `<!DOCTYPE html><html><body><h1>Vendor AP Statement</h1>
       <pre>${JSON.stringify(statement?.summary ?? {}, null, 2)}</pre></body></html>`;
     const buffer = await this.pdf.renderHtmlToPdf(html);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="vendor-statement.pdf"');
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="vendor-statement.pdf"',
+    );
     res.send(buffer);
   }
 
@@ -265,10 +318,10 @@ export class VendorFinanceService {
           party_id: user.partyId,
           deleted_at: null,
           invoice_type: InvoiceType.PURCHASE_INVOICE,
-          status: { in: ['POSTED', 'SENT', 'PARTIALLY_PAID'] },
+          status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
           balance_due: { gt: 0 },
         },
-        orderBy: { due_date: 'asc' },
+        orderBy: { due_date: "asc" },
       }),
     );
     return {
@@ -277,26 +330,38 @@ export class VendorFinanceService {
         ...this.toInvoiceItem(r),
         schedule_status:
           r.due_date && r.due_date < today
-            ? 'OVERDUE'
+            ? "OVERDUE"
             : Number(r.amount_paid) > 0
-              ? 'PARTIALLY_PAID'
-              : 'DUE',
+              ? "PARTIALLY_PAID"
+              : "DUE",
       })),
     };
   }
 
   async listPaymentRequests(user: CurrentVendorUser) {
-    const result = await this.paymentRequests.findAll(user.tenantId, { party_id: user.partyId });
+    const result = await this.paymentRequests.findAll(user.tenantId, {
+      party_id: user.partyId,
+    });
     return { success: true, ...result };
   }
 
   tdsPlaceholder() {
-    return { success: true, data: { available: false, phase: 'india_phase_3' } };
+    return {
+      success: true,
+      data: { available: false, phase: "india_phase_3" },
+    };
   }
 
   async submitInvoice(
     user: CurrentVendorUser,
-    dto: { currency_code: string; total_amount: number; invoice_date?: string; due_date?: string; reference?: string; remarks?: string },
+    dto: {
+      currency_code: string;
+      total_amount: number;
+      invoice_date?: string;
+      due_date?: string;
+      reference?: string;
+      remarks?: string;
+    },
     attachmentPath?: string,
   ) {
     const created = await this.invoices.createPurchaseInvoice(
@@ -307,10 +372,12 @@ export class VendorFinanceService {
         invoice_date: dto.invoice_date,
         due_date: dto.due_date,
         lpo_number: dto.reference,
-        remarks: `Submitted via vendor portal. ${dto.remarks ?? ''}`.trim(),
+        remarks: `Submitted via vendor portal. ${dto.remarks ?? ""}`.trim(),
         lines: [
           {
-            description: dto.reference ? `Vendor invoice ${dto.reference}` : 'Vendor submitted invoice',
+            description: dto.reference
+              ? `Vendor invoice ${dto.reference}`
+              : "Vendor submitted invoice",
             quantity: 1,
             unit_price: dto.total_amount,
           },
@@ -329,15 +396,19 @@ export class VendorFinanceService {
     }
 
     await this.notifications.notifyFinanceStaff(user.tenantId, {
-      type: 'VENDOR_INVOICE_SUBMITTED',
-      title: 'Vendor invoice submitted',
+      type: "VENDOR_INVOICE_SUBMITTED",
+      title: "Vendor invoice submitted",
       message: `${user.fullName} submitted purchase invoice ${created.invoice_number}.`,
-      entity_type: 'invoice',
+      entity_type: "invoice",
       entity_id: created.id,
       link_path: `/purchase-invoices/${created.id}`,
     });
 
-    return { success: true, message: 'Invoice submitted as draft for finance review.', data: this.toInvoiceItem(created) };
+    return {
+      success: true,
+      message: "Invoice submitted as draft for finance review.",
+      data: this.toInvoiceItem(created),
+    };
   }
 
   private toPaymentItem(p: {
@@ -348,7 +419,10 @@ export class VendorFinanceService {
     currency_code: string;
     unallocated_amount: unknown;
     reference_number: string | null;
-    allocations?: Array<{ amount: unknown; invoice?: { invoice_number?: string } | null }>;
+    allocations?: Array<{
+      amount: unknown;
+      invoice?: { invoice_number?: string } | null;
+    }>;
   }) {
     return {
       id: p.id,

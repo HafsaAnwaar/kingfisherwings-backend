@@ -1,8 +1,21 @@
-import { Injectable, Logger, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
-import * as Handlebars from 'handlebars';
-import * as fs from 'fs';
-import puppeteer, { type Browser, type PuppeteerLaunchOptions } from 'puppeteer';
-import { DocumentType, InvoiceType, JobType, QuotationPdfMode } from '@prisma/client';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  ServiceUnavailableException,
+} from "@nestjs/common";
+import * as Handlebars from "handlebars";
+import * as fs from "fs";
+import puppeteer, {
+  type Browser,
+  type PuppeteerLaunchOptions,
+} from "puppeteer";
+import {
+  DocumentType,
+  InvoiceType,
+  JobType,
+  QuotationPdfMode,
+} from "@prisma/client";
 
 export interface QuotationPdfData {
   quotation_number: string;
@@ -240,23 +253,28 @@ export class PdfService implements OnModuleDestroy {
 
   private async getBrowser(): Promise<Browser> {
     if (!this.browserPromise) {
-      this.browserPromise = puppeteer.launch(this.buildLaunchOptions()).catch((err) => {
-        this.browserPromise = null;
-        throw err;
-      });
+      this.browserPromise = puppeteer
+        .launch(this.buildLaunchOptions())
+        .catch((err) => {
+          this.browserPromise = null;
+          throw err;
+        });
     }
     return this.browserPromise;
   }
 
-  async generateQuotationPdf(data: QuotationPdfData, mode: QuotationPdfMode): Promise<Buffer> {
-    const showCosts = mode === 'INTERNAL';
+  async generateQuotationPdf(
+    data: QuotationPdfData,
+    mode: QuotationPdfMode,
+  ): Promise<Buffer> {
+    const showCosts = mode === "INTERNAL";
     const lines = showCosts ? data.lines : data.lines.filter((l) => !l.is_cost);
 
     const template = Handlebars.compile(QUOTATION_TEMPLATE);
     const html = template({
       ...data,
       mode,
-      title: mode === 'CUSTOMER' ? 'Quotation' : 'Internal Quotation',
+      title: mode === "CUSTOMER" ? "Quotation" : "Internal Quotation",
       lines,
       show_gp: showCosts,
     });
@@ -268,59 +286,72 @@ export class PdfService implements OnModuleDestroy {
     const template = Handlebars.compile(JOB_DOCUMENT_TEMPLATE);
     const html = template({
       ...data,
-      title: data.document_type.replace(/_/g, ' '),
-      watermark: data.is_original ? 'ORIGINAL' : 'DRAFT',
+      title: data.document_type.replace(/_/g, " "),
+      watermark: data.is_original ? "ORIGINAL" : "DRAFT",
     });
 
     return this.htmlToPdf(html);
   }
 
   async generateNvoccDocumentPdf(data: NvoccDocumentPdfData): Promise<Buffer> {
-    const isBlFamily = ['HBL', 'HBL_EXPRESS_RELEASE', 'MBL', 'SURRENDER_NOTICE'].includes(
-      data.document_type,
-    );
-    const isLoadList = data.document_type === 'NVOCC_LOAD_LIST';
+    const isBlFamily = [
+      "HBL",
+      "HBL_EXPRESS_RELEASE",
+      "MBL",
+      "SURRENDER_NOTICE",
+    ].includes(data.document_type);
+    const isLoadList = data.document_type === "NVOCC_LOAD_LIST";
 
     const template = Handlebars.compile(
-      isLoadList ? NVOCC_LOAD_LIST_TEMPLATE : isBlFamily ? NVOCC_BL_TEMPLATE : NVOCC_SUPPORT_TEMPLATE,
+      isLoadList
+        ? NVOCC_LOAD_LIST_TEMPLATE
+        : isBlFamily
+          ? NVOCC_BL_TEMPLATE
+          : NVOCC_SUPPORT_TEMPLATE,
     );
     const html = template({
       ...data,
-      show_signature: data.watermark === 'ORIGINAL',
+      show_signature: data.watermark === "ORIGINAL",
       show_containers: (data.containers?.length ?? 0) > 0,
       show_charges: (data.charge_lines?.length ?? 0) > 0,
-      show_pnl: data.document_type === 'JOB_PNL' || data.document_type === 'JOB_CARD',
+      show_pnl:
+        data.document_type === "JOB_PNL" || data.document_type === "JOB_CARD",
       show_load_list: (data.load_list_rows?.length ?? 0) > 0,
     });
 
     return this.htmlToPdf(html);
   }
 
-  async generateSeaFclDocumentPdf(data: SeaFclDocumentPdfData): Promise<Buffer> {
+  async generateSeaFclDocumentPdf(
+    data: SeaFclDocumentPdfData,
+  ): Promise<Buffer> {
     const isBlFamily = [
-      'HBL',
-      'HBL_EXPRESS_RELEASE',
-      'MBL',
-      'FIATA_BL',
-      'RIDER_BL',
-      'SWITCH_BL',
-      'PROXY_BL',
-      'BACK_TO_BACK_BL',
+      "HBL",
+      "HBL_EXPRESS_RELEASE",
+      "MBL",
+      "FIATA_BL",
+      "RIDER_BL",
+      "SWITCH_BL",
+      "PROXY_BL",
+      "BACK_TO_BACK_BL",
     ].includes(data.document_type);
 
-    const template = Handlebars.compile(isBlFamily ? SEA_FCL_BL_TEMPLATE : SEA_FCL_SUPPORT_TEMPLATE);
+    const template = Handlebars.compile(
+      isBlFamily ? SEA_FCL_BL_TEMPLATE : SEA_FCL_SUPPORT_TEMPLATE,
+    );
     const html = template({
       ...data,
-      show_signature: data.watermark === 'ORIGINAL',
+      show_signature: data.watermark === "ORIGINAL",
       show_containers: (data.containers?.length ?? 0) > 0,
       show_cargo: (data.cargo_lines?.length ?? 0) > 0,
       show_stuffing: (data.stuffing_records?.length ?? 0) > 0,
       show_charges: (data.charge_lines?.length ?? 0) > 0,
-      show_pnl: data.document_type === 'JOB_PNL' || data.document_type === 'JOB_CARD',
-      show_rider: !!data.rider_terms || data.document_type === 'RIDER_BL',
-      show_switch: data.document_type === 'SWITCH_BL',
-      show_proxy: data.document_type === 'PROXY_BL',
-      show_back_to_back: data.document_type === 'BACK_TO_BACK_BL',
+      show_pnl:
+        data.document_type === "JOB_PNL" || data.document_type === "JOB_CARD",
+      show_rider: !!data.rider_terms || data.document_type === "RIDER_BL",
+      show_switch: data.document_type === "SWITCH_BL",
+      show_proxy: data.document_type === "PROXY_BL",
+      show_back_to_back: data.document_type === "BACK_TO_BACK_BL",
     });
 
     return this.htmlToPdf(html);
@@ -329,13 +360,13 @@ export class PdfService implements OnModuleDestroy {
   async generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
     const template = Handlebars.compile(INVOICE_TEMPLATE);
     const title =
-      data.invoice_type === 'CREDIT_NOTE'
-        ? 'Credit Note'
-        : data.invoice_type === 'PURCHASE_INVOICE'
-          ? 'Purchase Invoice'
-          : data.invoice_type === 'DEBIT_NOTE'
-            ? 'Debit Note'
-            : 'Tax Invoice';
+      data.invoice_type === "CREDIT_NOTE"
+        ? "Credit Note"
+        : data.invoice_type === "PURCHASE_INVOICE"
+          ? "Purchase Invoice"
+          : data.invoice_type === "DEBIT_NOTE"
+            ? "Debit Note"
+            : "Tax Invoice";
 
     const html = template({ ...data, title });
     return this.htmlToPdf(html);
@@ -352,13 +383,13 @@ export class PdfService implements OnModuleDestroy {
       const browser = await this.getBrowser();
       page = await browser.newPage();
       await page.setContent(html, {
-        waitUntil: 'domcontentloaded',
+        waitUntil: "domcontentloaded",
         timeout: Number(process.env.PUPPETEER_TIMEOUT ?? 30_000),
       });
       const pdf = await page.pdf({
-        format: 'A4',
+        format: "A4",
         printBackground: true,
-        margin: { top: '20mm', bottom: '20mm' },
+        margin: { top: "20mm", bottom: "20mm" },
       });
       return Buffer.from(pdf);
     } catch (err) {
@@ -371,7 +402,7 @@ export class PdfService implements OnModuleDestroy {
       }
       throw new ServiceUnavailableException(
         `PDF generation is unavailable. ${message}. ` +
-          'Set PUPPETEER_EXECUTABLE_PATH to a Chromium binary (see docs/PDF_SETUP_GUIDE.md).',
+          "Set PUPPETEER_EXECUTABLE_PATH to a Chromium binary (see docs/PDF_SETUP_GUIDE.md).",
       );
     } finally {
       await page?.close().catch(() => undefined);
@@ -383,12 +414,12 @@ export class PdfService implements OnModuleDestroy {
     const options: PuppeteerLaunchOptions = {
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--font-render-hinting=none',
-        '--single-process',
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--font-render-hinting=none",
+        "--single-process",
       ],
     };
     if (executablePath) {
@@ -399,17 +430,17 @@ export class PdfService implements OnModuleDestroy {
   }
 
   private resolveChromiumPath(): string | undefined {
-    const fromEnv = (process.env.PUPPETEER_EXECUTABLE_PATH ?? '').trim();
+    const fromEnv = (process.env.PUPPETEER_EXECUTABLE_PATH ?? "").trim();
     if (fromEnv && fs.existsSync(fromEnv)) {
       return fromEnv;
     }
 
     // Common paths on Alpine / Debian Docker images used by Render.
     const candidates = [
-      '/usr/bin/chromium-browser',
-      '/usr/bin/chromium',
-      '/usr/bin/google-chrome',
-      '/usr/bin/google-chrome-stable',
+      "/usr/bin/chromium-browser",
+      "/usr/bin/chromium",
+      "/usr/bin/google-chrome",
+      "/usr/bin/google-chrome-stable",
     ];
     return candidates.find((p) => fs.existsSync(p));
   }

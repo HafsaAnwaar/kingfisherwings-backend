@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import {
   AccountSubType,
   DocumentNumberType,
@@ -6,25 +6,25 @@ import {
   InvoiceLine,
   Prisma,
   VoucherType,
-} from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 
 type InvoiceWithLines = Invoice & { lines: InvoiceLine[] };
 
 type TxClient = Prisma.TransactionClient;
 
 const VOUCHER_TYPE_PREFIX: Partial<Record<VoucherType, string>> = {
-  JOURNAL: 'JV',
-  BANK_PAYMENT: 'BPV',
-  CASH_PAYMENT: 'CPV',
-  BANK_RECEIPT: 'BRV',
-  CASH_RECEIPT: 'CRV',
-  CONTRA: 'CV',
-  PURCHASE_INVOICE: 'PIV',
-  PURCHASE_CREDIT_NOTE: 'PCN',
-  OPENING_BALANCE: 'OB',
-  RECURRING: 'RV',
+  JOURNAL: "JV",
+  BANK_PAYMENT: "BPV",
+  CASH_PAYMENT: "CPV",
+  BANK_RECEIPT: "BRV",
+  CASH_RECEIPT: "CRV",
+  CONTRA: "CV",
+  PURCHASE_INVOICE: "PIV",
+  PURCHASE_CREDIT_NOTE: "PCN",
+  OPENING_BALANCE: "OB",
+  RECURRING: "RV",
 };
 
 /**
@@ -58,29 +58,46 @@ export class GlAutoPostService {
           tenant_id: tenantId,
           invoice_id: invoiceId,
           deleted_at: null,
-          status: { in: ['POSTED', 'DRAFT'] },
+          status: { in: ["POSTED", "DRAFT"] },
           reversal_of_id: null,
         },
       });
       if (existing) {
-        return { voucher_id: existing.id, skipped: true, reason: 'Already posted to GL' };
+        return {
+          voucher_id: existing.id,
+          skipped: true,
+          reason: "Already posted to GL",
+        };
       }
 
       const invoice = await tx.invoice.findFirst({
         where: { id: invoiceId, tenant_id: tenantId, deleted_at: null },
-        include: { lines: { where: { deleted_at: null }, orderBy: { sort_order: 'asc' } } },
+        include: {
+          lines: {
+            where: { deleted_at: null },
+            orderBy: { sort_order: "asc" },
+          },
+        },
       });
       if (!invoice) {
-        throw new BadRequestException('Invoice not found for GL posting.');
+        throw new BadRequestException("Invoice not found for GL posting.");
       }
 
       try {
-        const voucherId = await this.createInvoiceVoucher(tx, tenantId, invoice, actorId);
+        const voucherId = await this.createInvoiceVoucher(
+          tx,
+          tenantId,
+          invoice,
+          actorId,
+        );
         return { voucher_id: voucherId, skipped: false };
       } catch (err) {
         // Never block operational invoice posting if COA is not seeded yet.
-        const message = err instanceof Error ? err.message : 'GL auto-post failed';
-        this.logger.warn(`Invoice ${invoice.invoice_number} GL auto-post skipped: ${message}`);
+        const message =
+          err instanceof Error ? err.message : "GL auto-post failed";
+        this.logger.warn(
+          `Invoice ${invoice.invoice_number} GL auto-post skipped: ${message}`,
+        );
         return { voucher_id: null, skipped: true, reason: message };
       }
     });
@@ -97,17 +114,19 @@ export class GlAutoPostService {
           tenant_id: tenantId,
           invoice_id: invoiceId,
           deleted_at: null,
-          status: 'POSTED',
+          status: "POSTED",
           reversal_of_id: null,
         },
-        include: { lines: { where: { deleted_at: null }, orderBy: { line_no: 'asc' } } },
+        include: {
+          lines: { where: { deleted_at: null }, orderBy: { line_no: "asc" } },
+        },
       });
       if (!original) return { reversed: false };
 
       const reversalNumber = await this.numberGenerator.generate(
         tenantId,
         DocumentNumberType.VOUCHER,
-        { extraSegment: VOUCHER_TYPE_PREFIX[original.voucher_type] ?? 'JV' },
+        { extraSegment: VOUCHER_TYPE_PREFIX[original.voucher_type] ?? "JV" },
       );
 
       await tx.voucher.create({
@@ -115,7 +134,7 @@ export class GlAutoPostService {
           tenant_id: tenantId,
           voucher_number: reversalNumber,
           voucher_type: original.voucher_type,
-          status: 'POSTED',
+          status: "POSTED",
           voucher_date: new Date(),
           currency_code: original.currency_code,
           exchange_rate: original.exchange_rate,
@@ -158,7 +177,7 @@ export class GlAutoPostService {
       await tx.voucher.update({
         where: { id: original.id },
         data: {
-          status: 'REVERSED',
+          status: "REVERSED",
           reversed_at: new Date(),
           reversed_by: actorId,
           updated_by: actorId,
@@ -175,12 +194,18 @@ export class GlAutoPostService {
     invoice: InvoiceWithLines,
     actorId?: string,
   ): Promise<string> {
-    const ar = await this.requireAccount(tx, tenantId, 'TRADE_RECEIVABLE', '1300');
-    const ap = await this.requireAccount(tx, tenantId, 'TRADE_PAYABLE', '2100');
-    const revenue = await this.requireAccount(tx, tenantId, 'REVENUE', '4100');
-    const cost = await this.requireAccount(tx, tenantId, 'EXPENSE', '5100');
-    const outputVat = await this.requireAccount(tx, tenantId, 'TAX', '2200');
-    const inputVat = await this.findAccount(tx, tenantId, 'TAX', '1400') ?? outputVat;
+    const ar = await this.requireAccount(
+      tx,
+      tenantId,
+      "TRADE_RECEIVABLE",
+      "1300",
+    );
+    const ap = await this.requireAccount(tx, tenantId, "TRADE_PAYABLE", "2100");
+    const revenue = await this.requireAccount(tx, tenantId, "REVENUE", "4100");
+    const cost = await this.requireAccount(tx, tenantId, "EXPENSE", "5100");
+    const outputVat = await this.requireAccount(tx, tenantId, "TAX", "2200");
+    const inputVat =
+      (await this.findAccount(tx, tenantId, "TAX", "1400")) ?? outputVat;
 
     const subtotal = Number(invoice.subtotal);
     const tax = Number(invoice.tax_amount);
@@ -196,14 +221,27 @@ export class GlAutoPostService {
       narration?: string;
     };
 
-    let voucherType: VoucherType = 'JOURNAL';
+    let voucherType: VoucherType = "JOURNAL";
     let lines: LineDraft[] = [];
 
-    if (invoice.invoice_type === 'CUSTOMER_INVOICE' || invoice.invoice_type === 'DEBIT_NOTE') {
-      voucherType = 'JOURNAL';
+    if (
+      invoice.invoice_type === "CUSTOMER_INVOICE" ||
+      invoice.invoice_type === "DEBIT_NOTE"
+    ) {
+      voucherType = "JOURNAL";
       lines = [
-        { account_id: ar.id, debit: total, credit: 0, narration: `AR ${invoice.invoice_number}` },
-        { account_id: revenue.id, debit: 0, credit: subtotal, narration: `Revenue ${invoice.invoice_number}` },
+        {
+          account_id: ar.id,
+          debit: total,
+          credit: 0,
+          narration: `AR ${invoice.invoice_number}`,
+        },
+        {
+          account_id: revenue.id,
+          debit: 0,
+          credit: subtotal,
+          narration: `Revenue ${invoice.invoice_number}`,
+        },
       ];
       if (tax > 0) {
         lines.push({
@@ -213,11 +251,21 @@ export class GlAutoPostService {
           narration: `Output VAT ${invoice.invoice_number}`,
         });
       }
-    } else if (invoice.invoice_type === 'CREDIT_NOTE') {
-      voucherType = 'JOURNAL';
+    } else if (invoice.invoice_type === "CREDIT_NOTE") {
+      voucherType = "JOURNAL";
       lines = [
-        { account_id: revenue.id, debit: subtotal, credit: 0, narration: `CN revenue ${invoice.invoice_number}` },
-        { account_id: ar.id, debit: 0, credit: total, narration: `CN AR ${invoice.invoice_number}` },
+        {
+          account_id: revenue.id,
+          debit: subtotal,
+          credit: 0,
+          narration: `CN revenue ${invoice.invoice_number}`,
+        },
+        {
+          account_id: ar.id,
+          debit: 0,
+          credit: total,
+          narration: `CN AR ${invoice.invoice_number}`,
+        },
       ];
       if (tax > 0) {
         lines.splice(1, 0, {
@@ -227,11 +275,21 @@ export class GlAutoPostService {
           narration: `CN VAT ${invoice.invoice_number}`,
         });
       }
-    } else if (invoice.invoice_type === 'PURCHASE_INVOICE') {
-      voucherType = 'PURCHASE_INVOICE';
+    } else if (invoice.invoice_type === "PURCHASE_INVOICE") {
+      voucherType = "PURCHASE_INVOICE";
       lines = [
-        { account_id: cost.id, debit: subtotal, credit: 0, narration: `Cost ${invoice.invoice_number}` },
-        { account_id: ap.id, debit: 0, credit: total, narration: `AP ${invoice.invoice_number}` },
+        {
+          account_id: cost.id,
+          debit: subtotal,
+          credit: 0,
+          narration: `Cost ${invoice.invoice_number}`,
+        },
+        {
+          account_id: ap.id,
+          debit: 0,
+          credit: total,
+          narration: `AP ${invoice.invoice_number}`,
+        },
       ];
       if (tax > 0) {
         lines.splice(1, 0, {
@@ -242,7 +300,9 @@ export class GlAutoPostService {
         });
       }
     } else {
-      throw new BadRequestException(`Unsupported invoice type for GL: ${invoice.invoice_type}`);
+      throw new BadRequestException(
+        `Unsupported invoice type for GL: ${invoice.invoice_type}`,
+      );
     }
 
     const debit = lines.reduce((s, l) => s + l.debit, 0);
@@ -256,7 +316,7 @@ export class GlAutoPostService {
     const voucherNumber = await this.numberGenerator.generate(
       tenantId,
       DocumentNumberType.VOUCHER,
-      { extraSegment: VOUCHER_TYPE_PREFIX[voucherType] ?? 'JV' },
+      { extraSegment: VOUCHER_TYPE_PREFIX[voucherType] ?? "JV" },
     );
 
     const voucher = await tx.voucher.create({
@@ -264,7 +324,7 @@ export class GlAutoPostService {
         tenant_id: tenantId,
         voucher_number: voucherNumber,
         voucher_type: voucherType,
-        status: 'POSTED',
+        status: "POSTED",
         voucher_date: invoice.invoice_date,
         currency_code: invoice.currency_code,
         exchange_rate: rate,
@@ -334,7 +394,7 @@ export class GlAutoPostService {
         is_postable: true,
         account_sub_type: subType,
       },
-      orderBy: { account_code: 'asc' },
+      orderBy: { account_code: "asc" },
     });
     if (byType) return byType;
 
@@ -360,35 +420,48 @@ export class GlAutoPostService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       if (opts.gl_account_id) {
         const a = await tx.chartOfAccount.findFirst({
-          where: { id: opts.gl_account_id, tenant_id: tenantId, deleted_at: null, is_postable: true },
+          where: {
+            id: opts.gl_account_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+            is_postable: true,
+          },
         });
-        if (!a) throw new BadRequestException('GL account not found.');
+        if (!a) throw new BadRequestException("GL account not found.");
         return a;
       }
       if (opts.bank_account_id) {
         const bank = await tx.tenantBankAccount.findFirst({
-          where: { id: opts.bank_account_id, tenant_id: tenantId, deleted_at: null },
+          where: {
+            id: opts.bank_account_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
         });
         if (bank?.gl_account_id) {
           const linked = await tx.chartOfAccount.findFirst({
-            where: { id: bank.gl_account_id, tenant_id: tenantId, deleted_at: null },
+            where: {
+              id: bank.gl_account_id,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
           });
           if (linked) return linked;
         }
       }
-      if (opts.payment_method === 'CASH') {
-        return this.requireAccount(tx, tenantId, 'CASH', '1100');
+      if (opts.payment_method === "CASH") {
+        return this.requireAccount(tx, tenantId, "CASH", "1100");
       }
-      return this.requireAccount(tx, tenantId, 'BANK', '1200');
+      return this.requireAccount(tx, tenantId, "BANK", "1200");
     });
   }
 
-  async resolveArApAccount(tenantId: string, direction: 'RECEIPT' | 'PAYMENT') {
+  async resolveArApAccount(tenantId: string, direction: "RECEIPT" | "PAYMENT") {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      if (direction === 'RECEIPT') {
-        return this.requireAccount(tx, tenantId, 'TRADE_RECEIVABLE', '1300');
+      if (direction === "RECEIPT") {
+        return this.requireAccount(tx, tenantId, "TRADE_RECEIVABLE", "1300");
       }
-      return this.requireAccount(tx, tenantId, 'TRADE_PAYABLE', '2100');
+      return this.requireAccount(tx, tenantId, "TRADE_PAYABLE", "2100");
     });
   }
 
@@ -407,12 +480,16 @@ export class GlAutoPostService {
           tenant_id: tenantId,
           payroll_run_id: payrollRunId,
           deleted_at: null,
-          status: { in: ['POSTED', 'DRAFT'] },
+          status: { in: ["POSTED", "DRAFT"] },
           reversal_of_id: null,
         },
       });
       if (existing) {
-        return { voucher_id: existing.id, skipped: true, reason: 'Already posted to GL' };
+        return {
+          voucher_id: existing.id,
+          skipped: true,
+          reason: "Already posted to GL",
+        };
       }
 
       const run = await tx.hrPayrollRun.findFirst({
@@ -420,10 +497,12 @@ export class GlAutoPostService {
         include: { lines: true },
       });
       if (!run) {
-        throw new BadRequestException('Payroll run not found for GL posting.');
+        throw new BadRequestException("Payroll run not found for GL posting.");
       }
-      if (run.status === 'DRAFT') {
-        throw new BadRequestException('Payroll run must be finalized before GL posting.');
+      if (run.status === "DRAFT") {
+        throw new BadRequestException(
+          "Payroll run must be finalized before GL posting.",
+        );
       }
 
       const settings = await tx.hrPayrollGlSetting.findFirst({
@@ -432,37 +511,57 @@ export class GlAutoPostService {
 
       const salaryExpense = settings?.salary_expense_account_id
         ? await tx.chartOfAccount.findFirst({
-            where: { id: settings.salary_expense_account_id, tenant_id: tenantId, deleted_at: null },
+            where: {
+              id: settings.salary_expense_account_id,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
           })
-        : (await this.findAccount(tx, tenantId, 'EXPENSE', '6200')) ??
-          (await this.findAccount(tx, tenantId, 'EXPENSE', '6100'));
+        : ((await this.findAccount(tx, tenantId, "EXPENSE", "6200")) ??
+          (await this.findAccount(tx, tenantId, "EXPENSE", "6100")));
 
       const payrollPayable = settings?.payroll_payable_account_id
         ? await tx.chartOfAccount.findFirst({
-            where: { id: settings.payroll_payable_account_id, tenant_id: tenantId, deleted_at: null },
+            where: {
+              id: settings.payroll_payable_account_id,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
           })
-        : (await this.findAccount(tx, tenantId, 'GENERAL', '2300')) ??
-          (await this.findAccount(tx, tenantId, 'TRADE_PAYABLE', '2100'));
+        : ((await this.findAccount(tx, tenantId, "GENERAL", "2300")) ??
+          (await this.findAccount(tx, tenantId, "TRADE_PAYABLE", "2100")));
 
       if (!salaryExpense || !payrollPayable) {
         return {
           voucher_id: null,
           skipped: true,
-          reason: 'Missing salary expense or payroll payable GL account.',
+          reason: "Missing salary expense or payroll payable GL account.",
         };
       }
 
       let deductionAccount = settings?.deduction_account_id
         ? await tx.chartOfAccount.findFirst({
-            where: { id: settings.deduction_account_id, tenant_id: tenantId, deleted_at: null },
+            where: {
+              id: settings.deduction_account_id,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
           })
         : null;
 
       const grossTotal = run.lines.reduce((s, l) => s + Number(l.gross_pay), 0);
       const netTotal = run.lines.reduce((s, l) => s + Number(l.net_pay), 0);
-      const deductionsTotal = run.lines.reduce((s, l) => s + Number(l.total_deductions), 0);
+      const deductionsTotal = run.lines.reduce(
+        (s, l) => s + Number(l.total_deductions),
+        0,
+      );
 
-      type LineDraft = { account_id: string; debit: number; credit: number; narration?: string };
+      type LineDraft = {
+        account_id: string;
+        debit: number;
+        credit: number;
+        narration?: string;
+      };
       const lines: LineDraft[] = [
         {
           account_id: salaryExpense.id,
@@ -480,7 +579,12 @@ export class GlAutoPostService {
 
       if (deductionsTotal > 0) {
         if (!deductionAccount) {
-          deductionAccount = await this.findAccount(tx, tenantId, 'GENERAL', '2300');
+          deductionAccount = await this.findAccount(
+            tx,
+            tenantId,
+            "GENERAL",
+            "2300",
+          );
         }
         if (deductionAccount) {
           lines.push({
@@ -505,19 +609,19 @@ export class GlAutoPostService {
       const voucherNumber = await this.numberGenerator.generate(
         tenantId,
         DocumentNumberType.VOUCHER,
-        { extraSegment: VOUCHER_TYPE_PREFIX.JOURNAL ?? 'JV' },
+        { extraSegment: VOUCHER_TYPE_PREFIX.JOURNAL ?? "JV" },
       );
 
       const voucher = await tx.voucher.create({
         data: {
           tenant_id: tenantId,
           voucher_number: voucherNumber,
-          voucher_type: 'JOURNAL',
-          status: 'POSTED',
+          voucher_type: "JOURNAL",
+          status: "POSTED",
           voucher_date: run.period_end,
           currency_code: run.currency_code,
           exchange_rate: 1,
-          narration: `Payroll run ${run.payroll_year}-${String(run.payroll_month).padStart(2, '0')}`,
+          narration: `Payroll run ${run.payroll_year}-${String(run.payroll_month).padStart(2, "0")}`,
           reference_number: `${run.payroll_year}-${run.payroll_month}`,
           company_id: run.company_id,
           payroll_run_id: payrollRunId,
