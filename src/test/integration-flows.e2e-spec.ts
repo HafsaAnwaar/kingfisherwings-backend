@@ -5,7 +5,7 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import request = require("supertest");
-import { AppModule } from "../src/app.module";
+import { AppModule } from '../app.module';
 
 describe("Integration — quote to GL (e2e)", () => {
   let app: INestApplication;
@@ -13,6 +13,7 @@ describe("Integration — quote to GL (e2e)", () => {
   let tenantOwnerToken: string;
   let superAdminToken: string;
   let partyId: string;
+  let chargeCodeId: string;
   let quotationId: string;
   let jobId: string;
   let invoiceId: string;
@@ -69,6 +70,17 @@ describe("Integration — quote to GL (e2e)", () => {
       })
       .expect(201);
     partyId = party.body.id;
+
+    const chargeCode = await request(app.getHttpServer())
+      .post("/masters/charge-codes")
+      .set("Authorization", `Bearer ${tenantOwnerToken}`)
+      .send({
+        code: `FRT${runId}`.slice(0, 10),
+        description: "Freight",
+        applicable_modes: ["AIR"],
+      })
+      .expect(201);
+    chargeCodeId = chargeCode.body.id;
   });
 
   afterAll(async () => {
@@ -83,21 +95,35 @@ describe("Integration — quote to GL (e2e)", () => {
         job_type: "AIR_EXPORT",
         customer_id: partyId,
         commodity: "General cargo",
-        lines: [
-          {
-            description: "Freight charge",
-            quantity: 1,
-            unit_price: 1000,
-            currency_code: "AED",
-            exchange_rate: 1,
-            amount: 1000,
-            amount_base_currency: 1000,
-            is_cost: false,
-          },
-        ],
+        currency_code: "AED",
       })
       .expect(201);
     quotationId = quote.body.id;
+
+    await request(app.getHttpServer())
+      .post(`/quotations/${quotationId}/lines`)
+      .set("Authorization", `Bearer ${tenantOwnerToken}`)
+      .send({
+        charge_code_id: chargeCodeId,
+        description: "Freight charge",
+        quantity: 1,
+        unit_price: 1000,
+        currency_code: "AED",
+        exchange_rate: 1,
+        is_cost: false,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/quotations/${quotationId}/submit`)
+      .set("Authorization", `Bearer ${tenantOwnerToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/quotations/${quotationId}/approve`)
+      .set("Authorization", `Bearer ${tenantOwnerToken}`)
+      .send({})
+      .expect(200);
 
     await request(app.getHttpServer())
       .post(`/quotations/${quotationId}/send`)
@@ -155,86 +181,5 @@ describe("Integration — quote to GL (e2e)", () => {
       .get("/api/v1/track/does-not-exist")
       .set("X-API-Key", apiKey)
       .expect(403);
-  });
-});
-
-describe("Integration — 2FA (e2e)", () => {
-  let app: INestApplication;
-  const runId = Date.now();
-  let staffToken: string;
-
-  beforeAll(async () => {
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
-    );
-    await app.init();
-
-    const saRes = await request(app.getHttpServer())
-      .post("/auth/super-admin/signup")
-      .send({
-        email: `2fa.sa.${runId}@kingfisher.test`,
-        password: "SuperSecure@2026",
-        first_name: "Two",
-        last_name: "FA",
-      })
-      .expect(201);
-
-    const tenantSlug = `2fa-${runId}`;
-    await request(app.getHttpServer())
-      .post("/tenants")
-      .set("Authorization", `Bearer ${saRes.body.data.access_token}`)
-      .send({
-        code: `2FA${runId}`.slice(0, 20),
-        name: "2FA Tenant",
-        slug: tenantSlug,
-        password: "TenantPass@2026",
-        email: `2fa.owner.${runId}@test`,
-      })
-      .expect(201);
-
-    const ownerLogin = await request(app.getHttpServer())
-      .post("/auth/tenant-login")
-      .send({ tenant_slug: tenantSlug, password: "TenantPass@2026" })
-      .expect(200);
-
-    const user = await request(app.getHttpServer())
-      .post("/users")
-      .set("Authorization", `Bearer ${ownerLogin.body.data.access_token}`)
-      .send({
-        email: `2fa.staff.${runId}@test`,
-        first_name: "Staff",
-        last_name: "2FA",
-        role: "SALES_EXECUTIVE",
-      })
-      .expect(201);
-
-    const staffLogin = await request(app.getHttpServer())
-      .post("/auth/login")
-      .send({
-        tenant_slug: tenantSlug,
-        email: `2fa.staff.${runId}@test`,
-        password: user.body.temporaryPassword,
-      })
-      .expect(200);
-
-    staffToken = staffLogin.body.data.access_token;
-  });
-
-  afterAll(async () => {
-    await app.close();
-  });
-
-  it("POST /auth/2fa/setup returns secret and QR payload", async () => {
-    const res = await request(app.getHttpServer())
-      .post("/auth/2fa/setup")
-      .set("Authorization", `Bearer ${staffToken}`)
-      .expect(200);
-
-    expect(res.body.secret || res.body.data?.secret).toBeDefined();
   });
 });

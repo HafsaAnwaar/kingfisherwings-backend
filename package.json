@@ -17,7 +17,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
+    "test:e2e": "jest --config ./src/test/jest-e2e.json --runInBand",
     "test:live": "node scripts/live-api-test-suite.cjs",
     "test:live:fetch-spec": "node -e \"fetch((process.env.BASE_URL||'https://kingfisherwings.onrender.com')+'/docs-json').then(r=>r.json()).then(j=>require('fs').writeFileSync('openapi-live.json',JSON.stringify(j,null,2))).then(()=>console.log('saved openapi-live.json'))\"",
     "test:live:catalog": "node scripts/generate-live-test-catalog.cjs",
