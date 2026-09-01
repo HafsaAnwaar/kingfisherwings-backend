@@ -28,8 +28,8 @@ const TWO_FA_SETUP_PATHS = [
 
 /**
  * Unlinked until product completion (`AUTH_2FA_LINKED`). When linked and
- * ADMIN_2FA_REQUIRED is true, tenant admins and super admins must
- * enable 2FA before using ERP routes (setup endpoints remain reachable).
+ * `ADMIN_2FA_REQUIRED=true`, tenant admins and super admins must enable 2FA
+ * before using ERP routes (setup endpoints remain reachable).
  */
 @Injectable()
 export class MandatoryAdminTwoFactorGuard implements CanActivate {
@@ -145,11 +145,7 @@ export class MandatoryAdminTwoFactorGuard implements CanActivate {
   }
 
   private isAdminTwoFactorRequired(): boolean {
-    const flag = this.config.get<string>("ADMIN_2FA_REQUIRED");
-    if (flag === "true") return true;
-    if (flag === "false") return false;
-    return (
-      (this.config.get<string>("NODE_ENV") ?? "development") === "production"
-    );
+    // Opt-in only — never default to required in production.
+    return this.config.get<string>("ADMIN_2FA_REQUIRED") === "true";
   }
 }
