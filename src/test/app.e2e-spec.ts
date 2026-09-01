@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import request = require("supertest");
 
-import { AppModule } from "../src/app.module";
+import { AppModule } from '../app.module';
 
 /**
  * Requires a real, reachable PostgreSQL database at DATABASE_URL with
