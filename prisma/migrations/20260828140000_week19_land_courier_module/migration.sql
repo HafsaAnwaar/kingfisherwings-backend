@@ -172,11 +172,6 @@ ALTER TABLE "transport_requests"
     FOREIGN KEY ("zip_distance_id") REFERENCES "zip_distances"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE "transport_requests"
-    ADD CONSTRAINT "transport_requests_zip_distance_id_fkey"
-    FOREIGN KEY ("zip_distance_id") REFERENCES "zip_distances"("id") ON DELETE SET NULL
-    ON UPDATE CASCADE;
-
-ALTER TABLE "transport_requests"
     ADD CONSTRAINT "transport_requests_job_charge_id_fkey"
     FOREIGN KEY ("job_charge_id") REFERENCES "job_charges"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -201,9 +196,6 @@ CREATE TABLE "courier_delivery_checkpoints" (
 CREATE INDEX "courier_delivery_checkpoints_tenant_id_idx" ON "courier_delivery_checkpoints"("tenant_id");
 CREATE INDEX "courier_delivery_checkpoints_tenant_id_job_id_idx" ON "courier_delivery_checkpoints"("tenant_id", "job_id");
 
-CREATE INDEX "courier_delievry_checkpoints_tenant_id_idx" ON "courier_delievery_checkpoints"("tenant_id");
-CREATE INDEX "courier_delievery_checkpoints_tenant_id_idx" ON "courier_delievery_checkpoints"("tenant_id", "job_id");
-
 ALTER TABLE "courier_delivery_checkpoints"
     ADD CONSTRAINT "courier_delivery_checkpoints_job_id_fkey"
     FOREIGN KEY ("job_id") REFERENCES "jobs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -213,15 +205,3 @@ SELECT enable_rls_for_table('land_job_details');
 SELECT enable_rls_for_table('courier_job_details');
 SELECT enable_rls_for_table('transport_requests');
 SELECT enable_rls_for_table('courier_delivery_checkpoints');
-SELECT enable_rls_for_table('courier_vendors');
-SELECT enable_rls_for_table('land_job_details');
-SELECT enable_rls_for_table('courier_job_details');
-SELECT enable_rls_for_table('transport_requests');
-SELECT enable_rls_for_table('courier_delievery_checkpoints');
-SELECT enable_rls_for_table('courier_vendors');
-SELECT enable_rls_for_table('land_job_details');
-SELECT enable_rls_for_table('courier_job_details');
-SELECT enable_rls_for_table('transport_requests');
-SELECT enable_rls_for_table('courier_delievery_service');
-
-
