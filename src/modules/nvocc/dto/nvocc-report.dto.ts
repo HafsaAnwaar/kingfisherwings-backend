@@ -1,6 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { NvoccVoyageStatus } from '@prisma/client';
-import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { NvoccVoyageStatus } from "@prisma/client";
+import { IsDateString, IsEnum, IsOptional, IsUUID } from "class-validator";
 
 export class NvoccUtilizationQueryDto {
   @ApiPropertyOptional({ enum: NvoccVoyageStatus })
@@ -8,17 +8,21 @@ export class NvoccUtilizationQueryDto {
   @IsEnum(NvoccVoyageStatus)
   voyage_status?: NvoccVoyageStatus;
 
-  @ApiPropertyOptional({ description: 'Filter voyages with ETD on or after this date' })
+  @ApiPropertyOptional({
+    description: "Filter voyages with ETD on or after this date",
+  })
   @IsOptional()
   @IsDateString()
   from?: string;
 
-  @ApiPropertyOptional({ description: 'Filter voyages with ETD on or before this date' })
+  @ApiPropertyOptional({
+    description: "Filter voyages with ETD on or before this date",
+  })
   @IsOptional()
   @IsDateString()
   to?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
@@ -35,8 +39,8 @@ export class NvoccTradeLaneProfitabilityQueryDto {
   @IsDateString()
   to?: string;
 
-  @ApiPropertyOptional({ enum: ['pol_pod', 'tariff_lane'], default: 'pol_pod' })
+  @ApiPropertyOptional({ enum: ["pol_pod", "tariff_lane"], default: "pol_pod" })
   @IsOptional()
-  @IsEnum(['pol_pod', 'tariff_lane'])
-  group_by?: 'pol_pod' | 'tariff_lane';
+  @IsEnum(["pol_pod", "tariff_lane"])
+  group_by?: "pol_pod" | "tariff_lane";
 }

@@ -1,10 +1,10 @@
 export const CRM_PERMISSION_CONSTANTS = {
-  MODULE: 'crm',
+  MODULE: "crm",
   ACTIONS: {
-    VIEW: 'view',
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
+    VIEW: "view",
+    CREATE: "create",
+    UPDATE: "update",
+    DELETE: "delete",
   },
 } as const;
 

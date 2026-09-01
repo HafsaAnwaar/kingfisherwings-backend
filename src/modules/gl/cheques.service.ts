@@ -2,15 +2,15 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 import {
   BounceChequeDto,
   ChequeQueryDto,
   CreateChequeDto,
   UpdateChequeDto,
-} from './dto/ar-ap.dto';
+} from "./dto/ar-ap.dto";
 
 @Injectable()
 export class ChequesService {
@@ -36,7 +36,7 @@ export class ChequesService {
           party: { select: { id: true, code: true, name: true } },
           payment: { select: { id: true, payment_number: true, status: true } },
         },
-        orderBy: [{ due_date: 'asc' }, { cheque_date: 'desc' }],
+        orderBy: [{ due_date: "asc" }, { cheque_date: "desc" }],
       }),
     );
   }
@@ -51,7 +51,7 @@ export class ChequesService {
         },
       }),
     );
-    if (!cheque) throw new NotFoundException('Cheque not found.');
+    if (!cheque) throw new NotFoundException("Cheque not found.");
     return cheque;
   }
 
@@ -60,7 +60,7 @@ export class ChequesService {
     until.setDate(until.getDate() + withinDays);
     return this.findAll(tenantId, {
       is_pdc: true,
-      status: 'PENDING',
+      status: "PENDING",
       due_before: until.toISOString().slice(0, 10),
     });
   }
@@ -70,7 +70,7 @@ export class ChequesService {
       const party = await tx.party.findFirst({
         where: { id: dto.party_id, tenant_id: tenantId, deleted_at: null },
       });
-      if (!party) throw new NotFoundException('Party not found.');
+      if (!party) throw new NotFoundException("Party not found.");
 
       return tx.cheque.create({
         data: {
@@ -85,7 +85,9 @@ export class ChequesService {
           currency_code: dto.currency_code,
           cheque_date: new Date(dto.cheque_date),
           due_date: dto.due_date ? new Date(dto.due_date) : undefined,
-          is_pdc: dto.is_pdc ?? Boolean(dto.due_date && dto.due_date > dto.cheque_date),
+          is_pdc:
+            dto.is_pdc ??
+            Boolean(dto.due_date && dto.due_date > dto.cheque_date),
           remarks: dto.remarks,
           created_by: actorId,
           updated_by: actorId,
@@ -94,22 +96,37 @@ export class ChequesService {
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdateChequeDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateChequeDto,
+    actorId?: string,
+  ) {
     const existing = await this.findOne(tenantId, id);
-    if (existing.status !== 'PENDING') {
-      throw new BadRequestException('Only pending cheques can be updated.');
+    if (existing.status !== "PENDING") {
+      throw new BadRequestException("Only pending cheques can be updated.");
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.cheque.update({
         where: { id },
         data: {
-          ...(dto.cheque_number !== undefined ? { cheque_number: dto.cheque_number } : {}),
+          ...(dto.cheque_number !== undefined
+            ? { cheque_number: dto.cheque_number }
+            : {}),
           ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
-          ...(dto.currency_code !== undefined ? { currency_code: dto.currency_code } : {}),
-          ...(dto.cheque_date !== undefined ? { cheque_date: new Date(dto.cheque_date) } : {}),
-          ...(dto.due_date !== undefined ? { due_date: new Date(dto.due_date) } : {}),
+          ...(dto.currency_code !== undefined
+            ? { currency_code: dto.currency_code }
+            : {}),
+          ...(dto.cheque_date !== undefined
+            ? { cheque_date: new Date(dto.cheque_date) }
+            : {}),
+          ...(dto.due_date !== undefined
+            ? { due_date: new Date(dto.due_date) }
+            : {}),
           ...(dto.is_pdc !== undefined ? { is_pdc: dto.is_pdc } : {}),
-          ...(dto.bank_account_id !== undefined ? { bank_account_id: dto.bank_account_id } : {}),
+          ...(dto.bank_account_id !== undefined
+            ? { bank_account_id: dto.bank_account_id }
+            : {}),
           ...(dto.bank_name !== undefined ? { bank_name: dto.bank_name } : {}),
           ...(dto.remarks !== undefined ? { remarks: dto.remarks } : {}),
           updated_by: actorId,
@@ -120,27 +137,33 @@ export class ChequesService {
 
   async deposit(tenantId: string, id: string, actorId?: string) {
     const cheque = await this.findOne(tenantId, id);
-    if (cheque.status !== 'PENDING') {
-      throw new BadRequestException('Only pending cheques can be deposited.');
+    if (cheque.status !== "PENDING") {
+      throw new BadRequestException("Only pending cheques can be deposited.");
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.cheque.update({
         where: { id },
-        data: { status: 'DEPOSITED', deposited_at: new Date(), updated_by: actorId },
+        data: {
+          status: "DEPOSITED",
+          deposited_at: new Date(),
+          updated_by: actorId,
+        },
       }),
     );
   }
 
   async clear(tenantId: string, id: string, actorId?: string) {
     const cheque = await this.findOne(tenantId, id);
-    if (!['PENDING', 'DEPOSITED'].includes(cheque.status)) {
-      throw new BadRequestException('Only pending/deposited cheques can be cleared.');
+    if (!["PENDING", "DEPOSITED"].includes(cheque.status)) {
+      throw new BadRequestException(
+        "Only pending/deposited cheques can be cleared.",
+      );
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.cheque.update({
         where: { id },
         data: {
-          status: 'CLEARED',
+          status: "CLEARED",
           cleared_at: new Date(),
           deposited_at: cheque.deposited_at ?? new Date(),
           updated_by: actorId,
@@ -149,16 +172,23 @@ export class ChequesService {
     );
   }
 
-  async bounce(tenantId: string, id: string, dto: BounceChequeDto, actorId?: string) {
+  async bounce(
+    tenantId: string,
+    id: string,
+    dto: BounceChequeDto,
+    actorId?: string,
+  ) {
     const cheque = await this.findOne(tenantId, id);
-    if (!['PENDING', 'DEPOSITED'].includes(cheque.status)) {
-      throw new BadRequestException('Only pending/deposited cheques can bounce.');
+    if (!["PENDING", "DEPOSITED"].includes(cheque.status)) {
+      throw new BadRequestException(
+        "Only pending/deposited cheques can bounce.",
+      );
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.cheque.update({
         where: { id },
         data: {
-          status: 'BOUNCED',
+          status: "BOUNCED",
           bounced_at: new Date(),
           bounce_reason: dto.reason,
           updated_by: actorId,
@@ -169,13 +199,17 @@ export class ChequesService {
 
   async cancel(tenantId: string, id: string, actorId?: string) {
     const cheque = await this.findOne(tenantId, id);
-    if (cheque.status === 'CLEARED') {
-      throw new BadRequestException('Cleared cheques cannot be cancelled.');
+    if (cheque.status === "CLEARED") {
+      throw new BadRequestException("Cleared cheques cannot be cancelled.");
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.cheque.update({
         where: { id },
-        data: { status: 'CANCELLED', deleted_at: new Date(), updated_by: actorId },
+        data: {
+          status: "CANCELLED",
+          deleted_at: new Date(),
+          updated_by: actorId,
+        },
       }),
     );
   }

@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   BudgetPeriodType,
   CallOutcome,
@@ -10,8 +10,8 @@ import {
   LeadPriority,
   LeadSource,
   LeadStatus,
-} from '@prisma/client';
-import { Transform, Type } from 'class-transformer';
+} from "@prisma/client";
+import { Transform, Type } from "class-transformer";
 import {
   ArrayUnique,
   IsArray,
@@ -26,8 +26,8 @@ import {
   Length,
   Max,
   Min,
-} from 'class-validator';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+} from "class-validator";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
 export class PaginationQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -88,7 +88,7 @@ export class CreateLeadDto {
   @IsEnum(LeadStatus)
   status?: LeadStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   assigned_salesperson_id?: string;
@@ -129,7 +129,7 @@ export class LeadQueryDto extends PaginationQueryDto {
   @IsEnum(LeadSource)
   source?: LeadSource;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   assigned_salesperson_id?: string;
@@ -141,7 +141,7 @@ export class LeadQueryDto extends PaginationQueryDto {
 }
 
 export class ConvertLeadDto {
-  @ApiPropertyOptional({ example: 'CUST-1001' })
+  @ApiPropertyOptional({ example: "CUST-1001" })
   @IsOptional()
   @IsString()
   @Length(1, 30)
@@ -149,12 +149,12 @@ export class ConvertLeadDto {
 }
 
 export class CreateCallLogDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   lead_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
@@ -221,34 +221,34 @@ export class CallLogQueryDto extends PaginationQueryDto {
   @IsDateString()
   date?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   lead_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 }
 
 export class CreateFollowUpDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   lead_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   enquiry_id?: string;
@@ -267,7 +267,7 @@ export class CreateFollowUpDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   owner_id?: string;
@@ -281,11 +281,11 @@ export class FollowUpQueryDto extends PaginationQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => value === true || value === 'true')
+  @Transform(({ value }) => value === true || value === "true")
   @IsBoolean()
   team?: boolean;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   owner_id?: string;
@@ -319,17 +319,17 @@ export class PatchFollowUpDto {
 }
 
 export class CreateEnquiryDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   lead_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
@@ -338,12 +338,12 @@ export class CreateEnquiryDto {
   @IsEnum(JobType)
   service_type!: JobType;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
@@ -364,7 +364,7 @@ export class CreateEnquiryDto {
   @IsString()
   special_requirements?: string;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
@@ -383,14 +383,14 @@ export class EnquiryQueryDto extends PaginationQueryDto {
   @IsEnum(EnquiryStatus)
   status?: EnquiryStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
 }
 
 export class CreateBudgetDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   salesperson_id!: string;
 
@@ -431,7 +431,7 @@ export class CreateSubscriberDto {
   @IsString()
   full_name?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
@@ -510,7 +510,7 @@ export class DashboardQueryDto {
   @IsDateString()
   to?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;

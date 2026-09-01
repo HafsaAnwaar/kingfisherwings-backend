@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserRole, UserStatus } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { UserRole, UserStatus } from "@prisma/client";
 
 /**
  * Explicit outward-facing shape for a single user. Built field-by-field
@@ -17,7 +17,8 @@ export class UserResponse {
 
   @ApiPropertyOptional() phone?: string;
   @ApiPropertyOptional({
-    description: 'Optional preferred country (ISO 3166-1 alpha-2). Not required.',
+    description:
+      "Optional preferred country (ISO 3166-1 alpha-2). Not required.",
   })
   preferred_country_code?: string;
   @ApiPropertyOptional() avatar_url?: string;

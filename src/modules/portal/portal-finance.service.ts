@@ -1,21 +1,30 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { InvoiceStatus, InvoiceType, PortalDocumentType, Prisma } from '@prisma/client';
-import { Response } from 'express';
-import { PrismaService } from '../../prisma/prisma.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { PdfService } from '../../shared/pdf/pdf.service';
-import { ArApService } from '../gl/ar-ap.service';
-import { PaymentsService } from '../gl/payments.service';
-import { InvoicesService } from '../invoices/invoices.service';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  InvoiceStatus,
+  InvoiceType,
+  PortalDocumentType,
+  Prisma,
+} from "@prisma/client";
+import { Response } from "express";
+import { PrismaService } from "../../prisma/prisma.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { PdfService } from "../../shared/pdf/pdf.service";
+import { ArApService } from "../gl/ar-ap.service";
+import { PaymentsService } from "../gl/payments.service";
+import { InvoicesService } from "../invoices/invoices.service";
 import {
   PortalCreditAgingQueryDto,
   PortalInvoiceQueryDto,
   PortalPaymentQueryDto,
   PORTAL_VISIBLE_INVOICE_STATUSES,
-} from './dto/portal-finance.dto';
-import { PORTAL_CSV_EXPORT_MAX_ROWS, toCsv } from './helpers/portal-csv.helper';
-import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
-import { PortalPermissionsService } from './portal-permissions.service';
+} from "./dto/portal-finance.dto";
+import { PORTAL_CSV_EXPORT_MAX_ROWS, toCsv } from "./helpers/portal-csv.helper";
+import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
+import { PortalPermissionsService } from "./portal-permissions.service";
 
 @Injectable()
 export class PortalFinanceService {
@@ -35,19 +44,21 @@ export class PortalFinanceService {
       InvoiceType.DEBIT_NOTE,
     ]);
 
-    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-      Promise.all([
-        tx.invoice.findMany({
-          where,
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-          orderBy: { invoice_date: 'desc' },
-          include: {
-            job: { select: { id: true, job_number: true } },
-          },
-        }),
-        tx.invoice.count({ where }),
-      ]),
+    const [rows, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.invoice.findMany({
+            where,
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+            orderBy: { invoice_date: "desc" },
+            include: {
+              job: { select: { id: true, job_number: true } },
+            },
+          }),
+          tx.invoice.count({ where }),
+        ]),
     );
 
     return {
@@ -62,7 +73,11 @@ export class PortalFinanceService {
     };
   }
 
-  async exportInvoicesCsv(user: CurrentPortalUser, query: PortalInvoiceQueryDto, res: Response) {
+  async exportInvoicesCsv(
+    user: CurrentPortalUser,
+    query: PortalInvoiceQueryDto,
+    res: Response,
+  ) {
     const where = this.buildPortalInvoiceWhere(user, query, [
       InvoiceType.CUSTOMER_INVOICE,
       InvoiceType.DEBIT_NOTE,
@@ -72,7 +87,7 @@ export class PortalFinanceService {
       tx.invoice.findMany({
         where,
         take: PORTAL_CSV_EXPORT_MAX_ROWS,
-        orderBy: { invoice_date: 'desc' },
+        orderBy: { invoice_date: "desc" },
         include: {
           job: { select: { id: true, job_number: true } },
         },
@@ -82,17 +97,17 @@ export class PortalFinanceService {
     const items = rows.map((inv) => this.toInvoiceListItem(inv));
 
     const headers = [
-      'invoice_number',
-      'invoice_type',
-      'status',
-      'invoice_date',
-      'due_date',
-      'currency_code',
-      'total_amount',
-      'amount_paid',
-      'balance_due',
-      'has_pdf',
-      'job_number',
+      "invoice_number",
+      "invoice_type",
+      "status",
+      "invoice_date",
+      "due_date",
+      "currency_code",
+      "total_amount",
+      "amount_paid",
+      "balance_due",
+      "has_pdf",
+      "job_number",
     ];
 
     const csvRows = items.map((item) => [
@@ -106,28 +121,32 @@ export class PortalFinanceService {
       item.amount_paid,
       item.balance_due,
       item.has_pdf,
-      item.job?.job_number ?? '',
+      item.job?.job_number ?? "",
     ]);
 
     const csv = toCsv(headers, csvRows);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="invoices.csv"');
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="invoices.csv"');
     res.send(csv);
   }
 
   async listDebitNotes(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {
-    const where = this.buildPortalInvoiceWhere(user, query, [InvoiceType.DEBIT_NOTE]);
-    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-      Promise.all([
-        tx.invoice.findMany({
-          where,
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-          orderBy: { invoice_date: 'desc' },
-          include: { job: { select: { id: true, job_number: true } } },
-        }),
-        tx.invoice.count({ where }),
-      ]),
+    const where = this.buildPortalInvoiceWhere(user, query, [
+      InvoiceType.DEBIT_NOTE,
+    ]);
+    const [rows, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.invoice.findMany({
+            where,
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+            orderBy: { invoice_date: "desc" },
+            include: { job: { select: { id: true, job_number: true } } },
+          }),
+          tx.invoice.count({ where }),
+        ]),
     );
 
     return {
@@ -143,18 +162,22 @@ export class PortalFinanceService {
   }
 
   async listCreditNotes(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {
-    const where = this.buildPortalInvoiceWhere(user, query, [InvoiceType.CREDIT_NOTE]);
-    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-      Promise.all([
-        tx.invoice.findMany({
-          where,
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-          orderBy: { invoice_date: 'desc' },
-          include: { job: { select: { id: true, job_number: true } } },
-        }),
-        tx.invoice.count({ where }),
-      ]),
+    const where = this.buildPortalInvoiceWhere(user, query, [
+      InvoiceType.CREDIT_NOTE,
+    ]);
+    const [rows, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.invoice.findMany({
+            where,
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+            orderBy: { invoice_date: "desc" },
+            include: { job: { select: { id: true, job_number: true } } },
+          }),
+          tx.invoice.count({ where }),
+        ]),
     );
 
     return {
@@ -195,9 +218,9 @@ export class PortalFinanceService {
     if (query.search?.trim()) {
       const q = query.search.trim();
       where.OR = [
-        { invoice_number: { contains: q, mode: 'insensitive' } },
-        { lpo_number: { contains: q, mode: 'insensitive' } },
-        { remarks: { contains: q, mode: 'insensitive' } },
+        { invoice_number: { contains: q, mode: "insensitive" } },
+        { lpo_number: { contains: q, mode: "insensitive" } },
+        { remarks: { contains: q, mode: "insensitive" } },
       ];
     }
 
@@ -211,7 +234,9 @@ export class PortalFinanceService {
           tenant_id: user.tenantId,
           party_id: user.partyId,
           deleted_at: null,
-          invoice_type: { in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.DEBIT_NOTE] },
+          invoice_type: {
+            in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.DEBIT_NOTE],
+          },
           status: { in: PORTAL_VISIBLE_INVOICE_STATUSES },
         },
         select: {
@@ -256,7 +281,7 @@ export class PortalFinanceService {
     this.assertOwnedInvoice(invoice, user.partyId);
 
     if (!PORTAL_VISIBLE_INVOICE_STATUSES.includes(invoice.status)) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
     return {
@@ -298,7 +323,7 @@ export class PortalFinanceService {
     this.assertOwnedInvoice(invoice, user.partyId);
 
     if (!invoice.pdf_url) {
-      throw new NotFoundException('Invoice PDF not available.');
+      throw new NotFoundException("Invoice PDF not available.");
     }
 
     const portalType =
@@ -306,31 +331,36 @@ export class PortalFinanceService {
         ? PortalDocumentType.CREDIT_NOTE
         : PortalDocumentType.INVOICE;
 
-    const matrix = await this.permissions.resolveMatrix(user.tenantId, user.partyId);
+    const matrix = await this.permissions.resolveMatrix(
+      user.tenantId,
+      user.partyId,
+    );
     if (!this.permissions.assertCanView(matrix, portalType)) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
     if (!this.permissions.assertCanDownload(matrix, portalType)) {
-      throw new ForbiddenException('Download is not permitted for this document type.');
+      throw new ForbiddenException(
+        "Download is not permitted for this document type.",
+      );
     }
 
     const file = await this.storage.readByStoredFile(user.tenantId, {
       file_name: `${invoice.invoice_number}.pdf`,
       file_url: invoice.pdf_url,
       s3_key: invoice.pdf_s3_key,
-      mime_type: 'application/pdf',
+      mime_type: "application/pdf",
     });
 
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${file.fileName}"`);
     res.send(file.buffer);
   }
 
   async listPayments(user: CurrentPortalUser, query: PortalPaymentQueryDto) {
     const rows = await this.payments.findAll(user.tenantId, {
       party_id: user.partyId,
-      direction: 'RECEIPT',
-      status: 'POSTED',
+      direction: "RECEIPT",
+      status: "POSTED",
       from_date: query.from_date,
       to_date: query.to_date,
       search: query.search,
@@ -368,7 +398,11 @@ export class PortalFinanceService {
     const [party, statement] = await Promise.all([
       this.prisma.runWithTenant(user.tenantId, (tx) =>
         tx.party.findFirst({
-          where: { id: user.partyId, tenant_id: user.tenantId, deleted_at: null },
+          where: {
+            id: user.partyId,
+            tenant_id: user.tenantId,
+            deleted_at: null,
+          },
           select: {
             id: true,
             name: true,
@@ -379,16 +413,18 @@ export class PortalFinanceService {
           },
         }),
       ),
-      this.arAp.partyStatement(user.tenantId, user.partyId, {}, 'AR'),
+      this.arAp.partyStatement(user.tenantId, user.partyId, {}, "AR"),
     ]);
 
     if (!party) {
-      throw new NotFoundException('Party not found.');
+      throw new NotFoundException("Party not found.");
     }
 
-    const creditLimit = party.credit_limit != null ? Number(party.credit_limit) : null;
+    const creditLimit =
+      party.credit_limit != null ? Number(party.credit_limit) : null;
     const used = statement.summary?.open_balance ?? 0;
-    const available = creditLimit != null ? Math.max(0, creditLimit - used) : null;
+    const available =
+      creditLimit != null ? Math.max(0, creditLimit - used) : null;
 
     return {
       success: true,
@@ -416,12 +452,15 @@ export class PortalFinanceService {
     return { success: true, data: aging };
   }
 
-  async creditStatement(user: CurrentPortalUser, query: PortalCreditAgingQueryDto) {
+  async creditStatement(
+    user: CurrentPortalUser,
+    query: PortalCreditAgingQueryDto,
+  ) {
     const statement = await this.arAp.partyStatement(
       user.tenantId,
       user.partyId,
       { as_of: query.as_of },
-      'AR',
+      "AR",
     );
 
     return { success: true, data: statement };
@@ -432,22 +471,27 @@ export class PortalFinanceService {
     query: PortalCreditAgingQueryDto,
     res: Response,
   ) {
-    const matrix = await this.permissions.resolveMatrix(user.tenantId, user.partyId);
+    const matrix = await this.permissions.resolveMatrix(
+      user.tenantId,
+      user.partyId,
+    );
     if (!this.permissions.assertCanView(matrix, PortalDocumentType.STATEMENT)) {
-      throw new NotFoundException('Statement not found.');
+      throw new NotFoundException("Statement not found.");
     }
-    if (!this.permissions.assertCanDownload(matrix, PortalDocumentType.STATEMENT)) {
-      throw new ForbiddenException('Download is not permitted for statements.');
+    if (
+      !this.permissions.assertCanDownload(matrix, PortalDocumentType.STATEMENT)
+    ) {
+      throw new ForbiddenException("Download is not permitted for statements.");
     }
 
     const statement = await this.arAp.partyStatement(
       user.tenantId,
       user.partyId,
       { as_of: query.as_of },
-      'AR',
+      "AR",
     );
 
-    const partyName = statement.party?.name ?? 'Customer';
+    const partyName = statement.party?.name ?? "Customer";
     const asOf = statement.as_of;
     const rows = (statement.invoices ?? [])
       .map(
@@ -456,12 +500,12 @@ export class PortalFinanceService {
             <td>${inv.invoice_number}</td>
             <td>${inv.invoice_type}</td>
             <td>${String(inv.invoice_date).slice(0, 10)}</td>
-            <td>${inv.due_date ? String(inv.due_date).slice(0, 10) : ''}</td>
+            <td>${inv.due_date ? String(inv.due_date).slice(0, 10) : ""}</td>
             <td style="text-align:right">${Number(inv.total_amount).toFixed(2)}</td>
             <td style="text-align:right">${Number(inv.balance_due).toFixed(2)}</td>
           </tr>`,
       )
-      .join('');
+      .join("");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Account Statement</title>
       <style>
@@ -481,9 +525,9 @@ export class PortalFinanceService {
       </body></html>`;
 
     const buffer = await this.pdf.renderHtmlToPdf(html);
-    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
-      'Content-Disposition',
+      "Content-Disposition",
       `inline; filename="statement-${user.partyId.slice(0, 8)}-${asOf}.pdf"`,
     );
     res.send(buffer);
@@ -494,14 +538,14 @@ export class PortalFinanceService {
     partyId: string,
   ) {
     if (invoice.party_id !== partyId) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
     if (
       invoice.invoice_type !== InvoiceType.CUSTOMER_INVOICE &&
       invoice.invoice_type !== InvoiceType.CREDIT_NOTE &&
       invoice.invoice_type !== InvoiceType.DEBIT_NOTE
     ) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
   }
 

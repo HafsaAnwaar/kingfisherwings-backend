@@ -6,19 +6,27 @@ import {
   ForbiddenException,
   BadRequestException,
   UnauthorizedException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 
-import { Prisma, User, Tenant, Branch, Department, UserStatus, UserRole } from '@prisma/client';
+import {
+  Prisma,
+  User,
+  Tenant,
+  Branch,
+  Department,
+  UserStatus,
+  UserRole,
+} from "@prisma/client";
 
-import { PrismaService } from '../../prisma/prisma.service';
-import { UsersRepository } from './users.repository';
+import { PrismaService } from "../../prisma/prisma.service";
+import { UsersRepository } from "./users.repository";
 
-import { PasswordUtil } from '../../common/utils/password.util';
-import { PasswordHelper } from './helpers/password.helper';
-import { AuditHelper } from './helpers/audit.helper';
+import { PasswordUtil } from "../../common/utils/password.util";
+import { PasswordHelper } from "./helpers/password.helper";
+import { AuditHelper } from "./helpers/audit.helper";
 
-import { USERS_CONSTANTS } from './constants/users.constants';
-import { PASSWORD_CONSTANTS } from './constants/password.constants';
+import { USERS_CONSTANTS } from "./constants/users.constants";
+import { PASSWORD_CONSTANTS } from "./constants/password.constants";
 
 import {
   AdminResetPasswordResult,
@@ -26,20 +34,20 @@ import {
   CreateUserResponse,
   CreatorContext,
   UserSearchFilters,
-} from './users.types';
+} from "./users.types";
 
-import { UserMapper } from './mappers/user.mapper';
-import { UserResponse } from './responses/user.response';
-import { PaginatedUsersResponse } from './responses/paginated-users.response';
+import { UserMapper } from "./mappers/user.mapper";
+import { UserResponse } from "./responses/user.response";
+import { PaginatedUsersResponse } from "./responses/paginated-users.response";
 
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { QueryUserDto } from './dto/query-user.dto';
-import { UpdateStatusDto } from './dto/update-status.dto';
-import { BulkUserDto, BulkUserAction } from './dto/bulk-user.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { AdminResetPasswordDto } from './dto/admin-reset-password.dto';
+import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
+import { QueryUserDto } from "./dto/query-user.dto";
+import { UpdateStatusDto } from "./dto/update-status.dto";
+import { BulkUserDto, BulkUserAction } from "./dto/bulk-user.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { AdminResetPasswordDto } from "./dto/admin-reset-password.dto";
 
 @Injectable()
 export class UsersService {
@@ -67,11 +75,11 @@ export class UsersService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Tenant does not exist.');
+      throw new NotFoundException("Tenant does not exist.");
     }
 
     if (tenant.subscription_ends && tenant.subscription_ends < new Date()) {
-      throw new ForbiddenException('Tenant subscription has expired.');
+      throw new ForbiddenException("Tenant subscription has expired.");
     }
 
     return tenant;
@@ -83,18 +91,28 @@ export class UsersService {
     email: string,
     excludeId?: string,
   ): Promise<void> {
-    const taken = await this.repository.existsByEmail(tx, tenantId, email, excludeId);
+    const taken = await this.repository.existsByEmail(
+      tx,
+      tenantId,
+      email,
+      excludeId,
+    );
 
     if (taken) {
-      throw new ConflictException('Email already exists.');
+      throw new ConflictException("Email already exists.");
     }
   }
 
-  private async validateUserLimit(tx: Prisma.TransactionClient, tenant: Tenant): Promise<void> {
+  private async validateUserLimit(
+    tx: Prisma.TransactionClient,
+    tenant: Tenant,
+  ): Promise<void> {
     const totalUsers = await this.repository.count(tx, tenant.id);
 
     if (totalUsers >= tenant.max_users) {
-      throw new ForbiddenException('Maximum user limit reached for this tenant.');
+      throw new ForbiddenException(
+        "Maximum user limit reached for this tenant.",
+      );
     }
   }
 
@@ -112,7 +130,7 @@ export class UsersService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
   }
 
@@ -130,7 +148,7 @@ export class UsersService {
     });
 
     if (!branch) {
-      throw new NotFoundException('Branch not found.');
+      throw new NotFoundException("Branch not found.");
     }
 
     return branch;
@@ -150,15 +168,24 @@ export class UsersService {
     });
 
     if (!department) {
-      throw new NotFoundException('Department not found.');
+      throw new NotFoundException("Department not found.");
     }
 
     return department;
   }
 
-  private async validateRole(tx: Prisma.TransactionClient, tenantId: string, roleId: string) {
+  private async validateRole(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    roleId: string,
+  ) {
     const role = await tx.role.findFirst({
-      where: { id: roleId, tenant_id: tenantId, deleted_at: null, is_active: true },
+      where: {
+        id: roleId,
+        tenant_id: tenantId,
+        deleted_at: null,
+        is_active: true,
+      },
     });
 
     if (!role) {
@@ -175,7 +202,7 @@ export class UsersService {
   private assertAssignableStaffRole(role: UserRole) {
     if (role === UserRole.SUPER_ADMIN) {
       throw new ForbiddenException(
-        'Cannot assign SUPER_ADMIN via /users. Platform owners live in the SuperAdmin table.',
+        "Cannot assign SUPER_ADMIN via /users. Platform owners live in the SuperAdmin table.",
       );
     }
   }
@@ -204,7 +231,7 @@ export class UsersService {
     const user = await this.repository.findById(tx, tenantId, id);
 
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw new NotFoundException("User not found.");
     }
 
     return user;
@@ -219,7 +246,10 @@ export class UsersService {
   }
 
   private logError(action: string, error: unknown): void {
-    this.logger.error(`[${action}]`, error instanceof Error ? error.stack : String(error));
+    this.logger.error(
+      `[${action}]`,
+      error instanceof Error ? error.stack : String(error),
+    );
   }
 
   // ============================================================
@@ -238,7 +268,12 @@ export class UsersService {
 
       await tx.userRoleAssignment.upsert({
         where: { user_id_role_id: { user_id: userId, role_id: roleId } },
-        create: { tenant_id: tenantId, user_id: userId, role_id: roleId, assigned_by: assignedBy },
+        create: {
+          tenant_id: tenantId,
+          user_id: userId,
+          role_id: roleId,
+          assigned_by: assignedBy,
+        },
         update: {},
       });
     }
@@ -251,7 +286,9 @@ export class UsersService {
     roleIds: string[],
     assignedBy?: string,
   ): Promise<void> {
-    await tx.userRoleAssignment.deleteMany({ where: { tenant_id: tenantId, user_id: userId } });
+    await tx.userRoleAssignment.deleteMany({
+      where: { tenant_id: tenantId, user_id: userId },
+    });
     await this.assignRoles(tx, tenantId, userId, roleIds, assignedBy);
   }
 
@@ -292,8 +329,16 @@ export class UsersService {
     permissionIds: string[],
     grantedBy?: string,
   ): Promise<void> {
-    await tx.userPermission.deleteMany({ where: { tenant_id: tenantId, user_id: userId } });
-    await this.assignPermissions(tx, tenantId, userId, permissionIds, grantedBy);
+    await tx.userPermission.deleteMany({
+      where: { tenant_id: tenantId, user_id: userId },
+    });
+    await this.assignPermissions(
+      tx,
+      tenantId,
+      userId,
+      permissionIds,
+      grantedBy,
+    );
   }
 
   // ============================================================
@@ -309,8 +354,11 @@ export class UsersService {
       ? `super admin ${creator.superAdminId}`
       : creator.userId
         ? `user ${creator.userId}`
-        : 'system';
-    this.log('CREATE_USER', `Creating user ${dto.email} for tenant ${tenantId} (by ${creatorLabel})`);
+        : "system";
+    this.log(
+      "CREATE_USER",
+      `Creating user ${dto.email} for tenant ${tenantId} (by ${creatorLabel})`,
+    );
 
     const tenant = await this.validateTenant(tenantId);
 
@@ -367,7 +415,8 @@ export class UsersService {
             allowed_ips: dto.allowed_ips ?? [],
             allowed_mac_addresses: dto.allowed_mac_addresses ?? [],
             max_concurrent_sessions:
-              dto.max_concurrent_sessions ?? USERS_CONSTANTS.DEFAULT_MAX_CONCURRENT_SESSIONS,
+              dto.max_concurrent_sessions ??
+              USERS_CONSTANTS.DEFAULT_MAX_CONCURRENT_SESSIONS,
             two_factor_enabled: false,
             created_by_user_id: creator.userId,
             created_by_super_admin_id: creator.superAdminId,
@@ -381,7 +430,7 @@ export class UsersService {
             user_id: createdUser.id,
             password_hash: passwordHash,
             changed_by: auditActorId,
-            reason: 'INITIAL_PASSWORD',
+            reason: "INITIAL_PASSWORD",
           },
         });
 
@@ -406,24 +455,36 @@ export class UsersService {
         }
 
         if (dto.role_ids?.length) {
-          await this.assignRoles(tx, tenantId, createdUser.id, dto.role_ids, auditActorId);
+          await this.assignRoles(
+            tx,
+            tenantId,
+            createdUser.id,
+            dto.role_ids,
+            auditActorId,
+          );
         }
 
         if (dto.permission_ids?.length) {
-          await this.assignPermissions(tx, tenantId, createdUser.id, dto.permission_ids, auditActorId);
+          await this.assignPermissions(
+            tx,
+            tenantId,
+            createdUser.id,
+            dto.permission_ids,
+            auditActorId,
+          );
         }
 
         return createdUser;
       });
 
-      this.log('CREATE_USER', `User ${user.email} created successfully.`);
+      this.log("CREATE_USER", `User ${user.email} created successfully.`);
 
       return {
         user,
         temporaryPassword,
       };
     } catch (error) {
-      this.logError('CREATE_USER', error);
+      this.logError("CREATE_USER", error);
       throw error;
     }
   }
@@ -432,10 +493,16 @@ export class UsersService {
   // READ
   // ============================================================
 
-  async findAll(tenantId: string, query: QueryUserDto): Promise<PaginatedUsersResponse> {
+  async findAll(
+    tenantId: string,
+    query: QueryUserDto,
+  ): Promise<PaginatedUsersResponse> {
     await this.validateTenant(tenantId);
 
-    const filters: UserSearchFilters & { sortBy?: string; order?: 'asc' | 'desc' } = {
+    const filters: UserSearchFilters & {
+      sortBy?: string;
+      order?: "asc" | "desc";
+    } = {
       page: query.page,
       limit: Math.min(query.limit, USERS_CONSTANTS.MAX_LIMIT),
       search: query.search,
@@ -474,7 +541,7 @@ export class UsersService {
     dto: UpdateUserDto,
     updatedBy?: string,
   ): Promise<UserResponse> {
-    this.log('UPDATE_USER', `Updating user ${id} for tenant ${tenantId}`);
+    this.log("UPDATE_USER", `Updating user ${id} for tenant ${tenantId}`);
 
     await this.validateTenant(tenantId);
 
@@ -510,17 +577,23 @@ export class UsersService {
         }
 
         if (permission_ids) {
-          await this.replacePermissions(tx, tenantId, id, permission_ids, updatedBy);
+          await this.replacePermissions(
+            tx,
+            tenantId,
+            id,
+            permission_ids,
+            updatedBy,
+          );
         }
 
         return user;
       });
 
-      this.log('UPDATE_USER', `User ${id} updated successfully.`);
+      this.log("UPDATE_USER", `User ${id} updated successfully.`);
 
       return UserMapper.toResponse(updated);
     } catch (error) {
-      this.logError('UPDATE_USER', error);
+      this.logError("UPDATE_USER", error);
       throw error;
     }
   }
@@ -531,7 +604,7 @@ export class UsersService {
     dto: UpdateStatusDto,
     updatedBy?: string,
   ): Promise<UserResponse> {
-    this.log('UPDATE_STATUS', `Setting user ${id} status to ${dto.status}`);
+    this.log("UPDATE_STATUS", `Setting user ${id} status to ${dto.status}`);
 
     await this.validateTenant(tenantId);
 
@@ -552,7 +625,10 @@ export class UsersService {
     dto: BulkUserDto,
     actorId?: string,
   ): Promise<BulkActionResult> {
-    this.log('BULK_ACTION', `Applying ${dto.action} to ${dto.ids.length} user(s)`);
+    this.log(
+      "BULK_ACTION",
+      `Applying ${dto.action} to ${dto.ids.length} user(s)`,
+    );
 
     await this.validateTenant(tenantId);
 
@@ -560,7 +636,7 @@ export class UsersService {
       const existing = await this.repository.findByIds(tx, tenantId, dto.ids);
 
       if (existing.length === 0) {
-        throw new NotFoundException('None of the specified users were found.');
+        throw new NotFoundException("None of the specified users were found.");
       }
 
       const eligibleIds = existing.map((user) => user.id);
@@ -597,22 +673,36 @@ export class UsersService {
           return result.count;
         }
         case BulkUserAction.DELETE: {
-          const result = await this.repository.bulkSoftDelete(tx, tenantId, eligibleIds, actorId);
+          const result = await this.repository.bulkSoftDelete(
+            tx,
+            tenantId,
+            eligibleIds,
+            actorId,
+          );
           return result.count;
         }
         case BulkUserAction.RESTORE: {
           const result = await tx.user.updateMany({
-            where: { id: { in: eligibleIds }, tenant_id: tenantId, deleted_at: { not: null } },
+            where: {
+              id: { in: eligibleIds },
+              tenant_id: tenantId,
+              deleted_at: { not: null },
+            },
             data: { deleted_at: null, updated_by: actorId },
           });
           return result.count;
         }
         default:
-          throw new BadRequestException(`Unsupported bulk action: ${dto.action}`);
+          throw new BadRequestException(
+            `Unsupported bulk action: ${dto.action}`,
+          );
       }
     });
 
-    this.log('BULK_ACTION', `${dto.action} affected ${affected} of ${dto.ids.length} requested`);
+    this.log(
+      "BULK_ACTION",
+      `${dto.action} affected ${affected} of ${dto.ids.length} requested`,
+    );
 
     return { requested: dto.ids.length, affected };
   }
@@ -621,8 +711,12 @@ export class UsersService {
   // DELETE / RESTORE
   // ============================================================
 
-  async softDeleteUser(tenantId: string, id: string, deletedBy?: string): Promise<void> {
-    this.log('DELETE_USER', `Soft-deleting user ${id}`);
+  async softDeleteUser(
+    tenantId: string,
+    id: string,
+    deletedBy?: string,
+  ): Promise<void> {
+    this.log("DELETE_USER", `Soft-deleting user ${id}`);
 
     await this.validateTenant(tenantId);
 
@@ -632,20 +726,28 @@ export class UsersService {
     });
   }
 
-  async restoreUser(tenantId: string, id: string, restoredBy?: string): Promise<UserResponse> {
-    this.log('RESTORE_USER', `Restoring user ${id}`);
+  async restoreUser(
+    tenantId: string,
+    id: string,
+    restoredBy?: string,
+  ): Promise<UserResponse> {
+    this.log("RESTORE_USER", `Restoring user ${id}`);
 
     await this.validateTenant(tenantId);
 
     const restored = await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const user = await this.repository.findByIdIncludingDeleted(tx, tenantId, id);
+      const user = await this.repository.findByIdIncludingDeleted(
+        tx,
+        tenantId,
+        id,
+      );
 
       if (!user) {
-        throw new NotFoundException('User not found.');
+        throw new NotFoundException("User not found.");
       }
 
       if (!user.deleted_at) {
-        throw new BadRequestException('User is not deleted.');
+        throw new BadRequestException("User is not deleted.");
       }
 
       return this.repository.restore(tx, id, restoredBy);
@@ -659,7 +761,7 @@ export class UsersService {
   // ============================================================
 
   async forceLogout(tenantId: string, targetUserId: string): Promise<void> {
-    this.log('FORCE_LOGOUT', `Force-logging-out user ${targetUserId}`);
+    this.log("FORCE_LOGOUT", `Force-logging-out user ${targetUserId}`);
 
     await this.validateTenant(tenantId);
 
@@ -671,7 +773,11 @@ export class UsersService {
     // tenant_id/user_id explicitly at the application layer.
     await this.prisma.session.updateMany({
       where: { user_id: targetUserId, tenant_id: tenantId, is_active: true },
-      data: { is_active: false, revoked_at: new Date(), revoked_reason: 'FORCE_LOGOUT_BY_ADMIN' },
+      data: {
+        is_active: false,
+        revoked_at: new Date(),
+        revoked_reason: "FORCE_LOGOUT_BY_ADMIN",
+      },
     });
   }
 
@@ -679,18 +785,25 @@ export class UsersService {
   // PASSWORD — SELF-SERVICE CHANGE
   // ============================================================
 
-  async changePassword(tenantId: string, userId: string, dto: ChangePasswordDto): Promise<void> {
-    this.log('CHANGE_PASSWORD', `User ${userId} changing their own password`);
+  async changePassword(
+    tenantId: string,
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<void> {
+    this.log("CHANGE_PASSWORD", `User ${userId} changing their own password`);
 
     await this.validateTenant(tenantId);
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const user = await this.getExistingOrThrow(tx, tenantId, userId);
 
-      const currentValid = await PasswordUtil.verify(user.password_hash, dto.current_password);
+      const currentValid = await PasswordUtil.verify(
+        user.password_hash,
+        dto.current_password,
+      );
 
       if (!currentValid) {
-        throw new UnauthorizedException('Current password is incorrect.');
+        throw new UnauthorizedException("Current password is incorrect.");
       }
 
       PasswordHelper.assertStrength(dto.new_password);
@@ -717,12 +830,12 @@ export class UsersService {
           user_id: userId,
           password_hash: passwordHash,
           changed_by: userId,
-          reason: 'SELF_SERVICE_CHANGE',
+          reason: "SELF_SERVICE_CHANGE",
         },
       });
     });
 
-    this.log('CHANGE_PASSWORD', `Password changed for user ${userId}`);
+    this.log("CHANGE_PASSWORD", `Password changed for user ${userId}`);
   }
 
   // ============================================================
@@ -735,7 +848,10 @@ export class UsersService {
     dto: AdminResetPasswordDto,
     adminId?: string,
   ): Promise<AdminResetPasswordResult> {
-    this.log('ADMIN_RESET_PASSWORD', `Admin ${adminId} resetting password for ${targetUserId}`);
+    this.log(
+      "ADMIN_RESET_PASSWORD",
+      `Admin ${adminId} resetting password for ${targetUserId}`,
+    );
 
     await this.validateTenant(tenantId);
 
@@ -759,12 +875,15 @@ export class UsersService {
           user_id: targetUserId,
           password_hash: passwordHash,
           changed_by: adminId,
-          reason: 'ADMIN_RESET',
+          reason: "ADMIN_RESET",
         },
       });
     });
 
-    this.log('ADMIN_RESET_PASSWORD', `Password reset for ${targetUserId} by ${adminId}`);
+    this.log(
+      "ADMIN_RESET_PASSWORD",
+      `Password reset for ${targetUserId} by ${adminId}`,
+    );
 
     return { temporaryPassword };
   }
@@ -773,7 +892,10 @@ export class UsersService {
   // PASSWORD — FORGOT / RESET (token flow)
   // ============================================================
 
-  async requestPasswordReset(tenantId: string, email: string): Promise<{ token: string } | null> {
+  async requestPasswordReset(
+    tenantId: string,
+    email: string,
+  ): Promise<{ token: string } | null> {
     await this.validateTenant(tenantId);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -786,9 +908,17 @@ export class UsersService {
       const token = PasswordHelper.generateResetToken();
       const expiresAt = PasswordHelper.resetTokenExpiry();
 
-      await this.repository.setPasswordResetToken(tx, user.id, token, expiresAt);
+      await this.repository.setPasswordResetToken(
+        tx,
+        user.id,
+        token,
+        expiresAt,
+      );
 
-      this.log('REQUEST_PASSWORD_RESET', `Reset token issued for user ${user.id}`);
+      this.log(
+        "REQUEST_PASSWORD_RESET",
+        `Reset token issued for user ${user.id}`,
+      );
 
       return { token };
     });
@@ -803,14 +933,20 @@ export class UsersService {
    * the actual update.
    */
   async resetPassword(tenantId: string, dto: ResetPasswordDto): Promise<void> {
-    const user = await this.repository.findByPasswordResetToken(this.prisma, dto.token);
+    const user = await this.repository.findByPasswordResetToken(
+      this.prisma,
+      dto.token,
+    );
 
     if (!user || user.tenant_id !== tenantId) {
-      throw new BadRequestException('Invalid or expired reset token.');
+      throw new BadRequestException("Invalid or expired reset token.");
     }
 
-    if (!user.password_reset_expires || user.password_reset_expires < new Date()) {
-      throw new BadRequestException('Invalid or expired reset token.');
+    if (
+      !user.password_reset_expires ||
+      user.password_reset_expires < new Date()
+    ) {
+      throw new BadRequestException("Invalid or expired reset token.");
     }
 
     PasswordHelper.assertStrength(dto.new_password);
@@ -836,11 +972,11 @@ export class UsersService {
           tenant_id: tenantId,
           user_id: user.id,
           password_hash: passwordHash,
-          reason: 'FORGOT_PASSWORD_RESET',
+          reason: "FORGOT_PASSWORD_RESET",
         },
       });
     });
 
-    this.log('RESET_PASSWORD', `Password reset via token for user ${user.id}`);
+    this.log("RESET_PASSWORD", `Password reset via token for user ${user.id}`);
   }
 }

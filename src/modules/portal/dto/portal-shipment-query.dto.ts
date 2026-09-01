@@ -1,7 +1,16 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { JobStatus, JobType } from '@prisma/client';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
+import {
+  IsDateString,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from "class-validator";
+import { JobStatus, JobType } from "@prisma/client";
 
 export class PortalShipmentQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -19,7 +28,7 @@ export class PortalShipmentQueryDto {
   @Max(100)
   limit: number = 20;
 
-  @ApiPropertyOptional({ description: 'Matches job number or commodity.' })
+  @ApiPropertyOptional({ description: "Matches job number or commodity." })
   @IsOptional()
   @IsString()
   search?: string;
@@ -44,8 +53,8 @@ export class PortalShipmentQueryDto {
   @IsDateString()
   to_date?: string;
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @ApiPropertyOptional({ enum: ["asc", "desc"], default: "desc" })
   @IsOptional()
-  @IsIn(['asc', 'desc'])
-  order: 'asc' | 'desc' = 'desc';
+  @IsIn(["asc", "desc"])
+  order: "asc" | "desc" = "desc";
 }

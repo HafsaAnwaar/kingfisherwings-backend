@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   IsArray,
   IsBoolean,
@@ -11,23 +11,23 @@ import {
   Length,
   Min,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 import {
   AccountGroup,
   AccountSubType,
   AccountType,
   VoucherStatus,
   VoucherType,
-} from '@prisma/client';
+} from "@prisma/client";
 
 export class CreateChartOfAccountDto {
-  @ApiProperty({ example: '1100' })
+  @ApiProperty({ example: "1100" })
   @IsString()
   @Length(1, 30)
   account_code!: string;
 
-  @ApiProperty({ example: 'Trade Receivables' })
+  @ApiProperty({ example: "Trade Receivables" })
   @IsString()
   @Length(1, 200)
   account_name!: string;
@@ -46,17 +46,20 @@ export class CreateChartOfAccountDto {
   @IsEnum(AccountType)
   account_type!: AccountType;
 
-  @ApiPropertyOptional({ enum: AccountSubType, default: AccountSubType.GENERAL })
+  @ApiPropertyOptional({
+    enum: AccountSubType,
+    default: AccountSubType.GENERAL,
+  })
   @IsOptional()
   @IsEnum(AccountSubType)
   account_sub_type?: AccountSubType;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   parent_id?: string;
@@ -81,7 +84,7 @@ export class CreateChartOfAccountDto {
   @IsBoolean()
   is_cash_account?: boolean;
 
-  @ApiPropertyOptional({ example: 'AED' })
+  @ApiPropertyOptional({ example: "AED" })
   @IsOptional()
   @IsString()
   @Length(3, 3)
@@ -92,10 +95,10 @@ export class CreateChartOfAccountDto {
   @IsNumber()
   opening_balance?: number;
 
-  @ApiPropertyOptional({ enum: ['DEBIT', 'CREDIT'], default: 'DEBIT' })
+  @ApiPropertyOptional({ enum: ["DEBIT", "CREDIT"], default: "DEBIT" })
   @IsOptional()
   @IsString()
-  opening_balance_type?: 'DEBIT' | 'CREDIT';
+  opening_balance_type?: "DEBIT" | "CREDIT";
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()
@@ -118,7 +121,9 @@ export class CreateChartOfAccountDto {
   notes?: string;
 }
 
-export class UpdateChartOfAccountDto extends PartialType(CreateChartOfAccountDto) {}
+export class UpdateChartOfAccountDto extends PartialType(
+  CreateChartOfAccountDto,
+) {}
 
 export class ChartOfAccountQueryDto {
   @ApiPropertyOptional()
@@ -150,7 +155,7 @@ export class ChartOfAccountQueryDto {
 }
 
 export class CreateVoucherLineDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   account_id!: string;
 
@@ -184,12 +189,12 @@ export class CreateVoucherLineDto {
   @Length(1, 500)
   narration?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
@@ -208,7 +213,7 @@ export class CreateVoucherDto {
   @IsEnum(VoucherType)
   voucher_type!: VoucherType;
 
-  @ApiPropertyOptional({ example: 'AED' })
+  @ApiPropertyOptional({ example: "AED" })
   @IsOptional()
   @IsString()
   @Length(3, 3)
@@ -236,27 +241,27 @@ export class CreateVoucherDto {
   @Length(1, 100)
   reference_number?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   invoice_id?: string;
@@ -282,12 +287,12 @@ export class VoucherQueryDto {
   @IsEnum(VoucherStatus)
   status?: VoucherStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
@@ -307,7 +312,9 @@ export class VoucherQueryDto {
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'Draft vouchers eligible for batch posting' })
+  @ApiPropertyOptional({
+    description: "Draft vouchers eligible for batch posting",
+  })
   @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
@@ -327,17 +334,24 @@ export class LedgerQueryDto {
 }
 
 export class TrialBalanceQueryDto {
-  @ApiPropertyOptional({ description: 'Inclusive period start (defaults to open)' })
+  @ApiPropertyOptional({
+    description: "Inclusive period start (defaults to open)",
+  })
   @IsOptional()
   @IsDateString()
   from_date?: string;
 
-  @ApiPropertyOptional({ description: 'Inclusive period end (defaults to today)' })
+  @ApiPropertyOptional({
+    description: "Inclusive period end (defaults to today)",
+  })
   @IsOptional()
   @IsDateString()
   to_date?: string;
 
-  @ApiPropertyOptional({ description: 'Hide zero-balance accounts', default: true })
+  @ApiPropertyOptional({
+    description: "Hide zero-balance accounts",
+    default: true,
+  })
   @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
@@ -345,9 +359,9 @@ export class TrialBalanceQueryDto {
 }
 
 export class BatchVoucherStatusDto {
-  @ApiProperty({ type: [String], format: 'uuid' })
+  @ApiProperty({ type: [String], format: "uuid" })
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   voucher_ids!: string[];
 
   @ApiProperty({ enum: VoucherStatus })

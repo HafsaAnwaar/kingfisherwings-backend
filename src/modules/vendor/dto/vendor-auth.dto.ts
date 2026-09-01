@@ -1,9 +1,17 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, MinLength } from 'class-validator';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  MinLength,
+} from "class-validator";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
 export class VendorLoginDto {
-  @ApiProperty({ example: 'kingfisher' })
+  @ApiProperty({ example: "kingfisher" })
   @IsString()
   @Length(2, 100)
   tenant_slug!: string;
@@ -26,7 +34,7 @@ export class VendorRefreshDto {
 }
 
 export class CreateVendorUserDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   party_id!: string;
 
@@ -81,9 +89,9 @@ export class AcceptVendorInviteDto {
 }
 
 export class UpdateVendorUserStatusDto {
-  @ApiProperty({ enum: ['ACTIVE', 'DISABLED', 'INVITED'] })
-  @IsIn(['ACTIVE', 'DISABLED', 'INVITED'])
-  status!: 'ACTIVE' | 'DISABLED' | 'INVITED';
+  @ApiProperty({ enum: ["ACTIVE", "DISABLED", "INVITED"] })
+  @IsIn(["ACTIVE", "DISABLED", "INVITED"])
+  status!: "ACTIVE" | "DISABLED" | "INVITED";
 }
 
 export class ResetVendorPasswordDto {
@@ -100,7 +108,7 @@ export class ResetVendorPasswordDto {
 }
 
 export class VendorUserQueryDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;

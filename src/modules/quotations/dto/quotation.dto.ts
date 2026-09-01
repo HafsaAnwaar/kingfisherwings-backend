@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   IsBoolean,
   IsDateString,
@@ -11,13 +11,25 @@ import {
   Length,
   Max,
   Min,
-} from 'class-validator';
-import { JobType } from '@prisma/client';
+} from "class-validator";
+import { JobType } from "@prisma/client";
 
-const INCOTERMS = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
+const INCOTERMS = [
+  "EXW",
+  "FCA",
+  "FAS",
+  "FOB",
+  "CFR",
+  "CIF",
+  "CPT",
+  "CIP",
+  "DAP",
+  "DPU",
+  "DDP",
+];
 
 export class CreateQuotationDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
@@ -26,36 +38,40 @@ export class CreateQuotationDto {
   @IsEnum(JobType)
   job_type!: JobType;
 
-  @ApiProperty({ format: 'uuid', description: 'Customer/prospect Party.' })
+  @ApiProperty({ format: "uuid", description: "Customer/prospect Party." })
   @IsUUID()
   customer_id!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   department_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'The quoted carrier — a Party of type AIRLINE/SHIPPING_LINE/TRUCKER.' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "The quoted carrier — a Party of type AIRLINE/SHIPPING_LINE/TRUCKER.",
+  })
   @IsOptional()
   @IsUUID()
   carrier_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
@@ -100,7 +116,7 @@ export class CreateQuotationDto {
   @Min(0)
   pieces?: number;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_type_id?: string;
@@ -116,7 +132,7 @@ export class CreateQuotationDto {
   @IsBoolean()
   is_dg?: boolean;
 
-  @ApiPropertyOptional({ example: '9' })
+  @ApiPropertyOptional({ example: "9" })
   @IsOptional()
   @IsString()
   dg_class?: string;
@@ -152,12 +168,12 @@ export class CreateQuotationDto {
   @IsString()
   internal_notes?: string;
 
-  @ApiPropertyOptional({ example: '2026-08-31' })
+  @ApiPropertyOptional({ example: "2026-08-31" })
   @IsOptional()
   @IsDateString()
   valid_until?: string;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;

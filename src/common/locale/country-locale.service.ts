@@ -1,18 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 import {
   CountryCode,
   getCountryCallingCode,
   isSupportedCountry,
   isValidPhoneNumber,
   parsePhoneNumberFromString,
-} from 'libphonenumber-js';
+} from "libphonenumber-js";
 import {
   COUNTRY_LOCALE_PROFILES,
   CountryLocaleProfile,
   DEFAULT_CURRENCY_BY_COUNTRY,
   KNOWN_CURRENCY_CODES,
-} from './country-locale.catalog';
-import { TenantContextStorage } from '../context/tenant-context.storage';
+} from "./country-locale.catalog";
+import { TenantContextStorage } from "../context/tenant-context.storage";
 
 export interface LocaleDefaults {
   /** null when no country is selected — country is never mandatory. */
@@ -51,7 +51,9 @@ export class CountryLocaleService {
     const fromDto = this.normalizeCountryCode(explicitCountry);
     if (fromDto) return fromDto;
 
-    const fromUser = this.normalizeCountryCode(this.tenantContext.getPreferredCountryCode());
+    const fromUser = this.normalizeCountryCode(
+      this.tenantContext.getPreferredCountryCode(),
+    );
     if (fromUser) return fromUser;
 
     return this.normalizeCountryCode(this.tenantContext.getCountryCode());
@@ -87,7 +89,12 @@ export class CountryLocaleService {
   getLocaleDefaults(countryCode?: string | null): LocaleDefaults {
     const code = this.normalizeCountryCode(countryCode);
     if (!code) {
-      return { countryCode: null, dialCode: null, baseCurrency: null, timezone: null };
+      return {
+        countryCode: null,
+        dialCode: null,
+        baseCurrency: null,
+        timezone: null,
+      };
     }
     return {
       countryCode: code,
@@ -111,20 +118,30 @@ export class CountryLocaleService {
     if (!options?.mustMatchCountryDefault) return true;
     const country = this.normalizeCountryCode(countryCode);
     if (!country) return true;
-    return currencyCode!.trim().toUpperCase() === this.getDefaultCurrency(country);
+    return (
+      currencyCode!.trim().toUpperCase() === this.getDefaultCurrency(country)
+    );
   }
 
-  isValidTimezoneForCountry(timezone?: string | null, countryCode?: string | null): boolean {
+  isValidTimezoneForCountry(
+    timezone?: string | null,
+    countryCode?: string | null,
+  ): boolean {
     if (!timezone) return true;
     const profile = this.getProfile(countryCode);
     if (!profile) {
       // No country selected → any IANA-looking zone is fine
-      return /^[A-Za-z_]+\/[A-Za-z0-9_+\-]+$/.test(timezone) || timezone === 'UTC';
+      return (
+        /^[A-Za-z_]+\/[A-Za-z0-9_+\-]+$/.test(timezone) || timezone === "UTC"
+      );
     }
     return profile.timezones.includes(timezone);
   }
 
-  isValidPostalCode(postalCode?: string | null, countryCode?: string | null): boolean {
+  isValidPostalCode(
+    postalCode?: string | null,
+    countryCode?: string | null,
+  ): boolean {
     if (!postalCode) return true;
     const profile = this.getProfile(countryCode);
     if (!profile?.postalCodePattern) {
@@ -139,11 +156,11 @@ export class CountryLocaleService {
     if (!profile?.taxIdPattern) {
       return taxId.trim().length >= 3 && taxId.trim().length <= 50;
     }
-    return profile.taxIdPattern.test(taxId.trim().replace(/\s+/g, ''));
+    return profile.taxIdPattern.test(taxId.trim().replace(/\s+/g, ""));
   }
 
   taxIdLabel(countryCode?: string | null): string {
-    return this.getProfile(countryCode)?.taxIdLabel ?? 'tax / VAT number';
+    return this.getProfile(countryCode)?.taxIdLabel ?? "tax / VAT number";
   }
 
   /**
@@ -155,7 +172,7 @@ export class CountryLocaleService {
     countryCode?: string | null,
   ): { valid: boolean; e164?: string; message?: string } {
     if (!phone || !String(phone).trim()) {
-      return { valid: false, message: 'phone is required' };
+      return { valid: false, message: "phone is required" };
     }
 
     const country = this.resolveCountryCode(countryCode);
@@ -163,35 +180,45 @@ export class CountryLocaleService {
 
     if (country && isSupportedCountry(country as CountryCode)) {
       if (isValidPhoneNumber(trimmed, country as CountryCode)) {
-        const parsed = parsePhoneNumberFromString(trimmed, country as CountryCode);
-        return { valid: true, e164: parsed!.format('E.164') };
+        const parsed = parsePhoneNumberFromString(
+          trimmed,
+          country as CountryCode,
+        );
+        return { valid: true, e164: parsed!.format("E.164") };
       }
       const international = parsePhoneNumberFromString(trimmed);
       if (international?.isValid() && international.country === country) {
-        return { valid: true, e164: international.format('E.164') };
+        return { valid: true, e164: international.format("E.164") };
       }
       const dial = this.getDialCode(country);
       return {
         valid: false,
-        message: `phone must be a valid ${country} number${dial ? ` (e.g. ${dial}…)` : ''}`,
+        message: `phone must be a valid ${country} number${dial ? ` (e.g. ${dial}…)` : ""}`,
       };
     }
 
     const parsed = parsePhoneNumberFromString(trimmed);
     if (parsed?.isValid()) {
-      return { valid: true, e164: parsed.format('E.164') };
+      return { valid: true, e164: parsed.format("E.164") };
     }
     return {
       valid: false,
-      message: 'phone must be a valid international number (include country code, e.g. +971…)',
+      message:
+        "phone must be a valid international number (include country code, e.g. +971…)",
     };
   }
 
-  isPhoneValidForCountry(phone?: string | null, countryCode?: string | null): boolean {
+  isPhoneValidForCountry(
+    phone?: string | null,
+    countryCode?: string | null,
+  ): boolean {
     return this.validateAndNormalizePhone(phone, countryCode).valid;
   }
 
-  dialCodeMatchesCountry(dialCode?: string | null, countryCode?: string | null): boolean {
+  dialCodeMatchesCountry(
+    dialCode?: string | null,
+    countryCode?: string | null,
+  ): boolean {
     if (!dialCode) return true;
     const country = this.normalizeCountryCode(countryCode);
     if (!country) return /^\+[1-9]\d{0,3}$/.test(dialCode);

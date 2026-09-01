@@ -1,13 +1,11 @@
 export interface PaginationResult<T> {
+  data: T[];
 
-    data: T[];
+  total: number;
 
-    total: number;
+  page: number;
 
-    page: number;
+  limit: number;
 
-    limit: number;
-
-    totalPages: number;
-
+  totalPages: number;
 }

@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { UserResponse } from './user.response';
+import { ApiProperty } from "@nestjs/swagger";
+import { UserResponse } from "./user.response";
 
 export class PaginationMetaResponse {
   @ApiProperty() page!: number;

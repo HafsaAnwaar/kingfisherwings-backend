@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsDateString,
   IsIn,
@@ -8,13 +8,13 @@ import {
   IsUUID,
   MaxLength,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
-const SERVICE_TYPES = ['EXPRESS', 'STANDARD', 'ECONOMY'];
-const LABEL_FORMATS = ['A4_4UP', 'A4_6UP', 'A4_8UP', 'THERMAL'];
+const SERVICE_TYPES = ["EXPRESS", "STANDARD", "ECONOMY"];
+const LABEL_FORMATS = ["A4_4UP", "A4_6UP", "A4_8UP", "THERMAL"];
 
 export class UpdateCourierJobDetailDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   courier_vendor_id?: string;
@@ -69,19 +69,19 @@ export class UpdateCourierJobDetailDto {
   @IsIn(LABEL_FORMATS)
   label_format?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   linked_export_job_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   linked_import_job_id?: string;
 }
 
 export class ConfirmCourierBookingDto {
-  @ApiPropertyOptional({ description: 'Override generated tracking number' })
+  @ApiPropertyOptional({ description: "Override generated tracking number" })
   @IsOptional()
   @IsString()
   @MaxLength(80)
@@ -100,9 +100,21 @@ export class ConfirmCourierBookingDto {
 
 export class ScanCourierCheckpointDto {
   @ApiProperty({
-    enum: ['PICKED_UP', 'IN_TRANSIT', 'AT_DESTINATION_FACILITY', 'OUT_FOR_DELIVERY', 'DELIVERED'],
+    enum: [
+      "PICKED_UP",
+      "IN_TRANSIT",
+      "AT_DESTINATION_FACILITY",
+      "OUT_FOR_DELIVERY",
+      "DELIVERED",
+    ],
   })
-  @IsIn(['PICKED_UP', 'IN_TRANSIT', 'AT_DESTINATION_FACILITY', 'OUT_FOR_DELIVERY', 'DELIVERED'])
+  @IsIn([
+    "PICKED_UP",
+    "IN_TRANSIT",
+    "AT_DESTINATION_FACILITY",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+  ])
   checkpoint!: string;
 
   @ApiPropertyOptional()
@@ -129,7 +141,7 @@ export class ScanCourierCheckpointDto {
 }
 
 export class LinkCourierJobDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   linked_job_id!: string;
 }

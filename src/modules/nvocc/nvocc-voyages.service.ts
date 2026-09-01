@@ -1,15 +1,19 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { NvoccVoyage, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
-import { markJobMilestoneIfPresent } from '../jobs/utils/mark-milestone.util';
-import { buildVoyagePnlResponse } from './utils/nvocc-voyage-pnl.util';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { NvoccVoyage, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { markJobMilestoneIfPresent } from "../jobs/utils/mark-milestone.util";
+import { buildVoyagePnlResponse } from "./utils/nvocc-voyage-pnl.util";
 import {
   CopyNvoccVoyageDto,
   CreateNvoccVoyageDto,
   NvoccVoyageQueryDto,
   UpdateNvoccVoyageDto,
-} from './dto/nvocc-voyage.dto';
+} from "./dto/nvocc-voyage.dto";
 
 @Injectable()
 export class NvoccVoyagesService {
@@ -18,8 +22,15 @@ export class NvoccVoyagesService {
     private readonly numberGenerator: NumberGeneratorService,
   ) {}
 
-  async create(tenantId: string, dto: CreateNvoccVoyageDto, actorId?: string): Promise<NvoccVoyage> {
-    const voyageNumber = await this.numberGenerator.generate(tenantId, 'NVOCC_VOYAGE');
+  async create(
+    tenantId: string,
+    dto: CreateNvoccVoyageDto,
+    actorId?: string,
+  ): Promise<NvoccVoyage> {
+    const voyageNumber = await this.numberGenerator.generate(
+      tenantId,
+      "NVOCC_VOYAGE",
+    );
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccVoyage.create({
@@ -36,7 +47,9 @@ export class NvoccVoyagesService {
           si_cutoff: dto.si_cutoff ? new Date(dto.si_cutoff) : undefined,
           vgm_cutoff: dto.vgm_cutoff ? new Date(dto.vgm_cutoff) : undefined,
           cy_cutoff: dto.cy_cutoff ? new Date(dto.cy_cutoff) : undefined,
-          cargo_cutoff: dto.cargo_cutoff ? new Date(dto.cargo_cutoff) : undefined,
+          cargo_cutoff: dto.cargo_cutoff
+            ? new Date(dto.cargo_cutoff)
+            : undefined,
           slot_allocation_containers: dto.slot_allocation_containers ?? 0,
           lcl_capacity_cbm: dto.lcl_capacity_cbm,
           mbl_number: dto.mbl_number,
@@ -71,15 +84,17 @@ export class NvoccVoyagesService {
       ...(query.search
         ? {
             OR: [
-              { voyage_number: { contains: query.search, mode: 'insensitive' } },
-              { mbl_number: { contains: query.search, mode: 'insensitive' } },
+              {
+                voyage_number: { contains: query.search, mode: "insensitive" },
+              },
+              { mbl_number: { contains: query.search, mode: "insensitive" } },
             ],
           }
         : {}),
     };
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.nvoccVoyage.findMany({ where, orderBy: { etd: 'asc' } }),
+      tx.nvoccVoyage.findMany({ where, orderBy: { etd: "asc" } }),
     );
   }
 
@@ -88,16 +103,24 @@ export class NvoccVoyagesService {
       tx.nvoccVoyage.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
-          bookings: { where: { deleted_at: null }, orderBy: { booking_date: 'desc' } },
+          bookings: {
+            where: { deleted_at: null },
+            orderBy: { booking_date: "desc" },
+          },
           load_list: { where: { deleted_at: null } },
         },
       }),
     );
-    if (!row) throw new NotFoundException('NVOCC voyage not found.');
+    if (!row) throw new NotFoundException("NVOCC voyage not found.");
     return row;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateNvoccVoyageDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateNvoccVoyageDto,
+    actorId?: string,
+  ) {
     await this.findOne(tenantId, id);
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccVoyage.update({
@@ -113,7 +136,9 @@ export class NvoccVoyagesService {
           si_cutoff: dto.si_cutoff ? new Date(dto.si_cutoff) : undefined,
           vgm_cutoff: dto.vgm_cutoff ? new Date(dto.vgm_cutoff) : undefined,
           cy_cutoff: dto.cy_cutoff ? new Date(dto.cy_cutoff) : undefined,
-          cargo_cutoff: dto.cargo_cutoff ? new Date(dto.cargo_cutoff) : undefined,
+          cargo_cutoff: dto.cargo_cutoff
+            ? new Date(dto.cargo_cutoff)
+            : undefined,
           slot_allocation_containers: dto.slot_allocation_containers,
           lcl_capacity_cbm: dto.lcl_capacity_cbm,
           voyage_status: dto.voyage_status,
@@ -131,8 +156,8 @@ export class NvoccVoyagesService {
 
   async publish(tenantId: string, id: string, actorId?: string) {
     const voyage = await this.findOne(tenantId, id);
-    if (voyage.voyage_status === 'CANCELLED') {
-      throw new BadRequestException('Cannot publish a cancelled voyage.');
+    if (voyage.voyage_status === "CANCELLED") {
+      throw new BadRequestException("Cannot publish a cancelled voyage.");
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccVoyage.update({
@@ -159,7 +184,11 @@ export class NvoccVoyagesService {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       await tx.nvoccVoyage.update({
         where: { id },
-        data: { sailed_at: sailedAt, voyage_status: 'SAILED', updated_by: actorId },
+        data: {
+          sailed_at: sailedAt,
+          voyage_status: "SAILED",
+          updated_by: actorId,
+        },
       });
 
       const jobDetails = await tx.nvoccJobDetail.findMany({
@@ -168,7 +197,14 @@ export class NvoccVoyagesService {
       });
 
       for (const detail of jobDetails) {
-        await markJobMilestoneIfPresent(tx, tenantId, detail.job_id, 'VESSEL_SAILED', sailedAt, actorId);
+        await markJobMilestoneIfPresent(
+          tx,
+          tenantId,
+          detail.job_id,
+          "VESSEL_SAILED",
+          sailedAt,
+          actorId,
+        );
       }
     });
 
@@ -184,7 +220,7 @@ export class NvoccVoyagesService {
           tenant_id: tenantId,
           voyage_id: voyageId,
           deleted_at: null,
-          booking_status: { in: ['CONFIRMED', 'CONVERTED'] },
+          booking_status: { in: ["CONFIRMED", "CONVERTED"] },
         },
         include: { charges: { where: { deleted_at: null } } },
       }),
@@ -197,7 +233,11 @@ export class NvoccVoyagesService {
     const jobs = jobIds.length
       ? await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.job.findMany({
-            where: { tenant_id: tenantId, id: { in: jobIds }, deleted_at: null },
+            where: {
+              tenant_id: tenantId,
+              id: { in: jobIds },
+              deleted_at: null,
+            },
             select: {
               id: true,
               job_number: true,
@@ -222,9 +262,17 @@ export class NvoccVoyagesService {
     return buildVoyagePnlResponse(voyage, bookings, jobs);
   }
 
-  async copy(tenantId: string, id: string, dto: CopyNvoccVoyageDto, actorId?: string) {
+  async copy(
+    tenantId: string,
+    id: string,
+    dto: CopyNvoccVoyageDto,
+    actorId?: string,
+  ) {
     const source = await this.findOne(tenantId, id);
-    const voyageNumber = await this.numberGenerator.generate(tenantId, 'NVOCC_VOYAGE');
+    const voyageNumber = await this.numberGenerator.generate(
+      tenantId,
+      "NVOCC_VOYAGE",
+    );
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccVoyage.create({
@@ -261,7 +309,11 @@ export class NvoccVoyagesService {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccVoyage.update({
         where: { id },
-        data: { deleted_at: new Date(), voyage_status: 'CANCELLED', updated_by: actorId },
+        data: {
+          deleted_at: new Date(),
+          voyage_status: "CANCELLED",
+          updated_by: actorId,
+        },
       }),
     );
   }
@@ -271,9 +323,12 @@ export class NvoccVoyagesService {
       0,
       voyage.slot_allocation_containers - voyage.fcl_booked_containers,
     );
-    const lclCapacity = voyage.lcl_capacity_cbm ? Number(voyage.lcl_capacity_cbm) : null;
+    const lclCapacity = voyage.lcl_capacity_cbm
+      ? Number(voyage.lcl_capacity_cbm)
+      : null;
     const lclBooked = Number(voyage.lcl_booked_cbm);
-    const lclRemaining = lclCapacity != null ? Math.max(0, lclCapacity - lclBooked) : null;
+    const lclRemaining =
+      lclCapacity != null ? Math.max(0, lclCapacity - lclBooked) : null;
     return { fclRemaining, lclRemaining, lclCapacity, lclBooked };
   }
 }

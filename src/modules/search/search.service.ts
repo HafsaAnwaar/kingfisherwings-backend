@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { parseSearchTypes, SearchQueryDto } from './dto/search-query.dto';
+import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { parseSearchTypes, SearchQueryDto } from "./dto/search-query.dto";
 
 export interface SearchResultItem {
-  entity_type: 'job' | 'quotation' | 'party' | 'invoice';
+  entity_type: "job" | "quotation" | "party" | "invoice";
   id: string;
   title: string;
   subtitle?: string;
@@ -25,17 +25,25 @@ export class SearchService {
 
     const results: SearchResultItem[] = [];
 
-    if (types.includes('jobs')) {
-      results.push(...(await this.searchJobs(tenantId, term, perTypeLimit, query)));
+    if (types.includes("jobs")) {
+      results.push(
+        ...(await this.searchJobs(tenantId, term, perTypeLimit, query)),
+      );
     }
-    if (types.includes('quotations')) {
-      results.push(...(await this.searchQuotations(tenantId, term, perTypeLimit, query)));
+    if (types.includes("quotations")) {
+      results.push(
+        ...(await this.searchQuotations(tenantId, term, perTypeLimit, query)),
+      );
     }
-    if (types.includes('parties')) {
-      results.push(...(await this.searchParties(tenantId, term, perTypeLimit, query)));
+    if (types.includes("parties")) {
+      results.push(
+        ...(await this.searchParties(tenantId, term, perTypeLimit, query)),
+      );
     }
-    if (types.includes('invoices')) {
-      results.push(...(await this.searchInvoices(tenantId, term, perTypeLimit, query)));
+    if (types.includes("invoices")) {
+      results.push(
+        ...(await this.searchInvoices(tenantId, term, perTypeLimit, query)),
+      );
     }
 
     return {
@@ -48,13 +56,33 @@ export class SearchService {
 
   private summarizeFilters(query: SearchQueryDto) {
     const keys = [
-      'party_id', 'customer_id', 'shipper_id', 'consignee_id', 'job_type', 'status',
-      'origin_port_id', 'dest_port_id', 'hawb_number', 'mawb_number', 'hbl_number',
-      'mbl_number', 'booking_number', 'container_number', 'invoice_number',
-      'quotation_number', 'etd_from', 'etd_to', 'eta_from', 'eta_to',
-      'created_from', 'created_to', 'salesperson_id', 'branch_id', 'hs_code',
+      "party_id",
+      "customer_id",
+      "shipper_id",
+      "consignee_id",
+      "job_type",
+      "status",
+      "origin_port_id",
+      "dest_port_id",
+      "hawb_number",
+      "mawb_number",
+      "hbl_number",
+      "mbl_number",
+      "booking_number",
+      "container_number",
+      "invoice_number",
+      "quotation_number",
+      "etd_from",
+      "etd_to",
+      "eta_from",
+      "eta_to",
+      "created_from",
+      "created_to",
+      "salesperson_id",
+      "branch_id",
+      "hs_code",
     ] as const;
-    return keys.filter((k) => query[k] != null && query[k] !== '');
+    return keys.filter((k) => query[k] != null && query[k] !== "");
   }
 
   private async searchJobs(
@@ -69,24 +97,74 @@ export class SearchService {
       AND: [
         {
           OR: [
-            { job_number: { contains: term, mode: 'insensitive' } },
-            { commodity: { contains: term, mode: 'insensitive' } },
-            { hs_code: { contains: term, mode: 'insensitive' } },
-            { air_details: { hawb_number: { contains: term, mode: 'insensitive' } } },
-            { air_details: { mawb_number: { contains: term, mode: 'insensitive' } } },
-            { air_details: { hawb_number_from_origin_agent: { contains: term, mode: 'insensitive' } } },
-            { air_details: { mawb_number_from_origin: { contains: term, mode: 'insensitive' } } },
-            { sea_fcl_details: { hbl_number: { contains: term, mode: 'insensitive' } } },
-            { sea_fcl_details: { mbl_number: { contains: term, mode: 'insensitive' } } },
-            { sea_fcl_details: { booking_number: { contains: term, mode: 'insensitive' } } },
+            { job_number: { contains: term, mode: "insensitive" } },
+            { commodity: { contains: term, mode: "insensitive" } },
+            { hs_code: { contains: term, mode: "insensitive" } },
             {
-              sea_fcl_details: {
-                containers: { some: { container_number: { contains: term, mode: 'insensitive' } } },
+              air_details: {
+                hawb_number: { contains: term, mode: "insensitive" },
               },
             },
-            { land_details: { vehicle_number: { contains: term, mode: 'insensitive' } } },
-            { courier_details: { tracking_number: { contains: term, mode: 'insensitive' } } },
-            { courier_details: { barcode_value: { contains: term, mode: 'insensitive' } } },
+            {
+              air_details: {
+                mawb_number: { contains: term, mode: "insensitive" },
+              },
+            },
+            {
+              air_details: {
+                hawb_number_from_origin_agent: {
+                  contains: term,
+                  mode: "insensitive",
+                },
+              },
+            },
+            {
+              air_details: {
+                mawb_number_from_origin: {
+                  contains: term,
+                  mode: "insensitive",
+                },
+              },
+            },
+            {
+              sea_fcl_details: {
+                hbl_number: { contains: term, mode: "insensitive" },
+              },
+            },
+            {
+              sea_fcl_details: {
+                mbl_number: { contains: term, mode: "insensitive" },
+              },
+            },
+            {
+              sea_fcl_details: {
+                booking_number: { contains: term, mode: "insensitive" },
+              },
+            },
+            {
+              sea_fcl_details: {
+                containers: {
+                  some: {
+                    container_number: { contains: term, mode: "insensitive" },
+                  },
+                },
+              },
+            },
+            {
+              land_details: {
+                vehicle_number: { contains: term, mode: "insensitive" },
+              },
+            },
+            {
+              courier_details: {
+                tracking_number: { contains: term, mode: "insensitive" },
+              },
+            },
+            {
+              courier_details: {
+                barcode_value: { contains: term, mode: "insensitive" },
+              },
+            },
           ],
         },
         ...(query.job_type ? [{ job_type: query.job_type as never }] : []),
@@ -95,58 +173,133 @@ export class SearchService {
           ? [{ shipper_id: query.shipper_id ?? query.party_id }]
           : []),
         ...(query.consignee_id ? [{ consignee_id: query.consignee_id }] : []),
-        ...(query.origin_port_id ? [{ origin_port_id: query.origin_port_id }] : []),
+        ...(query.origin_port_id
+          ? [{ origin_port_id: query.origin_port_id }]
+          : []),
         ...(query.dest_port_id ? [{ dest_port_id: query.dest_port_id }] : []),
-        ...(query.salesperson_id ? [{ salesperson_id: query.salesperson_id }] : []),
+        ...(query.salesperson_id
+          ? [{ salesperson_id: query.salesperson_id }]
+          : []),
         ...(query.branch_id ? [{ branch_id: query.branch_id }] : []),
-        ...(query.hs_code ? [{ hs_code: { contains: query.hs_code, mode: 'insensitive' as const } }] : []),
-        ...(query.hawb_number
-          ? [{ air_details: { hawb_number: { contains: query.hawb_number, mode: 'insensitive' as const } } }]
-          : []),
-        ...(query.mawb_number
-          ? [{ air_details: { mawb_number: { contains: query.mawb_number, mode: 'insensitive' as const } } }]
-          : []),
-        ...(query.hbl_number
-          ? [{ sea_fcl_details: { hbl_number: { contains: query.hbl_number, mode: 'insensitive' as const } } }]
-          : []),
-        ...(query.mbl_number
-          ? [{ sea_fcl_details: { mbl_number: { contains: query.mbl_number, mode: 'insensitive' as const } } }]
-          : []),
-        ...(query.booking_number
-          ? [{ sea_fcl_details: { booking_number: { contains: query.booking_number, mode: 'insensitive' as const } } }]
-          : []),
-        ...(query.container_number
-          ? [{
-              sea_fcl_details: {
-                containers: {
-                  some: { container_number: { contains: query.container_number, mode: 'insensitive' as const } },
+        ...(query.hs_code
+          ? [
+              {
+                hs_code: {
+                  contains: query.hs_code,
+                  mode: "insensitive" as const,
                 },
               },
-            }]
+            ]
+          : []),
+        ...(query.hawb_number
+          ? [
+              {
+                air_details: {
+                  hawb_number: {
+                    contains: query.hawb_number,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(query.mawb_number
+          ? [
+              {
+                air_details: {
+                  mawb_number: {
+                    contains: query.mawb_number,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(query.hbl_number
+          ? [
+              {
+                sea_fcl_details: {
+                  hbl_number: {
+                    contains: query.hbl_number,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(query.mbl_number
+          ? [
+              {
+                sea_fcl_details: {
+                  mbl_number: {
+                    contains: query.mbl_number,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(query.booking_number
+          ? [
+              {
+                sea_fcl_details: {
+                  booking_number: {
+                    contains: query.booking_number,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(query.container_number
+          ? [
+              {
+                sea_fcl_details: {
+                  containers: {
+                    some: {
+                      container_number: {
+                        contains: query.container_number,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                  },
+                },
+              },
+            ]
           : []),
         ...(query.etd_from || query.etd_to
-          ? [{
-              etd: {
-                ...(query.etd_from ? { gte: new Date(query.etd_from) } : {}),
-                ...(query.etd_to ? { lte: new Date(query.etd_to) } : {}),
+          ? [
+              {
+                etd: {
+                  ...(query.etd_from ? { gte: new Date(query.etd_from) } : {}),
+                  ...(query.etd_to ? { lte: new Date(query.etd_to) } : {}),
+                },
               },
-            }]
+            ]
           : []),
         ...(query.eta_from || query.eta_to
-          ? [{
-              eta: {
-                ...(query.eta_from ? { gte: new Date(query.eta_from) } : {}),
-                ...(query.eta_to ? { lte: new Date(query.eta_to) } : {}),
+          ? [
+              {
+                eta: {
+                  ...(query.eta_from ? { gte: new Date(query.eta_from) } : {}),
+                  ...(query.eta_to ? { lte: new Date(query.eta_to) } : {}),
+                },
               },
-            }]
+            ]
           : []),
         ...(query.created_from || query.created_to
-          ? [{
-              created_at: {
-                ...(query.created_from ? { gte: new Date(query.created_from) } : {}),
-                ...(query.created_to ? { lte: new Date(query.created_to) } : {}),
+          ? [
+              {
+                created_at: {
+                  ...(query.created_from
+                    ? { gte: new Date(query.created_from) }
+                    : {}),
+                  ...(query.created_to
+                    ? { lte: new Date(query.created_to) }
+                    : {}),
+                },
               },
-            }]
+            ]
           : []),
       ],
     };
@@ -170,16 +323,26 @@ export class SearchService {
               mawb_number_from_origin: true,
             },
           },
-          sea_fcl_details: { select: { hbl_number: true, mbl_number: true, booking_number: true } },
+          sea_fcl_details: {
+            select: {
+              hbl_number: true,
+              mbl_number: true,
+              booking_number: true,
+            },
+          },
         },
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
 
     const partyIds = [
       ...new Set(
-        jobs.flatMap((j) => [j.shipper_id, j.consignee_id].filter((id): id is string => Boolean(id))),
+        jobs.flatMap((j) =>
+          [j.shipper_id, j.consignee_id].filter((id): id is string =>
+            Boolean(id),
+          ),
+        ),
       ),
     ];
     const parties =
@@ -187,7 +350,11 @@ export class SearchService {
         ? []
         : await this.prisma.runWithTenant(tenantId, (tx) =>
             tx.party.findMany({
-              where: { tenant_id: tenantId, id: { in: partyIds }, deleted_at: null },
+              where: {
+                tenant_id: tenantId,
+                id: { in: partyIds },
+                deleted_at: null,
+              },
               select: { id: true, name: true },
             }),
           );
@@ -205,15 +372,19 @@ export class SearchService {
         j.sea_fcl_details?.hbl_number ??
         j.sea_fcl_details?.mbl_number ??
         j.sea_fcl_details?.booking_number;
-      const subtitleParts = [j.commodity ?? j.job_type, partyName, docRef].filter(Boolean);
+      const subtitleParts = [
+        j.commodity ?? j.job_type,
+        partyName,
+        docRef,
+      ].filter(Boolean);
       return {
-        entity_type: 'job' as const,
+        entity_type: "job" as const,
         id: j.id,
         title: j.job_number,
-        subtitle: subtitleParts.join(' · ') || undefined,
+        subtitle: subtitleParts.join(" · ") || undefined,
         reference: j.job_number,
         status: j.status,
-        matched_field: 'job',
+        matched_field: "job",
       };
     });
   }
@@ -230,9 +401,9 @@ export class SearchService {
       AND: [
         {
           OR: [
-            { quotation_number: { contains: term, mode: 'insensitive' } },
-            { commodity: { contains: term, mode: 'insensitive' } },
-            { remarks: { contains: term, mode: 'insensitive' } },
+            { quotation_number: { contains: term, mode: "insensitive" } },
+            { commodity: { contains: term, mode: "insensitive" } },
+            { remarks: { contains: term, mode: "insensitive" } },
           ],
         },
         ...(query.customer_id || query.party_id
@@ -240,9 +411,18 @@ export class SearchService {
           : []),
         ...(query.status ? [{ status: query.status as never }] : []),
         ...(query.quotation_number
-          ? [{ quotation_number: { contains: query.quotation_number, mode: 'insensitive' as const } }]
+          ? [
+              {
+                quotation_number: {
+                  contains: query.quotation_number,
+                  mode: "insensitive" as const,
+                },
+              },
+            ]
           : []),
-        ...(query.salesperson_id ? [{ salesperson_id: query.salesperson_id }] : []),
+        ...(query.salesperson_id
+          ? [{ salesperson_id: query.salesperson_id }]
+          : []),
         ...(query.branch_id ? [{ branch_id: query.branch_id }] : []),
       ],
     };
@@ -258,31 +438,39 @@ export class SearchService {
           customer_id: true,
         },
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
 
-    const customerIds = [...new Set(rows.map((q) => q.customer_id).filter(Boolean))];
+    const customerIds = [
+      ...new Set(rows.map((q) => q.customer_id).filter(Boolean)),
+    ];
     const customers =
       customerIds.length === 0
         ? []
         : await this.prisma.runWithTenant(tenantId, (tx) =>
             tx.party.findMany({
-              where: { tenant_id: tenantId, id: { in: customerIds }, deleted_at: null },
+              where: {
+                tenant_id: tenantId,
+                id: { in: customerIds },
+                deleted_at: null,
+              },
               select: { id: true, name: true },
             }),
           );
     const customerNameById = new Map(customers.map((c) => [c.id, c.name]));
 
     return rows.map((q) => ({
-      entity_type: 'quotation' as const,
+      entity_type: "quotation" as const,
       id: q.id,
       title: q.quotation_number,
       subtitle:
-        [customerNameById.get(q.customer_id), q.commodity].filter(Boolean).join(' · ') || undefined,
+        [customerNameById.get(q.customer_id), q.commodity]
+          .filter(Boolean)
+          .join(" · ") || undefined,
       reference: q.quotation_number,
       status: q.status,
-      matched_field: 'quotation',
+      matched_field: "quotation",
     }));
   }
 
@@ -298,36 +486,42 @@ export class SearchService {
       AND: [
         {
           OR: [
-            { name: { contains: term, mode: 'insensitive' } },
-            { code: { contains: term, mode: 'insensitive' } },
-            { email: { contains: term, mode: 'insensitive' } },
-            { phone: { contains: term, mode: 'insensitive' } },
-            { vat_number: { contains: term, mode: 'insensitive' } },
+            { name: { contains: term, mode: "insensitive" } },
+            { code: { contains: term, mode: "insensitive" } },
+            { email: { contains: term, mode: "insensitive" } },
+            { phone: { contains: term, mode: "insensitive" } },
+            { vat_number: { contains: term, mode: "insensitive" } },
           ],
         },
         ...(query.party_id ? [{ id: query.party_id }] : []),
-        ...(query.status === 'active' ? [{ is_active: true }] : []),
-        ...(query.status === 'inactive' ? [{ is_active: false }] : []),
+        ...(query.status === "active" ? [{ is_active: true }] : []),
+        ...(query.status === "inactive" ? [{ is_active: false }] : []),
       ],
     };
 
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.party.findMany({
         where,
-        select: { id: true, name: true, code: true, party_type: true, is_active: true },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          party_type: true,
+          is_active: true,
+        },
         take: limit,
-        orderBy: { name: 'asc' },
+        orderBy: { name: "asc" },
       }),
     );
 
     return rows.map((p) => ({
-      entity_type: 'party' as const,
+      entity_type: "party" as const,
       id: p.id,
       title: p.name,
       subtitle: p.party_type,
       reference: p.code,
-      status: p.is_active ? 'ACTIVE' : 'INACTIVE',
-      matched_field: 'party',
+      status: p.is_active ? "ACTIVE" : "INACTIVE",
+      matched_field: "party",
     }));
   }
 
@@ -343,8 +537,8 @@ export class SearchService {
       AND: [
         {
           OR: [
-            { invoice_number: { contains: term, mode: 'insensitive' } },
-            { remarks: { contains: term, mode: 'insensitive' } },
+            { invoice_number: { contains: term, mode: "insensitive" } },
+            { remarks: { contains: term, mode: "insensitive" } },
           ],
         },
         ...(query.party_id || query.customer_id
@@ -352,7 +546,14 @@ export class SearchService {
           : []),
         ...(query.status ? [{ status: query.status as never }] : []),
         ...(query.invoice_number
-          ? [{ invoice_number: { contains: query.invoice_number, mode: 'insensitive' as const } }]
+          ? [
+              {
+                invoice_number: {
+                  contains: query.invoice_number,
+                  mode: "insensitive" as const,
+                },
+              },
+            ]
           : []),
       ],
     };
@@ -368,18 +569,20 @@ export class SearchService {
           party: { select: { name: true } },
         },
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
 
     return rows.map((i) => ({
-      entity_type: 'invoice' as const,
+      entity_type: "invoice" as const,
       id: i.id,
       title: i.invoice_number,
-      subtitle: [i.party?.name, i.invoice_type].filter(Boolean).join(' · ') || undefined,
+      subtitle:
+        [i.party?.name, i.invoice_type].filter(Boolean).join(" · ") ||
+        undefined,
       reference: i.invoice_number,
       status: i.status,
-      matched_field: 'invoice',
+      matched_field: "invoice",
     }));
   }
 }

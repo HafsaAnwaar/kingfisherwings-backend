@@ -1,7 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { MasterQueryDto } from './dto/master-query.dto';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { MasterQueryDto } from "./dto/master-query.dto";
 
 export interface PaginatedMasterResult<T> {
   data: T[];
@@ -38,24 +42,41 @@ export abstract class BaseMasterService<T> {
     return (tx as unknown as Record<string, any>)[this.modelName];
   }
 
-  async create(tenantId: string, data: Record<string, unknown>, actorId?: string): Promise<T> {
+  async create(
+    tenantId: string,
+    data: Record<string, unknown>,
+    actorId?: string,
+  ): Promise<T> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       try {
         return await this.delegate(tx).create({
-          data: { ...data, tenant_id: tenantId, created_by: actorId, updated_by: actorId },
+          data: {
+            ...data,
+            tenant_id: tenantId,
+            created_by: actorId,
+            updated_by: actorId,
+          },
         });
       } catch (error: any) {
-        if (error?.code === 'P2002') {
-          throw new ConflictException(`A record with this ${this.uniqueKeyLabel} already exists.`);
+        if (error?.code === "P2002") {
+          throw new ConflictException(
+            `A record with this ${this.uniqueKeyLabel} already exists.`,
+          );
         }
         throw error;
       }
     });
   }
 
-  async findAll(tenantId: string, query: MasterQueryDto): Promise<PaginatedMasterResult<T>> {
+  async findAll(
+    tenantId: string,
+    query: MasterQueryDto,
+  ): Promise<PaginatedMasterResult<T>> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const where: Record<string, unknown> = { tenant_id: tenantId, deleted_at: null };
+      const where: Record<string, unknown> = {
+        tenant_id: tenantId,
+        deleted_at: null,
+      };
 
       if (query.is_active !== undefined && this.supportsIsActive) {
         where.is_active = query.is_active;
@@ -63,7 +84,7 @@ export abstract class BaseMasterService<T> {
 
       if (query.search && this.searchFields.length > 0) {
         where.OR = this.searchFields.map((field) => ({
-          [field]: { contains: query.search, mode: 'insensitive' },
+          [field]: { contains: query.search, mode: "insensitive" },
         }));
       }
 
@@ -96,7 +117,7 @@ export abstract class BaseMasterService<T> {
       });
 
       if (!record) {
-        throw new NotFoundException('Record not found.');
+        throw new NotFoundException("Record not found.");
       }
 
       return record;
@@ -115,7 +136,7 @@ export abstract class BaseMasterService<T> {
       });
 
       if (!existing) {
-        throw new NotFoundException('Record not found.');
+        throw new NotFoundException("Record not found.");
       }
 
       try {
@@ -124,22 +145,28 @@ export abstract class BaseMasterService<T> {
           data: { ...data, updated_by: actorId },
         });
       } catch (error: any) {
-        if (error?.code === 'P2002') {
-          throw new ConflictException(`A record with this ${this.uniqueKeyLabel} already exists.`);
+        if (error?.code === "P2002") {
+          throw new ConflictException(
+            `A record with this ${this.uniqueKeyLabel} already exists.`,
+          );
         }
         throw error;
       }
     });
   }
 
-  async softDelete(tenantId: string, id: string, actorId?: string): Promise<void> {
+  async softDelete(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<void> {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await this.delegate(tx).findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
       });
 
       if (!existing) {
-        throw new NotFoundException('Record not found.');
+        throw new NotFoundException("Record not found.");
       }
 
       await this.delegate(tx).update({

@@ -1,14 +1,25 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, MinLength } from 'class-validator';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  MinLength,
+} from "class-validator";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
 export class PortalLoginDto {
-  @ApiProperty({ example: 'kingfisher', description: 'Tenant slug — same as online-quote.' })
+  @ApiProperty({
+    example: "kingfisher",
+    description: "Tenant slug — same as online-quote.",
+  })
   @IsString()
   @Length(2, 100)
   tenant_slug!: string;
 
-  @ApiProperty({ example: 'john@acme.com' })
+  @ApiProperty({ example: "john@acme.com" })
   @IsStrictEmail()
   email!: string;
 
@@ -26,41 +37,48 @@ export class PortalRefreshDto {
 }
 
 export class CreatePortalUserDto {
-  @ApiProperty({ format: 'uuid', description: 'Customer Party that will own this portal login.' })
+  @ApiProperty({
+    format: "uuid",
+    description: "Customer Party that will own this portal login.",
+  })
   @IsUUID()
   party_id!: string;
 
-  @ApiProperty({ example: 'john@acme.com' })
+  @ApiProperty({ example: "john@acme.com" })
   @IsStrictEmail()
   email!: string;
 
-  @ApiProperty({ example: 'John Smith' })
+  @ApiProperty({ example: "John Smith" })
   @IsString()
   @Length(2, 200)
   full_name!: string;
 
-  @ApiPropertyOptional({ example: '+971501234567' })
+  @ApiPropertyOptional({ example: "+971501234567" })
   @IsOptional()
   @IsString()
   @Length(5, 30)
   phone?: string;
 
   @ApiPropertyOptional({
-    description: 'If omitted, a temporary password is generated and returned once (and emailed when SMTP is configured).',
+    description:
+      "If omitted, a temporary password is generated and returned once (and emailed when SMTP is configured).",
   })
   @IsOptional()
   @IsString()
   @MinLength(8)
   password?: string;
 
-  @ApiPropertyOptional({ description: 'When true (default), send credentials email if SMTP is configured.' })
+  @ApiPropertyOptional({
+    description:
+      "When true (default), send credentials email if SMTP is configured.",
+  })
   @IsOptional()
   @IsBoolean()
   send_email?: boolean;
 
   @ApiPropertyOptional({
     description:
-      'When true, create as INVITED and email an accept-invite link instead of a temporary password.',
+      "When true, create as INVITED and email an accept-invite link instead of a temporary password.",
   })
   @IsOptional()
   @IsBoolean()
@@ -68,12 +86,12 @@ export class CreatePortalUserDto {
 }
 
 export class AcceptPortalInviteDto {
-  @ApiProperty({ description: 'Invite token from the email link.' })
+  @ApiProperty({ description: "Invite token from the email link." })
   @IsString()
   @MinLength(16)
   token!: string;
 
-  @ApiProperty({ description: 'New password to activate the portal account.' })
+  @ApiProperty({ description: "New password to activate the portal account." })
   @IsString()
   @MinLength(8)
   password!: string;
@@ -86,35 +104,40 @@ export class AcceptPortalInviteDto {
 }
 
 export class UpdatePortalUserStatusDto {
-  @ApiProperty({ enum: ['ACTIVE', 'DISABLED', 'INVITED'] })
-  @IsIn(['ACTIVE', 'DISABLED', 'INVITED'])
-  status!: 'ACTIVE' | 'DISABLED' | 'INVITED';
+  @ApiProperty({ enum: ["ACTIVE", "DISABLED", "INVITED"] })
+  @IsIn(["ACTIVE", "DISABLED", "INVITED"])
+  status!: "ACTIVE" | "DISABLED" | "INVITED";
 }
 
 export class ResetPortalPasswordDto {
   @ApiPropertyOptional({
-    description: 'If omitted, a temporary password is generated and returned once.',
+    description:
+      "If omitted, a temporary password is generated and returned once.",
   })
   @IsOptional()
   @IsString()
   @MinLength(8)
   password?: string;
 
-  @ApiPropertyOptional({ description: 'When true (default), email the new password when SMTP is configured.' })
+  @ApiPropertyOptional({
+    description:
+      "When true (default), email the new password when SMTP is configured.",
+  })
   @IsOptional()
   @IsBoolean()
   send_email?: boolean;
 }
 
 export class PortalUserQueryDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
 
   @ApiPropertyOptional({
-    format: 'uuid',
-    description: 'Filter by Party.company_id — for company-scoped admin views within a tenant.',
+    format: "uuid",
+    description:
+      "Filter by Party.company_id — for company-scoped admin views within a tenant.",
   })
   @IsOptional()
   @IsUUID()

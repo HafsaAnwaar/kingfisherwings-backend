@@ -16,8 +16,8 @@
 // Fix: one interface, populated fully by JwtStrategy, imported by both
 // modules (and by any future module, e.g. Tenants).
 
-import { Request } from 'express';
-import { UserRole } from '@prisma/client';
+import { Request } from "express";
+import { UserRole } from "@prisma/client";
 
 export interface AuthenticatedUser {
   /** User id (JWT `sub`). */

@@ -2,16 +2,16 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   CreditLimitRequestStatus,
   PortalDisputeStatus,
   Prisma,
-} from '@prisma/client';
-import { Response } from 'express';
-import * as path from 'path';
-import { PrismaService } from '../../prisma/prisma.service';
-import { StorageService } from '../../shared/storage/storage.service';
+} from "@prisma/client";
+import { Response } from "express";
+import * as path from "path";
+import { PrismaService } from "../../prisma/prisma.service";
+import { StorageService } from "../../shared/storage/storage.service";
 import {
   CreateCreditLimitRequestDto,
   CreatePortalDisputeDto,
@@ -21,10 +21,10 @@ import {
   ReviewCreditLimitRequestDto,
   ReviewPortalDisputeDto,
   StaffPortalInboxQueryDto,
-} from './dto/portal-ccp.dto';
-import { portalJobOwnershipWhere } from './helpers/portal-ownership.helper';
-import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
+} from "./dto/portal-ccp.dto";
+import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
+import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 
 @Injectable()
 export class PortalCcpService {
@@ -60,17 +60,17 @@ export class PortalCcpService {
     );
 
     await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
-      type: 'PORTAL_MESSAGE',
+      type: "PORTAL_MESSAGE",
       title: `Portal message: ${message.subject}`,
       message: `${user.fullName} sent a message from the customer portal.`,
-      entity_type: 'portal_message',
+      entity_type: "portal_message",
       entity_id: message.id,
       link_path: `/portal-admin/messages/${message.id}`,
     });
 
     return {
       success: true,
-      message: 'Message sent to your forwarder.',
+      message: "Message sent to your forwarder.",
       data: this.toMessage(message),
     };
   }
@@ -82,19 +82,23 @@ export class PortalCcpService {
       party_id: user.partyId,
     };
 
-    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-      Promise.all([
-        tx.portalMessage.findMany({
-          where,
-          orderBy: { created_at: 'desc' },
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-          include: {
-            portal_user: { select: { id: true, email: true, full_name: true } },
-          },
-        }),
-        tx.portalMessage.count({ where }),
-      ]),
+    const [rows, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.portalMessage.findMany({
+            where,
+            orderBy: { created_at: "desc" },
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+            include: {
+              portal_user: {
+                select: { id: true, email: true, full_name: true },
+              },
+            },
+          }),
+          tx.portalMessage.count({ where }),
+        ]),
     );
 
     return {
@@ -119,11 +123,11 @@ export class PortalCcpService {
         },
         include: {
           portal_user: { select: { id: true, email: true, full_name: true } },
-          replies: { orderBy: { created_at: 'asc' } },
+          replies: { orderBy: { created_at: "asc" } },
         },
       }),
     );
-    if (!message) throw new NotFoundException('Message not found.');
+    if (!message) throw new NotFoundException("Message not found.");
 
     return {
       success: true,
@@ -141,11 +145,11 @@ export class PortalCcpService {
         include: {
           party: { select: { id: true, name: true, code: true } },
           portal_user: { select: { id: true, email: true, full_name: true } },
-          replies: { orderBy: { created_at: 'asc' } },
+          replies: { orderBy: { created_at: "asc" } },
         },
       }),
     );
-    if (!message) throw new NotFoundException('Message not found.');
+    if (!message) throw new NotFoundException("Message not found.");
 
     return { success: true, data: message };
   }
@@ -165,7 +169,7 @@ export class PortalCcpService {
         },
       }),
     );
-    if (!message) throw new NotFoundException('Message not found.');
+    if (!message) throw new NotFoundException("Message not found.");
 
     const reply = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.portalMessageReply.create({
@@ -180,10 +184,10 @@ export class PortalCcpService {
     );
 
     await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
-      type: 'PORTAL_MESSAGE',
+      type: "PORTAL_MESSAGE",
       title: `Portal reply: ${message.subject}`,
       message: `${user.fullName} replied on a portal message.`,
-      entity_type: 'portal_message',
+      entity_type: "portal_message",
       entity_id: message.id,
       link_path: `/portal-admin/messages/${message.id}`,
     });
@@ -203,7 +207,7 @@ export class PortalCcpService {
         where: { id: messageId, tenant_id: tenantId },
       }),
     );
-    if (!message) throw new NotFoundException('Message not found.');
+    if (!message) throw new NotFoundException("Message not found.");
 
     const reply = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.portalMessageReply.create({
@@ -217,14 +221,18 @@ export class PortalCcpService {
       }),
     );
 
-    await this.notifications.notifyPartyPortalUsers(tenantId, message.party_id, {
-      type: 'PORTAL_MESSAGE',
-      title: `Reply: ${message.subject}`,
-      message: 'Your forwarder replied to your message.',
-      entity_type: 'portal_message',
-      entity_id: message.id,
-      link_path: `/portal/messages/${message.id}`,
-    });
+    await this.notifications.notifyPartyPortalUsers(
+      tenantId,
+      message.party_id,
+      {
+        type: "PORTAL_MESSAGE",
+        title: `Reply: ${message.subject}`,
+        message: "Your forwarder replied to your message.",
+        entity_type: "portal_message",
+        entity_id: message.id,
+        link_path: `/portal/messages/${message.id}`,
+      },
+    );
 
     return { success: true, data: this.toReply(reply) };
   }
@@ -233,25 +241,29 @@ export class PortalCcpService {
     const where: Prisma.PortalMessageWhereInput = {
       tenant_id: tenantId,
       ...(query.party_id ? { party_id: query.party_id } : {}),
-      ...(query.unread_only === 'true' || query.unread_only === '1'
+      ...(query.unread_only === "true" || query.unread_only === "1"
         ? { read_by_staff_at: null }
         : {}),
     };
 
-    const [rows, total] = await this.prisma.runWithTenant(tenantId, async (tx) =>
-      Promise.all([
-        tx.portalMessage.findMany({
-          where,
-          orderBy: { created_at: 'desc' },
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-          include: {
-            party: { select: { id: true, name: true, code: true } },
-            portal_user: { select: { id: true, email: true, full_name: true } },
-          },
-        }),
-        tx.portalMessage.count({ where }),
-      ]),
+    const [rows, total] = await this.prisma.runWithTenant(
+      tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.portalMessage.findMany({
+            where,
+            orderBy: { created_at: "desc" },
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+            include: {
+              party: { select: { id: true, name: true, code: true } },
+              portal_user: {
+                select: { id: true, email: true, full_name: true },
+              },
+            },
+          }),
+          tx.portalMessage.count({ where }),
+        ]),
     );
 
     return {
@@ -271,7 +283,7 @@ export class PortalCcpService {
       const existing = await tx.portalMessage.findFirst({
         where: { id, tenant_id: tenantId },
       });
-      if (!existing) throw new NotFoundException('Message not found.');
+      if (!existing) throw new NotFoundException("Message not found.");
 
       return tx.portalMessage.update({
         where: { id },
@@ -282,7 +294,11 @@ export class PortalCcpService {
     return { success: true, data: this.toMessage(updated) };
   }
 
-  async downloadMessageAttachment(user: CurrentPortalUser, messageId: string, res: Response) {
+  async downloadMessageAttachment(
+    user: CurrentPortalUser,
+    messageId: string,
+    res: Response,
+  ) {
     const message = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.portalMessage.findFirst({
         where: {
@@ -292,18 +308,24 @@ export class PortalCcpService {
         },
       }),
     );
-    if (!message?.attachment_path) throw new NotFoundException('Attachment not found.');
+    if (!message?.attachment_path)
+      throw new NotFoundException("Attachment not found.");
 
     return this.streamAttachment(user.tenantId, message.attachment_path, res);
   }
 
-  async staffDownloadMessageAttachment(tenantId: string, messageId: string, res: Response) {
+  async staffDownloadMessageAttachment(
+    tenantId: string,
+    messageId: string,
+    res: Response,
+  ) {
     const message = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.portalMessage.findFirst({
         where: { id: messageId, tenant_id: tenantId },
       }),
     );
-    if (!message?.attachment_path) throw new NotFoundException('Attachment not found.');
+    if (!message?.attachment_path)
+      throw new NotFoundException("Attachment not found.");
 
     return this.streamAttachment(tenantId, message.attachment_path, res);
   }
@@ -323,12 +345,16 @@ export class PortalCcpService {
           tenant_id: user.tenantId,
           party_id: user.partyId,
           invoice_id: dto.invoice_id,
-          status: { in: [PortalDisputeStatus.OPEN, PortalDisputeStatus.UNDER_REVIEW] },
+          status: {
+            in: [PortalDisputeStatus.OPEN, PortalDisputeStatus.UNDER_REVIEW],
+          },
         },
       }),
     );
     if (open) {
-      throw new BadRequestException('An open dispute already exists for this invoice.');
+      throw new BadRequestException(
+        "An open dispute already exists for this invoice.",
+      );
     }
 
     const dispute = await this.prisma.runWithTenant(user.tenantId, (tx) =>
@@ -346,10 +372,10 @@ export class PortalCcpService {
     );
 
     await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
-      type: 'PORTAL_DISPUTE',
+      type: "PORTAL_DISPUTE",
       title: `Invoice dispute: ${dto.reason}`,
       message: `${user.fullName} raised a dispute on an invoice.`,
-      entity_type: 'portal_dispute',
+      entity_type: "portal_dispute",
       entity_id: dispute.id,
       link_path: `/portal-admin/disputes/${dispute.id}`,
     });
@@ -364,16 +390,18 @@ export class PortalCcpService {
       ...(query.status ? { status: query.status } : {}),
     };
 
-    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-      Promise.all([
-        tx.portalDispute.findMany({
-          where,
-          orderBy: { created_at: 'desc' },
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-        }),
-        tx.portalDispute.count({ where }),
-      ]),
+    const [rows, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.portalDispute.findMany({
+            where,
+            orderBy: { created_at: "desc" },
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+          }),
+          tx.portalDispute.count({ where }),
+        ]),
     );
 
     return {
@@ -398,11 +426,15 @@ export class PortalCcpService {
         },
       }),
     );
-    if (!dispute) throw new NotFoundException('Dispute not found.');
+    if (!dispute) throw new NotFoundException("Dispute not found.");
     return { success: true, data: dispute };
   }
 
-  async downloadDisputeAttachment(user: CurrentPortalUser, disputeId: string, res: Response) {
+  async downloadDisputeAttachment(
+    user: CurrentPortalUser,
+    disputeId: string,
+    res: Response,
+  ) {
     const dispute = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.portalDispute.findFirst({
         where: {
@@ -412,12 +444,16 @@ export class PortalCcpService {
         },
       }),
     );
-    if (!dispute?.attachment_path) throw new NotFoundException('Attachment not found.');
+    if (!dispute?.attachment_path)
+      throw new NotFoundException("Attachment not found.");
 
     return this.streamAttachment(user.tenantId, dispute.attachment_path, res);
   }
 
-  async staffListDisputes(tenantId: string, query: PortalDisputeQueryDto & { party_id?: string }) {
+  async staffListDisputes(
+    tenantId: string,
+    query: PortalDisputeQueryDto & { party_id?: string },
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.PortalDisputeWhereInput = {
@@ -426,20 +462,24 @@ export class PortalCcpService {
       ...(query.status ? { status: query.status } : {}),
     };
 
-    const [rows, total] = await this.prisma.runWithTenant(tenantId, async (tx) =>
-      Promise.all([
-        tx.portalDispute.findMany({
-          where,
-          orderBy: { created_at: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit,
-          include: {
-            party: { select: { id: true, name: true, code: true } },
-            portal_user: { select: { id: true, email: true, full_name: true } },
-          },
-        }),
-        tx.portalDispute.count({ where }),
-      ]),
+    const [rows, total] = await this.prisma.runWithTenant(
+      tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.portalDispute.findMany({
+            where,
+            orderBy: { created_at: "desc" },
+            skip: (page - 1) * limit,
+            take: limit,
+            include: {
+              party: { select: { id: true, name: true, code: true } },
+              portal_user: {
+                select: { id: true, email: true, full_name: true },
+              },
+            },
+          }),
+          tx.portalDispute.count({ where }),
+        ]),
     );
 
     return {
@@ -465,7 +505,7 @@ export class PortalCcpService {
       }),
     );
 
-    if (!row) throw new NotFoundException('Dispute not found.');
+    if (!row) throw new NotFoundException("Dispute not found.");
 
     const invoice = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.invoice.findFirst({
@@ -495,10 +535,11 @@ export class PortalCcpService {
       const existing = await tx.portalDispute.findFirst({
         where: { id, tenant_id: tenantId },
       });
-      if (!existing) throw new NotFoundException('Dispute not found.');
+      if (!existing) throw new NotFoundException("Dispute not found.");
 
       const terminal =
-        dto.status === PortalDisputeStatus.RESOLVED || dto.status === PortalDisputeStatus.REJECTED;
+        dto.status === PortalDisputeStatus.RESOLVED ||
+        dto.status === PortalDisputeStatus.REJECTED;
 
       return tx.portalDispute.update({
         where: { id },
@@ -512,28 +553,35 @@ export class PortalCcpService {
       });
     });
 
-    await this.notifications.notifyPortalUser(tenantId, updated.portal_user_id, {
-      type: 'PORTAL_DISPUTE',
-      title: `Dispute ${dto.status.toLowerCase().replace('_', ' ')}`,
-      message: `Your invoice dispute was updated to ${dto.status}.`,
-      entity_type: 'portal_dispute',
-      entity_id: updated.id,
-      link_path: `/portal/disputes/${updated.id}`,
-    });
+    await this.notifications.notifyPortalUser(
+      tenantId,
+      updated.portal_user_id,
+      {
+        type: "PORTAL_DISPUTE",
+        title: `Dispute ${dto.status.toLowerCase().replace("_", " ")}`,
+        message: `Your invoice dispute was updated to ${dto.status}.`,
+        entity_type: "portal_dispute",
+        entity_id: updated.id,
+        link_path: `/portal/disputes/${updated.id}`,
+      },
+    );
 
     return { success: true, data: updated };
   }
 
   // ─── Credit limit requests ─────────────────────────────────
 
-  async createCreditLimitRequest(user: CurrentPortalUser, dto: CreateCreditLimitRequestDto) {
+  async createCreditLimitRequest(
+    user: CurrentPortalUser,
+    dto: CreateCreditLimitRequestDto,
+  ) {
     const party = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.party.findFirst({
         where: { id: user.partyId, tenant_id: user.tenantId, deleted_at: null },
         select: { credit_limit: true },
       }),
     );
-    if (!party) throw new NotFoundException('Party not found.');
+    if (!party) throw new NotFoundException("Party not found.");
 
     const pending = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.creditLimitRequest.findFirst({
@@ -545,12 +593,17 @@ export class PortalCcpService {
       }),
     );
     if (pending) {
-      throw new BadRequestException('A pending credit limit request already exists.');
+      throw new BadRequestException(
+        "A pending credit limit request already exists.",
+      );
     }
 
-    const current = party.credit_limit != null ? Number(party.credit_limit) : null;
+    const current =
+      party.credit_limit != null ? Number(party.credit_limit) : null;
     if (current != null && dto.requested_limit <= current) {
-      throw new BadRequestException('Requested limit must be higher than the current limit.');
+      throw new BadRequestException(
+        "Requested limit must be higher than the current limit.",
+      );
     }
 
     const request = await this.prisma.runWithTenant(user.tenantId, (tx) =>
@@ -567,10 +620,10 @@ export class PortalCcpService {
     );
 
     await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
-      type: 'CREDIT_LIMIT_REQUEST',
-      title: 'Credit limit increase requested',
+      type: "CREDIT_LIMIT_REQUEST",
+      title: "Credit limit increase requested",
       message: `${user.fullName} requested a credit limit of ${dto.requested_limit}.`,
-      entity_type: 'credit_limit_request',
+      entity_type: "credit_limit_request",
       entity_id: request.id,
       link_path: `/portal-admin/credit-limit-requests/${request.id}`,
     });
@@ -582,7 +635,7 @@ export class PortalCcpService {
     const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.creditLimitRequest.findMany({
         where: { tenant_id: user.tenantId, party_id: user.partyId },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
 
@@ -591,7 +644,12 @@ export class PortalCcpService {
 
   async staffListCreditLimitRequests(
     tenantId: string,
-    query: { page?: number; limit?: number; party_id?: string; status?: CreditLimitRequestStatus },
+    query: {
+      page?: number;
+      limit?: number;
+      party_id?: string;
+      status?: CreditLimitRequestStatus;
+    },
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -601,20 +659,31 @@ export class PortalCcpService {
       ...(query.status ? { status: query.status } : {}),
     };
 
-    const [rows, total] = await this.prisma.runWithTenant(tenantId, async (tx) =>
-      Promise.all([
-        tx.creditLimitRequest.findMany({
-          where,
-          orderBy: { created_at: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit,
-          include: {
-            party: { select: { id: true, name: true, code: true, credit_limit: true } },
-            portal_user: { select: { id: true, email: true, full_name: true } },
-          },
-        }),
-        tx.creditLimitRequest.count({ where }),
-      ]),
+    const [rows, total] = await this.prisma.runWithTenant(
+      tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.creditLimitRequest.findMany({
+            where,
+            orderBy: { created_at: "desc" },
+            skip: (page - 1) * limit,
+            take: limit,
+            include: {
+              party: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                  credit_limit: true,
+                },
+              },
+              portal_user: {
+                select: { id: true, email: true, full_name: true },
+              },
+            },
+          }),
+          tx.creditLimitRequest.count({ where }),
+        ]),
     );
 
     return {
@@ -634,9 +703,10 @@ export class PortalCcpService {
       const existing = await tx.creditLimitRequest.findFirst({
         where: { id, tenant_id: tenantId },
       });
-      if (!existing) throw new NotFoundException('Credit limit request not found.');
+      if (!existing)
+        throw new NotFoundException("Credit limit request not found.");
       if (existing.status !== CreditLimitRequestStatus.PENDING) {
-        throw new BadRequestException('Only PENDING requests can be reviewed.');
+        throw new BadRequestException("Only PENDING requests can be reviewed.");
       }
 
       if (dto.status === CreditLimitRequestStatus.APPROVED) {
@@ -658,17 +728,21 @@ export class PortalCcpService {
       });
     });
 
-    await this.notifications.notifyPortalUser(tenantId, updated.portal_user_id, {
-      type: 'CREDIT_LIMIT_REQUEST',
-      title: `Credit limit request ${dto.status.toLowerCase()}`,
-      message:
-        dto.status === CreditLimitRequestStatus.APPROVED
-          ? 'Your credit limit increase was approved.'
-          : 'Your credit limit increase was rejected.',
-      entity_type: 'credit_limit_request',
-      entity_id: updated.id,
-      link_path: `/portal/credit/limit-requests`,
-    });
+    await this.notifications.notifyPortalUser(
+      tenantId,
+      updated.portal_user_id,
+      {
+        type: "CREDIT_LIMIT_REQUEST",
+        title: `Credit limit request ${dto.status.toLowerCase()}`,
+        message:
+          dto.status === CreditLimitRequestStatus.APPROVED
+            ? "Your credit limit increase was approved."
+            : "Your credit limit increase was rejected.",
+        entity_type: "credit_limit_request",
+        entity_id: updated.id,
+        link_path: `/portal/credit/limit-requests`,
+      },
+    );
 
     return { success: true, data: updated };
   }
@@ -690,11 +764,18 @@ export class PortalCcpService {
     return stored.fileUrl || stored.s3Key;
   }
 
-  private async streamAttachment(tenantId: string, attachmentPath: string, res: Response) {
+  private async streamAttachment(
+    tenantId: string,
+    attachmentPath: string,
+    res: Response,
+  ) {
     const stored = this.resolveStoredFile(attachmentPath);
     const file = await this.storage.readByStoredFile(tenantId, stored);
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${file.fileName}"`,
+    );
     res.send(file.buffer);
   }
 
@@ -706,7 +787,9 @@ export class PortalCcpService {
   } {
     const looksLikeUrl = /^https?:\/\//i.test(attachmentPath);
     if (looksLikeUrl) {
-      const fileName = decodeURIComponent(attachmentPath.split('/').pop() || 'attachment');
+      const fileName = decodeURIComponent(
+        attachmentPath.split("/").pop() || "attachment",
+      );
       const s3Match = attachmentPath.match(/\.amazonaws\.com\/(.+)$/);
       return {
         file_name: fileName,
@@ -720,7 +803,7 @@ export class PortalCcpService {
     return {
       file_name: fileName,
       file_url: attachmentPath,
-      s3_key: attachmentPath.includes('/') ? attachmentPath : null,
+      s3_key: attachmentPath.includes("/") ? attachmentPath : null,
     };
   }
 
@@ -791,7 +874,7 @@ export class PortalCcpService {
         select: { id: true },
       }),
     );
-    if (!job) throw new BadRequestException('Job not found for this customer.');
+    if (!job) throw new BadRequestException("Job not found for this customer.");
   }
 
   private async assertOwnedInvoice(user: CurrentPortalUser, invoiceId: string) {
@@ -806,6 +889,7 @@ export class PortalCcpService {
         select: { id: true },
       }),
     );
-    if (!invoice) throw new BadRequestException('Invoice not found for this customer.');
+    if (!invoice)
+      throw new BadRequestException("Invoice not found for this customer.");
   }
 }

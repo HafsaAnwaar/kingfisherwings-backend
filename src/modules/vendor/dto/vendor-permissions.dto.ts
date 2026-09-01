@@ -1,7 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsEnum, ValidateNested } from 'class-validator';
-import { VendorDocumentType } from '@prisma/client';
+import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import { IsArray, IsBoolean, IsEnum, ValidateNested } from "class-validator";
+import { VendorDocumentType } from "@prisma/client";
 
 export class VendorPermissionEntryDto {
   @ApiProperty({ enum: VendorDocumentType })

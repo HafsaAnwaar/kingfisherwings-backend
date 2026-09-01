@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 
 type BookingWithCharges = {
   id: string;
@@ -86,13 +86,21 @@ export function buildVoyagePnlResponse(
 
   const bookingRows = bookings.map((b) => {
     const job = b.converted_job_id ? jobMap.get(b.converted_job_id) : undefined;
-    const bRev = b.charges.filter((c) => !c.is_cost).reduce((s, c) => s + Number(c.amount), 0);
-    const bCost = b.charges.filter((c) => c.is_cost).reduce((s, c) => s + Number(c.amount), 0);
+    const bRev = b.charges
+      .filter((c) => !c.is_cost)
+      .reduce((s, c) => s + Number(c.amount), 0);
+    const bCost = b.charges
+      .filter((c) => c.is_cost)
+      .reduce((s, c) => s + Number(c.amount), 0);
     const jRev = job
-      ? job.charges.filter((c) => !c.is_cost && !c.is_provisional).reduce((s, c) => s + Number(c.amount_base_currency), 0)
+      ? job.charges
+          .filter((c) => !c.is_cost && !c.is_provisional)
+          .reduce((s, c) => s + Number(c.amount_base_currency), 0)
       : 0;
     const jCost = job
-      ? job.charges.filter((c) => c.is_cost && !c.is_provisional).reduce((s, c) => s + Number(c.amount_base_currency), 0)
+      ? job.charges
+          .filter((c) => c.is_cost && !c.is_provisional)
+          .reduce((s, c) => s + Number(c.amount_base_currency), 0)
       : 0;
     const rowRev = bRev + jRev;
     const rowCost = bCost + jCost;
@@ -111,7 +119,9 @@ export function buildVoyagePnlResponse(
     };
   });
 
-  const lclCapacity = voyage.lcl_capacity_cbm ? Number(voyage.lcl_capacity_cbm) : null;
+  const lclCapacity = voyage.lcl_capacity_cbm
+    ? Number(voyage.lcl_capacity_cbm)
+    : null;
   const lclBooked = Number(voyage.lcl_booked_cbm);
   const fclSlots = voyage.slot_allocation_containers;
   const fclBooked = voyage.fcl_booked_containers;
@@ -132,11 +142,14 @@ export function buildVoyagePnlResponse(
     capacity: {
       fcl_slots_allocated: fclSlots,
       fcl_slots_booked: fclBooked,
-      fcl_utilization_percent: fclSlots > 0 ? Number(((fclBooked / fclSlots) * 100).toFixed(1)) : null,
+      fcl_utilization_percent:
+        fclSlots > 0 ? Number(((fclBooked / fclSlots) * 100).toFixed(1)) : null,
       lcl_capacity_cbm: lclCapacity,
       lcl_booked_cbm: lclBooked,
       lcl_utilization_percent:
-        lclCapacity && lclCapacity > 0 ? Number(((lclBooked / lclCapacity) * 100).toFixed(1)) : null,
+        lclCapacity && lclCapacity > 0
+          ? Number(((lclBooked / lclCapacity) * 100).toFixed(1))
+          : null,
     },
     bookings: bookingRows,
     booking_count: bookings.length,

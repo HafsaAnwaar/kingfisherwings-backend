@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { DocumentNumberFormat, DocumentNumberType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  DocumentNumberFormat,
+  DocumentNumberType,
+  Prisma,
+} from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
 
 export interface GenerateNumberOptions {
   /** Only used if the format has include_branch_code enabled. */
@@ -29,7 +33,11 @@ export class NumberGeneratorService {
   ): Promise<string> {
     const mint = async (tx: Prisma.TransactionClient) => {
       let format = await tx.documentNumberFormat.findFirst({
-        where: { tenant_id: tenantId, document_type: documentType, is_active: true },
+        where: {
+          tenant_id: tenantId,
+          document_type: documentType,
+          is_active: true,
+        },
       });
 
       // Auto-provision a sensible default so invoice/CN/DN/PI never 500 on fresh tenants.
@@ -44,8 +52,8 @@ export class NumberGeneratorService {
             year_digits: 2,
             include_month: true,
             sequence_length: 5,
-            separator: '/',
-            reset_frequency: 'YEARLY',
+            separator: "/",
+            reset_frequency: "YEARLY",
             is_active: true,
           },
         });
@@ -53,7 +61,9 @@ export class NumberGeneratorService {
 
       const now = new Date();
       const periodKey = this.periodKey(format.reset_frequency, now);
-      const branchCode = format.include_branch_code ? options.branchCode ?? '' : '';
+      const branchCode = format.include_branch_code
+        ? (options.branchCode ?? "")
+        : "";
 
       const sequence = await tx.documentNumberSequence.upsert({
         where: {
@@ -76,7 +86,13 @@ export class NumberGeneratorService {
         },
       });
 
-      return this.assemble(format, sequence.last_sequence, now, branchCode, options.extraSegment);
+      return this.assemble(
+        format,
+        sequence.last_sequence,
+        now,
+        branchCode,
+        options.extraSegment,
+      );
     };
 
     if (existingTx) {
@@ -88,24 +104,24 @@ export class NumberGeneratorService {
 
   private defaultPrefix(documentType: DocumentNumberType): string {
     const map: Partial<Record<DocumentNumberType, string>> = {
-      INVOICE: 'INV',
-      CREDIT_NOTE: 'CN',
-      DEBIT_NOTE: 'DN',
-      PURCHASE_INVOICE: 'PI',
-      QUOTATION: 'Q',
-      JOB_NUMBER: 'JOB',
-      VOUCHER: 'JV',
-      PAYMENT: 'PAY',
-      EMPLOYEE_CODE: 'EMP',
-      GRN: 'GRN',
-      GDO: 'GDO',
-      ASN: 'ASN',
-      TRANSPORT_REQUEST: 'TR',
-      NVOCC_VOYAGE: 'VYG',
-      NVOCC_ENQUIRY: 'NEQ',
-      NVOCC_BOOKING: 'NBK',
+      INVOICE: "INV",
+      CREDIT_NOTE: "CN",
+      DEBIT_NOTE: "DN",
+      PURCHASE_INVOICE: "PI",
+      QUOTATION: "Q",
+      JOB_NUMBER: "JOB",
+      VOUCHER: "JV",
+      PAYMENT: "PAY",
+      EMPLOYEE_CODE: "EMP",
+      GRN: "GRN",
+      GDO: "GDO",
+      ASN: "ASN",
+      TRANSPORT_REQUEST: "TR",
+      NVOCC_VOYAGE: "VYG",
+      NVOCC_ENQUIRY: "NEQ",
+      NVOCC_BOOKING: "NBK",
     };
-    return map[documentType] ?? 'DOC';
+    return map[documentType] ?? "DOC";
   }
 
   /** Builds the string for the *next* number without consuming a sequence value — for UI "preview this format" displays. */
@@ -120,31 +136,46 @@ export class NumberGeneratorService {
       });
 
       if (!format) {
-        throw new NotFoundException(`No number format configured for ${documentType}.`);
+        throw new NotFoundException(
+          `No number format configured for ${documentType}.`,
+        );
       }
 
       const now = new Date();
       const periodKey = this.periodKey(format.reset_frequency, now);
-      const branchCode = format.include_branch_code ? options.branchCode ?? '' : '';
+      const branchCode = format.include_branch_code
+        ? (options.branchCode ?? "")
+        : "";
 
       const existing = await tx.documentNumberSequence.findFirst({
-        where: { tenant_id: tenantId, document_type: documentType, branch_code: branchCode, period_key: periodKey },
+        where: {
+          tenant_id: tenantId,
+          document_type: documentType,
+          branch_code: branchCode,
+          period_key: periodKey,
+        },
       });
 
       const nextSequence = (existing?.last_sequence ?? 0) + 1;
 
-      return this.assemble(format, nextSequence, now, branchCode, options.extraSegment);
+      return this.assemble(
+        format,
+        nextSequence,
+        now,
+        branchCode,
+        options.extraSegment,
+      );
     });
   }
 
   private periodKey(resetFrequency: string, at: Date): string {
-    if (resetFrequency === 'YEARLY') {
+    if (resetFrequency === "YEARLY") {
       return String(at.getFullYear());
     }
-    if (resetFrequency === 'MONTHLY') {
-      return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}`;
+    if (resetFrequency === "MONTHLY") {
+      return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}`;
     }
-    return '';
+    return "";
   }
 
   private assemble(
@@ -165,15 +196,18 @@ export class NumberGeneratorService {
     }
 
     if (format.include_month) {
-      segments.push(String(at.getMonth() + 1).padStart(2, '0'));
+      segments.push(String(at.getMonth() + 1).padStart(2, "0"));
     }
 
     if (format.include_year) {
-      const year = format.year_digits === 4 ? String(at.getFullYear()) : String(at.getFullYear()).slice(-2);
+      const year =
+        format.year_digits === 4
+          ? String(at.getFullYear())
+          : String(at.getFullYear()).slice(-2);
       segments.push(year);
     }
 
-    segments.push(String(sequence).padStart(format.sequence_length, '0'));
+    segments.push(String(sequence).padStart(format.sequence_length, "0"));
 
     return segments.join(format.separator);
   }

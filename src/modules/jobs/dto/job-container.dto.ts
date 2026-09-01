@@ -1,18 +1,28 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Min,
+} from "class-validator";
 
 const CONTAINER_STATUSES = [
-  'EMPTY',
-  'STUFFED',
-  'GATED_IN',
-  'LOADED',
-  'IN_TRANSIT',
-  'DISCHARGED',
-  'RETURNED',
+  "EMPTY",
+  "STUFFED",
+  "GATED_IN",
+  "LOADED",
+  "IN_TRANSIT",
+  "DISCHARGED",
+  "RETURNED",
 ] as const;
 
 export class CreateJobContainerDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   container_type_id!: string;
 
@@ -64,7 +74,7 @@ export class CreateJobContainerDto {
   @Min(0)
   cbm?: number;
 
-  @ApiPropertyOptional({ enum: CONTAINER_STATUSES, default: 'EMPTY' })
+  @ApiPropertyOptional({ enum: CONTAINER_STATUSES, default: "EMPTY" })
   @IsOptional()
   @IsIn(CONTAINER_STATUSES)
   status?: (typeof CONTAINER_STATUSES)[number];

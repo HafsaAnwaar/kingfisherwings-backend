@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { NvoccVoyageStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { NvoccVoyageStatus } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
@@ -11,7 +11,7 @@ import {
   IsUUID,
   MaxLength,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class CreateNvoccVoyageDto {
   @ApiPropertyOptional()

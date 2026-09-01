@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
@@ -13,8 +13,8 @@ import {
   Max,
   MaxLength,
   Min,
-} from 'class-validator';
-import { JobType, QuotationStatus } from '@prisma/client';
+} from "class-validator";
+import { JobType, QuotationStatus } from "@prisma/client";
 
 export class PortalQuotationQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -57,10 +57,10 @@ export class PortalQuotationQueryDto {
   @IsDateString()
   to_date?: string;
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @ApiPropertyOptional({ enum: ["asc", "desc"], default: "desc" })
   @IsOptional()
-  @IsIn(['asc', 'desc'])
-  order: 'asc' | 'desc' = 'desc';
+  @IsIn(["asc", "desc"])
+  order: "asc" | "desc" = "desc";
 }
 
 export class PortalQuotationRequestDto {
@@ -68,12 +68,12 @@ export class PortalQuotationRequestDto {
   @IsEnum(JobType)
   job_type!: JobType;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
@@ -107,7 +107,7 @@ export class PortalQuotationRequestDto {
   @Min(0)
   pieces?: number;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_type_id?: string;
@@ -117,25 +117,25 @@ export class PortalQuotationRequestDto {
   @IsString()
   special_requirements?: string;
 
-  @ApiPropertyOptional({ example: '2026-08-31' })
+  @ApiPropertyOptional({ example: "2026-08-31" })
   @IsOptional()
   @IsDateString()
   valid_until?: string;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
 }
 
 const PORTAL_LOSS_REASONS = [
-  'Competitor Rate',
-  'No Space',
-  'Cargo Type',
-  'No Longer Required',
-  'Booked Elsewhere',
-  'Price Too High',
-  'Other',
+  "Competitor Rate",
+  "No Space",
+  "Cargo Type",
+  "No Longer Required",
+  "Booked Elsewhere",
+  "Price Too High",
+  "Other",
 ] as const;
 
 export class PortalQuotationRejectDto {

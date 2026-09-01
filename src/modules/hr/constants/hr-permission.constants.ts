@@ -1,16 +1,16 @@
 export const HR_PERMISSION_CONSTANTS = {
-  MODULE: 'hr',
+  MODULE: "hr",
   ACTIONS: {
-    VIEW: 'view',
-    MANAGE_EMPLOYEES: 'manage_employees',
-    MANAGE_LEAVE: 'manage_leave',
-    APPROVE_LEAVE: 'approve_leave',
-    MANAGE_PAYROLL: 'manage_payroll',
-    MANAGE_LOANS: 'manage_loans',
-    MANAGE_TIMESHEETS: 'manage_timesheets',
-    MANAGE_EVALUATIONS: 'manage_evaluations',
-    GENERATE_LETTERS: 'generate_letters',
-    VIEW_SELF: 'view_self',
+    VIEW: "view",
+    MANAGE_EMPLOYEES: "manage_employees",
+    MANAGE_LEAVE: "manage_leave",
+    APPROVE_LEAVE: "approve_leave",
+    MANAGE_PAYROLL: "manage_payroll",
+    MANAGE_LOANS: "manage_loans",
+    MANAGE_TIMESHEETS: "manage_timesheets",
+    MANAGE_EVALUATIONS: "manage_evaluations",
+    GENERATE_LETTERS: "generate_letters",
+    VIEW_SELF: "view_self",
   },
 } as const;
 

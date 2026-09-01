@@ -2,18 +2,18 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { PaymentRequestStatus, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
+} from "@nestjs/common";
+import { PaymentRequestStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import {
   CreatePaymentRequestDto,
   PaymentRequestQueryDto,
   RejectPaymentRequestDto,
   UpdatePaymentRequestDto,
-} from './dto/payment-request.dto';
+} from "./dto/payment-request.dto";
 
-const EDITABLE_STATUSES: PaymentRequestStatus[] = ['PENDING'];
+const EDITABLE_STATUSES: PaymentRequestStatus[] = ["PENDING"];
 
 @Injectable()
 export class PaymentRequestsService {
@@ -42,7 +42,12 @@ export class PaymentRequestsService {
             deleted_at: null,
             ...(query.branch_id ? { branch_id: query.branch_id } : {}),
             ...(query.job_number
-              ? { job_number: { contains: query.job_number, mode: 'insensitive' } }
+              ? {
+                  job_number: {
+                    contains: query.job_number,
+                    mode: "insensitive",
+                  },
+                }
               : {}),
           },
         });
@@ -50,14 +55,14 @@ export class PaymentRequestsService {
 
       if (query.voucher_pending) {
         andFilters.push({
-          status: 'APPROVED',
+          status: "APPROVED",
           job_id: { not: null },
           job: {
             deleted_at: null,
             vouchers: {
               none: {
                 deleted_at: null,
-                status: 'POSTED',
+                status: "POSTED",
               },
             },
           },
@@ -78,7 +83,7 @@ export class PaymentRequestsService {
           },
           skip: (page - 1) * limit,
           take: limit,
-          orderBy: { created_at: 'desc' },
+          orderBy: { created_at: "desc" },
         }),
         tx.paymentRequest.count({ where }),
       ]);
@@ -96,32 +101,42 @@ export class PaymentRequestsService {
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
           party: { select: { id: true, name: true, code: true, email: true } },
-          invoice: { select: { id: true, invoice_number: true, balance_due: true } },
+          invoice: {
+            select: { id: true, invoice_number: true, balance_due: true },
+          },
           job: { select: { id: true, job_number: true } },
         },
       });
 
       if (!request) {
-        throw new NotFoundException('Payment request not found.');
+        throw new NotFoundException("Payment request not found.");
       }
 
       return request;
     });
   }
 
-  async create(tenantId: string, dto: CreatePaymentRequestDto, actorId?: string) {
+  async create(
+    tenantId: string,
+    dto: CreatePaymentRequestDto,
+    actorId?: string,
+  ) {
     await this.assertPartyExists(tenantId, dto.party_id);
-    if (dto.invoice_id) await this.assertInvoiceExists(tenantId, dto.invoice_id);
+    if (dto.invoice_id)
+      await this.assertInvoiceExists(tenantId, dto.invoice_id);
     if (dto.job_id) await this.assertJobExists(tenantId, dto.job_id);
 
-    const requestNumber = await this.numberGenerator.generate(tenantId, 'VOUCHER');
+    const requestNumber = await this.numberGenerator.generate(
+      tenantId,
+      "VOUCHER",
+    );
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.paymentRequest.create({
         data: {
           tenant_id: tenantId,
           request_number: requestNumber,
-          status: 'PENDING',
+          status: "PENDING",
           party_id: dto.party_id,
           invoice_id: dto.invoice_id,
           job_id: dto.job_id,
@@ -140,7 +155,12 @@ export class PaymentRequestsService {
     );
   }
 
-  async update(tenantId: string, id: string, dto: UpdatePaymentRequestDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdatePaymentRequestDto,
+    actorId?: string,
+  ) {
     const request = await this.findOne(tenantId, id);
     this.assertEditable(request.status);
 
@@ -149,11 +169,15 @@ export class PaymentRequestsService {
         where: { id },
         data: {
           ...(dto.party_id ? { party_id: dto.party_id } : {}),
-          ...(dto.invoice_id !== undefined ? { invoice_id: dto.invoice_id } : {}),
+          ...(dto.invoice_id !== undefined
+            ? { invoice_id: dto.invoice_id }
+            : {}),
           ...(dto.job_id !== undefined ? { job_id: dto.job_id } : {}),
           ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
           ...(dto.currency_code ? { currency_code: dto.currency_code } : {}),
-          ...(dto.due_date !== undefined ? { due_date: dto.due_date ? new Date(dto.due_date) : null } : {}),
+          ...(dto.due_date !== undefined
+            ? { due_date: dto.due_date ? new Date(dto.due_date) : null }
+            : {}),
           ...(dto.remarks !== undefined ? { remarks: dto.remarks } : {}),
           updated_by: actorId,
         },
@@ -164,15 +188,17 @@ export class PaymentRequestsService {
   async approve(tenantId: string, id: string, actorId?: string) {
     const request = await this.findOne(tenantId, id);
 
-    if (request.status !== 'PENDING') {
-      throw new BadRequestException('Only pending payment requests can be approved.');
+    if (request.status !== "PENDING") {
+      throw new BadRequestException(
+        "Only pending payment requests can be approved.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.paymentRequest.update({
         where: { id },
         data: {
-          status: 'APPROVED',
+          status: "APPROVED",
           approved_at: new Date(),
           approved_by: actorId,
           updated_by: actorId,
@@ -181,18 +207,25 @@ export class PaymentRequestsService {
     );
   }
 
-  async reject(tenantId: string, id: string, dto: RejectPaymentRequestDto, actorId?: string) {
+  async reject(
+    tenantId: string,
+    id: string,
+    dto: RejectPaymentRequestDto,
+    actorId?: string,
+  ) {
     const request = await this.findOne(tenantId, id);
 
-    if (request.status !== 'PENDING') {
-      throw new BadRequestException('Only pending payment requests can be rejected.');
+    if (request.status !== "PENDING") {
+      throw new BadRequestException(
+        "Only pending payment requests can be rejected.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.paymentRequest.update({
         where: { id },
         data: {
-          status: 'REJECTED',
+          status: "REJECTED",
           rejected_reason: dto.rejected_reason,
           updated_by: actorId,
         },
@@ -203,31 +236,43 @@ export class PaymentRequestsService {
   async markPaid(tenantId: string, id: string, actorId?: string) {
     const request = await this.findOne(tenantId, id);
 
-    if (request.status !== 'APPROVED') {
-      throw new BadRequestException('Only approved payment requests can be marked paid.');
+    if (request.status !== "APPROVED") {
+      throw new BadRequestException(
+        "Only approved payment requests can be marked paid.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const updated = await tx.paymentRequest.update({
         where: { id },
-        data: { status: 'PAID', paid_at: new Date(), updated_by: actorId },
+        data: { status: "PAID", paid_at: new Date(), updated_by: actorId },
       });
 
       if (request.invoice_id) {
         const invoice = await tx.invoice.findFirst({
-          where: { id: request.invoice_id, tenant_id: tenantId, deleted_at: null },
+          where: {
+            id: request.invoice_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
         });
         if (!invoice) {
-          throw new BadRequestException('Linked invoice not found or has been deleted.');
+          throw new BadRequestException(
+            "Linked invoice not found or has been deleted.",
+          );
         }
-        if (['CANCELLED', 'VOID'].includes(invoice.status)) {
-          throw new BadRequestException('Cannot apply payment to a cancelled or void invoice.');
+        if (["CANCELLED", "VOID"].includes(invoice.status)) {
+          throw new BadRequestException(
+            "Cannot apply payment to a cancelled or void invoice.",
+          );
         }
 
         const requestAmount = Number(request.amount);
         const currentBalance = Number(invoice.balance_due);
         if (requestAmount <= 0) {
-          throw new BadRequestException('Payment request amount must be positive.');
+          throw new BadRequestException(
+            "Payment request amount must be positive.",
+          );
         }
         if (requestAmount > currentBalance + 0.005) {
           throw new BadRequestException(
@@ -243,7 +288,7 @@ export class PaymentRequestsService {
           data: {
             amount_paid: amountPaid,
             balance_due: balanceDue,
-            status: balanceDue <= 0 ? 'PAID' : 'PARTIALLY_PAID',
+            status: balanceDue <= 0 ? "PAID" : "PARTIALLY_PAID",
             updated_by: actorId,
           },
         });
@@ -267,28 +312,36 @@ export class PaymentRequestsService {
 
   private assertEditable(status: PaymentRequestStatus) {
     if (!EDITABLE_STATUSES.includes(status)) {
-      throw new BadRequestException('Only pending payment requests can be modified.');
+      throw new BadRequestException(
+        "Only pending payment requests can be modified.",
+      );
     }
   }
 
   private async assertPartyExists(tenantId: string, partyId: string) {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.party.findFirst({ where: { id: partyId, tenant_id: tenantId, deleted_at: null } }),
+      tx.party.findFirst({
+        where: { id: partyId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!exists) throw new NotFoundException('Party not found.');
+    if (!exists) throw new NotFoundException("Party not found.");
   }
 
   private async assertJobExists(tenantId: string, jobId: string) {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } }),
+      tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!exists) throw new NotFoundException('Job not found.');
+    if (!exists) throw new NotFoundException("Job not found.");
   }
 
   private async assertInvoiceExists(tenantId: string, invoiceId: string) {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.invoice.findFirst({ where: { id: invoiceId, tenant_id: tenantId, deleted_at: null } }),
+      tx.invoice.findFirst({
+        where: { id: invoiceId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!exists) throw new NotFoundException('Invoice not found.');
+    if (!exists) throw new NotFoundException("Invoice not found.");
   }
 }

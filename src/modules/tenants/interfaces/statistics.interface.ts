@@ -1,13 +1,11 @@
 export interface TenantStatistics {
+  total: number;
 
-    total: number;
+  active: number;
 
-    active: number;
+  inactive: number;
 
-    inactive: number;
+  trial: number;
 
-    trial: number;
-
-    expired: number;
-
+  expired: number;
 }

@@ -1,38 +1,48 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
-import { NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { paginated } from '../documentation/dto/documentation-pagination.dto';
-import { RolesGuard } from '../users/guards/roles.guard';
-import { PermissionsGuard } from '../users/guards/permissions.guard';
-import { RequirePermissions } from '../users/decorators/permissions.decorator';
-import { CurrentUser } from '../users/decorators/current-user.decorator';
-import { USERS_PERMISSIONS } from '../users/constants/permission.constants';
-import { ApiKeyGuard } from './api-key.guard';
-import { ApiKeyScopeGuard, RequireApiScope } from './api-key-scope.guard';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { Request } from "express";
+import { NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { paginated } from "../documentation/dto/documentation-pagination.dto";
+import { RolesGuard } from "../users/guards/roles.guard";
+import { PermissionsGuard } from "../users/guards/permissions.guard";
+import { RequirePermissions } from "../users/decorators/permissions.decorator";
+import { CurrentUser } from "../users/decorators/current-user.decorator";
+import { USERS_PERMISSIONS } from "../users/constants/permission.constants";
+import { ApiKeyGuard } from "./api-key.guard";
+import { ApiKeyScopeGuard, RequireApiScope } from "./api-key-scope.guard";
 import {
   StripeBillingService,
   TenantApiKeysService,
   TenantWebhooksService,
-} from './public-api.service';
-import { WebhookDispatcherService } from './webhook-dispatcher.service';
+} from "./public-api.service";
+import { WebhookDispatcherService } from "./webhook-dispatcher.service";
 
-@ApiTags('Public API v1')
+@ApiTags("Public API v1")
 @UseGuards(ApiKeyGuard, ApiKeyScopeGuard)
-@Controller('api/v1')
+@Controller("api/v1")
 export class PublicApiController {
   constructor(private readonly prisma: PrismaService) {}
 
-  @Get('health')
-  @ApiOperation({ summary: 'Public API health check' })
+  @Get("health")
+  @ApiOperation({ summary: "Public API health check" })
   health() {
-    return { ok: true, version: 'v1' };
+    return { ok: true, version: "v1" };
   }
 
-  @Get('jobs')
-  @RequireApiScope('jobs.read')
-  @ApiOperation({ summary: 'List jobs (tenant API key)' })
+  @Get("jobs")
+  @RequireApiScope("jobs.read")
+  @ApiOperation({ summary: "List jobs (tenant API key)" })
   async jobs(@Req() req: Request & { tenantId: string }) {
     const tenantId = req.tenantId;
     const page = 1;
@@ -51,7 +61,7 @@ export class PublicApiController {
             eta: true,
           },
           take: limit,
-          orderBy: { created_at: 'desc' },
+          orderBy: { created_at: "desc" },
         }),
         tx.job.count({ where: { tenant_id: tenantId, deleted_at: null } }),
       ]);
@@ -59,10 +69,13 @@ export class PublicApiController {
     });
   }
 
-  @Get('jobs/:id')
-  @RequireApiScope('jobs.read')
-  @ApiOperation({ summary: 'Get job by id' })
-  async jobOne(@Req() req: Request & { tenantId: string }, @Param('id', ParseUUIDPipe) id: string) {
+  @Get("jobs/:id")
+  @RequireApiScope("jobs.read")
+  @ApiOperation({ summary: "Get job by id" })
+  async jobOne(
+    @Req() req: Request & { tenantId: string },
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
     const job = await this.prisma.runWithTenant(req.tenantId, (tx) =>
       tx.job.findFirst({
         where: { id, tenant_id: req.tenantId, deleted_at: null },
@@ -77,17 +90,24 @@ export class PublicApiController {
         },
       }),
     );
-    if (!job) throw new NotFoundException('Job not found.');
+    if (!job) throw new NotFoundException("Job not found.");
     return job;
   }
 
-  @Get('track/:token')
-  @RequireApiScope('track.read')
-  @ApiOperation({ summary: 'Track shipment by public token' })
-  async track(@Req() req: Request & { tenantId: string }, @Param('token') token: string) {
+  @Get("track/:token")
+  @RequireApiScope("track.read")
+  @ApiOperation({ summary: "Track shipment by public token" })
+  async track(
+    @Req() req: Request & { tenantId: string },
+    @Param("token") token: string,
+  ) {
     const job = await this.prisma.runWithTenant(req.tenantId, (tx) =>
       tx.job.findFirst({
-        where: { tenant_id: req.tenantId, tracking_token: token, deleted_at: null },
+        where: {
+          tenant_id: req.tenantId,
+          tracking_token: token,
+          deleted_at: null,
+        },
         select: {
           job_number: true,
           job_type: true,
@@ -97,15 +117,15 @@ export class PublicApiController {
         },
       }),
     );
-    if (!job) throw new NotFoundException('Tracking token not found.');
+    if (!job) throw new NotFoundException("Tracking token not found.");
     return job;
   }
 }
 
-@ApiTags('Admin — Public API')
+@ApiTags("Admin — Public API")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
-@Controller('admin')
+@Controller("admin")
 export class PublicApiAdminController {
   constructor(
     private readonly apiKeys: TenantApiKeysService,
@@ -114,63 +134,72 @@ export class PublicApiAdminController {
     private readonly dispatcher: WebhookDispatcherService,
   ) {}
 
-  @Get('api-keys')
+  @Get("api-keys")
   @RequirePermissions(USERS_PERMISSIONS.VIEW)
-  listKeys(@CurrentUser('tenantId') tenantId: string) {
+  listKeys(@CurrentUser("tenantId") tenantId: string) {
     return this.apiKeys.list(tenantId);
   }
 
-  @Post('api-keys')
+  @Post("api-keys")
   @RequirePermissions(USERS_PERMISSIONS.CREATE)
   createKey(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') actorId: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
     @Body() body: { name: string; scopes?: string[] },
   ) {
-    return this.apiKeys.create(tenantId, body.name, body.scopes ?? ['jobs.read'], actorId);
+    return this.apiKeys.create(
+      tenantId,
+      body.name,
+      body.scopes ?? ["jobs.read"],
+      actorId,
+    );
   }
 
-  @Patch('api-keys/:id/revoke')
+  @Patch("api-keys/:id/revoke")
   @RequirePermissions(USERS_PERMISSIONS.CREATE)
   revokeKey(
-    @CurrentUser('tenantId') tenantId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.apiKeys.revoke(tenantId, id);
   }
 
-  @Get('webhooks')
+  @Get("webhooks")
   @RequirePermissions(USERS_PERMISSIONS.VIEW)
-  listWebhooks(@CurrentUser('tenantId') tenantId: string) {
+  listWebhooks(@CurrentUser("tenantId") tenantId: string) {
     return this.webhooks.list(tenantId);
   }
 
-  @Post('webhooks')
+  @Post("webhooks")
   @RequirePermissions(USERS_PERMISSIONS.CREATE)
   createWebhook(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') actorId: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
     @Body() body: { url: string; events?: string[] },
   ) {
     return this.webhooks.create(tenantId, body.url, body.events ?? [], actorId);
   }
 
-  @Post('webhooks/test-dispatch')
+  @Post("webhooks/test-dispatch")
   @RequirePermissions(USERS_PERMISSIONS.CREATE)
   testDispatch(
-    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser("tenantId") tenantId: string,
     @Body() body: { event?: string; payload?: Record<string, unknown> },
   ) {
-    return this.dispatcher.dispatch(tenantId, body.event ?? 'test.event', body.payload ?? { ok: true });
+    return this.dispatcher.dispatch(
+      tenantId,
+      body.event ?? "test.event",
+      body.payload ?? { ok: true },
+    );
   }
 
-  @Get('billing/status')
+  @Get("billing/status")
   @RequirePermissions(USERS_PERMISSIONS.VIEW)
   billingStatus() {
     return this.billing.getStatus();
   }
 
-  @Post('billing/checkout-session')
+  @Post("billing/checkout-session")
   @RequirePermissions(USERS_PERMISSIONS.CREATE)
   checkoutSession() {
     return this.billing.createCheckoutSession();

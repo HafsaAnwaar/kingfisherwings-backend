@@ -1,5 +1,5 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform, Type } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
@@ -9,8 +9,8 @@ import {
   IsUUID,
   Max,
   Min,
-} from 'class-validator';
-import { InvoiceStatus, InvoiceType } from '@prisma/client';
+} from "class-validator";
+import { InvoiceStatus, InvoiceType } from "@prisma/client";
 
 export class PortalInvoiceQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -33,7 +33,7 @@ export class PortalInvoiceQueryDto {
   @IsEnum(InvoiceStatus)
   status?: InvoiceStatus;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;
@@ -87,7 +87,7 @@ export class PortalPaymentQueryDto {
 }
 
 export class PortalCreditAgingQueryDto {
-  @ApiPropertyOptional({ description: 'As-of date YYYY-MM-DD' })
+  @ApiPropertyOptional({ description: "As-of date YYYY-MM-DD" })
   @IsOptional()
   @IsDateString()
   as_of?: string;

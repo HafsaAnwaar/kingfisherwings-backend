@@ -1,5 +1,8 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { AuthenticatedRequest, CurrentUser as CurrentUserType } from '../interfaces/current-user.interface';
+import { createParamDecorator, ExecutionContext } from "@nestjs/common";
+import {
+  AuthenticatedRequest,
+  CurrentUser as CurrentUserType,
+} from "../interfaces/current-user.interface";
 
 /**
  * Extracts `request.user` (populated by the Auth module's JwtAuthGuard).

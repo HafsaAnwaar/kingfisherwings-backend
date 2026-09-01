@@ -1,14 +1,14 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsIn, IsOptional, IsString, MaxLength } from "class-validator";
 
 const LOSS_REASONS = [
-  'Competitor Rate',
-  'No Space',
-  'Cargo Type',
-  'No Longer Required',
-  'Booked Elsewhere',
-  'Price Too High',
-  'Other',
+  "Competitor Rate",
+  "No Space",
+  "Cargo Type",
+  "No Longer Required",
+  "Booked Elsewhere",
+  "Price Too High",
+  "Other",
 ];
 
 export class MarkLostDto {

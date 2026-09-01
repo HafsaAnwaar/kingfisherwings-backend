@@ -1,10 +1,10 @@
-import { plainToInstance } from 'class-transformer';
-import { User } from '@prisma/client';
-import { UserEntity } from '../entities/user.entity';
-import { UserResponse } from '../responses/user.response';
-import { UserSummaryResponse } from '../responses/user-summary.response';
-import { PaginatedUsersResponse } from '../responses/paginated-users.response';
-import { UsersHelper } from '../helpers/users.helper';
+import { plainToInstance } from "class-transformer";
+import { User } from "@prisma/client";
+import { UserEntity } from "../entities/user.entity";
+import { UserResponse } from "../responses/user.response";
+import { UserSummaryResponse } from "../responses/user-summary.response";
+import { PaginatedUsersResponse } from "../responses/paginated-users.response";
+import { UsersHelper } from "../helpers/users.helper";
 
 export class UserMapper {
   static toEntity(user: User): UserEntity {
@@ -30,7 +30,10 @@ export class UserMapper {
     response.email = user.email;
     response.first_name = user.first_name;
     response.last_name = user.last_name;
-    response.full_name = UsersHelper.buildFullName(user.first_name, user.last_name);
+    response.full_name = UsersHelper.buildFullName(
+      user.first_name,
+      user.last_name,
+    );
     response.phone = user.phone ?? undefined;
     response.preferred_country_code = user.preferred_country_code ?? undefined;
     response.avatar_url = user.avatar_url ?? undefined;
@@ -60,7 +63,8 @@ export class UserMapper {
     response.updated_at = user.updated_at;
     response.created_by_user_id = user.created_by_user_id ?? undefined;
     response.created_by_tenant_id = user.created_by_tenant_id ?? undefined;
-    response.created_by_super_admin_id = user.created_by_super_admin_id ?? undefined;
+    response.created_by_super_admin_id =
+      user.created_by_super_admin_id ?? undefined;
 
     return response;
   }
@@ -73,7 +77,10 @@ export class UserMapper {
     const summary = new UserSummaryResponse();
 
     summary.id = user.id;
-    summary.full_name = UsersHelper.buildFullName(user.first_name, user.last_name);
+    summary.full_name = UsersHelper.buildFullName(
+      user.first_name,
+      user.last_name,
+    );
     summary.email = user.email;
     summary.role = user.role;
     summary.status = user.status;

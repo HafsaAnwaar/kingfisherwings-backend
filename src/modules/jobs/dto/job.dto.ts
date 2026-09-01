@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   IsArray,
   IsBoolean,
@@ -11,72 +11,75 @@ import {
   IsUUID,
   Length,
   Min,
-} from 'class-validator';
-import { JobType } from '@prisma/client';
+} from "class-validator";
+import { JobType } from "@prisma/client";
 
 export class CreateJobDto {
   @ApiProperty({ enum: JobType })
   @IsEnum(JobType)
   job_type!: JobType;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   department_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Set to create this as a HOUSE job under a master.' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Set to create this as a HOUSE job under a master.",
+  })
   @IsOptional()
   @IsUUID()
   parent_job_id?: string;
 
-  @ApiProperty({ format: 'uuid', description: 'Shipper (Party).' })
+  @ApiProperty({ format: "uuid", description: "Shipper (Party)." })
   @IsUUID()
   shipper_id!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   consignee_id?: string;
 
   @ApiPropertyOptional({
-    format: 'uuid',
-    description: 'Bill-to party for portal ownership / invoicing context.',
+    format: "uuid",
+    description: "Bill-to party for portal ownership / invoicing context.",
   })
   @IsOptional()
   @IsUUID()
   billing_party_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   agent_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   ops_user_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
@@ -116,7 +119,7 @@ export class CreateJobDto {
   @Min(0)
   pieces?: number;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_type_id?: string;

@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 type TenantResolveInput = {
   tenantSlug?: string;
@@ -13,12 +13,12 @@ export class TrackService {
   async track(ref: string, resolve: TenantResolveInput) {
     const tenant = await this.resolveTenant(resolve, true);
     if (!tenant) {
-      throw new NotFoundException('Shipment not found.');
+      throw new NotFoundException("Shipment not found.");
     }
 
     const q = ref.trim();
     if (q.length < 2) {
-      throw new NotFoundException('Shipment not found.');
+      throw new NotFoundException("Shipment not found.");
     }
 
     const job = await this.prisma.runWithTenant(tenant.id, (tx) =>
@@ -28,17 +28,56 @@ export class TrackService {
           deleted_at: null,
           OR: [
             { tracking_token: q },
-            { job_number: { equals: q, mode: 'insensitive' } },
-            { air_details: { hawb_number: { equals: q, mode: 'insensitive' } } },
-            { air_details: { mawb_number: { equals: q, mode: 'insensitive' } } },
-            { air_details: { hawb_number_from_origin_agent: { equals: q, mode: 'insensitive' } } },
-            { air_details: { mawb_number_from_origin: { equals: q, mode: 'insensitive' } } },
-            { sea_fcl_details: { hbl_number: { equals: q, mode: 'insensitive' } } },
-            { sea_fcl_details: { mbl_number: { equals: q, mode: 'insensitive' } } },
-            { sea_fcl_details: { booking_number: { equals: q, mode: 'insensitive' } } },
-            { land_details: { vehicle_number: { equals: q, mode: 'insensitive' } } },
-            { courier_details: { tracking_number: { equals: q, mode: 'insensitive' } } },
-            { courier_details: { barcode_value: { equals: q, mode: 'insensitive' } } },
+            { job_number: { equals: q, mode: "insensitive" } },
+            {
+              air_details: { hawb_number: { equals: q, mode: "insensitive" } },
+            },
+            {
+              air_details: { mawb_number: { equals: q, mode: "insensitive" } },
+            },
+            {
+              air_details: {
+                hawb_number_from_origin_agent: {
+                  equals: q,
+                  mode: "insensitive",
+                },
+              },
+            },
+            {
+              air_details: {
+                mawb_number_from_origin: { equals: q, mode: "insensitive" },
+              },
+            },
+            {
+              sea_fcl_details: {
+                hbl_number: { equals: q, mode: "insensitive" },
+              },
+            },
+            {
+              sea_fcl_details: {
+                mbl_number: { equals: q, mode: "insensitive" },
+              },
+            },
+            {
+              sea_fcl_details: {
+                booking_number: { equals: q, mode: "insensitive" },
+              },
+            },
+            {
+              land_details: {
+                vehicle_number: { equals: q, mode: "insensitive" },
+              },
+            },
+            {
+              courier_details: {
+                tracking_number: { equals: q, mode: "insensitive" },
+              },
+            },
+            {
+              courier_details: {
+                barcode_value: { equals: q, mode: "insensitive" },
+              },
+            },
           ],
         },
         include: {
@@ -92,7 +131,7 @@ export class TrackService {
           },
           milestones: {
             where: { deleted_at: null },
-            orderBy: { created_at: 'asc' },
+            orderBy: { created_at: "asc" },
             select: {
               milestone: true,
               planned_date: true,
@@ -104,46 +143,71 @@ export class TrackService {
     );
 
     if (!job) {
-      throw new NotFoundException('Shipment not found.');
+      throw new NotFoundException("Shipment not found.");
     }
 
-    const [ports, airports, vessel] = await this.prisma.runWithTenant(tenant.id, async (tx) => {
-      const portIds = [job.origin_port_id, job.dest_port_id].filter(Boolean) as string[];
-      const airportIds = [
-        job.air_details?.origin_airport_id,
-        job.air_details?.dest_airport_id,
-      ].filter(Boolean) as string[];
+    const [ports, airports, vessel] = await this.prisma.runWithTenant(
+      tenant.id,
+      async (tx) => {
+        const portIds = [job.origin_port_id, job.dest_port_id].filter(
+          Boolean,
+        ) as string[];
+        const airportIds = [
+          job.air_details?.origin_airport_id,
+          job.air_details?.dest_airport_id,
+        ].filter(Boolean) as string[];
 
-      return Promise.all([
-        portIds.length
-          ? tx.port.findMany({
-              where: { tenant_id: tenant.id, id: { in: portIds }, deleted_at: null },
-              select: { id: true, name: true, un_locode: true, country_code: true },
-            })
-          : [],
-        airportIds.length
-          ? tx.airport.findMany({
-              where: { tenant_id: tenant.id, id: { in: airportIds }, deleted_at: null },
-              select: { id: true, name: true, iata_code: true, country_code: true },
-            })
-          : [],
-        job.sea_fcl_details?.vessel_id
-          ? tx.vessel.findFirst({
-              where: {
-                tenant_id: tenant.id,
-                id: job.sea_fcl_details.vessel_id,
-                deleted_at: null,
-              },
-              select: { name: true, imo_number: true },
-            })
-          : null,
-      ]);
-    });
+        return Promise.all([
+          portIds.length
+            ? tx.port.findMany({
+                where: {
+                  tenant_id: tenant.id,
+                  id: { in: portIds },
+                  deleted_at: null,
+                },
+                select: {
+                  id: true,
+                  name: true,
+                  un_locode: true,
+                  country_code: true,
+                },
+              })
+            : [],
+          airportIds.length
+            ? tx.airport.findMany({
+                where: {
+                  tenant_id: tenant.id,
+                  id: { in: airportIds },
+                  deleted_at: null,
+                },
+                select: {
+                  id: true,
+                  name: true,
+                  iata_code: true,
+                  country_code: true,
+                },
+              })
+            : [],
+          job.sea_fcl_details?.vessel_id
+            ? tx.vessel.findFirst({
+                where: {
+                  tenant_id: tenant.id,
+                  id: job.sea_fcl_details.vessel_id,
+                  deleted_at: null,
+                },
+                select: { name: true, imo_number: true },
+              })
+            : null,
+        ]);
+      },
+    );
 
     const portMap = new Map(ports.map((p) => [p.id, p]));
     const airportMap = new Map(airports.map((a) => [a.id, a]));
 
-    const originPort = job.origin_port_id ? portMap.get(job.origin_port_id) : null;
+    const originPort = job.origin_port_id
+      ? portMap.get(job.origin_port_id)
+      : null;
     const destPort = job.dest_port_id ? portMap.get(job.dest_port_id) : null;
     const originAirport = job.air_details?.origin_airport_id
       ? airportMap.get(job.air_details.origin_airport_id)
@@ -165,13 +229,25 @@ export class TrackService {
           job_number: job.job_number,
           job_type: job.job_type,
           status: job.status,
-          etd: job.etd ?? job.sea_fcl_details?.etd ?? job.land_details?.etd ?? null,
-          eta: job.eta ?? job.sea_fcl_details?.eta ?? job.land_details?.eta ?? null,
+          etd:
+            job.etd ??
+            job.sea_fcl_details?.etd ??
+            job.land_details?.etd ??
+            null,
+          eta:
+            job.eta ??
+            job.sea_fcl_details?.eta ??
+            job.land_details?.eta ??
+            null,
           commodity: job.commodity,
           pieces: job.pieces,
           gross_weight: job.gross_weight,
           origin: originPort
-            ? { name: originPort.name, code: originPort.un_locode, country_code: originPort.country_code }
+            ? {
+                name: originPort.name,
+                code: originPort.un_locode,
+                country_code: originPort.country_code,
+              }
             : originAirport
               ? {
                   name: originAirport.name,
@@ -179,12 +255,24 @@ export class TrackService {
                   country_code: originAirport.country_code,
                 }
               : job.land_details?.origin_city_country
-                ? { name: job.land_details.origin_city_country, code: null, country_code: null }
+                ? {
+                    name: job.land_details.origin_city_country,
+                    code: null,
+                    country_code: null,
+                  }
                 : job.courier_details?.pickup_address
-                  ? { name: job.courier_details.pickup_address, code: null, country_code: null }
+                  ? {
+                      name: job.courier_details.pickup_address,
+                      code: null,
+                      country_code: null,
+                    }
                   : null,
           destination: destPort
-            ? { name: destPort.name, code: destPort.un_locode, country_code: destPort.country_code }
+            ? {
+                name: destPort.name,
+                code: destPort.un_locode,
+                country_code: destPort.country_code,
+              }
             : destAirport
               ? {
                   name: destAirport.name,
@@ -192,19 +280,32 @@ export class TrackService {
                   country_code: destAirport.country_code,
                 }
               : job.land_details?.destination_city_country
-                ? { name: job.land_details.destination_city_country, code: null, country_code: null }
+                ? {
+                    name: job.land_details.destination_city_country,
+                    code: null,
+                    country_code: null,
+                  }
                 : job.courier_details?.delivery_address
-                  ? { name: job.courier_details.delivery_address, code: null, country_code: null }
+                  ? {
+                      name: job.courier_details.delivery_address,
+                      code: null,
+                      country_code: null,
+                    }
                   : null,
           references: {
             hawb_number: job.air_details?.hawb_number ?? null,
             mawb_number: job.air_details?.mawb_number ?? null,
-            hawb_number_from_origin: job.air_details?.hawb_number_from_origin_agent ?? null,
-            mawb_number_from_origin: job.air_details?.mawb_number_from_origin ?? null,
+            hawb_number_from_origin:
+              job.air_details?.hawb_number_from_origin_agent ?? null,
+            mawb_number_from_origin:
+              job.air_details?.mawb_number_from_origin ?? null,
             hbl_number: job.sea_fcl_details?.hbl_number ?? null,
             mbl_number: job.sea_fcl_details?.mbl_number ?? null,
             booking_number: job.sea_fcl_details?.booking_number ?? null,
-            flight_number: job.air_details?.flight_number ?? job.air_details?.arrival_flight_number ?? null,
+            flight_number:
+              job.air_details?.flight_number ??
+              job.air_details?.arrival_flight_number ??
+              null,
             actual_eta: job.air_details?.actual_eta ?? null,
             voyage_number: job.sea_fcl_details?.voyage_number ?? null,
             vessel_name: vessel?.name ?? null,
@@ -228,7 +329,7 @@ export class TrackService {
   async embedConfig(resolve: TenantResolveInput) {
     const tenant = await this.resolveTenant(resolve, false);
     if (!tenant) {
-      throw new NotFoundException('Tenant not found.');
+      throw new NotFoundException("Tenant not found.");
     }
 
     return {
@@ -237,11 +338,11 @@ export class TrackService {
         tenant_slug: tenant.slug,
         tenant_name: tenant.display_name ?? tenant.name,
         logo_url: tenant.logo_url,
-        primary_color: tenant.primary_color ?? '#0B3D5C',
+        primary_color: tenant.primary_color ?? "#0B3D5C",
         website: tenant.website,
-        track_endpoint: '/track',
+        track_endpoint: "/track",
         widget_script: `/track/widget.js?tenant_slug=${encodeURIComponent(tenant.slug)}`,
-        placeholder: 'Enter job number, BL, or AWB',
+        placeholder: "Enter job number, BL, or AWB",
       },
     };
   }
@@ -249,11 +350,13 @@ export class TrackService {
   async widgetScript(resolve: TenantResolveInput): Promise<string> {
     const tenant = await this.resolveTenant(resolve, false);
     if (!tenant) {
-      throw new NotFoundException('Tenant not found.');
+      throw new NotFoundException("Tenant not found.");
     }
 
-    const color = (tenant.primary_color ?? '#0B3D5C').replace(/'/g, '');
-    const name = (tenant.display_name ?? tenant.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const color = (tenant.primary_color ?? "#0B3D5C").replace(/'/g, "");
+    const name = (tenant.display_name ?? tenant.name)
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "\\'");
     const slug = tenant.slug;
 
     return `(function(){
@@ -293,7 +396,10 @@ export class TrackService {
 })();`;
   }
 
-  private async resolveTenant(resolve: TenantResolveInput, softNotFound: boolean) {
+  private async resolveTenant(
+    resolve: TenantResolveInput,
+    softNotFound: boolean,
+  ) {
     const slug = resolve.tenantSlug?.trim();
     if (slug) {
       return this.prisma.tenant.findFirst({
@@ -314,14 +420,17 @@ export class TrackService {
     const domain = this.normalizeHost(resolve.host);
     if (!domain) {
       if (softNotFound) return null;
-      throw new NotFoundException('Tenant not found.');
+      throw new NotFoundException("Tenant not found.");
     }
 
     return this.prisma.tenant.findFirst({
       where: {
         deleted_at: null,
         is_active: true,
-        OR: [{ domain: { equals: domain, mode: 'insensitive' } }, { domain: { equals: `www.${domain}`, mode: 'insensitive' } }],
+        OR: [
+          { domain: { equals: domain, mode: "insensitive" } },
+          { domain: { equals: `www.${domain}`, mode: "insensitive" } },
+        ],
       },
       select: {
         id: true,
@@ -338,6 +447,10 @@ export class TrackService {
 
   private normalizeHost(host?: string): string | null {
     if (!host?.trim()) return null;
-    return host.trim().toLowerCase().replace(/:\d+$/, '').replace(/^www\./, '');
+    return host
+      .trim()
+      .toLowerCase()
+      .replace(/:\d+$/, "")
+      .replace(/^www\./, "");
   }
 }

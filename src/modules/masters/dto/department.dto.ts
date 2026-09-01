@@ -1,23 +1,32 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+} from "class-validator";
 
 export class CreateDepartmentDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiProperty({ example: 'Operations' })
+  @ApiProperty({ example: "Operations" })
   @IsString()
   @Length(2, 100)
   name!: string;
 
-  @ApiProperty({ example: 'OPS' })
+  @ApiProperty({ example: "OPS" })
   @IsString()
   @Length(1, 20)
   code!: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Parent department, for hierarchy.' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Parent department, for hierarchy.",
+  })
   @IsOptional()
   @IsUUID()
   parent_id?: string;

@@ -1,8 +1,16 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CurrentUser } from '../users/interfaces/current-user.interface';
-import { CreateWmsItemDto, ItemQueryDto, UpdateWmsItemDto } from './dto/wms.dto';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CurrentUser } from "../users/interfaces/current-user.interface";
+import {
+  CreateWmsItemDto,
+  ItemQueryDto,
+  UpdateWmsItemDto,
+} from "./dto/wms.dto";
 
 @Injectable()
 export class WmsItemsService {
@@ -23,8 +31,11 @@ export class WmsItemsService {
         }),
       );
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictException('An item with this code already exists.');
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictException("An item with this code already exists.");
       }
       throw error;
     }
@@ -38,16 +49,29 @@ export class WmsItemsService {
       deleted_at: null,
       ...(query.is_active !== undefined ? { is_active: query.is_active } : {}),
       ...(query.search
-        ? { OR: [{ code: { contains: query.search, mode: 'insensitive' } }, { name: { contains: query.search, mode: 'insensitive' } }] }
+        ? {
+            OR: [
+              { code: { contains: query.search, mode: "insensitive" } },
+              { name: { contains: query.search, mode: "insensitive" } },
+            ],
+          }
         : {}),
     };
     const [data, total] = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       Promise.all([
-        tx.wmsItem.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { code: 'asc' } }),
+        tx.wmsItem.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { code: "asc" },
+        }),
         tx.wmsItem.count({ where }),
       ]),
     );
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 } };
+    return {
+      data,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+    };
   }
 
   async get(user: CurrentUser, id: string) {
@@ -72,15 +96,20 @@ export class WmsItemsService {
   async remove(user: CurrentUser, id: string) {
     await this.requireItem(user.tenantId, id);
     return this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.wmsItem.update({ where: { id }, data: { deleted_at: new Date(), is_active: false, updated_by: user.id } }),
+      tx.wmsItem.update({
+        where: { id },
+        data: { deleted_at: new Date(), is_active: false, updated_by: user.id },
+      }),
     );
   }
 
   private async requireItem(tenantId: string, id: string) {
     const item = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.wmsItem.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } }),
+      tx.wmsItem.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!item) throw new NotFoundException('WMS item not found.');
+    if (!item) throw new NotFoundException("WMS item not found.");
     return item;
   }
 }

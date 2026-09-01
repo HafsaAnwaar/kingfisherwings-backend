@@ -3,20 +3,28 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Reflector } from '@nestjs/core';
-import { UserRole } from '@prisma/client';
-import { ALLOW_SUPER_ADMIN_KEY } from '../../../common/decorators/allow-super-admin.decorator';
-import { SKIP_STAFF_JWT_KEY } from '../../../common/decorators/skip-staff-jwt.decorator';
-import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { isSuperAdmin, RequestPrincipal } from '../interfaces/request-with-user.interface';
-import { SessionCacheService } from '../session-cache.service';
-import { AUTH_2FA_LINKED } from '../constants/auth-2fa.constants';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Reflector } from "@nestjs/core";
+import { UserRole } from "@prisma/client";
+import { ALLOW_SUPER_ADMIN_KEY } from "../../../common/decorators/allow-super-admin.decorator";
+import { SKIP_STAFF_JWT_KEY } from "../../../common/decorators/skip-staff-jwt.decorator";
+import { isSuperAdminPrincipal } from "../../../common/utils/principal.util";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
+import {
+  isSuperAdmin,
+  RequestPrincipal,
+} from "../interfaces/request-with-user.interface";
+import { SessionCacheService } from "../session-cache.service";
+import { AUTH_2FA_LINKED } from "../constants/auth-2fa.constants";
 
-const TWO_FA_SETUP_PATHS = ['/auth/2fa/setup', '/auth/2fa/enable', '/auth/super-admin/2fa/setup', '/auth/super-admin/2fa/enable'];
+const TWO_FA_SETUP_PATHS = [
+  "/auth/2fa/setup",
+  "/auth/2fa/enable",
+  "/auth/super-admin/2fa/setup",
+  "/auth/super-admin/2fa/enable",
+];
 
 /**
  * Unlinked until product completion (`AUTH_2FA_LINKED`). When linked and
@@ -43,18 +51,22 @@ export class MandatoryAdminTwoFactorGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const skipStaffJwt = this.reflector.getAllAndOverride<boolean>(SKIP_STAFF_JWT_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const skipStaffJwt = this.reflector.getAllAndOverride<boolean>(
+      SKIP_STAFF_JWT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (skipStaffJwt) return true;
 
-    const request = context.switchToHttp().getRequest<{ user?: unknown; route?: { path?: string }; url?: string }>();
-    const path = request.route?.path ?? request.url ?? '';
+    const request = context.switchToHttp().getRequest<{
+      user?: unknown;
+      route?: { path?: string };
+      url?: string;
+    }>();
+    const path = request.route?.path ?? request.url ?? "";
     if (TWO_FA_SETUP_PATHS.some((p) => path.includes(p))) {
       return true;
     }
-    if (path.includes('/auth/me') || path.includes('/auth/logout')) {
+    if (path.includes("/auth/me") || path.includes("/auth/logout")) {
       return true;
     }
 
@@ -63,7 +75,9 @@ export class MandatoryAdminTwoFactorGuard implements CanActivate {
 
     if (isSuperAdminPrincipal(principal) && isSuperAdmin(principal)) {
       const superAdmin = principal;
-      const cached = await this.sessionCache.getSuperAdminSession(superAdmin.sessionId);
+      const cached = await this.sessionCache.getSuperAdminSession(
+        superAdmin.sessionId,
+      );
       if (cached?.twoFactorEnabled) return true;
 
       const row = await this.prisma.superAdmin.findFirst({
@@ -78,23 +92,30 @@ export class MandatoryAdminTwoFactorGuard implements CanActivate {
         return true;
       }
 
-      const allowSuperAdmin = this.reflector.getAllAndOverride<boolean>(ALLOW_SUPER_ADMIN_KEY, [
-        context.getHandler(),
-        context.getClass(),
-      ]);
-      if (allowSuperAdmin && path.includes('/tenants')) {
+      const allowSuperAdmin = this.reflector.getAllAndOverride<boolean>(
+        ALLOW_SUPER_ADMIN_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (allowSuperAdmin && path.includes("/tenants")) {
         throw new ForbiddenException({
-          message: 'Enable two-factor authentication before using platform admin APIs.',
-          code: 'REQUIRES_2FA_SETUP',
+          message:
+            "Enable two-factor authentication before using platform admin APIs.",
+          code: "REQUIRES_2FA_SETUP",
         });
       }
       throw new ForbiddenException({
-        message: 'Enable two-factor authentication before using platform admin APIs.',
-        code: 'REQUIRES_2FA_SETUP',
+        message:
+          "Enable two-factor authentication before using platform admin APIs.",
+        code: "REQUIRES_2FA_SETUP",
       });
     }
 
-    const staff = principal as { id: string; tenantId: string; role: string; sessionId: string };
+    const staff = principal as {
+      id: string;
+      tenantId: string;
+      role: string;
+      sessionId: string;
+    };
     if (staff.role !== UserRole.TENANT_ADMIN) {
       return true;
     }
@@ -117,15 +138,18 @@ export class MandatoryAdminTwoFactorGuard implements CanActivate {
     }
 
     throw new ForbiddenException({
-      message: 'Tenant administrators must enable two-factor authentication before using the ERP.',
-      code: 'REQUIRES_2FA_SETUP',
+      message:
+        "Tenant administrators must enable two-factor authentication before using the ERP.",
+      code: "REQUIRES_2FA_SETUP",
     });
   }
 
   private isAdminTwoFactorRequired(): boolean {
-    const flag = this.config.get<string>('ADMIN_2FA_REQUIRED');
-    if (flag === 'true') return true;
-    if (flag === 'false') return false;
-    return (this.config.get<string>('NODE_ENV') ?? 'development') === 'production';
+    const flag = this.config.get<string>("ADMIN_2FA_REQUIRED");
+    if (flag === "true") return true;
+    if (flag === "false") return false;
+    return (
+      (this.config.get<string>("NODE_ENV") ?? "development") === "production"
+    );
   }
 }

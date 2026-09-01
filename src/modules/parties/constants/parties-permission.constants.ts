@@ -1,11 +1,11 @@
 export const PARTIES_PERMISSION_CONSTANTS = {
-  MODULE: 'parties',
+  MODULE: "parties",
   ACTIONS: {
-    VIEW: 'view',
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
-    MANAGE_CREDIT: 'manage_credit',
+    VIEW: "view",
+    CREATE: "create",
+    UPDATE: "update",
+    DELETE: "delete",
+    MANAGE_CREDIT: "manage_credit",
   },
 } as const;
 

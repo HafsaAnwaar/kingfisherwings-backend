@@ -1,21 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 import {
   MisDashboardQueryDto,
   ProfitabilityQueryDto,
-} from './dto/financial-reports.dto';
+} from "./dto/financial-reports.dto";
 
 const OPEN_JOB_STATUSES = [
-  'ENQUIRY',
-  'QUOTATION',
-  'BOOKING_CONFIRMED',
-  'IN_PROGRESS',
-  'DOCS_PENDING',
-  'CUSTOMS_CLEARANCE',
-  'ON_HOLD',
+  "ENQUIRY",
+  "QUOTATION",
+  "BOOKING_CONFIRMED",
+  "IN_PROGRESS",
+  "DOCS_PENDING",
+  "CUSTOMS_CLEARANCE",
+  "ON_HOLD",
 ] as const;
 
-const OPEN_QUOTE_STATUSES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'SENT'] as const;
+const OPEN_QUOTE_STATUSES = ["DRAFT", "SUBMITTED", "APPROVED", "SENT"] as const;
 
 @Injectable()
 export class MisService {
@@ -27,7 +27,9 @@ export class MisService {
   async dashboard(tenantId: string, query: MisDashboardQueryDto) {
     const { from, to } = this.resolvePeriod(query);
 
-    const companyFilter = query.company_id ? { company_id: query.company_id } : {};
+    const companyFilter = query.company_id
+      ? { company_id: query.company_id }
+      : {};
     const branchFilter = query.branch_id ? { branch_id: query.branch_id } : {};
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -52,7 +54,7 @@ export class MisService {
           },
         }),
         tx.job.groupBy({
-          by: ['job_type'],
+          by: ["job_type"],
           where: {
             tenant_id: tenantId,
             deleted_at: null,
@@ -65,8 +67,8 @@ export class MisService {
           where: {
             tenant_id: tenantId,
             deleted_at: null,
-            invoice_type: { in: ['CUSTOMER_INVOICE', 'DEBIT_NOTE'] },
-            status: { in: ['POSTED', 'SENT', 'PARTIALLY_PAID'] },
+            invoice_type: { in: ["CUSTOMER_INVOICE", "DEBIT_NOTE"] },
+            status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
             balance_due: { gt: 0 },
             due_date: { lt: to },
             ...companyFilter,
@@ -86,7 +88,7 @@ export class MisService {
           where: {
             tenant_id: tenantId,
             deleted_at: null,
-            status: 'WON',
+            status: "WON",
             updated_at: { gte: from, lte: to },
             ...companyFilter,
           },
@@ -104,7 +106,7 @@ export class MisService {
             tenant_id: tenantId,
             deleted_at: null,
             is_pdc: true,
-            status: 'PENDING',
+            status: "PENDING",
             due_date: { lte: addDays(to, 30) },
           },
         }),
@@ -125,7 +127,7 @@ export class MisService {
             deleted_at: null,
             ...companyFilter,
           },
-          orderBy: { created_at: 'desc' },
+          orderBy: { created_at: "desc" },
           take: 10,
           select: {
             id: true,
@@ -142,7 +144,8 @@ export class MisService {
       const cost = Number(periodJobTotals._sum.cost_total ?? 0);
       const gp = Number(periodJobTotals._sum.gp_amount ?? 0);
       const overdueAmount = Number(overdueInvoices._sum.balance_due ?? 0);
-      const conversionRate = quotesTotal > 0 ? (quotesWon / quotesTotal) * 100 : 0;
+      const conversionRate =
+        quotesTotal > 0 ? (quotesWon / quotesTotal) * 100 : 0;
 
       const bankAccounts = await tx.chartOfAccount.findMany({
         where: {
@@ -157,27 +160,33 @@ export class MisService {
       let cashBankTotal = 0;
       if (bankAccounts.length) {
         const aggs = await tx.voucherLine.groupBy({
-          by: ['account_id'],
+          by: ["account_id"],
           where: {
             tenant_id: tenantId,
             deleted_at: null,
             account_id: { in: bankAccounts.map((a) => a.id) },
-            voucher: { status: 'POSTED', deleted_at: null, voucher_date: { lte: to } },
+            voucher: {
+              status: "POSTED",
+              deleted_at: null,
+              voucher_date: { lte: to },
+            },
           },
           _sum: { debit_base: true, credit_base: true },
         });
         const byId = new Map(aggs.map((a) => [a.account_id, a]));
         for (const a of bankAccounts) {
           let opening = Number(a.opening_balance);
-          if (a.opening_balance_type === 'CREDIT') opening = -opening;
+          if (a.opening_balance_type === "CREDIT") opening = -opening;
           const m = byId.get(a.id);
           cashBankTotal +=
-            opening + Number(m?._sum.debit_base ?? 0) - Number(m?._sum.credit_base ?? 0);
+            opening +
+            Number(m?._sum.debit_base ?? 0) -
+            Number(m?._sum.credit_base ?? 0);
         }
       }
 
       return {
-        report: 'MIS_DASHBOARD',
+        report: "MIS_DASHBOARD",
         from_date: from.toISOString().slice(0, 10),
         to_date: to.toISOString().slice(0, 10),
         widgets: {
@@ -210,7 +219,7 @@ export class MisService {
   /** Job profitability grouped by shipper / job_type / branch / salesperson (Ch.23). */
   async jobProfitability(tenantId: string, query: ProfitabilityQueryDto) {
     const { from, to } = this.resolvePeriod(query);
-    const groupBy = query.group_by ?? 'customer';
+    const groupBy = query.group_by ?? "customer";
 
     const jobs = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findMany({
@@ -236,12 +245,18 @@ export class MisService {
     );
 
     const shipperIds = [
-      ...new Set(jobs.map((j) => j.shipper_id).filter((id): id is string => Boolean(id))),
+      ...new Set(
+        jobs.map((j) => j.shipper_id).filter((id): id is string => Boolean(id)),
+      ),
     ];
     const shippers = shipperIds.length
       ? await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.party.findMany({
-            where: { tenant_id: tenantId, id: { in: shipperIds }, deleted_at: null },
+            where: {
+              tenant_id: tenantId,
+              id: { in: shipperIds },
+              deleted_at: null,
+            },
             select: { id: true, code: true, name: true },
           }),
         )
@@ -259,21 +274,23 @@ export class MisService {
     const buckets = new Map<string, Bucket>();
 
     for (const job of jobs) {
-      let key = 'unknown';
-      let label = 'Unknown';
-      if (groupBy === 'job_type') {
+      let key = "unknown";
+      let label = "Unknown";
+      if (groupBy === "job_type") {
         key = job.job_type;
         label = job.job_type;
-      } else if (groupBy === 'branch') {
-        key = job.branch_id ?? 'none';
-        label = job.branch_id ?? 'No branch';
-      } else if (groupBy === 'salesperson') {
-        key = job.salesperson_id ?? 'none';
-        label = job.salesperson_id ?? 'Unassigned';
+      } else if (groupBy === "branch") {
+        key = job.branch_id ?? "none";
+        label = job.branch_id ?? "No branch";
+      } else if (groupBy === "salesperson") {
+        key = job.salesperson_id ?? "none";
+        label = job.salesperson_id ?? "Unassigned";
       } else {
-        key = job.shipper_id ?? 'none';
-        const shipper = job.shipper_id ? shipperMap.get(job.shipper_id) : undefined;
-        label = shipper ? `${shipper.code} — ${shipper.name}` : 'No shipper';
+        key = job.shipper_id ?? "none";
+        const shipper = job.shipper_id
+          ? shipperMap.get(job.shipper_id)
+          : undefined;
+        label = shipper ? `${shipper.code} — ${shipper.name}` : "No shipper";
       }
 
       if (!buckets.has(key)) {
@@ -308,7 +325,7 @@ export class MisService {
     );
 
     return {
-      report: 'JOB_PROFITABILITY',
+      report: "JOB_PROFITABILITY",
       group_by: groupBy,
       from_date: from.toISOString().slice(0, 10),
       to_date: to.toISOString().slice(0, 10),
@@ -328,46 +345,50 @@ export class MisService {
     const { from, to } = this.resolvePeriod(query);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const [pendingPaymentRequests, draftInvoices, uninvoicedCharges, jobsMissingDocs] =
-        await Promise.all([
-          tx.paymentRequest.count({
-            where: {
-              tenant_id: tenantId,
-              deleted_at: null,
-              status: { in: ['PENDING', 'APPROVED'] },
-            },
-          }),
-          tx.invoice.count({
-            where: {
-              tenant_id: tenantId,
-              deleted_at: null,
-              status: 'DRAFT',
-              ...(query.company_id ? { company_id: query.company_id } : {}),
-            },
-          }),
-          tx.jobCharge.count({
-            where: {
-              tenant_id: tenantId,
-              deleted_at: null,
-              is_billable: true,
-              is_invoiced: false,
-              is_provisional: false,
-              created_at: { gte: from, lte: to },
-            },
-          }),
-          tx.job.count({
-            where: {
-              tenant_id: tenantId,
-              deleted_at: null,
-              status: { in: [...OPEN_JOB_STATUSES] },
-              documents: { none: { deleted_at: null } },
-              ...(query.company_id ? { company_id: query.company_id } : {}),
-            },
-          }),
-        ]);
+      const [
+        pendingPaymentRequests,
+        draftInvoices,
+        uninvoicedCharges,
+        jobsMissingDocs,
+      ] = await Promise.all([
+        tx.paymentRequest.count({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            status: { in: ["PENDING", "APPROVED"] },
+          },
+        }),
+        tx.invoice.count({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            status: "DRAFT",
+            ...(query.company_id ? { company_id: query.company_id } : {}),
+          },
+        }),
+        tx.jobCharge.count({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            is_billable: true,
+            is_invoiced: false,
+            is_provisional: false,
+            created_at: { gte: from, lte: to },
+          },
+        }),
+        tx.job.count({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            status: { in: [...OPEN_JOB_STATUSES] },
+            documents: { none: { deleted_at: null } },
+            ...(query.company_id ? { company_id: query.company_id } : {}),
+          },
+        }),
+      ]);
 
       return {
-        report: 'OPERATIONAL_SUMMARY',
+        report: "OPERATIONAL_SUMMARY",
         from_date: from.toISOString().slice(0, 10),
         to_date: to.toISOString().slice(0, 10),
         pending_payment_requests: pendingPaymentRequests,

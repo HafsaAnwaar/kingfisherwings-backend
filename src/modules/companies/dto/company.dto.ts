@@ -1,19 +1,19 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { IsBoolean, IsOptional, IsString, Length } from "class-validator";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 import {
   CountryCodeField,
   IsPhoneForCountry,
   IsTaxIdForCountry,
-} from '../../../common/validators/country-aware.validators';
+} from "../../../common/validators/country-aware.validators";
 
 export class CreateCompanyDto {
-  @ApiProperty({ example: 'OCE-DXB' })
+  @ApiProperty({ example: "OCE-DXB" })
   @IsString()
   @Length(2, 20)
   code!: string;
 
-  @ApiProperty({ example: 'Oceanic Freight Forwarders (Abu Dhabi Branch) LLC' })
+  @ApiProperty({ example: "Oceanic Freight Forwarders (Abu Dhabi Branch) LLC" })
   @IsString()
   @Length(2, 300)
   name!: string;
@@ -43,12 +43,12 @@ export class CreateCompanyDto {
   @IsString()
   city?: string;
 
-  @ApiPropertyOptional({ example: 'AE' })
+  @ApiPropertyOptional({ example: "AE" })
   @IsOptional()
   @CountryCodeField()
   country_code?: string;
 
-  @ApiPropertyOptional({ example: '+971501234567' })
+  @ApiPropertyOptional({ example: "+971501234567" })
   @IsOptional()
   @IsPhoneForCountry()
   phone?: string;
@@ -58,7 +58,10 @@ export class CreateCompanyDto {
   @IsStrictEmail()
   email?: string;
 
-  @ApiPropertyOptional({ default: false, description: 'Only one company per tenant can be default.' })
+  @ApiPropertyOptional({
+    default: false,
+    description: "Only one company per tenant can be default.",
+  })
   @IsOptional()
   @IsBoolean()
   is_default?: boolean;
@@ -68,13 +71,13 @@ export class CreateCompanyDto {
   @IsBoolean()
   is_active?: boolean;
 
-  @ApiPropertyOptional({ description: 'UAE WPS employer MOL / EDR ID' })
+  @ApiPropertyOptional({ description: "UAE WPS employer MOL / EDR ID" })
   @IsOptional()
   @IsString()
   @Length(1, 30)
   wps_employer_mol_id?: string;
 
-  @ApiPropertyOptional({ description: 'UAE WPS agent / bank routing code' })
+  @ApiPropertyOptional({ description: "UAE WPS agent / bank routing code" })
   @IsOptional()
   @IsString()
   @Length(1, 20)

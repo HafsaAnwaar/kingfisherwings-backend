@@ -1,10 +1,8 @@
 // src/modules/auth/dto/refresh-token.dto.ts
 
-import { IsString } from 'class-validator';
+import { IsString } from "class-validator";
 
 export class RefreshTokenDto {
-
   @IsString()
   refresh_token!: string;
-
 }

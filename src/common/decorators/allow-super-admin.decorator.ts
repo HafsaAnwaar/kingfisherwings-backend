@@ -1,6 +1,6 @@
-import { SetMetadata } from '@nestjs/common';
+import { SetMetadata } from "@nestjs/common";
 
-export const ALLOW_SUPER_ADMIN_KEY = 'allowSuperAdmin';
+export const ALLOW_SUPER_ADMIN_KEY = "allowSuperAdmin";
 
 /**
  * Allows a platform SuperAdmin principal on an otherwise tenant-scoped

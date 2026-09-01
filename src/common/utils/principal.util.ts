@@ -11,7 +11,7 @@
 export function isSuperAdminPrincipal(principal: unknown): boolean {
   return (
     !!principal &&
-    typeof principal === 'object' &&
-    !('tenantId' in (principal as Record<string, unknown>))
+    typeof principal === "object" &&
+    !("tenantId" in (principal as Record<string, unknown>))
   );
 }

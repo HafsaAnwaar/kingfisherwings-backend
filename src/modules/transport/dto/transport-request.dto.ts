@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
   IsDateString,
   IsIn,
@@ -11,12 +11,22 @@ import {
   Max,
   Min,
   MaxLength,
-} from 'class-validator';
-import { PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT } from '../../../common/dto/pagination.dto';
+} from "class-validator";
+import {
+  PAGINATION_DEFAULT_LIMIT,
+  PAGINATION_MAX_LIMIT,
+} from "../../../common/dto/pagination.dto";
 
-const REQUEST_TYPES = ['PICKUP', 'DELIVERY'];
-const VEHICLE_TYPES = ['TRUCK', 'TRAILER', 'VAN'];
-const STATUSES = ['CREATED', 'ASSIGNED', 'PICKUP_CONFIRMED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'];
+const REQUEST_TYPES = ["PICKUP", "DELIVERY"];
+const VEHICLE_TYPES = ["TRUCK", "TRAILER", "VAN"];
+const STATUSES = [
+  "CREATED",
+  "ASSIGNED",
+  "PICKUP_CONFIRMED",
+  "IN_TRANSIT",
+  "DELIVERED",
+  "CANCELLED",
+];
 
 export class CreateTransportRequestDto {
   @ApiProperty({ enum: REQUEST_TYPES })
@@ -48,7 +58,7 @@ export class CreateTransportRequestDto {
   @IsString()
   cargo_details?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   zip_distance_id?: string;
@@ -61,7 +71,7 @@ export class CreateTransportRequestDto {
 }
 
 export class AssignTransportRequestDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   trucker_id!: string;
 
@@ -90,7 +100,7 @@ export class AssignTransportRequestDto {
 }
 
 export class TransportTimestampDto {
-  @ApiPropertyOptional({ description: 'Defaults to now' })
+  @ApiPropertyOptional({ description: "Defaults to now" })
   @IsOptional()
   @IsDateString()
   at?: string;
@@ -102,12 +112,12 @@ export class RecordTransportCostDto {
   @Min(0)
   amount!: number;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   charge_code_id?: string;
 
-  @ApiPropertyOptional({ default: 'AED' })
+  @ApiPropertyOptional({ default: "AED" })
   @IsOptional()
   @IsString()
   @MaxLength(3)
@@ -127,7 +137,11 @@ export class TransportRequestQueryDto {
   @Min(1)
   page: number = 1;
 
-  @ApiPropertyOptional({ default: PAGINATION_DEFAULT_LIMIT, minimum: 1, maximum: PAGINATION_MAX_LIMIT })
+  @ApiPropertyOptional({
+    default: PAGINATION_DEFAULT_LIMIT,
+    minimum: 1,
+    maximum: PAGINATION_MAX_LIMIT,
+  })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
@@ -140,12 +154,12 @@ export class TransportRequestQueryDto {
   @IsIn(STATUSES)
   status?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   trucker_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   job_id?: string;

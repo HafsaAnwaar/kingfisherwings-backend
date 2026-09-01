@@ -1,9 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DocumentNumberType } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
-import { CurrentUser } from '../users/interfaces/current-user.interface';
-import { CreateGrnDto } from './dto/wms.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { DocumentNumberType } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { CurrentUser } from "../users/interfaces/current-user.interface";
+import { CreateGrnDto } from "./dto/wms.dto";
 
 @Injectable()
 export class WmsGrnService {
@@ -13,7 +17,10 @@ export class WmsGrnService {
   ) {}
 
   async create(user: CurrentUser, dto: CreateGrnDto) {
-    const number = await this.numberGenerator.generate(user.tenantId, DocumentNumberType.GRN);
+    const number = await this.numberGenerator.generate(
+      user.tenantId,
+      DocumentNumberType.GRN,
+    );
     return this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.wmsGrn.create({
         data: {
@@ -36,7 +43,10 @@ export class WmsGrnService {
             })),
           },
         },
-        include: { warehouse: true, lines: { include: { item: true }, orderBy: { sort_order: 'asc' } } },
+        include: {
+          warehouse: true,
+          lines: { include: { item: true }, orderBy: { sort_order: "asc" } },
+        },
       }),
     );
   }
@@ -46,7 +56,7 @@ export class WmsGrnService {
       tx.wmsGrn.findMany({
         where: { tenant_id: user.tenantId, deleted_at: null },
         include: { warehouse: true, lines: { include: { item: true } } },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       }),
     );
   }
@@ -61,16 +71,18 @@ export class WmsGrnService {
         where: { id, tenant_id: user.tenantId, deleted_at: null },
         include: { lines: true },
       });
-      if (!grn) throw new NotFoundException('GRN not found.');
+      if (!grn) throw new NotFoundException("GRN not found.");
       const claimed = await tx.wmsGrn.updateMany({
-        where: { id, tenant_id: user.tenantId, status: 'DRAFT' },
-        data: { status: 'POSTED', posted_at: new Date(), updated_by: user.id },
+        where: { id, tenant_id: user.tenantId, status: "DRAFT" },
+        data: { status: "POSTED", posted_at: new Date(), updated_by: user.id },
       });
-      if (claimed.count !== 1) throw new BadRequestException('Only a draft GRN can be posted.');
+      if (claimed.count !== 1)
+        throw new BadRequestException("Only a draft GRN can be posted.");
 
       for (const line of grn.lines) {
         const quantity = Number(line.quantity);
-        const cbmPerUnit = line.cbm == null ? null : Number(line.cbm) / quantity;
+        const cbmPerUnit =
+          line.cbm == null ? null : Number(line.cbm) / quantity;
         const lot = await tx.wmsStockLot.create({
           data: {
             tenant_id: user.tenantId,
@@ -93,10 +105,10 @@ export class WmsGrnService {
             warehouse_id: grn.warehouse_id,
             item_id: line.item_id,
             lot_id: lot.id,
-            movement_type: 'GRN_IN',
+            movement_type: "GRN_IN",
             quantity: line.quantity,
             unit_cost: line.unit_cost,
-            reference_type: 'GRN',
+            reference_type: "GRN",
             reference_id: grn.id,
             remarks: line.remarks,
             moved_at: grn.received_at,
@@ -106,11 +118,18 @@ export class WmsGrnService {
       }
       if (grn.asn_id) {
         await tx.wmsAsn.updateMany({
-          where: { id: grn.asn_id, tenant_id: user.tenantId, status: { in: ['DRAFT', 'CONFIRMED'] } },
-          data: { status: 'RECEIVED', updated_by: user.id },
+          where: {
+            id: grn.asn_id,
+            tenant_id: user.tenantId,
+            status: { in: ["DRAFT", "CONFIRMED"] },
+          },
+          data: { status: "RECEIVED", updated_by: user.id },
         });
       }
-      return tx.wmsGrn.findUniqueOrThrow({ where: { id }, include: { lines: true, warehouse: true } });
+      return tx.wmsGrn.findUniqueOrThrow({
+        where: { id },
+        include: { lines: true, warehouse: true },
+      });
     });
   }
 
@@ -118,22 +137,26 @@ export class WmsGrnService {
     await this.require(user.tenantId, id);
     const result = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.wmsGrn.updateMany({
-        where: { id, tenant_id: user.tenantId, status: 'DRAFT' },
-        data: { status: 'CANCELLED', updated_by: user.id },
+        where: { id, tenant_id: user.tenantId, status: "DRAFT" },
+        data: { status: "CANCELLED", updated_by: user.id },
       }),
     );
-    if (!result.count) throw new BadRequestException('Only a draft GRN can be cancelled.');
-    return { id, status: 'CANCELLED' };
+    if (!result.count)
+      throw new BadRequestException("Only a draft GRN can be cancelled.");
+    return { id, status: "CANCELLED" };
   }
 
   private async require(tenantId: string, id: string) {
     const value = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.wmsGrn.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
-        include: { warehouse: true, lines: { include: { item: true }, orderBy: { sort_order: 'asc' } } },
+        include: {
+          warehouse: true,
+          lines: { include: { item: true }, orderBy: { sort_order: "asc" } },
+        },
       }),
     );
-    if (!value) throw new NotFoundException('GRN not found.');
+    if (!value) throw new NotFoundException("GRN not found.");
     return value;
   }
 }

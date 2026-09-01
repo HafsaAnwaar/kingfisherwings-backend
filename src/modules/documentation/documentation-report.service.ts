@@ -1,14 +1,17 @@
-import { Injectable } from '@nestjs/common';
-import { stringify } from 'csv-stringify/sync';
-import { JobStatus, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { DocumentationPaginationDto, paginated } from './dto/documentation-pagination.dto';
+import { Injectable } from "@nestjs/common";
+import { stringify } from "csv-stringify/sync";
+import { JobStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import {
+  DocumentationPaginationDto,
+  paginated,
+} from "./dto/documentation-pagination.dto";
 
 export class DocumentationReportQueryDto extends DocumentationPaginationDto {
   branch_id?: string;
   from_date?: string;
   to_date?: string;
-  format?: 'json' | 'csv';
+  format?: "json" | "csv";
 }
 
 @Injectable()
@@ -18,20 +21,20 @@ export class DocumentationReportService {
   listReports() {
     return {
       items: [
-        { code: 'eta-followup', name: 'ETA Follow-up' },
-        { code: 'etd-followup', name: 'ETD Follow-up' },
-        { code: 'jobs-list', name: 'Jobs List' },
-        { code: 'manifest-status', name: 'Manifest Status' },
+        { code: "eta-followup", name: "ETA Follow-up" },
+        { code: "etd-followup", name: "ETD Follow-up" },
+        { code: "jobs-list", name: "Jobs List" },
+        { code: "manifest-status", name: "Manifest Status" },
       ],
     };
   }
 
   async etaFollowup(tenantId: string, query: DocumentationReportQueryDto) {
-    return this.dateFollowup(tenantId, 'eta', query);
+    return this.dateFollowup(tenantId, "eta", query);
   }
 
   async etdFollowup(tenantId: string, query: DocumentationReportQueryDto) {
-    return this.dateFollowup(tenantId, 'etd', query);
+    return this.dateFollowup(tenantId, "etd", query);
   }
 
   async jobsList(tenantId: string, query: DocumentationReportQueryDto) {
@@ -59,13 +62,13 @@ export class DocumentationReportService {
           },
           skip: (page - 1) * limit,
           take: limit,
-          orderBy: { created_at: 'desc' },
+          orderBy: { created_at: "desc" },
         }),
         tx.job.count({ where }),
       ]);
 
       const result = paginated(items, page, limit, total);
-      return query.format === 'csv' ? this.asCsv(result.items) : result;
+      return query.format === "csv" ? this.asCsv(result.items) : result;
     });
   }
 
@@ -77,7 +80,7 @@ export class DocumentationReportService {
       const where: Prisma.DocumentationEdiSubmissionWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        edi_type: { in: ['BAYAN_MASTER', 'BAYAN_HOUSE', 'CGM'] },
+        edi_type: { in: ["BAYAN_MASTER", "BAYAN_HOUSE", "CGM"] },
       };
 
       const [items, total] = await Promise.all([
@@ -85,19 +88,19 @@ export class DocumentationReportService {
           where,
           skip: (page - 1) * limit,
           take: limit,
-          orderBy: { created_at: 'desc' },
+          orderBy: { created_at: "desc" },
         }),
         tx.documentationEdiSubmission.count({ where }),
       ]);
 
       const result = paginated(items, page, limit, total);
-      return query.format === 'csv' ? this.asCsv(result.items) : result;
+      return query.format === "csv" ? this.asCsv(result.items) : result;
     });
   }
 
   private async dateFollowup(
     tenantId: string,
-    field: 'eta' | 'etd',
+    field: "eta" | "etd",
     query: DocumentationReportQueryDto,
   ) {
     const page = query.page ?? 1;
@@ -129,19 +132,19 @@ export class DocumentationReportService {
           },
           skip: (page - 1) * limit,
           take: limit,
-          orderBy: { [field]: 'asc' },
+          orderBy: { [field]: "asc" },
         }),
         tx.job.count({ where }),
       ]);
 
       const result = paginated(items, page, limit, total);
-      return query.format === 'csv' ? this.asCsv(result.items) : result;
+      return query.format === "csv" ? this.asCsv(result.items) : result;
     });
   }
 
   private asCsv(rows: Record<string, unknown>[]) {
-    if (!rows.length) return { content_type: 'text/csv', data: '' };
+    if (!rows.length) return { content_type: "text/csv", data: "" };
     const data = stringify(rows, { header: true });
-    return { content_type: 'text/csv', data };
+    return { content_type: "text/csv", data };
   }
 }

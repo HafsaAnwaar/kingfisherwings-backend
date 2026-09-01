@@ -4,13 +4,13 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
-import { AuthenticatedRequest } from '../interfaces/current-user.interface';
-import { ALLOW_SUPER_ADMIN_KEY } from '../../../common/decorators/allow-super-admin.decorator';
-import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
-import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { PERMISSIONS_KEY } from "../decorators/permissions.decorator";
+import { AuthenticatedRequest } from "../interfaces/current-user.interface";
+import { ALLOW_SUPER_ADMIN_KEY } from "../../../common/decorators/allow-super-admin.decorator";
+import { isSuperAdminPrincipal } from "../../../common/utils/principal.util";
+import { IS_PUBLIC_KEY } from "../../auth/decorators/public.decorator";
 
 /**
  * Requires ALL permissions declared via @RequirePermissions(...).
@@ -44,13 +44,13 @@ export class PermissionsGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new UnauthorizedException('Authentication required.');
+      throw new UnauthorizedException("Authentication required.");
     }
 
-    const allowSuperAdmin = this.reflector.getAllAndOverride<boolean>(ALLOW_SUPER_ADMIN_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const allowSuperAdmin = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_SUPER_ADMIN_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (isSuperAdminPrincipal(user) && allowSuperAdmin) {
       return true;
@@ -58,7 +58,7 @@ export class PermissionsGuard implements CanActivate {
 
     if (isSuperAdminPrincipal(user)) {
       throw new ForbiddenException(
-        'Platform admin tokens cannot access tenant ERP APIs. Use /tenants for platform operations.',
+        "Platform admin tokens cannot access tenant ERP APIs. Use /tenants for platform operations.",
       );
     }
 
@@ -70,7 +70,7 @@ export class PermissionsGuard implements CanActivate {
 
     if (missing.length > 0) {
       throw new ForbiddenException(
-        `Missing required permission(s): ${missing.join(', ')}.`,
+        `Missing required permission(s): ${missing.join(", ")}.`,
       );
     }
 

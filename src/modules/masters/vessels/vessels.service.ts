@@ -1,20 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Vessel } from '@prisma/client';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { BaseMasterService } from '../base-master.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Vessel } from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { BaseMasterService } from "../base-master.service";
 
 @Injectable()
 export class VesselsService extends BaseMasterService<Vessel> {
-  protected readonly modelName = 'vessel';
-  protected readonly searchFields = ['name', 'imo_number'];
-  protected readonly uniqueKeyLabel = 'vessel';
+  protected readonly modelName = "vessel";
+  protected readonly searchFields = ["name", "imo_number"];
+  protected readonly uniqueKeyLabel = "vessel";
 
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
-  async create(tenantId: string, data: Record<string, unknown>, actorId?: string): Promise<Vessel> {
-    await this.assertShippingLineExists(tenantId, data.shipping_line_id as string | undefined);
+  async create(
+    tenantId: string,
+    data: Record<string, unknown>,
+    actorId?: string,
+  ): Promise<Vessel> {
+    await this.assertShippingLineExists(
+      tenantId,
+      data.shipping_line_id as string | undefined,
+    );
     return super.create(tenantId, data, actorId);
   }
 
@@ -24,11 +31,17 @@ export class VesselsService extends BaseMasterService<Vessel> {
     data: Record<string, unknown>,
     actorId?: string,
   ): Promise<Vessel> {
-    await this.assertShippingLineExists(tenantId, data.shipping_line_id as string | undefined);
+    await this.assertShippingLineExists(
+      tenantId,
+      data.shipping_line_id as string | undefined,
+    );
     return super.update(tenantId, id, data, actorId);
   }
 
-  private async assertShippingLineExists(tenantId: string, shippingLineId?: string): Promise<void> {
+  private async assertShippingLineExists(
+    tenantId: string,
+    shippingLineId?: string,
+  ): Promise<void> {
     if (!shippingLineId) {
       return;
     }
@@ -40,7 +53,7 @@ export class VesselsService extends BaseMasterService<Vessel> {
     );
 
     if (!exists) {
-      throw new NotFoundException('Shipping line not found.');
+      throw new NotFoundException("Shipping line not found.");
     }
   }
 }

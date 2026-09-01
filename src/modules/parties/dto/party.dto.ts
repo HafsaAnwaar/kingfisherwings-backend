@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   ArrayUnique,
   IsArray,
@@ -12,19 +12,19 @@ import {
   Length,
   Max,
   Min,
-} from 'class-validator';
-import { PartyType } from '@prisma/client';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
+} from "class-validator";
+import { PartyType } from "@prisma/client";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 import {
   CountryCodeField,
   IsKnownCurrencyCode,
   IsPhoneForCountry,
   IsTaxIdForCountry,
   NormalizeCurrencyCode,
-} from '../../../common/validators/country-aware.validators';
+} from "../../../common/validators/country-aware.validators";
 
 export class CreatePartyDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
@@ -33,17 +33,17 @@ export class CreatePartyDto {
   @IsEnum(PartyType)
   party_type!: PartyType;
 
-  @ApiProperty({ example: 'CUST-001' })
+  @ApiProperty({ example: "CUST-001" })
   @IsString()
   @Length(1, 30)
   code!: string;
 
-  @ApiProperty({ example: 'Al Noor Trading LLC' })
+  @ApiProperty({ example: "Al Noor Trading LLC" })
   @IsString()
   @Length(2, 300)
   name!: string;
 
-  @ApiPropertyOptional({ example: 'Al Noor' })
+  @ApiPropertyOptional({ example: "Al Noor" })
   @IsOptional()
   @IsString()
   short_name?: string;
@@ -58,12 +58,12 @@ export class CreatePartyDto {
   @IsString()
   cr_number?: string;
 
-  @ApiPropertyOptional({ example: 'AE' })
+  @ApiPropertyOptional({ example: "AE" })
   @IsOptional()
   @CountryCodeField()
   country_code?: string;
 
-  @ApiPropertyOptional({ example: 'Dubai' })
+  @ApiPropertyOptional({ example: "Dubai" })
   @IsOptional()
   @IsString()
   city?: string;
@@ -73,7 +73,7 @@ export class CreatePartyDto {
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ example: '+971501234567' })
+  @ApiPropertyOptional({ example: "+971501234567" })
   @IsOptional()
   @IsPhoneForCountry()
   phone?: string;
@@ -96,13 +96,16 @@ export class CreatePartyDto {
   @Max(365)
   credit_days?: number;
 
-  @ApiPropertyOptional({ example: 'AED' })
+  @ApiPropertyOptional({ example: "AED" })
   @IsOptional()
   @NormalizeCurrencyCode()
   @IsKnownCurrencyCode()
   currency_code?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'User this party is assigned to.' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "User this party is assigned to.",
+  })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
@@ -117,12 +120,18 @@ export class CreatePartyDto {
   @IsBoolean()
   marketing_subscription?: boolean;
 
-  @ApiPropertyOptional({ example: 'EK', description: 'For airline-type parties.' })
+  @ApiPropertyOptional({
+    example: "EK",
+    description: "For airline-type parties.",
+  })
   @IsOptional()
   @IsString()
   iata_code?: string;
 
-  @ApiPropertyOptional({ example: 'MAEU', description: 'For shipping-line-type parties.' })
+  @ApiPropertyOptional({
+    example: "MAEU",
+    description: "For shipping-line-type parties.",
+  })
   @IsOptional()
   @IsString()
   scac_code?: string;

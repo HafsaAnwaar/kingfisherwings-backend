@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   ArrayMaxSize,
   IsArray,
@@ -14,14 +14,20 @@ import {
   Length,
   MaxLength,
   Min,
-} from 'class-validator';
-import { CustomsClearanceStatus, DepositType } from '@prisma/client';
-import { IsCurrencyCode } from '../../../common/validators/input-format.validators';
+} from "class-validator";
+import { CustomsClearanceStatus, DepositType } from "@prisma/client";
+import { IsCurrencyCode } from "../../../common/validators/input-format.validators";
 
-const CUSTOMS_STATUSES = ['PENDING', 'FILED', 'QUERY', 'CLEARED', 'RELEASED'] as const;
+const CUSTOMS_STATUSES = [
+  "PENDING",
+  "FILED",
+  "QUERY",
+  "CLEARED",
+  "RELEASED",
+] as const;
 
 export class UpsertContainerFreeDaysDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   container_id!: string;
 
@@ -69,7 +75,7 @@ export class CreateJobDepositDto {
   @Min(0)
   deposit_amount!: number;
 
-  @ApiPropertyOptional({ default: 'AED' })
+  @ApiPropertyOptional({ default: "AED" })
   @IsOptional()
   @IsCurrencyCode()
   currency_code?: string;
@@ -94,12 +100,12 @@ export class CreateJobDepositDto {
 export class UpdateJobDepositDto extends PartialType(CreateJobDepositDto) {}
 
 export class CreatePartDeliveryDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   consignee_id?: string;
@@ -120,7 +126,7 @@ export class CreatePartDeliveryDto {
 }
 
 export class CreateProofOfDeliveryDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_id?: string;
@@ -153,7 +159,7 @@ export class CreateProofOfDeliveryDto {
 }
 
 export class CreateDamageReportDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_id?: string;
@@ -193,7 +199,10 @@ export class CreateDamageReportDto {
   @Min(0)
   quantity_short?: number;
 
-  @ApiPropertyOptional({ type: [String], description: 'Email addresses to notify after report is saved' })
+  @ApiPropertyOptional({
+    type: [String],
+    description: "Email addresses to notify after report is saved",
+  })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(10)
@@ -202,7 +211,7 @@ export class CreateDamageReportDto {
 }
 
 export class ReturnContainerDto {
-  @ApiPropertyOptional({ description: 'Defaults to now' })
+  @ApiPropertyOptional({ description: "Defaults to now" })
   @IsOptional()
   @IsDateString()
   returned_at?: string;
@@ -214,7 +223,10 @@ export class ReturnContainerDto {
 }
 
 export class LinkTranshipmentDto {
-  @ApiProperty({ format: 'uuid', description: 'Outbound SEA_FCL_EXPORT job id' })
+  @ApiProperty({
+    format: "uuid",
+    description: "Outbound SEA_FCL_EXPORT job id",
+  })
   @IsUUID()
   export_job_id!: string;
 }
@@ -231,7 +243,9 @@ export class UpdateCustomsStatusDto {
 }
 
 export class CalculateCfsStorageDto {
-  @ApiPropertyOptional({ description: 'As-of date for accrual; defaults to today' })
+  @ApiPropertyOptional({
+    description: "As-of date for accrual; defaults to today",
+  })
   @IsOptional()
   @IsDateString()
   as_of_date?: string;

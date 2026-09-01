@@ -1,12 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { alertBandForDays, formatDateOnly, isWeekend, toUtcDateOnly } from './utils/hr-date.util';
+import { Injectable, Logger } from "@nestjs/common";
+import { UserRole } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import {
+  alertBandForDays,
+  formatDateOnly,
+  isWeekend,
+  toUtcDateOnly,
+} from "./utils/hr-date.util";
 
 type ExpiryTarget = {
   id: string;
-  kind: 'document' | 'dependent_passport' | 'dependent_visa';
+  kind: "document" | "dependent_passport" | "dependent_visa";
   employeeId: string;
   employeeName: string;
   employeeCode: string;
@@ -39,7 +44,14 @@ export class HrCronService {
           expires_at: { not: null, lte: horizon },
         },
         include: {
-          employee: { select: { id: true, employee_code: true, first_name: true, last_name: true } },
+          employee: {
+            select: {
+              id: true,
+              employee_code: true,
+              first_name: true,
+              last_name: true,
+            },
+          },
         },
       }),
     );
@@ -48,11 +60,11 @@ export class HrCronService {
       if (!doc.expires_at) continue;
       targets.push({
         id: doc.id,
-        kind: 'document',
+        kind: "document",
         employeeId: doc.employee_id,
         employeeName: `${doc.employee.first_name} ${doc.employee.last_name}`,
         employeeCode: doc.employee.employee_code,
-        label: `${doc.document_type}${doc.document_no ? ` (${doc.document_no})` : ''}`,
+        label: `${doc.document_type}${doc.document_no ? ` (${doc.document_no})` : ""}`,
         expiresAt: doc.expires_at,
         lastAlertBand: doc.last_alert_band,
       });
@@ -69,7 +81,14 @@ export class HrCronService {
           ],
         },
         include: {
-          employee: { select: { id: true, employee_code: true, first_name: true, last_name: true } },
+          employee: {
+            select: {
+              id: true,
+              employee_code: true,
+              first_name: true,
+              last_name: true,
+            },
+          },
         },
       }),
     );
@@ -78,7 +97,7 @@ export class HrCronService {
       if (dep.passport_expires_at) {
         targets.push({
           id: dep.id,
-          kind: 'dependent_passport',
+          kind: "dependent_passport",
           employeeId: dep.employee_id,
           employeeName: `${dep.employee.first_name} ${dep.employee.last_name}`,
           employeeCode: dep.employee.employee_code,
@@ -90,7 +109,7 @@ export class HrCronService {
       if (dep.visa_expires_at) {
         targets.push({
           id: dep.id,
-          kind: 'dependent_visa',
+          kind: "dependent_visa",
           employeeId: dep.employee_id,
           employeeName: `${dep.employee.first_name} ${dep.employee.last_name}`,
           employeeCode: dep.employee.employee_code,
@@ -102,19 +121,21 @@ export class HrCronService {
     }
 
     let notified = 0;
-    const roles: UserRole[] = ['TENANT_ADMIN', 'HR_MANAGER'];
+    const roles: UserRole[] = ["TENANT_ADMIN", "HR_MANAGER"];
 
     for (const target of targets) {
-      const days = Math.floor((target.expiresAt.getTime() - today.getTime()) / 86_400_000);
+      const days = Math.floor(
+        (target.expiresAt.getTime() - today.getTime()) / 86_400_000,
+      );
       const band = alertBandForDays(days);
       if (!band) continue;
       if (target.lastAlertBand === band) continue;
 
       await this.notifications.notifyStaffByRoles(tenantId, roles, {
-        type: 'DOCUMENT_EXPIRY',
-        title: 'Document expiry alert',
+        type: "DOCUMENT_EXPIRY",
+        title: "Document expiry alert",
         message: `${target.label} for ${target.employeeName} (${target.employeeCode}) expires on ${formatDateOnly(target.expiresAt)} (${band}).`,
-        entity_type: 'hr_employee',
+        entity_type: "hr_employee",
         entity_id: target.employeeId,
         link_path: `/hr/employees/${target.employeeId}`,
       });
@@ -124,7 +145,9 @@ export class HrCronService {
     }
 
     if (notified > 0) {
-      this.logger.log(`Tenant ${tenantId}: ${notified} document expiry alert(s).`);
+      this.logger.log(
+        `Tenant ${tenantId}: ${notified} document expiry alert(s).`,
+      );
     }
 
     return notified;
@@ -132,14 +155,17 @@ export class HrCronService {
 
   async processMissingTimesheets(tenantId: string): Promise<number> {
     const tenant = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.tenant.findFirst({ where: { id: tenantId }, select: { country_code: true } }),
+      tx.tenant.findFirst({
+        where: { id: tenantId },
+        select: { country_code: true },
+      }),
     );
-    const countryCode = tenant?.country_code ?? 'AE';
+    const countryCode = tenant?.country_code ?? "AE";
     const workDate = this.previousWorkingDay(countryCode);
 
     const employees = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.hrEmployee.findMany({
-        where: { tenant_id: tenantId, deleted_at: null, status: 'ACTIVE' },
+        where: { tenant_id: tenantId, deleted_at: null, status: "ACTIVE" },
         select: {
           id: true,
           employee_code: true,
@@ -161,15 +187,21 @@ export class HrCronService {
 
     if (!missing.length) return 0;
 
-    await this.notifications.notifyStaffByRoles(tenantId, ['HR_MANAGER', 'BRANCH_MANAGER', 'TENANT_ADMIN'], {
-      type: 'TIMESHEET_MISSING',
-      title: 'Missing timesheets',
-      message: `${missing.length} active employee(s) have no timesheet for ${formatDateOnly(workDate)}.`,
-      entity_type: 'hr_timesheet',
-      link_path: '/hr/timesheets/missing',
-    });
+    await this.notifications.notifyStaffByRoles(
+      tenantId,
+      ["HR_MANAGER", "BRANCH_MANAGER", "TENANT_ADMIN"],
+      {
+        type: "TIMESHEET_MISSING",
+        title: "Missing timesheets",
+        message: `${missing.length} active employee(s) have no timesheet for ${formatDateOnly(workDate)}.`,
+        entity_type: "hr_timesheet",
+        link_path: "/hr/timesheets/missing",
+      },
+    );
 
-    this.logger.log(`Tenant ${tenantId}: TIMESHEET_MISSING for ${missing.length} employee(s) on ${formatDateOnly(workDate)}.`);
+    this.logger.log(
+      `Tenant ${tenantId}: TIMESHEET_MISSING for ${missing.length} employee(s) on ${formatDateOnly(workDate)}.`,
+    );
     return missing.length;
   }
 
@@ -183,9 +215,13 @@ export class HrCronService {
     return cursor;
   }
 
-  private async markAlertBand(tenantId: string, target: ExpiryTarget, band: string) {
+  private async markAlertBand(
+    tenantId: string,
+    target: ExpiryTarget,
+    band: string,
+  ) {
     const now = new Date();
-    if (target.kind === 'document') {
+    if (target.kind === "document") {
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.hrEmployeeDocument.update({
           where: { id: target.id },

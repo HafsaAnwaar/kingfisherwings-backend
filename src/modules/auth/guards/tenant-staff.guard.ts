@@ -3,12 +3,12 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { ALLOW_SUPER_ADMIN_KEY } from '../../../common/decorators/allow-super-admin.decorator';
-import { SKIP_STAFF_JWT_KEY } from '../../../common/decorators/skip-staff-jwt.decorator';
-import { isSuperAdminPrincipal } from '../../../common/utils/principal.util';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { ALLOW_SUPER_ADMIN_KEY } from "../../../common/decorators/allow-super-admin.decorator";
+import { SKIP_STAFF_JWT_KEY } from "../../../common/decorators/skip-staff-jwt.decorator";
+import { isSuperAdminPrincipal } from "../../../common/utils/principal.util";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 
 /**
  * Blocks SuperAdmin tokens from tenant ERP routes. Platform admins may
@@ -28,18 +28,18 @@ export class TenantStaffGuard implements CanActivate {
       return true;
     }
 
-    const skipStaffJwt = this.reflector.getAllAndOverride<boolean>(SKIP_STAFF_JWT_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const skipStaffJwt = this.reflector.getAllAndOverride<boolean>(
+      SKIP_STAFF_JWT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (skipStaffJwt) {
       return true;
     }
 
-    const allowSuperAdmin = this.reflector.getAllAndOverride<boolean>(ALLOW_SUPER_ADMIN_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const allowSuperAdmin = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_SUPER_ADMIN_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     const request = context.switchToHttp().getRequest<{ user?: unknown }>();
     const principal = request.user;
@@ -53,7 +53,7 @@ export class TenantStaffGuard implements CanActivate {
     }
 
     throw new ForbiddenException(
-      'Platform admin tokens cannot access tenant ERP APIs. Use /tenants for platform operations.',
+      "Platform admin tokens cannot access tenant ERP APIs. Use /tenants for platform operations.",
     );
   }
 }

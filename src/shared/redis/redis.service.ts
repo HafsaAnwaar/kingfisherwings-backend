@@ -1,7 +1,7 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
-import { buildRedisClientOptions, isRedisEnabled } from './redis-options.util';
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import Redis from "ioredis";
+import { buildRedisClientOptions, isRedisEnabled } from "./redis-options.util";
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -12,23 +12,23 @@ export class RedisService implements OnModuleDestroy {
   private unavailableLogged = false;
 
   constructor(private readonly config: ConfigService) {
-    this.keyPrefix = this.config.get<string>('redis.keyPrefix') ?? 'fresa:';
+    this.keyPrefix = this.config.get<string>("redis.keyPrefix") ?? "fresa:";
     this.enabled = isRedisEnabled(config);
 
     if (!this.enabled) {
       this.client = null;
       this.logger.log(
-        'Redis disabled (REDIS_ENABLED=false) — rate limiting uses in-memory storage; background job queues are stubbed.',
+        "Redis disabled (REDIS_ENABLED=false) — rate limiting uses in-memory storage; background job queues are stubbed.",
       );
       return;
     }
 
-    const host = this.config.get<string>('redis.host') ?? 'localhost';
-    const port = this.config.get<number>('redis.port') ?? 6379;
+    const host = this.config.get<string>("redis.host") ?? "localhost";
+    const port = this.config.get<number>("redis.port") ?? 6379;
 
     this.client = new Redis(buildRedisClientOptions(config));
 
-    this.client.on('error', (err) => {
+    this.client.on("error", (err) => {
       if (this.unavailableLogged) return;
       this.unavailableLogged = true;
       this.logger.warn(
@@ -36,9 +36,9 @@ export class RedisService implements OnModuleDestroy {
       );
     });
 
-    this.client.on('connect', () => {
+    this.client.on("connect", () => {
       if (this.unavailableLogged) {
-        this.logger.log('Redis connected');
+        this.logger.log("Redis connected");
       }
       this.unavailableLogged = false;
     });
@@ -70,14 +70,16 @@ export class RedisService implements OnModuleDestroy {
     try {
       const fullKey = this.prefixKey(key);
       if (ttlSeconds && ttlSeconds > 0) {
-        await this.client.set(fullKey, value, 'EX', ttlSeconds);
+        await this.client.set(fullKey, value, "EX", ttlSeconds);
       } else {
         await this.client.set(fullKey, value);
       }
     } catch (err) {
       if (!this.unavailableLogged) {
         this.unavailableLogged = true;
-        this.logger.warn(`Redis set failed: ${err instanceof Error ? err.message : err}`);
+        this.logger.warn(
+          `Redis set failed: ${err instanceof Error ? err.message : err}`,
+        );
       }
     }
   }
@@ -91,7 +93,10 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
-  async incr(key: string, ttlMs: number): Promise<{ totalHits: number; timeToExpire: number }> {
+  async incr(
+    key: string,
+    ttlMs: number,
+  ): Promise<{ totalHits: number; timeToExpire: number }> {
     if (!this.client) {
       return { totalHits: 1, timeToExpire: ttlMs };
     }

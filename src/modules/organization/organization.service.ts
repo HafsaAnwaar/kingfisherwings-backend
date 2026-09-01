@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Tenant } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { UpdateOrganizationProfileDto } from './dto/update-organization-profile.dto';
-import { CountryLocaleService } from '../../common/locale/country-locale.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Tenant } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { UpdateOrganizationProfileDto } from "./dto/update-organization-profile.dto";
+import { CountryLocaleService } from "../../common/locale/country-locale.service";
 
 @Injectable()
 export class OrganizationService {
@@ -11,13 +11,13 @@ export class OrganizationService {
     private readonly locale: CountryLocaleService,
   ) {}
 
-  async getProfile(tenantId: string): Promise<Omit<Tenant, 'password_hash'>> {
+  async getProfile(tenantId: string): Promise<Omit<Tenant, "password_hash">> {
     const tenant = await this.prisma.tenant.findFirst({
       where: { id: tenantId, deleted_at: null },
     });
 
     if (!tenant) {
-      throw new NotFoundException('Tenant not found.');
+      throw new NotFoundException("Tenant not found.");
     }
 
     const { password_hash, ...safe } = tenant;
@@ -27,13 +27,13 @@ export class OrganizationService {
   async updateProfile(
     tenantId: string,
     dto: UpdateOrganizationProfileDto,
-  ): Promise<Omit<Tenant, 'password_hash'>> {
+  ): Promise<Omit<Tenant, "password_hash">> {
     const existing = await this.prisma.tenant.findFirst({
       where: { id: tenantId, deleted_at: null },
     });
 
     if (!existing) {
-      throw new NotFoundException('Tenant not found.');
+      throw new NotFoundException("Tenant not found.");
     }
 
     const data: UpdateOrganizationProfileDto = { ...dto };

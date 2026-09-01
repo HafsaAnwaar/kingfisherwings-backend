@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { JobType, NvoccCargoType } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { JobType, NvoccCargoType } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsEnum,
@@ -11,7 +11,7 @@ import {
   IsUUID,
   MaxLength,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class CreateNvoccBookingDto {
   @ApiProperty()
@@ -143,12 +143,14 @@ export class CreateNvoccBookingDto {
   @MaxLength(100)
   shipper_ref?: string;
 
-  @ApiPropertyOptional({ enum: JobType, default: 'NVOCC_EXPORT' })
+  @ApiPropertyOptional({ enum: JobType, default: "NVOCC_EXPORT" })
   @IsOptional()
   @IsEnum(JobType)
   job_type?: JobType;
 
-  @ApiPropertyOptional({ description: 'Auto-apply matching NVOCC tariff charge lines' })
+  @ApiPropertyOptional({
+    description: "Auto-apply matching NVOCC tariff charge lines",
+  })
   @IsOptional()
   @IsBoolean()
   apply_tariff?: boolean;

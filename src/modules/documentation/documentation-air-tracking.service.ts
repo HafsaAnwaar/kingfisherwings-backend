@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class DocumentationAirTrackingService {
@@ -17,7 +17,7 @@ export class DocumentationAirTrackingService {
     if (cached) {
       return {
         mawb_number: normalized,
-        source: 'cache',
+        source: "cache",
         fetched_at: cached.fetched_at,
         events: cached.events,
       };
@@ -25,15 +25,15 @@ export class DocumentationAirTrackingService {
 
     const stubEvents = [
       {
-        code: 'BKD',
-        description: 'Booked',
-        location: 'ORIGIN',
+        code: "BKD",
+        description: "Booked",
+        location: "ORIGIN",
         event_time: new Date().toISOString(),
       },
       {
-        code: 'DEP',
-        description: 'Departed (stub)',
-        location: 'HUB',
+        code: "DEP",
+        description: "Departed (stub)",
+        location: "HUB",
         event_time: new Date().toISOString(),
       },
     ];
@@ -41,7 +41,10 @@ export class DocumentationAirTrackingService {
     await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentationAirTrackingEvent.upsert({
         where: {
-          tenant_id_mawb_number: { tenant_id: tenantId, mawb_number: normalized },
+          tenant_id_mawb_number: {
+            tenant_id: tenantId,
+            mawb_number: normalized,
+          },
         },
         create: {
           tenant_id: tenantId,
@@ -57,7 +60,7 @@ export class DocumentationAirTrackingService {
 
     return {
       mawb_number: normalized,
-      source: 'stub',
+      source: "stub",
       fetched_at: new Date().toISOString(),
       events: stubEvents,
     };

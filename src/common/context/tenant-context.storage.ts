@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { AsyncLocalStorage } from 'async_hooks';
+import { Injectable } from "@nestjs/common";
+import { AsyncLocalStorage } from "async_hooks";
 
 export interface TenantContextStore {
   tenantId: string | null;
@@ -29,7 +29,7 @@ export class TenantContextStorage {
   run<T>(
     tenantId: string | null,
     callback: () => T,
-    locale?: Partial<Omit<TenantContextStore, 'tenantId'>>,
+    locale?: Partial<Omit<TenantContextStore, "tenantId">>,
   ): T {
     return this.storage.run(
       {

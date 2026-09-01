@@ -3,17 +3,23 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { Invoice, InvoiceLine, InvoiceStatus, InvoiceType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { lockInvoiceRow } from '../../common/utils/row-lock.util';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
-import { PdfService } from '../../shared/pdf/pdf.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { EmailService } from '../../shared/email/email.service';
-import { GlAutoPostService } from '../gl/gl-auto-post.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { WebhookDispatcherService } from '../public-api/webhook-dispatcher.service';
+} from "@nestjs/common";
+import {
+  Invoice,
+  InvoiceLine,
+  InvoiceStatus,
+  InvoiceType,
+  Prisma,
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { lockInvoiceRow } from "../../common/utils/row-lock.util";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { PdfService } from "../../shared/pdf/pdf.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { EmailService } from "../../shared/email/email.service";
+import { GlAutoPostService } from "../gl/gl-auto-post.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { WebhookDispatcherService } from "../public-api/webhook-dispatcher.service";
 import {
   CreateCreditNoteDto,
   CreateDebitNoteDto,
@@ -24,9 +30,9 @@ import {
   SendInvoiceEmailDto,
   UpdateInvoiceDto,
   UpdateInvoiceLineDto,
-} from './dto/invoice.dto';
+} from "./dto/invoice.dto";
 
-const EDITABLE_STATUSES: InvoiceStatus[] = ['DRAFT'];
+const EDITABLE_STATUSES: InvoiceStatus[] = ["DRAFT"];
 
 @Injectable()
 export class InvoicesService {
@@ -41,7 +47,11 @@ export class InvoicesService {
     private readonly webhooks: WebhookDispatcherService,
   ) {}
 
-  async findAll(tenantId: string, query: InvoiceQueryDto, invoiceType?: InvoiceType) {
+  async findAll(
+    tenantId: string,
+    query: InvoiceQueryDto,
+    invoiceType?: InvoiceType,
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
@@ -57,7 +67,7 @@ export class InvoicesService {
           },
           skip: (page - 1) * limit,
           take: limit,
-          orderBy: { invoice_date: 'desc' },
+          orderBy: { invoice_date: "desc" },
         }),
         tx.invoice.count({ where }),
       ]);
@@ -74,16 +84,27 @@ export class InvoicesService {
       const invoice = await tx.invoice.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
-          party: { select: { id: true, name: true, code: true, vat_number: true, email: true } },
+          party: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              vat_number: true,
+              email: true,
+            },
+          },
           job: { select: { id: true, job_number: true, job_type: true } },
           company: { select: { id: true, name: true, vat_number: true } },
           credited_invoice: { select: { id: true, invoice_number: true } },
-          lines: { where: { deleted_at: null }, orderBy: { sort_order: 'asc' } },
+          lines: {
+            where: { deleted_at: null },
+            orderBy: { sort_order: "asc" },
+          },
         },
       });
 
       if (!invoice) {
-        throw new NotFoundException('Invoice not found.');
+        throw new NotFoundException("Invoice not found.");
       }
 
       return invoice;
@@ -94,24 +115,28 @@ export class InvoicesService {
     tenantId: string,
     dto: CreateInvoiceDto,
     actorId: string | undefined,
-    invoiceType: InvoiceType = 'CUSTOMER_INVOICE',
+    invoiceType: InvoiceType = "CUSTOMER_INVOICE",
   ) {
     await this.assertPartyExists(tenantId, dto.party_id);
     if (dto.job_id) await this.assertJobExists(tenantId, dto.job_id);
 
-    const companyId = dto.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
+    const companyId =
+      dto.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
     if (companyId) await this.assertCompanyExists(tenantId, companyId);
 
     const docType =
-      invoiceType === 'PURCHASE_INVOICE'
-        ? 'PURCHASE_INVOICE'
-        : invoiceType === 'CREDIT_NOTE'
-          ? 'CREDIT_NOTE'
-          : invoiceType === 'DEBIT_NOTE'
-            ? 'DEBIT_NOTE'
-            : 'INVOICE';
+      invoiceType === "PURCHASE_INVOICE"
+        ? "PURCHASE_INVOICE"
+        : invoiceType === "CREDIT_NOTE"
+          ? "CREDIT_NOTE"
+          : invoiceType === "DEBIT_NOTE"
+            ? "DEBIT_NOTE"
+            : "INVOICE";
 
-    const invoiceNumber = await this.numberGenerator.generate(tenantId, docType);
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      docType,
+    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const party = await tx.party.findFirst({
@@ -124,12 +149,14 @@ export class InvoicesService {
           company_id: companyId,
           invoice_number: invoiceNumber,
           invoice_type: invoiceType,
-          status: 'DRAFT',
+          status: "DRAFT",
           job_id: dto.job_id,
           party_id: dto.party_id,
           branch_id: dto.branch_id,
           department_id: dto.department_id,
-          invoice_date: dto.invoice_date ? new Date(dto.invoice_date) : new Date(),
+          invoice_date: dto.invoice_date
+            ? new Date(dto.invoice_date)
+            : new Date(),
           due_date: dto.due_date ? new Date(dto.due_date) : undefined,
           currency_code: dto.currency_code,
           exchange_rate: dto.exchange_rate ?? 1,
@@ -145,7 +172,15 @@ export class InvoicesService {
 
       if (dto.lines?.length) {
         for (const [index, line] of dto.lines.entries()) {
-          await this.createLineInternal(tx, tenantId, invoice.id, line, actorId, index, invoice.vat_rate);
+          await this.createLineInternal(
+            tx,
+            tenantId,
+            invoice.id,
+            line,
+            actorId,
+            index,
+            invoice.vat_rate,
+          );
         }
       }
 
@@ -154,7 +189,10 @@ export class InvoicesService {
   }
 
   async createFromJob(tenantId: string, jobId: string, actorId?: string) {
-    const invoiceNumber = await this.numberGenerator.generate(tenantId, 'INVOICE');
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      "INVOICE",
+    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
@@ -172,21 +210,30 @@ export class InvoicesService {
       });
 
       if (!job) {
-        throw new NotFoundException('Job not found.');
+        throw new NotFoundException("Job not found.");
       }
 
       if (!job.charges.length) {
-        throw new BadRequestException('No uninvoiced billable revenue charges on this job.');
+        throw new BadRequestException(
+          "No uninvoiced billable revenue charges on this job.",
+        );
       }
 
       const customerId = job.shipper_id ?? job.consignee_id;
       if (!customerId) {
-        throw new BadRequestException('Job must have a shipper or consignee to invoice.');
+        throw new BadRequestException(
+          "Job must have a shipper or consignee to invoice.",
+        );
       }
 
       const defaultTax = await tx.taxRate.findFirst({
-        where: { tenant_id: tenantId, deleted_at: null, is_active: true, is_default: true },
-        orderBy: { effective_from: 'desc' },
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          is_active: true,
+          is_default: true,
+        },
+        orderBy: { effective_from: "desc" },
       });
       const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
 
@@ -195,8 +242,8 @@ export class InvoicesService {
           tenant_id: tenantId,
           company_id: job.company_id,
           invoice_number: invoiceNumber,
-          invoice_type: 'CUSTOMER_INVOICE',
-          status: 'DRAFT',
+          invoice_type: "CUSTOMER_INVOICE",
+          status: "DRAFT",
           job_id: jobId,
           party_id: customerId,
           branch_id: job.branch_id,
@@ -259,8 +306,10 @@ export class InvoicesService {
     actorId: string | undefined,
     tx: Prisma.TransactionClient,
   ) {
-    const job = await tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } });
-    if (!job) throw new NotFoundException('Job not found.');
+    const job = await tx.job.findFirst({
+      where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!job) throw new NotFoundException("Job not found.");
 
     const charge = await tx.jobCharge.findFirst({
       where: {
@@ -273,12 +322,23 @@ export class InvoicesService {
         is_cost: false,
       },
     });
-    if (!charge) throw new NotFoundException('Storage charge not found or already invoiced.');
+    if (!charge)
+      throw new NotFoundException(
+        "Storage charge not found or already invoiced.",
+      );
 
-    const invoiceNumber = await this.numberGenerator.generate(tenantId, 'INVOICE');
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      "INVOICE",
+    );
     const defaultTax = await tx.taxRate.findFirst({
-      where: { tenant_id: tenantId, deleted_at: null, is_active: true, is_default: true },
-      orderBy: { effective_from: 'desc' },
+      where: {
+        tenant_id: tenantId,
+        deleted_at: null,
+        is_active: true,
+        is_default: true,
+      },
+      orderBy: { effective_from: "desc" },
     });
     const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
 
@@ -296,8 +356,8 @@ export class InvoicesService {
         tenant_id: tenantId,
         company_id: job.company_id,
         invoice_number: invoiceNumber,
-        invoice_type: 'CUSTOMER_INVOICE',
-        status: 'DRAFT',
+        invoice_type: "CUSTOMER_INVOICE",
+        status: "DRAFT",
         job_id: jobId,
         party_id: partyId,
         branch_id: job.branch_id,
@@ -305,7 +365,7 @@ export class InvoicesService {
         currency_code: charge.currency_code,
         exchange_rate: charge.exchange_rate,
         vat_rate: defaultVatRate,
-        remarks: 'Air import storage charges',
+        remarks: "Air import storage charges",
         created_by: actorId,
         updated_by: actorId,
       },
@@ -348,16 +408,32 @@ export class InvoicesService {
       companyId?: string | null;
       currencyCode: string;
       remarks?: string;
-      lines: Array<{ description: string; quantity: number; unitPrice: number; amount: number }>;
+      lines: Array<{
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        amount: number;
+      }>;
       actorId?: string;
     },
     tx: Prisma.TransactionClient,
   ) {
-    if (!params.lines.length) throw new BadRequestException('Storage invoice requires at least one line.');
-    const invoiceNumber = await this.numberGenerator.generate(tenantId, 'INVOICE');
+    if (!params.lines.length)
+      throw new BadRequestException(
+        "Storage invoice requires at least one line.",
+      );
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      "INVOICE",
+    );
     const defaultTax = await tx.taxRate.findFirst({
-      where: { tenant_id: tenantId, deleted_at: null, is_active: true, is_default: true },
-      orderBy: { effective_from: 'desc' },
+      where: {
+        tenant_id: tenantId,
+        deleted_at: null,
+        is_active: true,
+        is_default: true,
+      },
+      orderBy: { effective_from: "desc" },
     });
     const taxRate = defaultTax ? Number(defaultTax.rate) : 5;
     const invoice = await tx.invoice.create({
@@ -365,8 +441,8 @@ export class InvoicesService {
         tenant_id: tenantId,
         company_id: params.companyId,
         invoice_number: invoiceNumber,
-        invoice_type: 'CUSTOMER_INVOICE',
-        status: 'DRAFT',
+        invoice_type: "CUSTOMER_INVOICE",
+        status: "DRAFT",
         party_id: params.partyId,
         currency_code: params.currencyCode.toUpperCase(),
         exchange_rate: 1,
@@ -397,15 +473,25 @@ export class InvoicesService {
     return this.recalculateAndReturn(tx, tenantId, invoice.id);
   }
 
-  async createCreditNote(tenantId: string, dto: CreateCreditNoteDto, actorId?: string) {
+  async createCreditNote(
+    tenantId: string,
+    dto: CreateCreditNoteDto,
+    actorId?: string,
+  ) {
     const original = await this.findOne(tenantId, dto.credited_invoice_id);
 
-    if (original.invoice_type !== 'CUSTOMER_INVOICE') {
-      throw new BadRequestException('Credit notes can only be issued against customer invoices.');
+    if (original.invoice_type !== "CUSTOMER_INVOICE") {
+      throw new BadRequestException(
+        "Credit notes can only be issued against customer invoices.",
+      );
     }
 
-    if (!['POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'].includes(original.status)) {
-      throw new BadRequestException('Original invoice must be posted before issuing a credit note.');
+    if (
+      !["POSTED", "SENT", "PARTIALLY_PAID", "PAID"].includes(original.status)
+    ) {
+      throw new BadRequestException(
+        "Original invoice must be posted before issuing a credit note.",
+      );
     }
 
     const lines =
@@ -420,11 +506,15 @@ export class InvoicesService {
       }));
 
     if (!lines.length) {
-      throw new BadRequestException('Credit note requires at least one line.');
+      throw new BadRequestException("Credit note requires at least one line.");
     }
 
-    const companyId = original.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
-    const invoiceNumber = await this.numberGenerator.generate(tenantId, 'CREDIT_NOTE');
+    const companyId =
+      original.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      "CREDIT_NOTE",
+    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const creditNote = await tx.invoice.create({
@@ -432,8 +522,8 @@ export class InvoicesService {
           tenant_id: tenantId,
           company_id: companyId,
           invoice_number: invoiceNumber,
-          invoice_type: 'CREDIT_NOTE',
-          status: 'DRAFT',
+          invoice_type: "CREDIT_NOTE",
+          status: "DRAFT",
           job_id: original.job_id,
           party_id: original.party_id,
           branch_id: original.branch_id,
@@ -450,31 +540,55 @@ export class InvoicesService {
       });
 
       for (const [index, line] of lines.entries()) {
-        await this.createLineInternal(tx, tenantId, creditNote.id, line, actorId, index, creditNote.vat_rate);
+        await this.createLineInternal(
+          tx,
+          tenantId,
+          creditNote.id,
+          line,
+          actorId,
+          index,
+          creditNote.vat_rate,
+        );
       }
 
       return this.recalculateAndReturn(tx, tenantId, creditNote.id);
     });
   }
 
-  async createDebitNote(tenantId: string, dto: CreateDebitNoteDto, actorId?: string) {
+  async createDebitNote(
+    tenantId: string,
+    dto: CreateDebitNoteDto,
+    actorId?: string,
+  ) {
     const original = await this.findOne(tenantId, dto.credited_invoice_id);
 
-    if (original.invoice_type !== 'CUSTOMER_INVOICE') {
-      throw new BadRequestException('Debit notes can only be issued against customer invoices.');
+    if (original.invoice_type !== "CUSTOMER_INVOICE") {
+      throw new BadRequestException(
+        "Debit notes can only be issued against customer invoices.",
+      );
     }
 
-    if (!['POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'].includes(original.status)) {
-      throw new BadRequestException('Original invoice must be posted before issuing a debit note.');
+    if (
+      !["POSTED", "SENT", "PARTIALLY_PAID", "PAID"].includes(original.status)
+    ) {
+      throw new BadRequestException(
+        "Original invoice must be posted before issuing a debit note.",
+      );
     }
 
     if (!dto.lines?.length) {
-      throw new BadRequestException('Debit notes require at least one line (extra charge).');
+      throw new BadRequestException(
+        "Debit notes require at least one line (extra charge).",
+      );
     }
 
     const lines = dto.lines;
-    const companyId = original.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
-    const invoiceNumber = await this.numberGenerator.generate(tenantId, 'DEBIT_NOTE');
+    const companyId =
+      original.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      "DEBIT_NOTE",
+    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const debitNote = await tx.invoice.create({
@@ -482,8 +596,8 @@ export class InvoicesService {
           tenant_id: tenantId,
           company_id: companyId,
           invoice_number: invoiceNumber,
-          invoice_type: 'DEBIT_NOTE',
-          status: 'DRAFT',
+          invoice_type: "DEBIT_NOTE",
+          status: "DRAFT",
           job_id: original.job_id,
           party_id: original.party_id,
           branch_id: original.branch_id,
@@ -500,18 +614,35 @@ export class InvoicesService {
       });
 
       for (const [index, line] of lines.entries()) {
-        await this.createLineInternal(tx, tenantId, debitNote.id, line, actorId, index, debitNote.vat_rate);
+        await this.createLineInternal(
+          tx,
+          tenantId,
+          debitNote.id,
+          line,
+          actorId,
+          index,
+          debitNote.vat_rate,
+        );
       }
 
       return this.recalculateAndReturn(tx, tenantId, debitNote.id);
     });
   }
 
-  async createPurchaseInvoice(tenantId: string, dto: CreatePurchaseInvoiceDto, actorId?: string) {
-    return this.create(tenantId, dto, actorId, 'PURCHASE_INVOICE');
+  async createPurchaseInvoice(
+    tenantId: string,
+    dto: CreatePurchaseInvoiceDto,
+    actorId?: string,
+  ) {
+    return this.create(tenantId, dto, actorId, "PURCHASE_INVOICE");
   }
 
-  async update(tenantId: string, id: string, dto: UpdateInvoiceDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateInvoiceDto,
+    actorId?: string,
+  ) {
     const invoice = await this.findOne(tenantId, id);
     this.assertEditable(invoice);
 
@@ -520,18 +651,32 @@ export class InvoicesService {
         where: { id },
         data: {
           ...(dto.party_id ? { party_id: dto.party_id } : {}),
-          ...(dto.company_id !== undefined ? { company_id: dto.company_id } : {}),
+          ...(dto.company_id !== undefined
+            ? { company_id: dto.company_id }
+            : {}),
           ...(dto.job_id !== undefined ? { job_id: dto.job_id } : {}),
           ...(dto.branch_id !== undefined ? { branch_id: dto.branch_id } : {}),
-          ...(dto.department_id !== undefined ? { department_id: dto.department_id } : {}),
+          ...(dto.department_id !== undefined
+            ? { department_id: dto.department_id }
+            : {}),
           ...(dto.currency_code ? { currency_code: dto.currency_code } : {}),
-          ...(dto.exchange_rate !== undefined ? { exchange_rate: dto.exchange_rate } : {}),
+          ...(dto.exchange_rate !== undefined
+            ? { exchange_rate: dto.exchange_rate }
+            : {}),
           ...(dto.vat_rate !== undefined ? { vat_rate: dto.vat_rate } : {}),
-          ...(dto.invoice_date ? { invoice_date: new Date(dto.invoice_date) } : {}),
-          ...(dto.due_date !== undefined ? { due_date: dto.due_date ? new Date(dto.due_date) : null } : {}),
-          ...(dto.lpo_number !== undefined ? { lpo_number: dto.lpo_number } : {}),
+          ...(dto.invoice_date
+            ? { invoice_date: new Date(dto.invoice_date) }
+            : {}),
+          ...(dto.due_date !== undefined
+            ? { due_date: dto.due_date ? new Date(dto.due_date) : null }
+            : {}),
+          ...(dto.lpo_number !== undefined
+            ? { lpo_number: dto.lpo_number }
+            : {}),
           ...(dto.remarks !== undefined ? { remarks: dto.remarks } : {}),
-          ...(dto.internal_notes !== undefined ? { internal_notes: dto.internal_notes } : {}),
+          ...(dto.internal_notes !== undefined
+            ? { internal_notes: dto.internal_notes }
+            : {}),
           updated_by: actorId,
         },
       });
@@ -565,13 +710,28 @@ export class InvoicesService {
     });
   }
 
-  async addLine(tenantId: string, invoiceId: string, dto: CreateInvoiceLineDto, actorId?: string) {
+  async addLine(
+    tenantId: string,
+    invoiceId: string,
+    dto: CreateInvoiceLineDto,
+    actorId?: string,
+  ) {
     const invoice = await this.findOne(tenantId, invoiceId);
     this.assertEditable(invoice);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const count = await tx.invoiceLine.count({ where: { invoice_id: invoiceId, deleted_at: null } });
-      await this.createLineInternal(tx, tenantId, invoiceId, dto, actorId, count, invoice.vat_rate);
+      const count = await tx.invoiceLine.count({
+        where: { invoice_id: invoiceId, deleted_at: null },
+      });
+      await this.createLineInternal(
+        tx,
+        tenantId,
+        invoiceId,
+        dto,
+        actorId,
+        count,
+        invoice.vat_rate,
+      );
       return this.recalculateAndReturn(tx, tenantId, invoiceId);
     });
   }
@@ -588,11 +748,16 @@ export class InvoicesService {
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const line = await tx.invoiceLine.findFirst({
-        where: { id: lineId, invoice_id: invoiceId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: lineId,
+          invoice_id: invoiceId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       if (!line) {
-        throw new NotFoundException('Invoice line not found.');
+        throw new NotFoundException("Invoice line not found.");
       }
 
       const quantity = dto.quantity ?? Number(line.quantity);
@@ -609,12 +774,18 @@ export class InvoicesService {
           ...(dto.quantity !== undefined ? { quantity } : {}),
           ...(dto.unit_price !== undefined ? { unit_price: unitPrice } : {}),
           amount,
-          ...(dto.charge_code_id !== undefined ? { charge_code_id: dto.charge_code_id } : {}),
-          ...(dto.tax_rate_id !== undefined ? { tax_rate_id: dto.tax_rate_id } : {}),
+          ...(dto.charge_code_id !== undefined
+            ? { charge_code_id: dto.charge_code_id }
+            : {}),
+          ...(dto.tax_rate_id !== undefined
+            ? { tax_rate_id: dto.tax_rate_id }
+            : {}),
           is_taxable: isTaxable,
           tax_rate: taxRate,
           tax_amount: taxAmount,
-          ...(dto.sort_order !== undefined ? { sort_order: dto.sort_order } : {}),
+          ...(dto.sort_order !== undefined
+            ? { sort_order: dto.sort_order }
+            : {}),
           updated_by: actorId,
         },
       });
@@ -623,17 +794,27 @@ export class InvoicesService {
     });
   }
 
-  async removeLine(tenantId: string, invoiceId: string, lineId: string, actorId?: string) {
+  async removeLine(
+    tenantId: string,
+    invoiceId: string,
+    lineId: string,
+    actorId?: string,
+  ) {
     const invoice = await this.findOne(tenantId, invoiceId);
     this.assertEditable(invoice);
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const line = await tx.invoiceLine.findFirst({
-        where: { id: lineId, invoice_id: invoiceId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: lineId,
+          invoice_id: invoiceId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       if (!line) {
-        throw new NotFoundException('Invoice line not found.');
+        throw new NotFoundException("Invoice line not found.");
       }
 
       if (line.job_charge_id) {
@@ -649,30 +830,34 @@ export class InvoicesService {
       });
     });
 
-    return this.prisma.runWithTenant(tenantId, (tx) => this.recalculateAndReturn(tx, tenantId, invoiceId));
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      this.recalculateAndReturn(tx, tenantId, invoiceId),
+    );
   }
 
   async post(tenantId: string, id: string, actorId?: string) {
     const invoice = await this.findOne(tenantId, id);
 
-    if (invoice.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft invoices can be posted.');
+    if (invoice.status !== "DRAFT") {
+      throw new BadRequestException("Only draft invoices can be posted.");
     }
 
     if (!invoice.lines.length) {
-      throw new BadRequestException('Invoice must have at least one line before posting.');
+      throw new BadRequestException(
+        "Invoice must have at least one line before posting.",
+      );
     }
 
     const posted = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const locked = await lockInvoiceRow(tx, tenantId, id);
-      if (!locked || locked.status !== 'DRAFT') {
-        throw new BadRequestException('Only draft invoices can be posted.');
+      if (!locked || locked.status !== "DRAFT") {
+        throw new BadRequestException("Only draft invoices can be posted.");
       }
 
       const updated = await tx.invoice.update({
         where: { id },
         data: {
-          status: 'POSTED',
+          status: "POSTED",
           posted_at: new Date(),
           balance_due: invoice.balance_due ?? invoice.total_amount,
           amount_paid: invoice.amount_paid ?? 0,
@@ -683,31 +868,50 @@ export class InvoicesService {
 
       if (
         invoice.credited_invoice_id &&
-        (invoice.invoice_type === 'CREDIT_NOTE' || invoice.invoice_type === 'DEBIT_NOTE')
+        (invoice.invoice_type === "CREDIT_NOTE" ||
+          invoice.invoice_type === "DEBIT_NOTE")
       ) {
-        const original = await lockInvoiceRow(tx, tenantId, invoice.credited_invoice_id);
+        const original = await lockInvoiceRow(
+          tx,
+          tenantId,
+          invoice.credited_invoice_id,
+        );
         if (original) {
           const delta = Number(invoice.total_amount);
-          if (invoice.invoice_type === 'CREDIT_NOTE' && delta > Number(original.balance_due) + 0.005) {
+          if (
+            invoice.invoice_type === "CREDIT_NOTE" &&
+            delta > Number(original.balance_due) + 0.005
+          ) {
             throw new BadRequestException(
               `Credit note total (${delta}) exceeds original invoice balance due (${original.balance_due}).`,
             );
           }
-          const signed = invoice.invoice_type === 'CREDIT_NOTE' ? -delta : delta;
-          const nextBalance = Math.max(0, Number(original.balance_due) + signed);
+          const signed =
+            invoice.invoice_type === "CREDIT_NOTE" ? -delta : delta;
+          const nextBalance = Math.max(
+            0,
+            Number(original.balance_due) + signed,
+          );
           const amountPaid = Number(original.amount_paid);
           const total = Number(original.total_amount);
           let status = original.status as InvoiceStatus;
-          if (['POSTED', 'SENT', 'PARTIALLY_PAID', 'PAID'].includes(original.status)) {
+          if (
+            ["POSTED", "SENT", "PARTIALLY_PAID", "PAID"].includes(
+              original.status,
+            )
+          ) {
             if (nextBalance <= 0 && amountPaid >= total) {
               status = InvoiceStatus.PAID;
             } else if (nextBalance <= 0) {
               status = InvoiceStatus.PAID;
-            } else if (amountPaid > 0 || invoice.invoice_type === 'CREDIT_NOTE') {
+            } else if (
+              amountPaid > 0 ||
+              invoice.invoice_type === "CREDIT_NOTE"
+            ) {
               status =
                 nextBalance < total
                   ? InvoiceStatus.PARTIALLY_PAID
-                  : original.status === 'PAID'
+                  : original.status === "PAID"
                     ? InvoiceStatus.PARTIALLY_PAID
                     : (original.status as InvoiceStatus);
             }
@@ -729,14 +933,18 @@ export class InvoicesService {
     const gl = await this.glAutoPost.postInvoiceToGl(tenantId, id, actorId);
 
     if (
-      posted.invoice_type === 'CUSTOMER_INVOICE' ||
-      posted.invoice_type === 'DEBIT_NOTE'
+      posted.invoice_type === "CUSTOMER_INVOICE" ||
+      posted.invoice_type === "DEBIT_NOTE"
     ) {
-      await this.checkAndNotifyCreditLimitExceeded(tenantId, posted.party_id, posted.id);
+      await this.checkAndNotifyCreditLimitExceeded(
+        tenantId,
+        posted.party_id,
+        posted.id,
+      );
     }
 
     void this.webhooks
-      .dispatch(tenantId, 'invoice.posted', {
+      .dispatch(tenantId, "invoice.posted", {
         invoice_id: posted.id,
         invoice_number: posted.invoice_number,
         invoice_type: posted.invoice_type,
@@ -775,8 +983,10 @@ export class InvoicesService {
             tenant_id: tenantId,
             party_id: partyId,
             deleted_at: null,
-            invoice_type: { in: ['CUSTOMER_INVOICE', 'DEBIT_NOTE', 'CREDIT_NOTE'] },
-            status: { in: ['POSTED', 'SENT', 'PARTIALLY_PAID'] },
+            invoice_type: {
+              in: ["CUSTOMER_INVOICE", "DEBIT_NOTE", "CREDIT_NOTE"],
+            },
+            status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
           },
           select: { invoice_type: true, balance_due: true },
         }),
@@ -784,7 +994,7 @@ export class InvoicesService {
 
       const openAr = openRows.reduce((sum, row) => {
         const bal = Number(row.balance_due);
-        return sum + (row.invoice_type === 'CREDIT_NOTE' ? -bal : bal);
+        return sum + (row.invoice_type === "CREDIT_NOTE" ? -bal : bal);
       }, 0);
 
       if (openAr <= limit + 0.005) return;
@@ -793,33 +1003,38 @@ export class InvoicesService {
       const message = `${party.name} open AR (${openAr.toFixed(2)}) exceeds credit limit (${limit.toFixed(2)}).`;
 
       await this.notifications.notifyFinanceStaff(tenantId, {
-        type: 'CREDIT_LIMIT_EXCEEDED',
+        type: "CREDIT_LIMIT_EXCEEDED",
         title,
         message,
-        entity_type: 'invoice',
+        entity_type: "invoice",
         entity_id: invoiceId,
         link_path: `/parties/${partyId}`,
       });
 
       await this.notifications.notifyPartyPortalUsers(tenantId, partyId, {
-        type: 'CREDIT_LIMIT_EXCEEDED',
-        title: 'Credit limit exceeded',
+        type: "CREDIT_LIMIT_EXCEEDED",
+        title: "Credit limit exceeded",
         message:
-          'Your open balance exceeds your credit limit. Please contact your forwarder or request a limit increase.',
-        entity_type: 'invoice',
+          "Your open balance exceeds your credit limit. Please contact your forwarder or request a limit increase.",
+        entity_type: "invoice",
         entity_id: invoiceId,
-        link_path: '/portal/credit/summary',
+        link_path: "/portal/credit/summary",
       });
     } catch {
       // Best-effort — posting must not fail because of notification issues.
     }
   }
 
-  async send(tenantId: string, id: string, dto: SendInvoiceEmailDto, actorId?: string) {
+  async send(
+    tenantId: string,
+    id: string,
+    dto: SendInvoiceEmailDto,
+    actorId?: string,
+  ) {
     const invoice = await this.findOne(tenantId, id);
 
-    if (!['POSTED', 'SENT', 'PARTIALLY_PAID'].includes(invoice.status)) {
-      throw new BadRequestException('Invoice must be posted before sending.');
+    if (!["POSTED", "SENT", "PARTIALLY_PAID"].includes(invoice.status)) {
+      throw new BadRequestException("Invoice must be posted before sending.");
     }
 
     let pdfBuffer: Buffer | undefined;
@@ -829,53 +1044,61 @@ export class InvoicesService {
         const generated = await this.generatePdf(tenantId, id, actorId);
         pdfBuffer = generated.buffer;
       } catch (err) {
-        pdfWarning = err instanceof Error ? err.message : 'PDF generation failed';
+        pdfWarning =
+          err instanceof Error ? err.message : "PDF generation failed";
       }
     }
 
     const emailLog = await this.emailService.send({
       tenantId,
-      eventType: 'INVOICE_SENT',
+      eventType: "INVOICE_SENT",
       to: dto.to_email,
       subject: `Invoice ${invoice.invoice_number}`,
       body:
-        (dto.message ?? `<p>Please find invoice <strong>${invoice.invoice_number}</strong>.</p>`) +
-        (pdfWarning ? `<p><em>Note: PDF attachment unavailable (${pdfWarning})</em></p>` : ''),
+        (dto.message ??
+          `<p>Please find invoice <strong>${invoice.invoice_number}</strong>.</p>`) +
+        (pdfWarning
+          ? `<p><em>Note: PDF attachment unavailable (${pdfWarning})</em></p>`
+          : ""),
       attachmentBuffer: pdfBuffer,
       attachmentName: pdfBuffer ? `${invoice.invoice_number}.pdf` : undefined,
       attachmentPath: invoice.pdf_url ?? undefined,
       createdBy: actorId,
     });
 
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.invoice.update({
-        where: { id },
-        data: {
-          status: invoice.status === 'POSTED' ? 'SENT' : invoice.status,
-          sent_at: invoice.sent_at ?? new Date(),
-          last_emailed_at: new Date(),
-          last_emailed_to: dto.to_email,
-          updated_by: actorId,
-        },
-      }),
-    ).then(() => ({
-      success: emailLog.status === 'SENT',
-      email_log_id: emailLog.id,
-      status: emailLog.status,
-      pdf_attached: Boolean(pdfBuffer || invoice.pdf_url),
-      pdf_warning: pdfWarning,
-    }));
+    return this.prisma
+      .runWithTenant(tenantId, (tx) =>
+        tx.invoice.update({
+          where: { id },
+          data: {
+            status: invoice.status === "POSTED" ? "SENT" : invoice.status,
+            sent_at: invoice.sent_at ?? new Date(),
+            last_emailed_at: new Date(),
+            last_emailed_to: dto.to_email,
+            updated_by: actorId,
+          },
+        }),
+      )
+      .then(() => ({
+        success: emailLog.status === "SENT",
+        email_log_id: emailLog.id,
+        status: emailLog.status,
+        pdf_attached: Boolean(pdfBuffer || invoice.pdf_url),
+        pdf_warning: pdfWarning,
+      }));
   }
 
   async cancel(tenantId: string, id: string, actorId?: string) {
     const invoice = await this.findOne(tenantId, id);
 
-    if (['PAID', 'CANCELLED', 'VOID'].includes(invoice.status)) {
-      throw new BadRequestException('This invoice cannot be cancelled.');
+    if (["PAID", "CANCELLED", "VOID"].includes(invoice.status)) {
+      throw new BadRequestException("This invoice cannot be cancelled.");
     }
 
     if (Number(invoice.amount_paid) > 0) {
-      throw new BadRequestException('Cannot cancel an invoice with payments applied. Reverse payments first.');
+      throw new BadRequestException(
+        "Cannot cancel an invoice with payments applied. Reverse payments first.",
+      );
     }
 
     // Reverse GL first so a failed reversal never leaves a cancelled invoice with open vouchers.
@@ -894,23 +1117,33 @@ export class InvoicesService {
       // Undo CN/DN impact on the original invoice balance when cancelling a posted note.
       if (
         invoice.credited_invoice_id &&
-        ['POSTED', 'SENT'].includes(invoice.status) &&
-        (invoice.invoice_type === 'CREDIT_NOTE' || invoice.invoice_type === 'DEBIT_NOTE')
+        ["POSTED", "SENT"].includes(invoice.status) &&
+        (invoice.invoice_type === "CREDIT_NOTE" ||
+          invoice.invoice_type === "DEBIT_NOTE")
       ) {
         const original = await tx.invoice.findFirst({
-          where: { id: invoice.credited_invoice_id, tenant_id: tenantId, deleted_at: null },
+          where: {
+            id: invoice.credited_invoice_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
         });
-        if (original && !['CANCELLED', 'VOID'].includes(original.status)) {
+        if (original && !["CANCELLED", "VOID"].includes(original.status)) {
           const delta = Number(invoice.total_amount);
-          const signed = invoice.invoice_type === 'CREDIT_NOTE' ? delta : -delta;
-          const nextBalance = Math.max(0, Number(original.balance_due) + signed);
+          const signed =
+            invoice.invoice_type === "CREDIT_NOTE" ? delta : -delta;
+          const nextBalance = Math.max(
+            0,
+            Number(original.balance_due) + signed,
+          );
           const amountPaid = Number(original.amount_paid);
           const total = Number(original.total_amount);
           let status = original.status;
-          if (nextBalance <= 0) status = 'PAID';
-          else if (amountPaid > 0) status = 'PARTIALLY_PAID';
-          else if (original.status === 'PAID' && nextBalance > 0) status = 'POSTED';
-          else if (nextBalance >= total && amountPaid === 0) status = 'POSTED';
+          if (nextBalance <= 0) status = "PAID";
+          else if (amountPaid > 0) status = "PARTIALLY_PAID";
+          else if (original.status === "PAID" && nextBalance > 0)
+            status = "POSTED";
+          else if (nextBalance >= total && amountPaid === 0) status = "POSTED";
           await tx.invoice.update({
             where: { id: original.id },
             data: { balance_due: nextBalance, status, updated_by: actorId },
@@ -920,7 +1153,7 @@ export class InvoicesService {
 
       return tx.invoice.update({
         where: { id },
-        data: { status: 'CANCELLED', updated_by: actorId },
+        data: { status: "CANCELLED", updated_by: actorId },
       });
     });
 
@@ -934,7 +1167,8 @@ export class InvoicesService {
       invoice_type: invoice.invoice_type,
       status: invoice.status,
       party_name: invoice.party.name,
-      party_vat_number: invoice.party_vat_number ?? invoice.party.vat_number ?? undefined,
+      party_vat_number:
+        invoice.party_vat_number ?? invoice.party.vat_number ?? undefined,
       job_number: invoice.job?.job_number,
       currency_code: invoice.currency_code,
       subtotal: invoice.subtotal.toString(),
@@ -980,21 +1214,28 @@ export class InvoicesService {
         where: {
           tenant_id: tenantId,
           deleted_at: null,
-          invoice_type: 'CUSTOMER_INVOICE',
-          status: { in: ['POSTED', 'SENT', 'PARTIALLY_PAID'] },
+          invoice_type: "CUSTOMER_INVOICE",
+          status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
           due_date: { lt: today },
           balance_due: { gt: 0 },
         },
         include: {
           party: { select: { id: true, name: true, email: true } },
         },
-        orderBy: { due_date: 'asc' },
+        orderBy: { due_date: "asc" },
       }),
     );
   }
 
-  private buildWhere(tenantId: string, query: InvoiceQueryDto, invoiceType?: InvoiceType): Prisma.InvoiceWhereInput {
-    const where: Prisma.InvoiceWhereInput = { tenant_id: tenantId, deleted_at: null };
+  private buildWhere(
+    tenantId: string,
+    query: InvoiceQueryDto,
+    invoiceType?: InvoiceType,
+  ): Prisma.InvoiceWhereInput {
+    const where: Prisma.InvoiceWhereInput = {
+      tenant_id: tenantId,
+      deleted_at: null,
+    };
 
     if (invoiceType) where.invoice_type = invoiceType;
     if (query.invoice_type) where.invoice_type = query.invoice_type;
@@ -1011,9 +1252,9 @@ export class InvoicesService {
 
     if (query.search) {
       where.OR = [
-        { invoice_number: { contains: query.search, mode: 'insensitive' } },
-        { lpo_number: { contains: query.search, mode: 'insensitive' } },
-        { remarks: { contains: query.search, mode: 'insensitive' } },
+        { invoice_number: { contains: query.search, mode: "insensitive" } },
+        { lpo_number: { contains: query.search, mode: "insensitive" } },
+        { remarks: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
@@ -1055,35 +1296,56 @@ export class InvoicesService {
     });
   }
 
-  private async recalculateAndReturn(tx: Prisma.TransactionClient, tenantId: string, invoiceId: string) {
+  private async recalculateAndReturn(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    invoiceId: string,
+  ) {
     const lines = await tx.invoiceLine.findMany({
       where: { invoice_id: invoiceId, tenant_id: tenantId, deleted_at: null },
     });
 
-    const subtotal = lines.reduce((sum: number, l: InvoiceLine) => sum + Number(l.amount), 0);
-    const taxAmount = lines.reduce((sum: number, l: InvoiceLine) => sum + Number(l.tax_amount), 0);
+    const subtotal = lines.reduce(
+      (sum: number, l: InvoiceLine) => sum + Number(l.amount),
+      0,
+    );
+    const taxAmount = lines.reduce(
+      (sum: number, l: InvoiceLine) => sum + Number(l.tax_amount),
+      0,
+    );
     const totalAmount = subtotal + taxAmount;
-    const invoice = await tx.invoice.findFirstOrThrow({ where: { id: invoiceId, tenant_id: tenantId } });
+    const invoice = await tx.invoice.findFirstOrThrow({
+      where: { id: invoiceId, tenant_id: tenantId },
+    });
 
     // Drafts / notes: balance tracks document total.
     // Posted customer/purchase invoices: preserve CN/DN deltas already on balance_due.
     let balanceDue: number;
     if (
-      invoice.status === 'DRAFT' ||
-      !['CUSTOMER_INVOICE', 'PURCHASE_INVOICE'].includes(invoice.invoice_type)
+      invoice.status === "DRAFT" ||
+      !["CUSTOMER_INVOICE", "PURCHASE_INVOICE"].includes(invoice.invoice_type)
     ) {
       balanceDue = Math.max(0, totalAmount - Number(invoice.amount_paid));
     } else {
-      const previousImplied = Number(invoice.total_amount) - Number(invoice.amount_paid);
+      const previousImplied =
+        Number(invoice.total_amount) - Number(invoice.amount_paid);
       const cnDnDelta = Number(invoice.balance_due) - previousImplied;
-      balanceDue = Math.max(0, totalAmount - Number(invoice.amount_paid) + cnDnDelta);
+      balanceDue = Math.max(
+        0,
+        totalAmount - Number(invoice.amount_paid) + cnDnDelta,
+      );
     }
 
     return tx.invoice.update({
       where: { id: invoiceId },
-      data: { subtotal, tax_amount: taxAmount, total_amount: totalAmount, balance_due: balanceDue },
+      data: {
+        subtotal,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        balance_due: balanceDue,
+      },
       include: {
-        lines: { where: { deleted_at: null }, orderBy: { sort_order: 'asc' } },
+        lines: { where: { deleted_at: null }, orderBy: { sort_order: "asc" } },
         party: { select: { id: true, name: true, code: true } },
       },
     });
@@ -1091,36 +1353,44 @@ export class InvoicesService {
 
   private assertEditable(invoice: Invoice & { lines?: unknown[] }) {
     if (!EDITABLE_STATUSES.includes(invoice.status)) {
-      throw new BadRequestException('Only draft invoices can be modified.');
+      throw new BadRequestException("Only draft invoices can be modified.");
     }
   }
 
   private async assertPartyExists(tenantId: string, partyId: string) {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.party.findFirst({ where: { id: partyId, tenant_id: tenantId, deleted_at: null } }),
+      tx.party.findFirst({
+        where: { id: partyId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!exists) throw new NotFoundException('Party not found.');
+    if (!exists) throw new NotFoundException("Party not found.");
   }
 
   private async assertJobExists(tenantId: string, jobId: string) {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.job.findFirst({ where: { id: jobId, tenant_id: tenantId, deleted_at: null } }),
+      tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!exists) throw new NotFoundException('Job not found.');
+    if (!exists) throw new NotFoundException("Job not found.");
   }
 
   private async assertCompanyExists(tenantId: string, companyId: string) {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.company.findFirst({ where: { id: companyId, tenant_id: tenantId, deleted_at: null } }),
+      tx.company.findFirst({
+        where: { id: companyId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!exists) throw new NotFoundException('Company not found.');
+    if (!exists) throw new NotFoundException("Company not found.");
   }
 
-  private async resolveDefaultCompanyId(tenantId: string): Promise<string | undefined> {
+  private async resolveDefaultCompanyId(
+    tenantId: string,
+  ): Promise<string | undefined> {
     const company = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.company.findFirst({
         where: { tenant_id: tenantId, deleted_at: null, is_active: true },
-        orderBy: [{ is_default: 'desc' }, { created_at: 'asc' }],
+        orderBy: [{ is_default: "desc" }, { created_at: "asc" }],
         select: { id: true },
       }),
     );

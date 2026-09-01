@@ -3,11 +3,11 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { DocumentNumberType, HrEmployeeStatus, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
-import { CurrentUser } from '../users/interfaces/current-user.interface';
+} from "@nestjs/common";
+import { DocumentNumberType, HrEmployeeStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { CurrentUser } from "../users/interfaces/current-user.interface";
 import {
   CreateDependentDto,
   CreateDocumentDto,
@@ -18,7 +18,7 @@ import {
   EmployeeQueryDto,
   LinkUserDto,
   UpdateEmployeeDto,
-} from './dto/hr-employee.dto';
+} from "./dto/hr-employee.dto";
 
 @Injectable()
 export class HrEmployeesService {
@@ -55,9 +55,9 @@ export class HrEmployeesService {
           department_id: dto.department_id ?? null,
           designation_id: dto.designation_id ?? null,
           branch_id: dto.branch_id ?? null,
-          employment_type: dto.employment_type ?? 'FULL_TIME',
-          status: dto.status ?? 'ACTIVE',
-          staff_grade: dto.staff_grade ?? 'STAFF',
+          employment_type: dto.employment_type ?? "FULL_TIME",
+          status: dto.status ?? "ACTIVE",
+          staff_grade: dto.staff_grade ?? "STAFF",
           reporting_manager_id: dto.reporting_manager_id ?? null,
           department_head_id: dto.department_head_id ?? null,
           skip_level_id: dto.skip_level_id ?? null,
@@ -72,8 +72,10 @@ export class HrEmployeesService {
           iban: dto.iban?.trim() || null,
           bank_routing_code: dto.bank_routing_code?.trim() || null,
           bank_name: dto.bank_name?.trim() || null,
-          contract_type: dto.contract_type ?? 'UNLIMITED',
-          contract_start: dto.contract_start ? new Date(dto.contract_start) : null,
+          contract_type: dto.contract_type ?? "UNLIMITED",
+          contract_start: dto.contract_start
+            ? new Date(dto.contract_start)
+            : null,
           contract_end: dto.contract_end ? new Date(dto.contract_end) : null,
           notice_period_days: dto.notice_period_days ?? 30,
           probation_end: dto.probation_end ? new Date(dto.probation_end) : null,
@@ -99,26 +101,30 @@ export class HrEmployeesService {
       ...(query.search
         ? {
             OR: [
-              { employee_code: { contains: query.search, mode: 'insensitive' } },
-              { first_name: { contains: query.search, mode: 'insensitive' } },
-              { last_name: { contains: query.search, mode: 'insensitive' } },
-              { email: { contains: query.search, mode: 'insensitive' } },
+              {
+                employee_code: { contains: query.search, mode: "insensitive" },
+              },
+              { first_name: { contains: query.search, mode: "insensitive" } },
+              { last_name: { contains: query.search, mode: "insensitive" } },
+              { email: { contains: query.search, mode: "insensitive" } },
             ],
           }
         : {}),
     };
 
-    const [data, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-      Promise.all([
-        tx.hrEmployee.findMany({
-          where,
-          skip: (page - 1) * limit,
-          take: limit,
-          orderBy: [{ last_name: 'asc' }, { first_name: 'asc' }],
-          include: this.defaultInclude(),
-        }),
-        tx.hrEmployee.count({ where }),
-      ]),
+    const [data, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.hrEmployee.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: [{ last_name: "asc" }, { first_name: "asc" }],
+            include: this.defaultInclude(),
+          }),
+          tx.hrEmployee.count({ where }),
+        ]),
     );
 
     return {
@@ -139,22 +145,45 @@ export class HrEmployeesService {
     const data: Prisma.HrEmployeeUpdateInput = { updated_by: user.id };
     if (dto.first_name !== undefined) data.first_name = dto.first_name.trim();
     if (dto.last_name !== undefined) data.last_name = dto.last_name.trim();
-    if (dto.joining_date !== undefined) data.joining_date = new Date(dto.joining_date);
-    if (dto.company_id !== undefined) data.company = dto.company_id ? { connect: { id: dto.company_id } } : { disconnect: true };
-    if (dto.date_of_birth !== undefined) data.date_of_birth = dto.date_of_birth ? new Date(dto.date_of_birth) : null;
-    if (dto.nationality !== undefined) data.nationality = dto.nationality?.trim() || null;
+    if (dto.joining_date !== undefined)
+      data.joining_date = new Date(dto.joining_date);
+    if (dto.company_id !== undefined)
+      data.company = dto.company_id
+        ? { connect: { id: dto.company_id } }
+        : { disconnect: true };
+    if (dto.date_of_birth !== undefined)
+      data.date_of_birth = dto.date_of_birth
+        ? new Date(dto.date_of_birth)
+        : null;
+    if (dto.nationality !== undefined)
+      data.nationality = dto.nationality?.trim() || null;
     if (dto.gender !== undefined) data.gender = dto.gender;
-    if (dto.marital_status !== undefined) data.marital_status = dto.marital_status;
+    if (dto.marital_status !== undefined)
+      data.marital_status = dto.marital_status;
     if (dto.photo_url !== undefined) data.photo_url = dto.photo_url;
     if (dto.mobile !== undefined) data.mobile = dto.mobile?.trim() || null;
-    if (dto.email !== undefined) data.email = dto.email?.trim().toLowerCase() || null;
-    if (dto.emergency_name !== undefined) data.emergency_name = dto.emergency_name?.trim() || null;
-    if (dto.emergency_phone !== undefined) data.emergency_phone = dto.emergency_phone?.trim() || null;
-    if (dto.exit_date !== undefined) data.exit_date = dto.exit_date ? new Date(dto.exit_date) : null;
-    if (dto.department_id !== undefined) data.department = dto.department_id ? { connect: { id: dto.department_id } } : { disconnect: true };
-    if (dto.designation_id !== undefined) data.designation = dto.designation_id ? { connect: { id: dto.designation_id } } : { disconnect: true };
-    if (dto.branch_id !== undefined) data.branch = dto.branch_id ? { connect: { id: dto.branch_id } } : { disconnect: true };
-    if (dto.employment_type !== undefined) data.employment_type = dto.employment_type;
+    if (dto.email !== undefined)
+      data.email = dto.email?.trim().toLowerCase() || null;
+    if (dto.emergency_name !== undefined)
+      data.emergency_name = dto.emergency_name?.trim() || null;
+    if (dto.emergency_phone !== undefined)
+      data.emergency_phone = dto.emergency_phone?.trim() || null;
+    if (dto.exit_date !== undefined)
+      data.exit_date = dto.exit_date ? new Date(dto.exit_date) : null;
+    if (dto.department_id !== undefined)
+      data.department = dto.department_id
+        ? { connect: { id: dto.department_id } }
+        : { disconnect: true };
+    if (dto.designation_id !== undefined)
+      data.designation = dto.designation_id
+        ? { connect: { id: dto.designation_id } }
+        : { disconnect: true };
+    if (dto.branch_id !== undefined)
+      data.branch = dto.branch_id
+        ? { connect: { id: dto.branch_id } }
+        : { disconnect: true };
+    if (dto.employment_type !== undefined)
+      data.employment_type = dto.employment_type;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.staff_grade !== undefined) data.staff_grade = dto.staff_grade;
     if (dto.reporting_manager_id !== undefined) {
@@ -168,24 +197,42 @@ export class HrEmployeesService {
         : { disconnect: true };
     }
     if (dto.skip_level_id !== undefined) {
-      data.skip_level = dto.skip_level_id ? { connect: { id: dto.skip_level_id } } : { disconnect: true };
+      data.skip_level = dto.skip_level_id
+        ? { connect: { id: dto.skip_level_id } }
+        : { disconnect: true };
     }
     if (dto.basic_salary !== undefined) data.basic_salary = dto.basic_salary;
-    if (dto.housing_allowance !== undefined) data.housing_allowance = dto.housing_allowance;
-    if (dto.transport_allowance !== undefined) data.transport_allowance = dto.transport_allowance;
-    if (dto.mobile_allowance !== undefined) data.mobile_allowance = dto.mobile_allowance;
+    if (dto.housing_allowance !== undefined)
+      data.housing_allowance = dto.housing_allowance;
+    if (dto.transport_allowance !== undefined)
+      data.transport_allowance = dto.transport_allowance;
+    if (dto.mobile_allowance !== undefined)
+      data.mobile_allowance = dto.mobile_allowance;
     if (dto.overtime_rate !== undefined) data.overtime_rate = dto.overtime_rate;
-    if (dto.other_allowance !== undefined) data.other_allowance = dto.other_allowance;
-    if (dto.social_security_amount !== undefined) data.social_security_amount = dto.social_security_amount;
-    if (dto.mol_employee_id !== undefined) data.mol_employee_id = dto.mol_employee_id?.trim() || null;
+    if (dto.other_allowance !== undefined)
+      data.other_allowance = dto.other_allowance;
+    if (dto.social_security_amount !== undefined)
+      data.social_security_amount = dto.social_security_amount;
+    if (dto.mol_employee_id !== undefined)
+      data.mol_employee_id = dto.mol_employee_id?.trim() || null;
     if (dto.iban !== undefined) data.iban = dto.iban?.trim() || null;
-    if (dto.bank_routing_code !== undefined) data.bank_routing_code = dto.bank_routing_code?.trim() || null;
-    if (dto.bank_name !== undefined) data.bank_name = dto.bank_name?.trim() || null;
+    if (dto.bank_routing_code !== undefined)
+      data.bank_routing_code = dto.bank_routing_code?.trim() || null;
+    if (dto.bank_name !== undefined)
+      data.bank_name = dto.bank_name?.trim() || null;
     if (dto.contract_type !== undefined) data.contract_type = dto.contract_type;
-    if (dto.contract_start !== undefined) data.contract_start = dto.contract_start ? new Date(dto.contract_start) : null;
-    if (dto.contract_end !== undefined) data.contract_end = dto.contract_end ? new Date(dto.contract_end) : null;
-    if (dto.notice_period_days !== undefined) data.notice_period_days = dto.notice_period_days;
-    if (dto.probation_end !== undefined) data.probation_end = dto.probation_end ? new Date(dto.probation_end) : null;
+    if (dto.contract_start !== undefined)
+      data.contract_start = dto.contract_start
+        ? new Date(dto.contract_start)
+        : null;
+    if (dto.contract_end !== undefined)
+      data.contract_end = dto.contract_end ? new Date(dto.contract_end) : null;
+    if (dto.notice_period_days !== undefined)
+      data.notice_period_days = dto.notice_period_days;
+    if (dto.probation_end !== undefined)
+      data.probation_end = dto.probation_end
+        ? new Date(dto.probation_end)
+        : null;
 
     const updated = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployee.update({
@@ -203,7 +250,11 @@ export class HrEmployeesService {
     await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployee.update({
         where: { id },
-        data: { deleted_at: new Date(), updated_by: user.id, status: HrEmployeeStatus.TERMINATED },
+        data: {
+          deleted_at: new Date(),
+          updated_by: user.id,
+          status: HrEmployeeStatus.TERMINATED,
+        },
       }),
     );
     return { success: true, data: { id, deleted: true } };
@@ -214,11 +265,18 @@ export class HrEmployeesService {
 
     const existing = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployee.findFirst({
-        where: { tenant_id: user.tenantId, user_id: dto.user_id, deleted_at: null, NOT: { id } },
+        where: {
+          tenant_id: user.tenantId,
+          user_id: dto.user_id,
+          deleted_at: null,
+          NOT: { id },
+        },
       }),
     );
     if (existing) {
-      throw new ConflictException('User is already linked to another employee.');
+      throw new ConflictException(
+        "User is already linked to another employee.",
+      );
     }
 
     const updated = await this.prisma.runWithTenant(user.tenantId, (tx) =>
@@ -232,7 +290,11 @@ export class HrEmployeesService {
     return { success: true, data: updated };
   }
 
-  async addDocument(user: CurrentUser, employeeId: string, dto: CreateDocumentDto) {
+  async addDocument(
+    user: CurrentUser,
+    employeeId: string,
+    dto: CreateDocumentDto,
+  ) {
     await this.requireEmployee(user.tenantId, employeeId);
     const doc = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployeeDocument.create({
@@ -256,8 +318,12 @@ export class HrEmployeesService {
     await this.requireEmployee(user.tenantId, employeeId);
     const docs = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployeeDocument.findMany({
-        where: { tenant_id: user.tenantId, employee_id: employeeId, deleted_at: null },
-        orderBy: { expires_at: 'asc' },
+        where: {
+          tenant_id: user.tenantId,
+          employee_id: employeeId,
+          deleted_at: null,
+        },
+        orderBy: { expires_at: "asc" },
       }),
     );
     return { success: true, data: docs };
@@ -274,7 +340,11 @@ export class HrEmployeesService {
     return { success: true, data: { id: docId, deleted: true } };
   }
 
-  async addDependent(user: CurrentUser, employeeId: string, dto: CreateDependentDto) {
+  async addDependent(
+    user: CurrentUser,
+    employeeId: string,
+    dto: CreateDependentDto,
+  ) {
     await this.requireEmployee(user.tenantId, employeeId);
     const dep = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployeeDependent.create({
@@ -285,9 +355,13 @@ export class HrEmployeesService {
           relation: dto.relation,
           date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
           passport_no: dto.passport_no?.trim() || null,
-          passport_expires_at: dto.passport_expires_at ? new Date(dto.passport_expires_at) : null,
+          passport_expires_at: dto.passport_expires_at
+            ? new Date(dto.passport_expires_at)
+            : null,
           visa_no: dto.visa_no?.trim() || null,
-          visa_expires_at: dto.visa_expires_at ? new Date(dto.visa_expires_at) : null,
+          visa_expires_at: dto.visa_expires_at
+            ? new Date(dto.visa_expires_at)
+            : null,
           created_by: user.id,
           updated_by: user.id,
         },
@@ -300,7 +374,11 @@ export class HrEmployeesService {
     await this.requireEmployee(user.tenantId, employeeId);
     const data = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployeeDependent.findMany({
-        where: { tenant_id: user.tenantId, employee_id: employeeId, deleted_at: null },
+        where: {
+          tenant_id: user.tenantId,
+          employee_id: employeeId,
+          deleted_at: null,
+        },
       }),
     );
     return { success: true, data };
@@ -326,13 +404,21 @@ export class HrEmployeesService {
     await this.requireEmployee(user.tenantId, employeeId);
     const data = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployeeSkill.findMany({
-        where: { tenant_id: user.tenantId, employee_id: employeeId, deleted_at: null },
+        where: {
+          tenant_id: user.tenantId,
+          employee_id: employeeId,
+          deleted_at: null,
+        },
       }),
     );
     return { success: true, data };
   }
 
-  async addQualification(user: CurrentUser, employeeId: string, dto: CreateQualificationDto) {
+  async addQualification(
+    user: CurrentUser,
+    employeeId: string,
+    dto: CreateQualificationDto,
+  ) {
     await this.requireEmployee(user.tenantId, employeeId);
     const q = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployeeQualification.create({
@@ -353,13 +439,21 @@ export class HrEmployeesService {
     await this.requireEmployee(user.tenantId, employeeId);
     const data = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployeeQualification.findMany({
-        where: { tenant_id: user.tenantId, employee_id: employeeId, deleted_at: null },
+        where: {
+          tenant_id: user.tenantId,
+          employee_id: employeeId,
+          deleted_at: null,
+        },
       }),
     );
     return { success: true, data };
   }
 
-  async addEmploymentHistory(user: CurrentUser, employeeId: string, dto: CreateEmploymentHistoryDto) {
+  async addEmploymentHistory(
+    user: CurrentUser,
+    employeeId: string,
+    dto: CreateEmploymentHistoryDto,
+  ) {
     await this.requireEmployee(user.tenantId, employeeId);
     const row = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmploymentHistory.create({
@@ -382,8 +476,12 @@ export class HrEmployeesService {
     await this.requireEmployee(user.tenantId, employeeId);
     const data = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmploymentHistory.findMany({
-        where: { tenant_id: user.tenantId, employee_id: employeeId, deleted_at: null },
-        orderBy: { start_date: 'desc' },
+        where: {
+          tenant_id: user.tenantId,
+          employee_id: employeeId,
+          deleted_at: null,
+        },
+        orderBy: { start_date: "desc" },
       }),
     );
     return { success: true, data };
@@ -394,8 +492,17 @@ export class HrEmployeesService {
       department: { select: { id: true, name: true, code: true } },
       designation: { select: { id: true, name: true } },
       branch: { select: { id: true, name: true, code: true } },
-      reporting_manager: { select: { id: true, employee_code: true, first_name: true, last_name: true } },
-      user: { select: { id: true, email: true, first_name: true, last_name: true } },
+      reporting_manager: {
+        select: {
+          id: true,
+          employee_code: true,
+          first_name: true,
+          last_name: true,
+        },
+      },
+      user: {
+        select: { id: true, email: true, first_name: true, last_name: true },
+      },
     };
   }
 
@@ -406,7 +513,7 @@ export class HrEmployeesService {
         include: this.defaultInclude(),
       }),
     );
-    if (!employee) throw new NotFoundException('Employee not found.');
+    if (!employee) throw new NotFoundException("Employee not found.");
     return employee;
   }
 }

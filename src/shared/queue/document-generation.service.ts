@@ -1,14 +1,27 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
-import { DocumentEntityType, DocumentGenerationStatus, DocumentType, Prisma, QuotationPdfMode } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationEmitterService } from '../../modules/notifications/notification-emitter.service';
-import { PdfService, NvoccDocumentPdfData, SeaFclDocumentPdfData } from '../pdf/pdf.service';
-import { StorageService } from '../storage/storage.service';
-import { DOCUMENT_GENERATION_QUEUE, DocumentGenerationJobPayload } from './queue.constants';
-import { isSeaFclDocumentType } from '../../modules/jobs/constants/sea-fcl-document-types';
-import { SeaFclDocumentOptions } from '../../modules/jobs/dto/generate-job-document.dto';
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bull";
+import { Queue } from "bull";
+import {
+  DocumentEntityType,
+  DocumentGenerationStatus,
+  DocumentType,
+  Prisma,
+  QuotationPdfMode,
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationEmitterService } from "../../modules/notifications/notification-emitter.service";
+import {
+  PdfService,
+  NvoccDocumentPdfData,
+  SeaFclDocumentPdfData,
+} from "../pdf/pdf.service";
+import { StorageService } from "../storage/storage.service";
+import {
+  DOCUMENT_GENERATION_QUEUE,
+  DocumentGenerationJobPayload,
+} from "./queue.constants";
+import { isSeaFclDocumentType } from "../../modules/jobs/constants/sea-fcl-document-types";
+import { SeaFclDocumentOptions } from "../../modules/jobs/dto/generate-job-document.dto";
 
 type SeaFclJobDocContext = {
   job_number: string;
@@ -123,7 +136,8 @@ export class DocumentGenerationService {
     private readonly pdfService: PdfService,
     private readonly storage: StorageService,
     private readonly notifications: NotificationEmitterService,
-    @InjectQueue(DOCUMENT_GENERATION_QUEUE) private readonly queue: Queue<DocumentGenerationJobPayload>,
+    @InjectQueue(DOCUMENT_GENERATION_QUEUE)
+    private readonly queue: Queue<DocumentGenerationJobPayload>,
   ) {}
 
   async enqueueQuotationPdf(
@@ -137,11 +151,11 @@ export class DocumentGenerationService {
       tx.documentGenerationTask.create({
         data: {
           tenant_id: tenantId,
-          entity_type: 'QUOTATION',
+          entity_type: "QUOTATION",
           quotation_id: quotationId,
           pdf_mode: mode,
           layout_variant: layoutVariant,
-          status: 'PENDING',
+          status: "PENDING",
           requested_by: requestedBy,
         },
       }),
@@ -171,12 +185,12 @@ export class DocumentGenerationService {
       tx.documentGenerationTask.create({
         data: {
           tenant_id: tenantId,
-          entity_type: 'JOB',
+          entity_type: "JOB",
           job_id: jobId,
           document_type: documentType,
           layout_variant: layoutVariant,
           options: options ? (options as Prisma.InputJsonValue) : undefined,
-          status: 'PENDING',
+          status: "PENDING",
           requested_by: requestedBy,
         },
       }),
@@ -206,13 +220,20 @@ export class DocumentGenerationService {
     );
 
     if (!task) {
-      throw new NotFoundException('Document generation task not found.');
+      throw new NotFoundException("Document generation task not found.");
     }
 
     return task;
   }
 
-  async listTasks(tenantId: string, filters: { quotationId?: string; jobId?: string; status?: DocumentGenerationStatus }) {
+  async listTasks(
+    tenantId: string,
+    filters: {
+      quotationId?: string;
+      jobId?: string;
+      status?: DocumentGenerationStatus;
+    },
+  ) {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentGenerationTask.findMany({
         where: {
@@ -221,7 +242,7 @@ export class DocumentGenerationService {
           ...(filters.jobId ? { job_id: filters.jobId } : {}),
           ...(filters.status ? { status: filters.status } : {}),
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
         take: 20,
       }),
     );
@@ -231,7 +252,7 @@ export class DocumentGenerationService {
     await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentGenerationTask.update({
         where: { id: taskId },
-        data: { status: 'PROCESSING', started_at: new Date() },
+        data: { status: "PROCESSING", started_at: new Date() },
       }),
     );
 
@@ -245,12 +266,25 @@ export class DocumentGenerationService {
       let buffer: Buffer;
       let filename: string;
 
-      if (task.entity_type === 'QUOTATION' && task.quotation_id && task.pdf_mode) {
-        const result = await this.buildQuotationPdf(tenantId, task.quotation_id, task.pdf_mode);
+      if (
+        task.entity_type === "QUOTATION" &&
+        task.quotation_id &&
+        task.pdf_mode
+      ) {
+        const result = await this.buildQuotationPdf(
+          tenantId,
+          task.quotation_id,
+          task.pdf_mode,
+        );
         buffer = result.buffer;
         filename = result.filename;
-      } else if (task.entity_type === 'JOB' && task.job_id && task.document_type) {
-        const options = (task.options as SeaFclDocumentOptions | null) ?? undefined;
+      } else if (
+        task.entity_type === "JOB" &&
+        task.job_id &&
+        task.document_type
+      ) {
+        const options =
+          (task.options as SeaFclDocumentOptions | null) ?? undefined;
         const result = await this.buildJobDocumentPdf(
           tenantId,
           task.job_id,
@@ -262,7 +296,7 @@ export class DocumentGenerationService {
         buffer = result.buffer;
         filename = result.filename;
       } else {
-        throw new Error('Invalid document generation task configuration.');
+        throw new Error("Invalid document generation task configuration.");
       }
 
       const stored = await this.storage.saveBuffer(tenantId, buffer, filename);
@@ -271,7 +305,7 @@ export class DocumentGenerationService {
         tx.documentGenerationTask.update({
           where: { id: taskId },
           data: {
-            status: 'COMPLETED',
+            status: "COMPLETED",
             file_url: stored.fileUrl,
             s3_key: stored.s3Key,
             file_name: filename,
@@ -281,9 +315,13 @@ export class DocumentGenerationService {
         }),
       );
 
-      if (task.entity_type === 'QUOTATION' && task.quotation_id && task.pdf_mode) {
+      if (
+        task.entity_type === "QUOTATION" &&
+        task.quotation_id &&
+        task.pdf_mode
+      ) {
         const pdfData =
-          task.pdf_mode === 'CUSTOMER'
+          task.pdf_mode === "CUSTOMER"
             ? {
                 customer_pdf_url: stored.fileUrl,
                 customer_pdf_s3_key: stored.s3Key,
@@ -296,11 +334,19 @@ export class DocumentGenerationService {
               };
 
         await this.prisma.runWithTenant(tenantId, (tx) =>
-          tx.quotation.update({ where: { id: task.quotation_id! }, data: pdfData }),
+          tx.quotation.update({
+            where: { id: task.quotation_id! },
+            data: pdfData,
+          }),
         );
       }
 
-      if (task.entity_type === 'JOB' && task.job_id && task.document_type && task.requested_by) {
+      if (
+        task.entity_type === "JOB" &&
+        task.job_id &&
+        task.document_type &&
+        task.requested_by
+      ) {
         const jobDocument = await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.jobDocument.create({
             data: {
@@ -311,11 +357,11 @@ export class DocumentGenerationService {
               file_url: stored.fileUrl,
               s3_key: stored.s3Key,
               file_size: stored.fileSize,
-              mime_type: 'application/pdf',
+              mime_type: "application/pdf",
               version: 1,
               is_original: isOriginal,
               layout_variant: task.layout_variant,
-              generation_status: 'COMPLETED',
+              generation_status: "COMPLETED",
               generated_at: new Date(),
               generation_task_id: taskId,
               uploaded_by: task.requested_by!,
@@ -325,18 +371,27 @@ export class DocumentGenerationService {
           }),
         );
 
-        await this.notifications.notifyPortalDocumentReadyForJob(tenantId, task.job_id, jobDocument);
+        await this.notifications.notifyPortalDocumentReadyForJob(
+          tenantId,
+          task.job_id,
+          jobDocument,
+        );
       }
 
       return completed;
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Document generation failed';
+      const message =
+        error instanceof Error ? error.message : "Document generation failed";
       this.logger.error(`Task ${taskId} failed: ${message}`);
 
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.documentGenerationTask.update({
           where: { id: taskId },
-          data: { status: 'FAILED', error_message: message, completed_at: new Date() },
+          data: {
+            status: "FAILED",
+            error_message: message,
+            completed_at: new Date(),
+          },
         }),
       );
 
@@ -344,20 +399,26 @@ export class DocumentGenerationService {
     }
   }
 
-  private async buildQuotationPdf(tenantId: string, quotationId: string, mode: QuotationPdfMode) {
+  private async buildQuotationPdf(
+    tenantId: string,
+    quotationId: string,
+    mode: QuotationPdfMode,
+  ) {
     const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
         where: { id: quotationId, tenant_id: tenantId, deleted_at: null },
-        include: { lines: { orderBy: { sort_order: 'asc' } } },
+        include: { lines: { orderBy: { sort_order: "asc" } } },
       }),
     );
 
     if (!quotation) {
-      throw new NotFoundException('Quotation not found.');
+      throw new NotFoundException("Quotation not found.");
     }
 
     const customer = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.party.findFirst({ where: { id: quotation.customer_id, tenant_id: tenantId } }),
+      tx.party.findFirst({
+        where: { id: quotation.customer_id, tenant_id: tenantId },
+      }),
     );
 
     const buffer = await this.pdfService.generateQuotationPdf(
@@ -414,10 +475,22 @@ export class DocumentGenerationService {
               },
             },
           },
-          charges: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } },
-          cargo_lines: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } },
-          stuffing_records: { where: { deleted_at: null }, orderBy: { stuffing_date: 'desc' } },
-          bills_of_lading: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
+          charges: {
+            where: { deleted_at: null },
+            orderBy: { created_at: "asc" },
+          },
+          cargo_lines: {
+            where: { deleted_at: null },
+            orderBy: { created_at: "asc" },
+          },
+          stuffing_records: {
+            where: { deleted_at: null },
+            orderBy: { stuffing_date: "desc" },
+          },
+          bills_of_lading: {
+            where: { deleted_at: null },
+            orderBy: { created_at: "desc" },
+          },
           house_jobs: {
             where: { deleted_at: null },
             include: { sea_fcl_details: true },
@@ -425,7 +498,12 @@ export class DocumentGenerationService {
           nvocc_details: {
             include: {
               booking: {
-                include: { charges: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } } },
+                include: {
+                  charges: {
+                    where: { deleted_at: null },
+                    orderBy: { created_at: "asc" },
+                  },
+                },
               },
               voyage: true,
             },
@@ -435,10 +513,10 @@ export class DocumentGenerationService {
     );
 
     if (!job) {
-      throw new NotFoundException('Job not found.');
+      throw new NotFoundException("Job not found.");
     }
 
-    if (job.job_type === 'NVOCC_EXPORT' || job.job_type === 'NVOCC_IMPORT') {
+    if (job.job_type === "NVOCC_EXPORT" || job.job_type === "NVOCC_IMPORT") {
       const result = await this.buildNvoccJobDocumentPdf(
         tenantId,
         job,
@@ -446,14 +524,14 @@ export class DocumentGenerationService {
         isOriginal,
         layoutVariant,
       );
-      const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? '-original' : '-draft'}.pdf`;
+      const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? "-original" : "-draft"}.pdf`;
       return { buffer: result, filename };
     }
 
     const useSeaFcl =
-      job.job_type !== 'AIR_IMPORT' &&
-      (job.job_type === 'SEA_FCL_EXPORT' ||
-        job.job_type === 'SEA_FCL_IMPORT' ||
+      job.job_type !== "AIR_IMPORT" &&
+      (job.job_type === "SEA_FCL_EXPORT" ||
+        job.job_type === "SEA_FCL_IMPORT" ||
         isSeaFclDocumentType(documentType));
 
     if (useSeaFcl && job.sea_fcl_details) {
@@ -466,36 +544,49 @@ export class DocumentGenerationService {
         options,
       );
       const buffer = await this.pdfService.generateSeaFclDocumentPdf(data);
-      const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? '-original' : '-draft'}.pdf`;
+      const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? "-original" : "-draft"}.pdf`;
       return { buffer, filename };
     }
 
     const [shipper, consignee, originPort, destPort, airline, notifyParty] =
       await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const s = job.shipper_id
-        ? await tx.party.findFirst({ where: { id: job.shipper_id, tenant_id: tenantId } })
-        : null;
-      const c = job.consignee_id
-        ? await tx.party.findFirst({ where: { id: job.consignee_id, tenant_id: tenantId } })
-        : null;
-      const o = job.origin_port_id
-        ? await tx.port.findFirst({ where: { id: job.origin_port_id, tenant_id: tenantId } })
-        : null;
-      const d = job.dest_port_id
-        ? await tx.port.findFirst({ where: { id: job.dest_port_id, tenant_id: tenantId } })
-        : null;
-      const a =
-        job.air_details?.airline_id
-          ? await tx.airline.findFirst({ where: { id: job.air_details.airline_id, tenant_id: tenantId } })
+        const s = job.shipper_id
+          ? await tx.party.findFirst({
+              where: { id: job.shipper_id, tenant_id: tenantId },
+            })
           : null;
-      const n =
-        job.air_details?.notify_party_id
-          ? await tx.party.findFirst({ where: { id: job.air_details.notify_party_id, tenant_id: tenantId } })
+        const c = job.consignee_id
+          ? await tx.party.findFirst({
+              where: { id: job.consignee_id, tenant_id: tenantId },
+            })
           : null;
-      return [s, c, o, d, a, n] as const;
-    });
+        const o = job.origin_port_id
+          ? await tx.port.findFirst({
+              where: { id: job.origin_port_id, tenant_id: tenantId },
+            })
+          : null;
+        const d = job.dest_port_id
+          ? await tx.port.findFirst({
+              where: { id: job.dest_port_id, tenant_id: tenantId },
+            })
+          : null;
+        const a = job.air_details?.airline_id
+          ? await tx.airline.findFirst({
+              where: { id: job.air_details.airline_id, tenant_id: tenantId },
+            })
+          : null;
+        const n = job.air_details?.notify_party_id
+          ? await tx.party.findFirst({
+              where: {
+                id: job.air_details.notify_party_id,
+                tenant_id: tenantId,
+              },
+            })
+          : null;
+        return [s, c, o, d, a, n] as const;
+      });
 
-    const isAirImport = job.job_type === 'AIR_IMPORT';
+    const isAirImport = job.job_type === "AIR_IMPORT";
     const ad = job.air_details;
 
     const buffer = await this.pdfService.generateJobDocumentPdf({
@@ -514,13 +605,21 @@ export class DocumentGenerationService {
       mawb_number: isAirImport
         ? (ad?.mawb_number_from_origin ?? ad?.mawb_number ?? undefined)
         : (ad?.mawb_number ?? undefined),
-      origin_hawb_number: isAirImport ? (ad?.hawb_number_from_origin_agent ?? undefined) : undefined,
-      origin_mawb_number: isAirImport ? (ad?.mawb_number_from_origin ?? undefined) : undefined,
+      origin_hawb_number: isAirImport
+        ? (ad?.hawb_number_from_origin_agent ?? undefined)
+        : undefined,
+      origin_mawb_number: isAirImport
+        ? (ad?.mawb_number_from_origin ?? undefined)
+        : undefined,
       flight_number: isAirImport
         ? (ad?.arrival_flight_number ?? ad?.flight_number ?? undefined)
         : (ad?.flight_number ?? undefined),
-      arrival_flight_number: isAirImport ? (ad?.arrival_flight_number ?? undefined) : undefined,
-      actual_eta: ad?.actual_eta ? ad.actual_eta.toISOString().slice(0, 10) : undefined,
+      arrival_flight_number: isAirImport
+        ? (ad?.arrival_flight_number ?? undefined)
+        : undefined,
+      actual_eta: ad?.actual_eta
+        ? ad.actual_eta.toISOString().slice(0, 10)
+        : undefined,
       notify_party_name: notifyParty?.name,
       delivery_address: ad?.delivery_address ?? undefined,
       final_destination: ad?.final_destination ?? undefined,
@@ -530,7 +629,7 @@ export class DocumentGenerationService {
       is_original: isOriginal,
     });
 
-    const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? '-original' : '-draft'}.pdf`;
+    const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? "-original" : "-draft"}.pdf`;
     return { buffer, filename };
   }
 
@@ -624,17 +723,27 @@ export class DocumentGenerationService {
 
     const lookups = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const parties = partyIds.length
-        ? await tx.party.findMany({ where: { tenant_id: tenantId, id: { in: partyIds } } })
+        ? await tx.party.findMany({
+            where: { tenant_id: tenantId, id: { in: partyIds } },
+          })
         : [];
       const ports = portIds.length
-        ? await tx.port.findMany({ where: { tenant_id: tenantId, id: { in: portIds } } })
+        ? await tx.port.findMany({
+            where: { tenant_id: tenantId, id: { in: portIds } },
+          })
         : [];
       const vessel = voyage?.vessel_id
-        ? await tx.vessel.findFirst({ where: { id: voyage.vessel_id, tenant_id: tenantId } })
+        ? await tx.vessel.findFirst({
+            where: { id: voyage.vessel_id, tenant_id: tenantId },
+          })
         : null;
       const company = job.company_id
         ? await tx.company.findFirst({
-            where: { id: job.company_id, tenant_id: tenantId, deleted_at: null },
+            where: {
+              id: job.company_id,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
           })
         : await tx.company.findFirst({
             where: { tenant_id: tenantId, is_default: true, deleted_at: null },
@@ -654,15 +763,23 @@ export class DocumentGenerationService {
 
       if (voyage?.id) {
         loadListItems = await tx.nvoccLoadListItem.findMany({
-          where: { tenant_id: tenantId, voyage_id: voyage.id, deleted_at: null },
+          where: {
+            tenant_id: tenantId,
+            voyage_id: voyage.id,
+            deleted_at: null,
+          },
           include: { booking: { select: { booking_number: true } } },
-          orderBy: { created_at: 'asc' },
+          orderBy: { created_at: "asc" },
         });
       } else if (detail?.booking_id) {
         loadListItems = await tx.nvoccLoadListItem.findMany({
-          where: { tenant_id: tenantId, booking_id: detail.booking_id, deleted_at: null },
+          where: {
+            tenant_id: tenantId,
+            booking_id: detail.booking_id,
+            deleted_at: null,
+          },
           include: { booking: { select: { booking_number: true } } },
-          orderBy: { created_at: 'asc' },
+          orderBy: { created_at: "asc" },
         });
       }
 
@@ -670,47 +787,51 @@ export class DocumentGenerationService {
         .map((i) => i.container_type_id)
         .filter((id): id is string => !!id);
       const containerTypes = containerTypeIds.length
-        ? await tx.containerType.findMany({ where: { tenant_id: tenantId, id: { in: containerTypeIds } } })
+        ? await tx.containerType.findMany({
+            where: { tenant_id: tenantId, id: { in: containerTypeIds } },
+          })
         : [];
 
       return { parties, ports, vessel, company, loadListItems, containerTypes };
     });
 
-    const partyName = (id?: string | null) => lookups.parties.find((p) => p.id === id)?.name;
-    const portName = (id?: string | null) => lookups.ports.find((p) => p.id === id)?.name;
+    const partyName = (id?: string | null) =>
+      lookups.parties.find((p) => p.id === id)?.name;
+    const portName = (id?: string | null) =>
+      lookups.ports.find((p) => p.id === id)?.name;
     const typeCode = (id?: string | null) =>
       id ? lookups.containerTypes.find((t) => t.id === id)?.code : undefined;
 
-    const isExpress = documentType === 'HBL_EXPRESS_RELEASE';
+    const isExpress = documentType === "HBL_EXPRESS_RELEASE";
     const titleMap: Partial<Record<DocumentType, string>> = {
-      HBL: 'NVOCC House Bill of Lading (Carrier HBL)',
-      HBL_EXPRESS_RELEASE: 'NVOCC HBL — Express / Telex Release',
-      MBL: 'Master Bill of Lading (MBL / OBL)',
-      SURRENDER_NOTICE: 'Bill of Lading Surrender Notice',
-      PRE_CAN: 'Pre-Arrival Notice (Pre-CAN)',
-      CAN: 'Cargo Arrival Notice (CAN)',
-      DELIVERY_ORDER: 'Delivery Order',
-      PRE_ALERT: 'Pre-Alert',
-      BOOKING_CONFIRMATION: 'Booking Confirmation',
-      NVOCC_LOAD_LIST: 'NVOCC Load List',
-      STUFFING_REPORT: 'Stuffing Report',
-      CARGO_MANIFEST: 'Cargo Manifest',
-      JOB_CARD: 'Job Card',
-      JOB_PNL: 'Job Profit & Loss',
-      PROFORMA_INVOICE: 'Proforma Invoice',
+      HBL: "NVOCC House Bill of Lading (Carrier HBL)",
+      HBL_EXPRESS_RELEASE: "NVOCC HBL — Express / Telex Release",
+      MBL: "Master Bill of Lading (MBL / OBL)",
+      SURRENDER_NOTICE: "Bill of Lading Surrender Notice",
+      PRE_CAN: "Pre-Arrival Notice (Pre-CAN)",
+      CAN: "Cargo Arrival Notice (CAN)",
+      DELIVERY_ORDER: "Delivery Order",
+      PRE_ALERT: "Pre-Alert",
+      BOOKING_CONFIRMATION: "Booking Confirmation",
+      NVOCC_LOAD_LIST: "NVOCC Load List",
+      STUFFING_REPORT: "Stuffing Report",
+      CARGO_MANIFEST: "Cargo Manifest",
+      JOB_CARD: "Job Card",
+      JOB_PNL: "Job Profit & Loss",
+      PROFORMA_INVOICE: "Proforma Invoice",
     };
 
     const bookingCharges = booking?.charges ?? [];
     const allCharges = [
-      ...job.charges.map((c) => ({ ...c, source: 'job' as const })),
-      ...bookingCharges.map((c) => ({ ...c, source: 'booking' as const })),
+      ...job.charges.map((c) => ({ ...c, source: "job" as const })),
+      ...bookingCharges.map((c) => ({ ...c, source: "booking" as const })),
     ];
 
     const pdfData: NvoccDocumentPdfData = {
       job_number: job.job_number,
       document_type: documentType,
-      title: titleMap[documentType] ?? documentType.replace(/_/g, ' '),
-      watermark: isOriginal ? 'ORIGINAL' : 'DRAFT',
+      title: titleMap[documentType] ?? documentType.replace(/_/g, " "),
+      watermark: isOriginal ? "ORIGINAL" : "DRAFT",
       layout_variant: layoutVariant,
       is_express_release: isExpress,
       is_non_negotiable: isExpress,
@@ -786,7 +907,9 @@ export class DocumentGenerationService {
       (options?.bl_id
         ? job.bills_of_lading.find((b) => b.id === options.bl_id)
         : undefined) ??
-      job.bills_of_lading.find((b) => this.blMatchesDocumentType(b.bl_type, documentType)) ??
+      job.bills_of_lading.find((b) =>
+        this.blMatchesDocumentType(b.bl_type, documentType),
+      ) ??
       job.bills_of_lading[0];
 
     const partyIds = [
@@ -809,17 +932,24 @@ export class DocumentGenerationService {
         where: {
           tenant_id: tenantId,
           id: {
-            in: [detail.port_of_loading_id, detail.port_of_discharge_id, job.origin_port_id, job.dest_port_id].filter(
-              (id): id is string => !!id,
-            ),
+            in: [
+              detail.port_of_loading_id,
+              detail.port_of_discharge_id,
+              job.origin_port_id,
+              job.dest_port_id,
+            ].filter((id): id is string => !!id),
           },
         },
       });
       const vessel = detail.vessel_id
-        ? await tx.vessel.findFirst({ where: { id: detail.vessel_id, tenant_id: tenantId } })
+        ? await tx.vessel.findFirst({
+            where: { id: detail.vessel_id, tenant_id: tenantId },
+          })
         : null;
       const shippingLine = detail.shipping_line_id
-        ? await tx.shippingLine.findFirst({ where: { id: detail.shipping_line_id, tenant_id: tenantId } })
+        ? await tx.shippingLine.findFirst({
+            where: { id: detail.shipping_line_id, tenant_id: tenantId },
+          })
         : null;
       const containerTypes = await tx.containerType.findMany({
         where: { tenant_id: tenantId, id: { in: containerTypeIds } },
@@ -827,59 +957,62 @@ export class DocumentGenerationService {
       return { parties, ports, vessel, shippingLine, containerTypes };
     });
 
-    const partyName = (id?: string | null) => lookups.parties.find((p) => p.id === id)?.name;
-    const portName = (id?: string | null) => lookups.ports.find((p) => p.id === id)?.name;
-    const typeCode = (id: string) => lookups.containerTypes.find((t) => t.id === id)?.code;
+    const partyName = (id?: string | null) =>
+      lookups.parties.find((p) => p.id === id)?.name;
+    const portName = (id?: string | null) =>
+      lookups.ports.find((p) => p.id === id)?.name;
+    const typeCode = (id: string) =>
+      lookups.containerTypes.find((t) => t.id === id)?.code;
 
     const isExpress =
-      documentType === 'HBL_EXPRESS_RELEASE' ||
+      documentType === "HBL_EXPRESS_RELEASE" ||
       options?.is_express_release === true ||
       bl?.is_express_release === true;
 
     const titleMap: Partial<Record<DocumentType, string>> = {
-      HBL: 'House Bill of Lading (HBL)',
-      HBL_EXPRESS_RELEASE: 'House Bill of Lading — Express / Telex Release',
-      MBL: 'Master Bill of Lading (MBL / OBL)',
-      FIATA_BL: 'FIATA Bill of Lading (FBL)',
-      RIDER_BL: 'Rider / Addendum to Bill of Lading',
-      SWITCH_BL: 'Switch Bill of Lading',
-      PROXY_BL: 'Proxy Bill of Lading',
-      BACK_TO_BACK_BL: 'Back-to-Back Bill of Lading',
-      SURRENDER_NOTICE: 'Bill of Lading Surrender Notice',
-      SHIPPING_INSTRUCTION: 'Shipping Instruction (SI)',
-      STUFFING_REPORT: 'Stuffing Report',
-      SAILING_CONFIRMATION: 'Sailing Confirmation',
-      TRANSHIPMENT_CONFIRMATION: 'Transhipment Confirmation',
-      CARGO_MANIFEST: 'Cargo Manifest',
-      FREIGHT_MANIFEST: 'Freight Manifest',
-      JOB_CARD: 'Job Card',
-      JOB_PNL: 'Job P&L Statement',
-      PROFORMA_INVOICE: 'Proforma Invoice',
-      PRE_ALERT: 'Pre-Alert',
-      VGM: 'VGM Submission',
-      PRE_CAN: 'Pre-Arrival Notice (Pre-CAN)',
-      CAN: 'Cargo Arrival Notice (CAN)',
-      EXCHANGE_LETTER: 'Exchange Letter',
-      UNDERTAKE_LETTER: 'Undertake Letter',
-      DELIVERY_ORDER: 'Delivery Order',
-      TRANSPORT_REQUEST: 'Transport Request',
-      PROOF_OF_DELIVERY: 'Proof of Delivery',
-      SHIPPING_ADVICE: 'Shipping Advice',
-      ARRIVAL_NOTICE: 'Arrival Notice',
-      E_AWB: 'Electronic Air Waybill (E-AWB)',
-      BARCODE_LABEL: 'Barcode Label',
-      CONSIGNEE_LABEL: 'Consignee Label',
-      JOB_COSTING: 'Job Costing Sheet',
-      FREIGHT_CERTIFICATE: 'Freight Certificate',
-      HAWB: 'House Air Waybill (HAWB)',
-      MAWB: 'Master Air Waybill (MAWB)',
-      CROSS_BORDER_DECLARATION: 'Cross-Border Declaration',
-      CUSTOMS_TRANSIT: 'Customs Transit Document',
-      DELIVERY_NOTE: 'Delivery Note',
-      COURIER_REPORT: 'Courier Report',
-      NVOCC_LOAD_LIST: 'NVOCC Load List',
-      CUSTOMS_ENTRY: 'Customs Declaration',
-      BOOKING_CONFIRMATION: 'Booking Confirmation',
+      HBL: "House Bill of Lading (HBL)",
+      HBL_EXPRESS_RELEASE: "House Bill of Lading — Express / Telex Release",
+      MBL: "Master Bill of Lading (MBL / OBL)",
+      FIATA_BL: "FIATA Bill of Lading (FBL)",
+      RIDER_BL: "Rider / Addendum to Bill of Lading",
+      SWITCH_BL: "Switch Bill of Lading",
+      PROXY_BL: "Proxy Bill of Lading",
+      BACK_TO_BACK_BL: "Back-to-Back Bill of Lading",
+      SURRENDER_NOTICE: "Bill of Lading Surrender Notice",
+      SHIPPING_INSTRUCTION: "Shipping Instruction (SI)",
+      STUFFING_REPORT: "Stuffing Report",
+      SAILING_CONFIRMATION: "Sailing Confirmation",
+      TRANSHIPMENT_CONFIRMATION: "Transhipment Confirmation",
+      CARGO_MANIFEST: "Cargo Manifest",
+      FREIGHT_MANIFEST: "Freight Manifest",
+      JOB_CARD: "Job Card",
+      JOB_PNL: "Job P&L Statement",
+      PROFORMA_INVOICE: "Proforma Invoice",
+      PRE_ALERT: "Pre-Alert",
+      VGM: "VGM Submission",
+      PRE_CAN: "Pre-Arrival Notice (Pre-CAN)",
+      CAN: "Cargo Arrival Notice (CAN)",
+      EXCHANGE_LETTER: "Exchange Letter",
+      UNDERTAKE_LETTER: "Undertake Letter",
+      DELIVERY_ORDER: "Delivery Order",
+      TRANSPORT_REQUEST: "Transport Request",
+      PROOF_OF_DELIVERY: "Proof of Delivery",
+      SHIPPING_ADVICE: "Shipping Advice",
+      ARRIVAL_NOTICE: "Arrival Notice",
+      E_AWB: "Electronic Air Waybill (E-AWB)",
+      BARCODE_LABEL: "Barcode Label",
+      CONSIGNEE_LABEL: "Consignee Label",
+      JOB_COSTING: "Job Costing Sheet",
+      FREIGHT_CERTIFICATE: "Freight Certificate",
+      HAWB: "House Air Waybill (HAWB)",
+      MAWB: "Master Air Waybill (MAWB)",
+      CROSS_BORDER_DECLARATION: "Cross-Border Declaration",
+      CUSTOMS_TRANSIT: "Customs Transit Document",
+      DELIVERY_NOTE: "Delivery Note",
+      COURIER_REPORT: "Courier Report",
+      NVOCC_LOAD_LIST: "NVOCC Load List",
+      CUSTOMS_ENTRY: "Customs Declaration",
+      BOOKING_CONFIRMATION: "Booking Confirmation",
     };
 
     const houseJob = job.house_jobs[0];
@@ -888,32 +1021,38 @@ export class DocumentGenerationService {
     return {
       job_number: job.job_number,
       document_type: documentType,
-      title: titleMap[documentType] ?? documentType.replace(/_/g, ' '),
-      watermark: isOriginal || bl?.is_original ? 'ORIGINAL' : 'DRAFT',
+      title: titleMap[documentType] ?? documentType.replace(/_/g, " "),
+      watermark: isOriginal || bl?.is_original ? "ORIGINAL" : "DRAFT",
       layout_variant: layoutVariant,
       is_express_release: isExpress,
-      is_fiata: documentType === 'FIATA_BL',
+      is_fiata: documentType === "FIATA_BL",
       is_non_negotiable: isExpress,
       shipper_name: partyName(bl?.shipper_id ?? job.shipper_id),
       consignee_name: partyName(bl?.consignee_id ?? job.consignee_id),
       notify_name: partyName(bl?.notify_id),
       pol: bl?.pol ?? portName(detail.port_of_loading_id ?? job.origin_port_id),
       pod: bl?.pod ?? portName(detail.port_of_discharge_id ?? job.dest_port_id),
-      place_of_receipt: bl?.place_of_receipt ?? detail.place_of_receipt ?? undefined,
-      place_of_delivery: bl?.place_of_delivery ?? detail.place_of_delivery ?? undefined,
+      place_of_receipt:
+        bl?.place_of_receipt ?? detail.place_of_receipt ?? undefined,
+      place_of_delivery:
+        bl?.place_of_delivery ?? detail.place_of_delivery ?? undefined,
       vessel_name: bl?.vessel_name ?? lookups.vessel?.name,
       voyage_number: bl?.voyage_number ?? detail.voyage_number ?? undefined,
       etd: this.fmtDate(bl?.etd ?? detail.etd ?? job.etd),
       eta: this.fmtDate(bl?.eta ?? detail.eta ?? job.eta),
       sailed_at: this.fmtDate(detail.sailed_at),
-      bl_number: bl?.bl_number ?? detail.hbl_number ?? detail.mbl_number ?? undefined,
+      bl_number:
+        bl?.bl_number ?? detail.hbl_number ?? detail.mbl_number ?? undefined,
       hbl_number: detail.hbl_number ?? undefined,
       mbl_number: detail.mbl_number ?? undefined,
-      booking_number: detail.booking_number ?? detail.carrier_booking_ref ?? undefined,
+      booking_number:
+        detail.booking_number ?? detail.carrier_booking_ref ?? undefined,
       freight_terms: bl?.freight_terms ?? detail.freight_terms ?? undefined,
       freight_payable_at: bl?.freight_payable_at ?? undefined,
-      number_of_originals: options?.number_of_originals ?? bl?.number_of_originals ?? 3,
-      description_of_goods: bl?.description_of_goods ?? job.commodity ?? undefined,
+      number_of_originals:
+        options?.number_of_originals ?? bl?.number_of_originals ?? 3,
+      description_of_goods:
+        bl?.description_of_goods ?? job.commodity ?? undefined,
       marks_numbers: bl?.marks_numbers ?? undefined,
       packages: bl?.packages ?? job.pieces ?? undefined,
       gross_weight: (bl?.gross_weight ?? job.gross_weight)?.toString(),
@@ -922,13 +1061,26 @@ export class DocumentGenerationService {
       shipping_line_name: lookups.shippingLine?.name,
       bl_conditions: bl?.bl_conditions ?? undefined,
       rider_terms: options?.rider_terms ?? bl?.rider_terms ?? undefined,
-      switched_from_bl_number: options?.switched_from_bl_number ?? bl?.switched_from_bl_number ?? undefined,
-      switch_consignee_name: partyName(options?.switch_consignee_id ?? bl?.switch_consignee_id),
-      switch_notify_name: partyName(options?.switch_notify_id ?? bl?.switch_notify_id),
-      proxy_forwarder_name: options?.proxy_forwarder_name ?? bl?.proxy_forwarder_name ?? undefined,
-      proxy_forwarder_address: options?.proxy_forwarder_address ?? bl?.proxy_forwarder_address ?? undefined,
-      transhipment_port: options?.transhipment_port ?? detail.transhipment_port ?? undefined,
-      house_bl_number: houseJob?.sea_fcl_details?.hbl_number ?? detail.hbl_number ?? undefined,
+      switched_from_bl_number:
+        options?.switched_from_bl_number ??
+        bl?.switched_from_bl_number ??
+        undefined,
+      switch_consignee_name: partyName(
+        options?.switch_consignee_id ?? bl?.switch_consignee_id,
+      ),
+      switch_notify_name: partyName(
+        options?.switch_notify_id ?? bl?.switch_notify_id,
+      ),
+      proxy_forwarder_name:
+        options?.proxy_forwarder_name ?? bl?.proxy_forwarder_name ?? undefined,
+      proxy_forwarder_address:
+        options?.proxy_forwarder_address ??
+        bl?.proxy_forwarder_address ??
+        undefined,
+      transhipment_port:
+        options?.transhipment_port ?? detail.transhipment_port ?? undefined,
+      house_bl_number:
+        houseJob?.sea_fcl_details?.hbl_number ?? detail.hbl_number ?? undefined,
       master_bl_number: detail.mbl_number ?? undefined,
       revenue_total: job.revenue_total.toString(),
       cost_total: job.cost_total.toString(),
@@ -950,7 +1102,8 @@ export class DocumentGenerationService {
         gross_weight: line.gross_weight?.toString(),
         measurement: line.measurement?.toString(),
         container_number: line.container_id
-          ? containerById.get(line.container_id)?.container_number ?? undefined
+          ? (containerById.get(line.container_id)?.container_number ??
+            undefined)
           : undefined,
       })),
       stuffing_records: job.stuffing_records.map((r) => ({
@@ -959,7 +1112,7 @@ export class DocumentGenerationService {
         location: r.location ?? undefined,
         goods_condition: r.goods_condition ?? undefined,
         container_number: r.container_id
-          ? containerById.get(r.container_id)?.container_number ?? undefined
+          ? (containerById.get(r.container_id)?.container_number ?? undefined)
           : undefined,
       })),
       charge_lines: job.charges.map((c) => ({
@@ -972,18 +1125,27 @@ export class DocumentGenerationService {
     };
   }
 
-  private blMatchesDocumentType(blType: string, documentType: DocumentType): boolean {
-    const normalized = blType.toUpperCase().replace(/[\s-]+/g, '_');
-    if (documentType === 'HBL_EXPRESS_RELEASE') {
-      return normalized.includes('EXPRESS') || normalized === 'HBL';
+  private blMatchesDocumentType(
+    blType: string,
+    documentType: DocumentType,
+  ): boolean {
+    const normalized = blType.toUpperCase().replace(/[\s-]+/g, "_");
+    if (documentType === "HBL_EXPRESS_RELEASE") {
+      return normalized.includes("EXPRESS") || normalized === "HBL";
     }
-    if (documentType === 'FIATA_BL') return normalized.includes('FIATA');
-    if (documentType === 'SWITCH_BL') return normalized.includes('SWITCH');
-    if (documentType === 'PROXY_BL') return normalized.includes('PROXY');
-    if (documentType === 'BACK_TO_BACK_BL') return normalized.includes('BACK');
-    if (documentType === 'RIDER_BL') return normalized.includes('RIDER');
-    if (documentType === 'HBL') return normalized === 'HBL' || normalized.includes('HOUSE');
-    if (documentType === 'MBL') return normalized === 'MBL' || normalized.includes('MASTER') || normalized === 'OBL';
+    if (documentType === "FIATA_BL") return normalized.includes("FIATA");
+    if (documentType === "SWITCH_BL") return normalized.includes("SWITCH");
+    if (documentType === "PROXY_BL") return normalized.includes("PROXY");
+    if (documentType === "BACK_TO_BACK_BL") return normalized.includes("BACK");
+    if (documentType === "RIDER_BL") return normalized.includes("RIDER");
+    if (documentType === "HBL")
+      return normalized === "HBL" || normalized.includes("HOUSE");
+    if (documentType === "MBL")
+      return (
+        normalized === "MBL" ||
+        normalized.includes("MASTER") ||
+        normalized === "OBL"
+      );
     return false;
   }
 
@@ -991,6 +1153,6 @@ export class DocumentGenerationService {
     if (!value) return undefined;
     const d = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(d.getTime())) return undefined;
-    return d.toISOString().slice(0, 16).replace('T', ' ');
+    return d.toISOString().slice(0, 16).replace("T", " ");
   }
 }

@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { ThrottlerStorage } from '@nestjs/throttler';
-import { RedisService } from './redis.service';
+import { Injectable } from "@nestjs/common";
+import { ThrottlerStorage } from "@nestjs/throttler";
+import { RedisService } from "./redis.service";
 
 @Injectable()
 export class RedisThrottlerStorage implements ThrottlerStorage {

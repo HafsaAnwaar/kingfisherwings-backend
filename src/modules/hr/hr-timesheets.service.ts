@@ -2,10 +2,10 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { HrTimesheetStatus, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CurrentUser } from '../users/interfaces/current-user.interface';
+} from "@nestjs/common";
+import { HrTimesheetStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CurrentUser } from "../users/interfaces/current-user.interface";
 import {
   AttendanceDto,
   CreateTimesheetDto,
@@ -13,8 +13,8 @@ import {
   MissingTimesheetQueryDto,
   TimesheetQueryDto,
   UpdateTimesheetDto,
-} from './dto/hr-timesheet.dto';
-import { formatDateOnly, isWeekend, toUtcDateOnly } from './utils/hr-date.util';
+} from "./dto/hr-timesheet.dto";
+import { formatDateOnly, isWeekend, toUtcDateOnly } from "./utils/hr-date.util";
 
 @Injectable()
 export class HrTimesheetsService {
@@ -33,10 +33,19 @@ export class HrTimesheetsService {
           job_id: dto.job_id ?? null,
           billable: dto.billable ?? false,
           notes: dto.notes ?? null,
-          status: dto.status ?? 'DRAFT',
+          status: dto.status ?? "DRAFT",
           created_by: user.id,
         },
-        include: { employee: { select: { id: true, employee_code: true, first_name: true, last_name: true } } },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              employee_code: true,
+              first_name: true,
+              last_name: true,
+            },
+          },
+        },
       }),
     );
     return { success: true, data: row };
@@ -60,17 +69,28 @@ export class HrTimesheetsService {
         : {}),
     };
 
-    const [data, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-      Promise.all([
-        tx.hrTimesheet.findMany({
-          where,
-          skip: (page - 1) * limit,
-          take: limit,
-          orderBy: { work_date: 'desc' },
-          include: { employee: { select: { id: true, employee_code: true, first_name: true, last_name: true } } },
-        }),
-        tx.hrTimesheet.count({ where }),
-      ]),
+    const [data, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.hrTimesheet.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { work_date: "desc" },
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  employee_code: true,
+                  first_name: true,
+                  last_name: true,
+                },
+              },
+            },
+          }),
+          tx.hrTimesheet.count({ where }),
+        ]),
     );
 
     return {
@@ -87,7 +107,9 @@ export class HrTimesheetsService {
         where: { id },
         data: {
           ...(dto.hours !== undefined ? { hours: dto.hours } : {}),
-          ...(dto.overtime_hours !== undefined ? { overtime_hours: dto.overtime_hours } : {}),
+          ...(dto.overtime_hours !== undefined
+            ? { overtime_hours: dto.overtime_hours }
+            : {}),
           ...(dto.job_id !== undefined ? { job_id: dto.job_id } : {}),
           ...(dto.billable !== undefined ? { billable: dto.billable } : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
@@ -100,13 +122,19 @@ export class HrTimesheetsService {
 
   async approve(user: CurrentUser, id: string) {
     const ts = await this.requireTimesheet(user.tenantId, id);
-    if (ts.status !== 'SUBMITTED' && ts.status !== 'DRAFT') {
-      throw new BadRequestException('Timesheet must be DRAFT or SUBMITTED to approve.');
+    if (ts.status !== "SUBMITTED" && ts.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Timesheet must be DRAFT or SUBMITTED to approve.",
+      );
     }
     const updated = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrTimesheet.update({
         where: { id },
-        data: { status: 'APPROVED', reviewer_id: user.id, reviewed_at: new Date() },
+        data: {
+          status: "APPROVED",
+          reviewer_id: user.id,
+          reviewed_at: new Date(),
+        },
       }),
     );
     return { success: true, data: updated };
@@ -115,13 +143,18 @@ export class HrTimesheetsService {
   async remove(user: CurrentUser, id: string) {
     await this.requireTimesheet(user.tenantId, id);
     await this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.hrTimesheet.update({ where: { id }, data: { deleted_at: new Date() } }),
+      tx.hrTimesheet.update({
+        where: { id },
+        data: { deleted_at: new Date() },
+      }),
     );
     return { success: true, data: { id, deleted: true } };
   }
 
   async clockIn(user: CurrentUser, dto: AttendanceDto) {
-    const workDate = dto.work_date ? toUtcDateOnly(dto.work_date) : toUtcDateOnly(new Date());
+    const workDate = dto.work_date
+      ? toUtcDateOnly(dto.work_date)
+      : toUtcDateOnly(new Date());
     const log = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrAttendanceLog.upsert({
         where: {
@@ -146,7 +179,12 @@ export class HrTimesheetsService {
     return { success: true, data: log };
   }
 
-  async listAttendance(user: CurrentUser, employeeId?: string, from?: string, to?: string) {
+  async listAttendance(
+    user: CurrentUser,
+    employeeId?: string,
+    from?: string,
+    to?: string,
+  ) {
     const data = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrAttendanceLog.findMany({
         where: {
@@ -162,8 +200,17 @@ export class HrTimesheetsService {
               }
             : {}),
         },
-        orderBy: { work_date: 'desc' },
-        include: { employee: { select: { id: true, employee_code: true, first_name: true, last_name: true } } },
+        orderBy: { work_date: "desc" },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              employee_code: true,
+              first_name: true,
+              last_name: true,
+            },
+          },
+        },
         take: 200,
       }),
     );
@@ -171,7 +218,9 @@ export class HrTimesheetsService {
   }
 
   async clockOut(user: CurrentUser, dto: AttendanceDto) {
-    const workDate = dto.work_date ? toUtcDateOnly(dto.work_date) : toUtcDateOnly(new Date());
+    const workDate = dto.work_date
+      ? toUtcDateOnly(dto.work_date)
+      : toUtcDateOnly(new Date());
     const existing = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrAttendanceLog.findUnique({
         where: {
@@ -184,7 +233,7 @@ export class HrTimesheetsService {
       }),
     );
     if (!existing?.clock_in_at) {
-      throw new BadRequestException('Clock-in record not found for this date.');
+      throw new BadRequestException("Clock-in record not found for this date.");
     }
 
     const log = await this.prisma.runWithTenant(user.tenantId, (tx) =>
@@ -197,19 +246,31 @@ export class HrTimesheetsService {
   }
 
   async missingReport(user: CurrentUser, query: MissingTimesheetQueryDto) {
-    const countryCode = user.countryCode ?? 'AE';
-    const target = query.date ? toUtcDateOnly(query.date) : this.previousWorkingDay(countryCode, user.tenantId);
+    const countryCode = user.countryCode ?? "AE";
+    const target = query.date
+      ? toUtcDateOnly(query.date)
+      : this.previousWorkingDay(countryCode, user.tenantId);
 
     const employees = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrEmployee.findMany({
-        where: { tenant_id: user.tenantId, deleted_at: null, status: 'ACTIVE' },
-        select: { id: true, employee_code: true, first_name: true, last_name: true, reporting_manager_id: true },
+        where: { tenant_id: user.tenantId, deleted_at: null, status: "ACTIVE" },
+        select: {
+          id: true,
+          employee_code: true,
+          first_name: true,
+          last_name: true,
+          reporting_manager_id: true,
+        },
       }),
     );
 
     const withTimesheet = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.hrTimesheet.findMany({
-        where: { tenant_id: user.tenantId, deleted_at: null, work_date: target },
+        where: {
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          work_date: target,
+        },
         select: { employee_id: true },
       }),
     );
@@ -230,13 +291,15 @@ export class HrTimesheetsService {
           tenant_id: user.tenantId,
           payroll_year: dto.payroll_year,
           payroll_month: dto.payroll_month,
-          status: 'DRAFT',
+          status: "DRAFT",
           deleted_at: null,
         },
       }),
     );
     if (!run) {
-      throw new NotFoundException('No DRAFT payroll run found for the specified period.');
+      throw new NotFoundException(
+        "No DRAFT payroll run found for the specified period.",
+      );
     }
 
     const monthStart = run.period_start;
@@ -247,7 +310,7 @@ export class HrTimesheetsService {
         where: {
           tenant_id: user.tenantId,
           deleted_at: null,
-          status: 'APPROVED',
+          status: "APPROVED",
           work_date: { gte: monthStart, lte: monthEnd },
         },
       }),
@@ -267,10 +330,17 @@ export class HrTimesheetsService {
       );
       if (!emp) continue;
 
-      const otAmount = Number((agg.otHours * Number(emp.overtime_rate)).toFixed(4));
+      const otAmount = Number(
+        (agg.otHours * Number(emp.overtime_rate)).toFixed(4),
+      );
       const existing = await this.prisma.runWithTenant(user.tenantId, (tx) =>
         tx.hrPayrollLine.findUnique({
-          where: { payroll_run_id_employee_id: { payroll_run_id: run.id, employee_id: employeeId } },
+          where: {
+            payroll_run_id_employee_id: {
+              payroll_run_id: run.id,
+              employee_id: employeeId,
+            },
+          },
         }),
       );
 
@@ -324,7 +394,10 @@ export class HrTimesheetsService {
       updated += 1;
     }
 
-    return { success: true, data: { payroll_run_id: run.id, employees_updated: updated } };
+    return {
+      success: true,
+      data: { payroll_run_id: run.id, employees_updated: updated },
+    };
   }
 
   private previousWorkingDay(countryCode: string, tenantId: string): Date {
@@ -341,9 +414,11 @@ export class HrTimesheetsService {
 
   private async requireTimesheet(tenantId: string, id: string) {
     const ts = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.hrTimesheet.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } }),
+      tx.hrTimesheet.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!ts) throw new NotFoundException('Timesheet not found.');
+    if (!ts) throw new NotFoundException("Timesheet not found.");
     return ts;
   }
 }

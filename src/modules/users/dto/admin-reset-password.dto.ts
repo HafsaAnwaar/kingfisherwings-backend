@@ -1,5 +1,5 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsBoolean, IsOptional } from "class-validator";
 
 /**
  * Admin resets a target user's password immediately (no token flow).

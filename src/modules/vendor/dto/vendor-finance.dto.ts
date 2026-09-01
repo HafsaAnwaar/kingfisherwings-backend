@@ -1,7 +1,15 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { InvoiceStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { InvoiceStatus } from "@prisma/client";
+import { Type } from "class-transformer";
+import {
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+} from "class-validator";
 
 export class VendorInvoiceQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -21,7 +29,7 @@ export class VendorInvoiceQueryDto {
 }
 
 export class VendorSubmitInvoiceDto {
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;

@@ -1,13 +1,13 @@
 export const PORTAL_PERMISSION_CONSTANTS = {
-  MODULE: 'portal',
+  MODULE: "portal",
   ACTIONS: {
-    MANAGE_USERS: 'manage_users',
-    VIEW_USERS: 'view_users',
-    VIEW_PERMISSIONS: 'view_permissions',
-    MANAGE_PERMISSIONS: 'manage_permissions',
-    VIEW_MESSAGES: 'view_messages',
-    MANAGE_DISPUTES: 'manage_disputes',
-    MANAGE_CREDIT: 'manage_credit',
+    MANAGE_USERS: "manage_users",
+    VIEW_USERS: "view_users",
+    VIEW_PERMISSIONS: "view_permissions",
+    MANAGE_PERMISSIONS: "manage_permissions",
+    VIEW_MESSAGES: "view_messages",
+    MANAGE_DISPUTES: "manage_disputes",
+    MANAGE_CREDIT: "manage_credit",
   },
 } as const;
 
@@ -23,16 +23,16 @@ export const PORTAL_PERMISSIONS = {
 
 /** Default document rights when staff has not configured a matrix yet. */
 export const DEFAULT_PORTAL_DOCUMENT_TYPES = [
-  'HAWB',
-  'MAWB',
-  'HBL',
-  'MBL',
-  'INVOICE',
-  'CREDIT_NOTE',
-  'STATEMENT',
-  'CAN',
-  'DO',
-  'POD',
-  'PRE_ALERT',
-  'OTHER',
+  "HAWB",
+  "MAWB",
+  "HBL",
+  "MBL",
+  "INVOICE",
+  "CREDIT_NOTE",
+  "STATEMENT",
+  "CAN",
+  "DO",
+  "POD",
+  "PRE_ALERT",
+  "OTHER",
 ] as const;

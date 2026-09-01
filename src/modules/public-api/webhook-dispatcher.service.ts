@@ -1,6 +1,6 @@
-import { createHmac } from 'crypto';
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { createHmac } from "crypto";
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class WebhookDispatcherService {
@@ -8,7 +8,11 @@ export class WebhookDispatcherService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async dispatch(tenantId: string, event: string, payload: Record<string, unknown>) {
+  async dispatch(
+    tenantId: string,
+    event: string,
+    payload: Record<string, unknown>,
+  ) {
     const webhooks = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.tenantWebhook.findMany({
         where: {
@@ -21,7 +25,14 @@ export class WebhookDispatcherService {
     );
 
     for (const webhook of webhooks) {
-      await this.deliverOne(tenantId, webhook.id, webhook.url, webhook.secret, event, payload);
+      await this.deliverOne(
+        tenantId,
+        webhook.id,
+        webhook.url,
+        webhook.secret,
+        event,
+        payload,
+      );
     }
   }
 
@@ -35,9 +46,9 @@ export class WebhookDispatcherService {
   ) {
     const timestamp = Math.floor(Date.now() / 1000);
     const body = JSON.stringify({ event, timestamp, data: payload });
-    const signature = createHmac('sha256', secret)
+    const signature = createHmac("sha256", secret)
       .update(`${timestamp}.${body}`)
-      .digest('hex');
+      .digest("hex");
 
     const delivery = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.tenantWebhookDelivery.create({
@@ -46,7 +57,7 @@ export class WebhookDispatcherService {
           webhook_id: webhookId,
           event,
           payload: payload as object,
-          status: 'PENDING',
+          status: "PENDING",
           signature,
         },
       }),
@@ -54,12 +65,12 @@ export class WebhookDispatcherService {
 
     try {
       const res = await fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-Webhook-Event': event,
-          'X-Webhook-Timestamp': String(timestamp),
-          'X-Webhook-Signature': `sha256=${signature}`,
+          "Content-Type": "application/json",
+          "X-Webhook-Event": event,
+          "X-Webhook-Timestamp": String(timestamp),
+          "X-Webhook-Signature": `sha256=${signature}`,
         },
         body,
         signal: AbortSignal.timeout(15_000),
@@ -69,7 +80,7 @@ export class WebhookDispatcherService {
         tx.tenantWebhookDelivery.update({
           where: { id: delivery.id },
           data: {
-            status: res.ok ? 'DELIVERED' : 'FAILED',
+            status: res.ok ? "DELIVERED" : "FAILED",
             attempts: 1,
             response_status: res.status,
             delivered_at: res.ok ? new Date() : undefined,
@@ -78,12 +89,12 @@ export class WebhookDispatcherService {
         }),
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Delivery failed';
+      const message = err instanceof Error ? err.message : "Delivery failed";
       this.logger.warn(`Webhook ${webhookId} delivery failed: ${message}`);
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.tenantWebhookDelivery.update({
           where: { id: delivery.id },
-          data: { status: 'FAILED', attempts: 1, error_message: message },
+          data: { status: "FAILED", attempts: 1, error_message: message },
         }),
       );
     }

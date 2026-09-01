@@ -1,18 +1,22 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, QuotationStatus } from '@prisma/client';
-import { Response } from 'express';
-import { PrismaService } from '../../prisma/prisma.service';
-import { StorageService } from '../../shared/storage/storage.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { QuotationsService } from '../quotations/quotations.service';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma, QuotationStatus } from "@prisma/client";
+import { Response } from "express";
+import { PrismaService } from "../../prisma/prisma.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { QuotationsService } from "../quotations/quotations.service";
 import {
   PortalQuotationQueryDto,
   PortalQuotationRejectDto,
   PortalQuotationRequestDto,
-} from './dto/portal-quotation.dto';
-import { CurrentPortalUser } from './interfaces/portal-auth.interfaces';
+} from "./dto/portal-quotation.dto";
+import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 
-const PORTAL_CUSTOMER_REMARKS = ['customer portal', 'online quote'];
+const PORTAL_CUSTOMER_REMARKS = ["customer portal", "online quote"];
 
 @Injectable()
 export class PortalQuotationsService {
@@ -32,10 +36,10 @@ export class PortalQuotationsService {
     );
 
     await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
-      type: 'QUOTATION_REQUEST',
-      title: 'New portal quote request',
+      type: "QUOTATION_REQUEST",
+      title: "New portal quote request",
       message: `${user.fullName} submitted a quote request (${result.data.quotation_number}).`,
-      entity_type: 'quotation',
+      entity_type: "quotation",
       entity_id: result.data.quotation_id,
       link_path: `/quotations/${result.data.quotation_id}`,
     });
@@ -46,37 +50,40 @@ export class PortalQuotationsService {
   async list(user: CurrentPortalUser, query: PortalQuotationQueryDto) {
     const where = this.buildWhere(user, query);
 
-    const [rows, total] = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
-      return Promise.all([
-        tx.quotation.findMany({
-          where,
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-          orderBy: { created_at: query.order },
-          select: {
-            id: true,
-            quotation_number: true,
-            status: true,
-            job_type: true,
-            commodity: true,
-            gross_weight: true,
-            chargeable_weight: true,
-            volume_cbm: true,
-            pieces: true,
-            currency_code: true,
-            revenue_total: true,
-            valid_until: true,
-            sent_at: true,
-            won_at: true,
-            lost_at: true,
-            converted_job_id: true,
-            created_at: true,
-            updated_at: true,
-          },
-        }),
-        tx.quotation.count({ where }),
-      ]);
-    });
+    const [rows, total] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) => {
+        return Promise.all([
+          tx.quotation.findMany({
+            where,
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+            orderBy: { created_at: query.order },
+            select: {
+              id: true,
+              quotation_number: true,
+              status: true,
+              job_type: true,
+              commodity: true,
+              gross_weight: true,
+              chargeable_weight: true,
+              volume_cbm: true,
+              pieces: true,
+              currency_code: true,
+              revenue_total: true,
+              valid_until: true,
+              sent_at: true,
+              won_at: true,
+              lost_at: true,
+              converted_job_id: true,
+              created_at: true,
+              updated_at: true,
+            },
+          }),
+          tx.quotation.count({ where }),
+        ]);
+      },
+    );
 
     return {
       success: true,
@@ -95,7 +102,7 @@ export class PortalQuotationsService {
 
     const groups = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.quotation.groupBy({
-        by: ['status'],
+        by: ["status"],
         where: base,
         _count: { _all: true },
       }),
@@ -118,7 +125,11 @@ export class PortalQuotationsService {
     const pending = byStatus.DRAFT + byStatus.SUBMITTED + byStatus.APPROVED;
     const active = byStatus.SENT;
     const closed =
-      byStatus.WON + byStatus.LOST + byStatus.EXPIRED + byStatus.CONVERTED + byStatus.REJECTED;
+      byStatus.WON +
+      byStatus.LOST +
+      byStatus.EXPIRED +
+      byStatus.CONVERTED +
+      byStatus.REJECTED;
 
     return {
       success: true,
@@ -133,50 +144,72 @@ export class PortalQuotationsService {
   }
 
   async findOne(user: CurrentPortalUser, quotationId: string) {
-    const quotation = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
-      return tx.quotation.findFirst({
-        where: {
-          id: quotationId,
-          tenant_id: user.tenantId,
-          deleted_at: null,
-          ...this.baseOwnershipWhere(user.partyId),
-        },
-        include: {
-          lines: { where: { is_cost: false }, orderBy: { sort_order: 'asc' } },
-          status_history: {
-            orderBy: { created_at: 'asc' },
-            select: {
-              id: true,
-              from_status: true,
-              to_status: true,
-              reason: true,
-              created_at: true,
+    const quotation = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) => {
+        return tx.quotation.findFirst({
+          where: {
+            id: quotationId,
+            tenant_id: user.tenantId,
+            deleted_at: null,
+            ...this.baseOwnershipWhere(user.partyId),
+          },
+          include: {
+            lines: {
+              where: { is_cost: false },
+              orderBy: { sort_order: "asc" },
+            },
+            status_history: {
+              orderBy: { created_at: "asc" },
+              select: {
+                id: true,
+                from_status: true,
+                to_status: true,
+                reason: true,
+                created_at: true,
+              },
             },
           },
-        },
-      });
-    });
+        });
+      },
+    );
 
     if (!quotation) {
-      throw new NotFoundException('Quotation not found.');
+      throw new NotFoundException("Quotation not found.");
     }
 
-    const [originPort, destPort] = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
-      const ids = [quotation.origin_port_id, quotation.dest_port_id].filter(Boolean) as string[];
-      if (!ids.length) return [null, null];
+    const [originPort, destPort] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) => {
+        const ids = [quotation.origin_port_id, quotation.dest_port_id].filter(
+          Boolean,
+        ) as string[];
+        if (!ids.length) return [null, null];
 
-      const ports = await tx.port.findMany({
-        where: { tenant_id: user.tenantId, id: { in: ids }, deleted_at: null },
-        select: { id: true, name: true, un_locode: true, country_code: true },
-      });
-      const map = new Map(ports.map((p) => [p.id, p]));
-      return [
-        quotation.origin_port_id ? map.get(quotation.origin_port_id) ?? null : null,
-        quotation.dest_port_id ? map.get(quotation.dest_port_id) ?? null : null,
-      ];
-    });
+        const ports = await tx.port.findMany({
+          where: {
+            tenant_id: user.tenantId,
+            id: { in: ids },
+            deleted_at: null,
+          },
+          select: { id: true, name: true, un_locode: true, country_code: true },
+        });
+        const map = new Map(ports.map((p) => [p.id, p]));
+        return [
+          quotation.origin_port_id
+            ? (map.get(quotation.origin_port_id) ?? null)
+            : null,
+          quotation.dest_port_id
+            ? (map.get(quotation.dest_port_id) ?? null)
+            : null,
+        ];
+      },
+    );
 
-    const revenueTotal = quotation.lines.reduce((sum, line) => sum + Number(line.amount), 0);
+    const revenueTotal = quotation.lines.reduce(
+      (sum, line) => sum + Number(line.amount),
+      0,
+    );
 
     return {
       success: true,
@@ -197,10 +230,18 @@ export class PortalQuotationsService {
         revenue_total: revenueTotal,
         remarks: quotation.remarks,
         origin: originPort
-          ? { name: originPort.name, code: originPort.un_locode, country_code: originPort.country_code }
+          ? {
+              name: originPort.name,
+              code: originPort.un_locode,
+              country_code: originPort.country_code,
+            }
           : null,
         destination: destPort
-          ? { name: destPort.name, code: destPort.un_locode, country_code: destPort.country_code }
+          ? {
+              name: destPort.name,
+              code: destPort.un_locode,
+              country_code: destPort.country_code,
+            }
           : null,
         lines: quotation.lines.map((line) => ({
           id: line.id,
@@ -225,50 +266,61 @@ export class PortalQuotationsService {
     };
   }
 
-  async downloadPdf(user: CurrentPortalUser, quotationId: string, res: Response) {
-    const quotation = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
-      return tx.quotation.findFirst({
-        where: {
-          id: quotationId,
-          tenant_id: user.tenantId,
-          deleted_at: null,
-          ...this.baseOwnershipWhere(user.partyId),
-        },
-        select: {
-          id: true,
-          quotation_number: true,
-          customer_pdf_url: true,
-          customer_pdf_s3_key: true,
-        },
-      });
-    });
+  async downloadPdf(
+    user: CurrentPortalUser,
+    quotationId: string,
+    res: Response,
+  ) {
+    const quotation = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) => {
+        return tx.quotation.findFirst({
+          where: {
+            id: quotationId,
+            tenant_id: user.tenantId,
+            deleted_at: null,
+            ...this.baseOwnershipWhere(user.partyId),
+          },
+          select: {
+            id: true,
+            quotation_number: true,
+            customer_pdf_url: true,
+            customer_pdf_s3_key: true,
+          },
+        });
+      },
+    );
 
     if (!quotation?.customer_pdf_url) {
-      throw new NotFoundException('Quotation PDF not available.');
+      throw new NotFoundException("Quotation PDF not available.");
     }
 
     const file = await this.storage.readByStoredFile(user.tenantId, {
       file_name: `${quotation.quotation_number}.pdf`,
       file_url: quotation.customer_pdf_url,
       s3_key: quotation.customer_pdf_s3_key,
-      mime_type: 'application/pdf',
+      mime_type: "application/pdf",
     });
 
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${file.fileName}"`);
     res.send(file.buffer);
   }
 
   async accept(user: CurrentPortalUser, quotationId: string) {
     const quotation = await this.getOwnedOrThrow(user, quotationId);
-    if (quotation.status !== 'SENT') {
-      throw new ConflictException('Only a SENT quotation can be accepted.');
+    if (quotation.status !== "SENT") {
+      throw new ConflictException("Only a SENT quotation can be accepted.");
     }
 
-    const updated = await this.quotations.markWon(user.tenantId, quotationId, user.id);
+    const updated = await this.quotations.markWon(
+      user.tenantId,
+      quotationId,
+      user.id,
+    );
     return {
       success: true,
-      message: 'Quotation accepted.',
+      message: "Quotation accepted.",
       data: {
         id: updated.id,
         quotation_number: updated.quotation_number,
@@ -278,10 +330,14 @@ export class PortalQuotationsService {
     };
   }
 
-  async reject(user: CurrentPortalUser, quotationId: string, dto: PortalQuotationRejectDto) {
+  async reject(
+    user: CurrentPortalUser,
+    quotationId: string,
+    dto: PortalQuotationRejectDto,
+  ) {
     const quotation = await this.getOwnedOrThrow(user, quotationId);
-    if (quotation.status !== 'SENT') {
-      throw new ConflictException('Only a SENT quotation can be rejected.');
+    if (quotation.status !== "SENT") {
+      throw new ConflictException("Only a SENT quotation can be rejected.");
     }
 
     const updated = await this.quotations.markLost(
@@ -292,7 +348,7 @@ export class PortalQuotationsService {
     );
     return {
       success: true,
-      message: 'Quotation rejected.',
+      message: "Quotation rejected.",
       data: {
         id: updated.id,
         quotation_number: updated.quotation_number,
@@ -319,7 +375,7 @@ export class PortalQuotationsService {
         },
       }),
     );
-    if (!quotation) throw new NotFoundException('Quotation not found.');
+    if (!quotation) throw new NotFoundException("Quotation not found.");
     return quotation;
   }
 
@@ -328,15 +384,18 @@ export class PortalQuotationsService {
       customer_id: partyId,
       deleted_at: null,
       OR: [
-        { status: { not: 'DRAFT' } },
+        { status: { not: "DRAFT" } },
         ...PORTAL_CUSTOMER_REMARKS.map((phrase) => ({
-          remarks: { contains: phrase, mode: 'insensitive' as const },
+          remarks: { contains: phrase, mode: "insensitive" as const },
         })),
       ],
     };
   }
 
-  private buildWhere(user: CurrentPortalUser, query: PortalQuotationQueryDto): Prisma.QuotationWhereInput {
+  private buildWhere(
+    user: CurrentPortalUser,
+    query: PortalQuotationQueryDto,
+  ): Prisma.QuotationWhereInput {
     const where: Prisma.QuotationWhereInput = {
       tenant_id: user.tenantId,
       ...this.baseOwnershipWhere(user.partyId),
@@ -357,8 +416,8 @@ export class PortalQuotationsService {
       where.AND = [
         {
           OR: [
-            { quotation_number: { contains: q, mode: 'insensitive' } },
-            { commodity: { contains: q, mode: 'insensitive' } },
+            { quotation_number: { contains: q, mode: "insensitive" } },
+            { commodity: { contains: q, mode: "insensitive" } },
           ],
         },
       ];

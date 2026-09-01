@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { DocumentationDrCr, DocumentationSaleOrCost } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { DocumentationDrCr, DocumentationSaleOrCost } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
@@ -12,11 +12,11 @@ import {
   IsUUID,
   Length,
   ValidateNested,
-} from 'class-validator';
-import { DocumentationPaginationDto } from './documentation-pagination.dto';
+} from "class-validator";
+import { DocumentationPaginationDto } from "./documentation-pagination.dto";
 
 export class ChargeTemplateLineDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   charge_code_id?: string;
@@ -36,7 +36,7 @@ export class ChargeTemplateLineDto {
   @IsEnum(DocumentationDrCr)
   dr_cr?: DocumentationDrCr;
 
-  @ApiProperty({ example: 'AED' })
+  @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
@@ -46,7 +46,7 @@ export class ChargeTemplateLineDto {
   @IsNumber()
   default_amount?: number;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   tax_group_id?: string;
@@ -87,10 +87,12 @@ export class CreateChargeTemplateDto {
   lines!: ChargeTemplateLineDto[];
 }
 
-export class UpdateChargeTemplateDto extends PartialType(CreateChargeTemplateDto) {}
+export class UpdateChargeTemplateDto extends PartialType(
+  CreateChargeTemplateDto,
+) {}
 
 export class ApplyChargeTemplateDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   job_id!: string;
 }

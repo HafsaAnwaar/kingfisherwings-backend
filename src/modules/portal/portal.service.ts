@@ -4,15 +4,15 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { PortalUserStatus, Prisma } from '@prisma/client';
-import { randomBytes, randomUUID } from 'crypto';
-import { PrismaService } from '../../prisma/prisma.service';
-import { PasswordUtil } from '../../common/utils/password.util';
-import { PasswordHelper } from '../users/helpers/password.helper';
-import { EmailService } from '../../shared/email/email.service';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { PortalUserStatus, Prisma } from "@prisma/client";
+import { randomBytes, randomUUID } from "crypto";
+import { PrismaService } from "../../prisma/prisma.service";
+import { PasswordUtil } from "../../common/utils/password.util";
+import { PasswordHelper } from "../users/helpers/password.helper";
+import { EmailService } from "../../shared/email/email.service";
 import {
   AcceptPortalInviteDto,
   CreatePortalUserDto,
@@ -21,9 +21,12 @@ import {
   PortalUserQueryDto,
   ResetPortalPasswordDto,
   UpdatePortalUserStatusDto,
-} from './dto/portal.dto';
-import { CurrentPortalUser, PortalJwtPayload } from './interfaces/portal-auth.interfaces';
-import { PortalPermissionsService } from './portal-permissions.service';
+} from "./dto/portal.dto";
+import {
+  CurrentPortalUser,
+  PortalJwtPayload,
+} from "./interfaces/portal-auth.interfaces";
+import { PortalPermissionsService } from "./portal-permissions.service";
 
 @Injectable()
 export class PortalService {
@@ -42,7 +45,7 @@ export class PortalService {
       where: { slug: dto.tenant_slug, deleted_at: null, is_active: true },
     });
     if (!tenant) {
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new UnauthorizedException("Invalid credentials.");
     }
 
     const email = dto.email.trim().toLowerCase();
@@ -53,28 +56,45 @@ export class PortalService {
         deleted_at: null,
       },
       include: {
-        party: { select: { id: true, name: true, portal_access: true, is_active: true, deleted_at: true } },
+        party: {
+          select: {
+            id: true,
+            name: true,
+            portal_access: true,
+            is_active: true,
+            deleted_at: true,
+          },
+        },
       },
     });
 
-    if (!user || user.status === 'DISABLED') {
-      throw new UnauthorizedException('Invalid credentials.');
+    if (!user || user.status === "DISABLED") {
+      throw new UnauthorizedException("Invalid credentials.");
     }
-    if (user.status === 'INVITED') {
+    if (user.status === "INVITED") {
       throw new UnauthorizedException(
-        'Account is invited but not activated. Use the invite link to set your password.',
+        "Account is invited but not activated. Use the invite link to set your password.",
       );
     }
-    if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Invalid credentials.');
+    if (user.status !== "ACTIVE") {
+      throw new UnauthorizedException("Invalid credentials.");
     }
-    if (!user.party.portal_access || !user.party.is_active || user.party.deleted_at) {
-      throw new UnauthorizedException('Portal access is not enabled for this customer.');
+    if (
+      !user.party.portal_access ||
+      !user.party.is_active ||
+      user.party.deleted_at
+    ) {
+      throw new UnauthorizedException(
+        "Portal access is not enabled for this customer.",
+      );
     }
 
-    const passwordValid = await PasswordUtil.verify(user.password_hash, dto.password);
+    const passwordValid = await PasswordUtil.verify(
+      user.password_hash,
+      dto.password,
+    );
     if (!passwordValid) {
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new UnauthorizedException("Invalid credentials.");
     }
 
     const tokens = await this.issuePortalTokens(user, meta);
@@ -104,15 +124,18 @@ export class PortalService {
   async refresh(dto: PortalRefreshDto) {
     let payload: PortalJwtPayload;
     try {
-      payload = await this.jwt.verifyAsync<PortalJwtPayload>(dto.refresh_token, {
-        secret: this.portalRefreshSecret(),
-      });
+      payload = await this.jwt.verifyAsync<PortalJwtPayload>(
+        dto.refresh_token,
+        {
+          secret: this.portalRefreshSecret(),
+        },
+      );
     } catch {
-      throw new UnauthorizedException('Invalid refresh token.');
+      throw new UnauthorizedException("Invalid refresh token.");
     }
 
-    if (payload.principal !== 'portal' || payload.type !== 'refresh') {
-      throw new UnauthorizedException('Invalid refresh token.');
+    if (payload.principal !== "portal" || payload.type !== "refresh") {
+      throw new UnauthorizedException("Invalid refresh token.");
     }
 
     const session = await this.prisma.portalSession.findUnique({
@@ -120,8 +143,17 @@ export class PortalService {
       include: {
         portal_user: {
           include: {
-            party: { select: { portal_access: true, is_active: true, deleted_at: true, name: true } },
-            tenant: { select: { slug: true, is_active: true, deleted_at: true } },
+            party: {
+              select: {
+                portal_access: true,
+                is_active: true,
+                deleted_at: true,
+                name: true,
+              },
+            },
+            tenant: {
+              select: { slug: true, is_active: true, deleted_at: true },
+            },
           },
         },
       },
@@ -133,26 +165,29 @@ export class PortalService {
       session.revoked_at ||
       session.expires_at < new Date()
     ) {
-      throw new UnauthorizedException('Portal session is no longer valid.');
+      throw new UnauthorizedException("Portal session is no longer valid.");
     }
 
-    const matches = await PasswordUtil.verify(session.refresh_token_hash, dto.refresh_token);
+    const matches = await PasswordUtil.verify(
+      session.refresh_token_hash,
+      dto.refresh_token,
+    );
     if (!matches) {
-      throw new UnauthorizedException('Invalid refresh token.');
+      throw new UnauthorizedException("Invalid refresh token.");
     }
 
     const user = session.portal_user;
     if (
       !user ||
       user.deleted_at ||
-      user.status !== 'ACTIVE' ||
+      user.status !== "ACTIVE" ||
       !user.party.portal_access ||
       !user.party.is_active ||
       user.party.deleted_at ||
       !user.tenant.is_active ||
       user.tenant.deleted_at
     ) {
-      throw new UnauthorizedException('Portal account is not active.');
+      throw new UnauthorizedException("Portal account is not active.");
     }
 
     await this.prisma.portalSession.update({
@@ -160,7 +195,7 @@ export class PortalService {
       data: {
         is_active: false,
         revoked_at: new Date(),
-        revoked_reason: 'ROTATED',
+        revoked_reason: "ROTATED",
       },
     });
 
@@ -193,11 +228,11 @@ export class PortalService {
       data: {
         is_active: false,
         revoked_at: new Date(),
-        revoked_reason: 'LOGOUT',
+        revoked_reason: "LOGOUT",
       },
     });
 
-    return { success: true, message: 'Logged out successfully.' };
+    return { success: true, message: "Logged out successfully." };
   }
 
   async me(portalUser: CurrentPortalUser) {
@@ -215,13 +250,15 @@ export class PortalService {
             portal_access: true,
           },
         },
-        tenant: { select: { id: true, slug: true, name: true, display_name: true } },
+        tenant: {
+          select: { id: true, slug: true, name: true, display_name: true },
+        },
         preference: true,
       },
     });
 
     if (!user) {
-      throw new NotFoundException('Portal user not found.');
+      throw new NotFoundException("Portal user not found.");
     }
 
     const preferences = user.preference
@@ -229,9 +266,15 @@ export class PortalService {
           milestone_alerts_enabled: user.preference.milestone_alerts_enabled,
           document_alerts_enabled: user.preference.document_alerts_enabled,
           default_shipment_filters:
-            (user.preference.default_shipment_filters as Record<string, unknown> | null) ?? null,
+            (user.preference.default_shipment_filters as Record<
+              string,
+              unknown
+            > | null) ?? null,
           default_invoice_filters:
-            (user.preference.default_invoice_filters as Record<string, unknown> | null) ?? null,
+            (user.preference.default_invoice_filters as Record<
+              string,
+              unknown
+            > | null) ?? null,
         }
       : {
           milestone_alerts_enabled: false,
@@ -258,26 +301,34 @@ export class PortalService {
 
   // ─── Staff: provision credentials (after Get a Quote) ───────
 
-  async createPortalUser(tenantId: string, actorId: string, dto: CreatePortalUserDto) {
+  async createPortalUser(
+    tenantId: string,
+    actorId: string,
+    dto: CreatePortalUserDto,
+  ) {
     const email = dto.email.trim().toLowerCase();
-    const party = await this.prisma.runWithTenant(tenantId, (tx: Prisma.TransactionClient) =>
-      tx.party.findFirst({
-        where: { id: dto.party_id, tenant_id: tenantId, deleted_at: null },
-      }),
+    const party = await this.prisma.runWithTenant(
+      tenantId,
+      (tx: Prisma.TransactionClient) =>
+        tx.party.findFirst({
+          where: { id: dto.party_id, tenant_id: tenantId, deleted_at: null },
+        }),
     );
 
     if (!party) {
-      throw new NotFoundException('Party not found.');
+      throw new NotFoundException("Party not found.");
     }
     if (!party.is_active) {
-      throw new BadRequestException('Party is inactive.');
+      throw new BadRequestException("Party is inactive.");
     }
 
     const existing = await this.prisma.portalUser.findFirst({
       where: { tenant_id: tenantId, email, deleted_at: null },
     });
     if (existing) {
-      throw new ConflictException('A portal user with this email already exists for this tenant.');
+      throw new ConflictException(
+        "A portal user with this email already exists for this tenant.",
+      );
     }
 
     const inviteMode = dto.invite_mode === true;
@@ -286,34 +337,45 @@ export class PortalService {
       : dto.password?.trim() || PasswordUtil.generateTemporaryPassword();
     const passwordHash = await PasswordUtil.hash(plainPassword);
     const generated = inviteMode ? false : !dto.password;
-    const inviteToken = inviteMode ? randomBytes(32).toString('hex') : null;
-    const inviteExpiresAt = inviteMode ? PasswordHelper.inviteTokenExpiry() : null;
+    const inviteToken = inviteMode ? randomBytes(32).toString("hex") : null;
+    const inviteExpiresAt = inviteMode
+      ? PasswordHelper.inviteTokenExpiry()
+      : null;
 
-    const created = await this.prisma.runWithTenant(tenantId, async (tx: Prisma.TransactionClient) => {
-      await tx.party.update({
-        where: { id: party.id },
-        data: { portal_access: true, updated_by: actorId },
-      });
+    const created = await this.prisma.runWithTenant(
+      tenantId,
+      async (tx: Prisma.TransactionClient) => {
+        await tx.party.update({
+          where: { id: party.id },
+          data: { portal_access: true, updated_by: actorId },
+        });
 
-      return tx.portalUser.create({
-        data: {
-          tenant_id: tenantId,
-          party_id: party.id,
-          email,
-          password_hash: passwordHash,
-          full_name: dto.full_name.trim(),
-          phone: dto.phone?.trim() || null,
-          status: inviteMode ? PortalUserStatus.INVITED : PortalUserStatus.ACTIVE,
-          invite_token: inviteToken,
-          invite_expires_at: inviteExpiresAt,
-          invited_at: inviteMode ? new Date() : null,
-          activated_at: inviteMode ? null : new Date(),
-          created_by: actorId,
-        },
-      });
-    });
+        return tx.portalUser.create({
+          data: {
+            tenant_id: tenantId,
+            party_id: party.id,
+            email,
+            password_hash: passwordHash,
+            full_name: dto.full_name.trim(),
+            phone: dto.phone?.trim() || null,
+            status: inviteMode
+              ? PortalUserStatus.INVITED
+              : PortalUserStatus.ACTIVE,
+            invite_token: inviteToken,
+            invite_expires_at: inviteExpiresAt,
+            invited_at: inviteMode ? new Date() : null,
+            activated_at: inviteMode ? null : new Date(),
+            created_by: actorId,
+          },
+        });
+      },
+    );
 
-    await this.portalPermissions.seedDefaultsIfEmpty(tenantId, party.id, actorId);
+    await this.portalPermissions.seedDefaultsIfEmpty(
+      tenantId,
+      party.id,
+      actorId,
+    );
 
     const shouldEmail = dto.send_email !== false;
     if (shouldEmail) {
@@ -340,8 +402,8 @@ export class PortalService {
     return {
       success: true,
       message: inviteMode
-        ? 'Portal user invited. Customer must accept the invite link to set a password.'
-        : 'Portal user created. Customer can log in with tenant_slug + email + password.',
+        ? "Portal user invited. Customer must accept the invite link to set a password."
+        : "Portal user created. Customer can log in with tenant_slug + email + password.",
       data: {
         id: created.id,
         email: created.email,
@@ -367,7 +429,14 @@ export class PortalService {
     const user = await this.prisma.portalUser.findFirst({
       where: { invite_token: dto.token, deleted_at: null },
       include: {
-        party: { select: { portal_access: true, is_active: true, deleted_at: true, name: true } },
+        party: {
+          select: {
+            portal_access: true,
+            is_active: true,
+            deleted_at: true,
+            name: true,
+          },
+        },
         tenant: { select: { slug: true, is_active: true, deleted_at: true } },
       },
     });
@@ -378,11 +447,17 @@ export class PortalService {
       !user.invite_expires_at ||
       user.invite_expires_at < new Date()
     ) {
-      throw new BadRequestException('Invite token is invalid or expired.');
+      throw new BadRequestException("Invite token is invalid or expired.");
     }
 
-    if (!user.party.portal_access || !user.party.is_active || user.party.deleted_at) {
-      throw new BadRequestException('Portal access is not enabled for this customer.');
+    if (
+      !user.party.portal_access ||
+      !user.party.is_active ||
+      user.party.deleted_at
+    ) {
+      throw new BadRequestException(
+        "Portal access is not enabled for this customer.",
+      );
     }
 
     const passwordHash = await PasswordUtil.hash(dto.password);
@@ -404,7 +479,7 @@ export class PortalService {
 
     return {
       success: true,
-      message: 'Invite accepted. You can now log in.',
+      message: "Invite accepted. You can now log in.",
       data: {
         id: updated.id,
         email: updated.email,
@@ -416,7 +491,12 @@ export class PortalService {
     };
   }
 
-  async resendInvite(tenantId: string, actorId: string, portalUserId: string, partyId?: string) {
+  async resendInvite(
+    tenantId: string,
+    actorId: string,
+    portalUserId: string,
+    partyId?: string,
+  ) {
     const user = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.portalUser.findFirst({
         where: {
@@ -425,16 +505,20 @@ export class PortalService {
           deleted_at: null,
           ...(partyId ? { party_id: partyId } : {}),
         },
-        include: { party: { select: { name: true, portal_access: true, is_active: true } } },
+        include: {
+          party: {
+            select: { name: true, portal_access: true, is_active: true },
+          },
+        },
       }),
     );
 
-    if (!user) throw new NotFoundException('Portal user not found.');
+    if (!user) throw new NotFoundException("Portal user not found.");
     if (user.status === PortalUserStatus.DISABLED) {
-      throw new BadRequestException('Cannot invite a disabled portal user.');
+      throw new BadRequestException("Cannot invite a disabled portal user.");
     }
 
-    const token = randomBytes(32).toString('hex');
+    const token = randomBytes(32).toString("hex");
     const expiresAt = PasswordHelper.inviteTokenExpiry();
 
     await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -461,7 +545,7 @@ export class PortalService {
 
     return {
       success: true,
-      message: 'Invite resent.',
+      message: "Invite resent.",
       data: { id: user.id, email: user.email, expires_at: expiresAt },
     };
   }
@@ -472,13 +556,19 @@ export class PortalService {
       deleted_at: null,
       ...(query.party_id ? { party_id: query.party_id } : {}),
       ...(query.company_id
-        ? { party: { company_id: query.company_id, tenant_id: tenantId, deleted_at: null } }
+        ? {
+            party: {
+              company_id: query.company_id,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
+          }
         : {}),
     };
 
     const rows = await this.prisma.portalUser.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy: { created_at: "desc" },
       select: {
         id: true,
         email: true,
@@ -520,13 +610,13 @@ export class PortalService {
       },
     });
 
-    if (dto.status === 'DISABLED') {
-      await this.revokeAllSessions(user.id, 'ACCOUNT_DISABLED');
+    if (dto.status === "DISABLED") {
+      await this.revokeAllSessions(user.id, "ACCOUNT_DISABLED");
     }
 
     return {
       success: true,
-      message: `Portal user ${dto.status === 'DISABLED' ? 'disabled' : 'activated'}.`,
+      message: `Portal user ${dto.status === "DISABLED" ? "disabled" : "activated"}.`,
       data: {
         id: updated.id,
         email: updated.email,
@@ -543,16 +633,21 @@ export class PortalService {
     partyId?: string,
   ) {
     const user = await this.requirePortalUser(tenantId, portalUserId, partyId);
-    const plainPassword = dto.password?.trim() || PasswordUtil.generateTemporaryPassword();
+    const plainPassword =
+      dto.password?.trim() || PasswordUtil.generateTemporaryPassword();
     const generated = !dto.password;
     const passwordHash = await PasswordUtil.hash(plainPassword);
 
     await this.prisma.portalUser.update({
       where: { id: user.id },
-      data: { password_hash: passwordHash, updated_by: actorId, status: PortalUserStatus.ACTIVE },
+      data: {
+        password_hash: passwordHash,
+        updated_by: actorId,
+        status: PortalUserStatus.ACTIVE,
+      },
     });
 
-    await this.revokeAllSessions(user.id, 'PASSWORD_RESET');
+    await this.revokeAllSessions(user.id, "PASSWORD_RESET");
 
     const party = await this.prisma.party.findFirst({
       where: { id: user.party_id },
@@ -565,14 +660,14 @@ export class PortalService {
         to: user.email,
         fullName: user.full_name,
         password: plainPassword,
-        partyName: party?.name ?? 'Customer',
+        partyName: party?.name ?? "Customer",
         actorId,
       });
     }
 
     return {
       success: true,
-      message: 'Portal password reset. Existing sessions were revoked.',
+      message: "Portal password reset. Existing sessions were revoked.",
       data: {
         id: user.id,
         email: user.email,
@@ -584,7 +679,11 @@ export class PortalService {
 
   // ─── Internals ──────────────────────────────────────────────
 
-  private async requirePortalUser(tenantId: string, portalUserId: string, partyId?: string) {
+  private async requirePortalUser(
+    tenantId: string,
+    portalUserId: string,
+    partyId?: string,
+  ) {
     const user = await this.prisma.portalUser.findFirst({
       where: {
         id: portalUserId,
@@ -594,7 +693,7 @@ export class PortalService {
       },
     });
     if (!user) {
-      throw new NotFoundException('Portal user not found.');
+      throw new NotFoundException("Portal user not found.");
     }
     return user;
   }
@@ -615,12 +714,14 @@ export class PortalService {
     meta?: { ip?: string; userAgent?: string },
   ) {
     const jti = randomUUID();
-    const accessExpiresIn = this.config.get<string>('PORTAL_JWT_ACCESS_EXPIRES_IN') ?? '4h';
-    const refreshExpiresIn = this.config.get<string>('PORTAL_JWT_REFRESH_EXPIRES_IN') ?? '7d';
+    const accessExpiresIn =
+      this.config.get<string>("PORTAL_JWT_ACCESS_EXPIRES_IN") ?? "4h";
+    const refreshExpiresIn =
+      this.config.get<string>("PORTAL_JWT_REFRESH_EXPIRES_IN") ?? "7d";
     const refreshDays = 7;
 
     const base = {
-      principal: 'portal' as const,
+      principal: "portal" as const,
       sub: user.id,
       tenantId: user.tenant_id,
       partyId: user.party_id,
@@ -629,14 +730,20 @@ export class PortalService {
     };
 
     const [access_token, refresh_token] = await Promise.all([
-      this.jwt.signAsync({ ...base, type: 'access' } satisfies PortalJwtPayload, {
-        secret: this.portalAccessSecret(),
-        expiresIn: accessExpiresIn,
-      }),
-      this.jwt.signAsync({ ...base, type: 'refresh' } satisfies PortalJwtPayload, {
-        secret: this.portalRefreshSecret(),
-        expiresIn: refreshExpiresIn,
-      }),
+      this.jwt.signAsync(
+        { ...base, type: "access" } satisfies PortalJwtPayload,
+        {
+          secret: this.portalAccessSecret(),
+          expiresIn: accessExpiresIn,
+        },
+      ),
+      this.jwt.signAsync(
+        { ...base, type: "refresh" } satisfies PortalJwtPayload,
+        {
+          secret: this.portalRefreshSecret(),
+          expiresIn: refreshExpiresIn,
+        },
+      ),
     ]);
 
     const refreshHash = await PasswordUtil.hash(refresh_token);
@@ -659,24 +766,26 @@ export class PortalService {
       access_token,
       refresh_token,
       expires_in: accessExpiresIn,
-      token_type: 'Bearer',
+      token_type: "Bearer",
     };
   }
 
   private portalAccessSecret(): string {
     const secret =
-      this.config.get<string>('PORTAL_JWT_ACCESS_SECRET') ??
-      this.config.get<string>('JWT_ACCESS_SECRET');
+      this.config.get<string>("PORTAL_JWT_ACCESS_SECRET") ??
+      this.config.get<string>("JWT_ACCESS_SECRET");
     if (!secret) {
-      throw new Error('PORTAL_JWT_ACCESS_SECRET or JWT_ACCESS_SECRET must be configured.');
+      throw new Error(
+        "PORTAL_JWT_ACCESS_SECRET or JWT_ACCESS_SECRET must be configured.",
+      );
     }
     return secret;
   }
 
   private portalRefreshSecret(): string {
     return (
-      this.config.get<string>('PORTAL_JWT_REFRESH_SECRET') ??
-      this.config.get<string>('JWT_REFRESH_SECRET') ??
+      this.config.get<string>("PORTAL_JWT_REFRESH_SECRET") ??
+      this.config.get<string>("JWT_REFRESH_SECRET") ??
       this.portalAccessSecret()
     );
   }
@@ -693,15 +802,15 @@ export class PortalService {
     },
   ) {
     const appUrl =
-      this.config.get<string>('PORTAL_APP_URL') ??
-      this.config.get<string>('APP_URL') ??
-      this.config.get<string>('PUBLIC_API_URL') ??
-      'http://localhost:3000';
-    const link = `${appUrl.replace(/\/$/, '')}/portal/accept-invite?token=${opts.token}`;
+      this.config.get<string>("PORTAL_APP_URL") ??
+      this.config.get<string>("APP_URL") ??
+      this.config.get<string>("PUBLIC_API_URL") ??
+      "http://localhost:3000";
+    const link = `${appUrl.replace(/\/$/, "")}/portal/accept-invite?token=${opts.token}`;
 
     await this.email.send({
       tenantId,
-      eventType: 'PORTAL_INVITE',
+      eventType: "PORTAL_INVITE",
       to: opts.to,
       subject: `Activate your customer portal — ${opts.partyName}`,
       body: `
@@ -716,12 +825,21 @@ export class PortalService {
 
   private async sendCredentialsEmail(
     tenantId: string,
-    opts: { to: string; fullName: string; password: string; partyName: string; actorId?: string },
+    opts: {
+      to: string;
+      fullName: string;
+      password: string;
+      partyName: string;
+      actorId?: string;
+    },
   ) {
-    const appUrl = this.config.get<string>('APP_URL') ?? this.config.get<string>('PUBLIC_API_URL') ?? '';
+    const appUrl =
+      this.config.get<string>("APP_URL") ??
+      this.config.get<string>("PUBLIC_API_URL") ??
+      "";
     await this.email.send({
       tenantId,
-      eventType: 'PORTAL_CREDENTIALS',
+      eventType: "PORTAL_CREDENTIALS",
       to: opts.to,
       subject: `Your customer portal login — ${opts.partyName}`,
       body: `
@@ -730,7 +848,7 @@ export class PortalService {
         <p><strong>Email:</strong> ${opts.to}<br/>
         <strong>Temporary password:</strong> ${opts.password}</p>
         <p>Use your forwarder's website (or portal login API) with this tenant's credentials to sign in.</p>
-        ${appUrl ? `<p>API base: ${appUrl}</p>` : ''}
+        ${appUrl ? `<p>API base: ${appUrl}</p>` : ""}
         <p>Please change your password after first login if prompted by your forwarder.</p>
       `,
       createdBy: opts.actorId,

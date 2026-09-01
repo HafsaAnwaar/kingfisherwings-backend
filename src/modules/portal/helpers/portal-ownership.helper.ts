@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 
 /**
  * Portal Party sees a job when shipper, consignee, or billing (bill-to) party.
@@ -19,5 +19,11 @@ export function portalPartyIdsFromJob(job: {
   consignee_id?: string | null;
   billing_party_id?: string | null;
 }): string[] {
-  return [...new Set([job.shipper_id, job.consignee_id, job.billing_party_id].filter(Boolean) as string[])];
+  return [
+    ...new Set(
+      [job.shipper_id, job.consignee_id, job.billing_party_id].filter(
+        Boolean,
+      ) as string[],
+    ),
+  ];
 }

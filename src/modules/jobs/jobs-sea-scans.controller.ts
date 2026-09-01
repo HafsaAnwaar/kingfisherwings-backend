@@ -1,12 +1,21 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JobType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { RolesGuard } from '../users/guards/roles.guard';
-import { PermissionsGuard } from '../users/guards/permissions.guard';
-import { RequirePermissions } from '../users/decorators/permissions.decorator';
-import { CurrentUser } from '../users/decorators/current-user.decorator';
-import { JOBS_PERMISSIONS } from './constants/jobs-permission.constants';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { JobType, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { RolesGuard } from "../users/guards/roles.guard";
+import { PermissionsGuard } from "../users/guards/permissions.guard";
+import { RequirePermissions } from "../users/decorators/permissions.decorator";
+import { CurrentUser } from "../users/decorators/current-user.decorator";
+import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
 
 export class RecordSeaScanDto {
   scan_type!: string;
@@ -16,20 +25,20 @@ export class RecordSeaScanDto {
   notes?: string;
 }
 
-@ApiTags('Jobs — Sea Scans')
+@ApiTags("Jobs — Sea Scans")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
-@Controller('jobs')
+@Controller("jobs")
 export class JobsSeaScansController {
   constructor(private readonly prisma: PrismaService) {}
 
-  @Post(':id/sea-scans')
+  @Post(":id/sea-scans")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: 'Record a sea barcode/container scan (Week 26)' })
+  @ApiOperation({ summary: "Record a sea barcode/container scan (Week 26)" })
   record(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') actorId: string,
-    @Param('id', ParseUUIDPipe) jobId: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) jobId: string,
     @Body() dto: RecordSeaScanDto,
   ) {
     return this.prisma.runWithTenant(tenantId, (tx) =>
@@ -48,38 +57,41 @@ export class JobsSeaScansController {
     );
   }
 
-  @Get(':id/sea-scans')
+  @Get(":id/sea-scans")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'List sea scans for a job' })
-  list(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) jobId: string) {
+  @ApiOperation({ summary: "List sea scans for a job" })
+  list(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) jobId: string,
+  ) {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobSeaScan.findMany({
         where: { tenant_id: tenantId, job_id: jobId },
-        orderBy: { scanned_at: 'desc' },
+        orderBy: { scanned_at: "desc" },
       }),
     );
   }
 }
 
-@ApiTags('Reports — Sea KPI')
+@ApiTags("Reports — Sea KPI")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
-@Controller('reports/sea')
+@Controller("reports/sea")
 export class SeaKpiReportController {
   constructor(private readonly prisma: PrismaService) {}
 
-  @Get('kpi-weekly')
+  @Get("kpi-weekly")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'Sea KPI weekly summary by branch/job type' })
+  @ApiOperation({ summary: "Sea KPI weekly summary by branch/job type" })
   async kpiWeekly(
-    @CurrentUser('tenantId') tenantId: string,
-    @Query('branch_id') branchId?: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @Query("branch_id") branchId?: string,
   ) {
     const seaTypes: JobType[] = [
-      'SEA_FCL_EXPORT',
-      'SEA_FCL_IMPORT',
-      'SEA_LCL_EXPORT',
-      'SEA_LCL_IMPORT',
+      "SEA_FCL_EXPORT",
+      "SEA_FCL_IMPORT",
+      "SEA_LCL_EXPORT",
+      "SEA_LCL_IMPORT",
     ];
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -92,13 +104,13 @@ export class SeaKpiReportController {
 
       const [total, completed, inProgress, scans] = await Promise.all([
         tx.job.count({ where }),
-        tx.job.count({ where: { ...where, status: 'COMPLETED' } }),
-        tx.job.count({ where: { ...where, status: 'IN_PROGRESS' } }),
+        tx.job.count({ where: { ...where, status: "COMPLETED" } }),
+        tx.job.count({ where: { ...where, status: "IN_PROGRESS" } }),
         tx.jobSeaScan.count({ where: { tenant_id: tenantId } }),
       ]);
 
       return {
-        period: 'weekly',
+        period: "weekly",
         branch_id: branchId ?? null,
         jobs_total: total,
         jobs_completed: completed,

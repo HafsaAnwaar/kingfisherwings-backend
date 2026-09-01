@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsArray,
   IsBoolean,
@@ -14,11 +14,14 @@ import {
   ArrayUnique,
   Matches,
   ValidateIf,
-} from 'class-validator';
-import { UserRole, UserStatus } from '@prisma/client';
-import { USERS_CONSTANTS } from '../constants/users.constants';
-import { IsStrictEmail } from '../../../common/validators/input-format.validators';
-import { CountryCodeField, IsPhoneForCountry } from '../../../common/validators/country-aware.validators';
+} from "class-validator";
+import { UserRole, UserStatus } from "@prisma/client";
+import { USERS_CONSTANTS } from "../constants/users.constants";
+import { IsStrictEmail } from "../../../common/validators/input-format.validators";
+import {
+  CountryCodeField,
+  IsPhoneForCountry,
+} from "../../../common/validators/country-aware.validators";
 
 const OFFICE_HOURS_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -29,8 +32,9 @@ export class CreateUserDto {
   // =====================================================
 
   @ApiPropertyOptional({
-    format: 'uuid',
-    description: 'Required only when a super admin is creating this user. Ignored for tenant-scoped callers.',
+    format: "uuid",
+    description:
+      "Required only when a super admin is creating this user. Ignored for tenant-scoped callers.",
   })
   @IsOptional()
   @IsUUID()
@@ -40,28 +44,29 @@ export class CreateUserDto {
   // BASIC INFORMATION
   // =====================================================
 
-  @ApiProperty({ example: 'ahmed@kingfisherwings.com' })
+  @ApiProperty({ example: "ahmed@kingfisherwings.com" })
   @IsStrictEmail()
   email!: string;
 
-  @ApiProperty({ example: 'Ahmed' })
+  @ApiProperty({ example: "Ahmed" })
   @IsString()
   @Length(2, 100)
   first_name!: string;
 
-  @ApiProperty({ example: 'Khan' })
+  @ApiProperty({ example: "Khan" })
   @IsString()
   @Length(2, 100)
   last_name!: string;
 
-  @ApiPropertyOptional({ example: '+971501234567' })
+  @ApiPropertyOptional({ example: "+971501234567" })
   @IsOptional()
-  @IsPhoneForCountry({ countryField: 'preferred_country_code' })
+  @IsPhoneForCountry({ countryField: "preferred_country_code" })
   phone?: string;
 
   @ApiPropertyOptional({
-    example: 'AE',
-    description: 'Optional. User can set/change preferred country anytime after login. Send null to clear.',
+    example: "AE",
+    description:
+      "Optional. User can set/change preferred country anytime after login. Send null to clear.",
     nullable: true,
   })
   @IsOptional()
@@ -78,17 +83,17 @@ export class CreateUserDto {
   // ORGANIZATION
   // =====================================================
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   department_id?: string;
@@ -99,7 +104,8 @@ export class CreateUserDto {
 
   @ApiProperty({
     enum: UserRole,
-    description: 'Staff role within the tenant. SUPER_ADMIN is rejected — it is not a tenant user role.',
+    description:
+      "Staff role within the tenant. SUPER_ADMIN is rejected — it is not a tenant user role.",
   })
   @IsEnum(UserRole)
   role!: UserRole;
@@ -186,31 +192,41 @@ export class CreateUserDto {
   // SECURITY
   // =====================================================
 
-  @ApiPropertyOptional({ type: [String], description: 'Empty array = unrestricted.' })
+  @ApiPropertyOptional({
+    type: [String],
+    description: "Empty array = unrestricted.",
+  })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })
   allowed_ips?: string[];
 
-  @ApiPropertyOptional({ type: [String], description: 'Empty array = unrestricted.' })
+  @ApiPropertyOptional({
+    type: [String],
+    description: "Empty array = unrestricted.",
+  })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })
   allowed_mac_addresses?: string[];
 
-  @ApiPropertyOptional({ example: '09:00', description: '24h "HH:mm" format.' })
+  @ApiPropertyOptional({ example: "09:00", description: '24h "HH:mm" format.' })
   @IsOptional()
-  @Matches(OFFICE_HOURS_REGEX, { message: 'office_hours_start must be in "HH:mm" 24h format.' })
+  @Matches(OFFICE_HOURS_REGEX, {
+    message: 'office_hours_start must be in "HH:mm" 24h format.',
+  })
   office_hours_start?: string;
 
-  @ApiPropertyOptional({ example: '18:00', description: '24h "HH:mm" format.' })
+  @ApiPropertyOptional({ example: "18:00", description: '24h "HH:mm" format.' })
   @IsOptional()
-  @Matches(OFFICE_HOURS_REGEX, { message: 'office_hours_end must be in "HH:mm" 24h format.' })
+  @Matches(OFFICE_HOURS_REGEX, {
+    message: 'office_hours_end must be in "HH:mm" 24h format.',
+  })
   office_hours_end?: string;
 
-  @ApiPropertyOptional({ example: 'Asia/Dubai' })
+  @ApiPropertyOptional({ example: "Asia/Dubai" })
   @IsOptional()
   @IsTimeZone()
   office_hours_timezone?: string;
@@ -235,17 +251,17 @@ export class CreateUserDto {
   // RBAC
   // =====================================================
 
-  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @ApiPropertyOptional({ type: [String], format: "uuid" })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   role_ids?: string[];
 
-  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @ApiPropertyOptional({ type: [String], format: "uuid" })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   permission_ids?: string[];
 }

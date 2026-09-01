@@ -1,17 +1,26 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from "class-validator";
 
-const BL_TYPES = ['Original', 'Seaway', 'Express Release', 'Surrendered'];
-const FREIGHT_TERMS = ['Prepaid', 'Collect', 'Third Party'];
-const STORAGE_BASES = ['KG', 'CBM'];
+const BL_TYPES = ["Original", "Seaway", "Express Release", "Surrendered"];
+const FREIGHT_TERMS = ["Prepaid", "Collect", "Third Party"];
+const STORAGE_BASES = ["KG", "CBM"];
 
 export class UpdateSeaLclJobDetailDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   shipping_line_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   vessel_id?: string;
@@ -66,12 +75,12 @@ export class UpdateSeaLclJobDetailDto {
   @IsDateString()
   sailed_at?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   port_of_loading_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   port_of_discharge_id?: string;
@@ -96,7 +105,10 @@ export class UpdateSeaLclJobDetailDto {
   @IsString()
   transhipment_port?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'CFS warehouse (masters/warehouses)' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "CFS warehouse (masters/warehouses)",
+  })
   @IsOptional()
   @IsUUID()
   cfs_warehouse_id?: string;
@@ -164,17 +176,19 @@ export class UpdateSeaLclJobDetailDto {
   @IsDateString()
   customs_clearance_date?: string;
 
-  @ApiPropertyOptional({ enum: ['PENDING', 'FILED', 'QUERY', 'CLEARED', 'RELEASED'] })
+  @ApiPropertyOptional({
+    enum: ["PENDING", "FILED", "QUERY", "CLEARED", "RELEASED"],
+  })
   @IsOptional()
-  @IsIn(['PENDING', 'FILED', 'QUERY', 'CLEARED', 'RELEASED'])
+  @IsIn(["PENDING", "FILED", "QUERY", "CLEARED", "RELEASED"])
   customs_status?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   customs_broker_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   linked_export_job_id?: string;
@@ -201,14 +215,18 @@ export class UpdateSeaLclJobDetailDto {
   @IsIn(STORAGE_BASES)
   storage_rate_basis?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Link to Week 17 WMS storage charge when cargo is in tenant warehouse' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Link to Week 17 WMS storage charge when cargo is in tenant warehouse",
+  })
   @IsOptional()
   @IsUUID()
   wms_storage_charge_id?: string;
 }
 
 export class SubmitLclSiDto {
-  @ApiPropertyOptional({ description: 'Defaults to now' })
+  @ApiPropertyOptional({ description: "Defaults to now" })
   @IsOptional()
   @IsDateString()
   si_submitted_at?: string;

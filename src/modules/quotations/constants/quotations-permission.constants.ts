@@ -1,14 +1,14 @@
 export const QUOTATIONS_PERMISSION_CONSTANTS = {
-  MODULE: 'quotations',
+  MODULE: "quotations",
   ACTIONS: {
-    VIEW: 'view',
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
-    SUBMIT: 'submit',
-    APPROVE: 'approve',
-    SEND: 'send',
-    CLOSE: 'close',
+    VIEW: "view",
+    CREATE: "create",
+    UPDATE: "update",
+    DELETE: "delete",
+    SUBMIT: "submit",
+    APPROVE: "approve",
+    SEND: "send",
+    CLOSE: "close",
   },
 } as const;
 

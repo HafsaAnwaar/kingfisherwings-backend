@@ -1,5 +1,5 @@
-import { User } from '@prisma/client';
-import { PaginationQuery } from './interfaces/pagination.interface';
+import { User } from "@prisma/client";
+import { PaginationQuery } from "./interfaces/pagination.interface";
 
 export interface CreatorContext {
   userId?: string;

@@ -11,71 +11,77 @@ import {
   Post,
   Query,
   UseGuards,
-} from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
-import { PortsService } from './ports.service';
-import { CreatePortDto, UpdatePortDto } from '../dto/port.dto';
-import { MasterQueryDto } from '../dto/master-query.dto';
+import { PortsService } from "./ports.service";
+import { CreatePortDto, UpdatePortDto } from "../dto/port.dto";
+import { MasterQueryDto } from "../dto/master-query.dto";
 
-import { RolesGuard } from '../../users/guards/roles.guard';
-import { PermissionsGuard } from '../../users/guards/permissions.guard';
-import { RequirePermissions } from '../../users/decorators/permissions.decorator';
-import { CurrentUser } from '../../users/decorators/current-user.decorator';
-import { MASTERS_PERMISSIONS } from '../constants/masters-permission.constants';
+import { RolesGuard } from "../../users/guards/roles.guard";
+import { PermissionsGuard } from "../../users/guards/permissions.guard";
+import { RequirePermissions } from "../../users/decorators/permissions.decorator";
+import { CurrentUser } from "../../users/decorators/current-user.decorator";
+import { MASTERS_PERMISSIONS } from "../constants/masters-permission.constants";
 
-@ApiTags('Masters — Ports')
+@ApiTags("Masters — Ports")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
-@Controller('masters/ports')
+@Controller("masters/ports")
 export class PortsController {
   constructor(private readonly service: PortsService) {}
 
   @Get()
   @RequirePermissions(MASTERS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'List ports' })
-  findAll(@CurrentUser('tenantId') tenantId: string, @Query() query: MasterQueryDto) {
+  @ApiOperation({ summary: "List ports" })
+  findAll(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query() query: MasterQueryDto,
+  ) {
     return this.service.findAll(tenantId, query);
   }
 
-  @Get(':id')
+  @Get(":id")
   @RequirePermissions(MASTERS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: 'Get a port record by id' })
-  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+  @ApiOperation({ summary: "Get a port record by id" })
+  findOne(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
     return this.service.findOne(tenantId, id);
   }
 
   @Post()
   @RequirePermissions(MASTERS_PERMISSIONS.CREATE)
-  @ApiOperation({ summary: 'Create a port' })
+  @ApiOperation({ summary: "Create a port" })
   create(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') actorId: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
     @Body() dto: CreatePortDto,
   ) {
     return this.service.create(tenantId, { ...dto }, actorId);
   }
 
-  @Patch(':id')
+  @Patch(":id")
   @RequirePermissions(MASTERS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: 'Update a port' })
+  @ApiOperation({ summary: "Update a port" })
   update(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') actorId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdatePortDto,
   ) {
     return this.service.update(tenantId, id, { ...dto }, actorId);
   }
 
-  @Delete(':id')
+  @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermissions(MASTERS_PERMISSIONS.DELETE)
-  @ApiOperation({ summary: 'Soft-delete a port' })
+  @ApiOperation({ summary: "Soft-delete a port" })
   async remove(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('id') actorId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
   ) {
     await this.service.softDelete(tenantId, id, actorId);
   }

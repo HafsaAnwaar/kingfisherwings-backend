@@ -2,7 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   DocumentNumberType,
   InvoiceStatus,
@@ -10,21 +10,24 @@ import {
   PaymentDirection,
   Prisma,
   VoucherType,
-} from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { lockInvoiceRow, lockPaymentRow } from '../../common/utils/row-lock.util';
-import { NumberGeneratorService } from '../organization/number-formats/number-generator.service';
-import { NotificationEmitterService } from '../notifications/notification-emitter.service';
-import { GlAutoPostService } from './gl-auto-post.service';
+} from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import {
+  lockInvoiceRow,
+  lockPaymentRow,
+} from "../../common/utils/row-lock.util";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { GlAutoPostService } from "./gl-auto-post.service";
 import {
   CreatePaymentDto,
   PaymentAllocationInputDto,
   PaymentQueryDto,
   UpdatePaymentDto,
-} from './dto/ar-ap.dto';
+} from "./dto/ar-ap.dto";
 
-const OPEN_AR_STATUSES: InvoiceStatus[] = ['POSTED', 'SENT', 'PARTIALLY_PAID'];
-const OPEN_AP_STATUSES: InvoiceStatus[] = ['POSTED', 'SENT', 'PARTIALLY_PAID'];
+const OPEN_AR_STATUSES: InvoiceStatus[] = ["POSTED", "SENT", "PARTIALLY_PAID"];
+const OPEN_AP_STATUSES: InvoiceStatus[] = ["POSTED", "SENT", "PARTIALLY_PAID"];
 
 @Injectable()
 export class PaymentsService {
@@ -51,9 +54,9 @@ export class PaymentsService {
     }
     if (query.search) {
       where.OR = [
-        { payment_number: { contains: query.search, mode: 'insensitive' } },
-        { reference_number: { contains: query.search, mode: 'insensitive' } },
-        { narration: { contains: query.search, mode: 'insensitive' } },
+        { payment_number: { contains: query.search, mode: "insensitive" } },
+        { reference_number: { contains: query.search, mode: "insensitive" } },
+        { narration: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
@@ -77,7 +80,7 @@ export class PaymentsService {
             },
           },
         },
-        orderBy: [{ payment_date: 'desc' }, { created_at: 'desc' }],
+        orderBy: [{ payment_date: "desc" }, { created_at: "desc" }],
       }),
     );
   }
@@ -109,7 +112,7 @@ export class PaymentsService {
         },
       }),
     );
-    if (!payment) throw new NotFoundException('Payment not found.');
+    if (!payment) throw new NotFoundException("Payment not found.");
     return payment;
   }
 
@@ -119,7 +122,7 @@ export class PaymentsService {
     const paymentNumber = await this.numberGenerator.generate(
       tenantId,
       DocumentNumberType.PAYMENT,
-      { extraSegment: dto.direction === 'RECEIPT' ? 'RCPT' : 'PYMT' },
+      { extraSegment: dto.direction === "RECEIPT" ? "RCPT" : "PYMT" },
     );
 
     const amount = Number(dto.amount);
@@ -130,19 +133,27 @@ export class PaymentsService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.assertParty(tx, tenantId, dto.party_id);
       if (allocations.length) {
-        await this.assertAllocationsValid(tx, tenantId, dto.direction, dto.party_id, allocations);
+        await this.assertAllocationsValid(
+          tx,
+          tenantId,
+          dto.direction,
+          dto.party_id,
+          allocations,
+        );
       }
 
       let chequeId: string | undefined;
-      if (dto.payment_method === 'CHEQUE' || dto.cheque_number) {
+      if (dto.payment_method === "CHEQUE" || dto.cheque_number) {
         if (!dto.cheque_number || !dto.cheque_date) {
-          throw new BadRequestException('cheque_number and cheque_date are required for cheque payments.');
+          throw new BadRequestException(
+            "cheque_number and cheque_date are required for cheque payments.",
+          );
         }
         const cheque = await tx.cheque.create({
           data: {
             tenant_id: tenantId,
             cheque_number: dto.cheque_number,
-            cheque_type: dto.direction === 'RECEIPT' ? 'RECEIVABLE' : 'PAYABLE',
+            cheque_type: dto.direction === "RECEIPT" ? "RECEIVABLE" : "PAYABLE",
             party_id: dto.party_id,
             company_id: dto.company_id,
             bank_account_id: dto.bank_account_id,
@@ -150,8 +161,15 @@ export class PaymentsService {
             amount,
             currency_code: dto.currency_code,
             cheque_date: new Date(dto.cheque_date),
-            due_date: dto.cheque_due_date ? new Date(dto.cheque_due_date) : undefined,
-            is_pdc: dto.is_pdc ?? Boolean(dto.cheque_due_date && dto.cheque_due_date > (dto.cheque_date ?? '')),
+            due_date: dto.cheque_due_date
+              ? new Date(dto.cheque_due_date)
+              : undefined,
+            is_pdc:
+              dto.is_pdc ??
+              Boolean(
+                dto.cheque_due_date &&
+                dto.cheque_due_date > (dto.cheque_date ?? ""),
+              ),
             remarks: dto.narration,
             created_by: actorId,
             updated_by: actorId,
@@ -167,14 +185,16 @@ export class PaymentsService {
           tenant_id: tenantId,
           payment_number: paymentNumber,
           direction: dto.direction,
-          payment_method: dto.payment_method ?? 'BANK_TRANSFER',
+          payment_method: dto.payment_method ?? "BANK_TRANSFER",
           party_id: dto.party_id,
           amount,
           currency_code: dto.currency_code,
           exchange_rate: rate,
           amount_base: amount * rate,
           unallocated_amount: amount - allocated,
-          payment_date: dto.payment_date ? new Date(dto.payment_date) : new Date(),
+          payment_date: dto.payment_date
+            ? new Date(dto.payment_date)
+            : new Date(),
           company_id: dto.company_id,
           branch_id: dto.branch_id,
           bank_account_id: dto.bank_account_id,
@@ -207,38 +227,73 @@ export class PaymentsService {
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdatePaymentDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdatePaymentDto,
+    actorId?: string,
+  ) {
     const existing = await this.findOne(tenantId, id);
-    if (existing.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft payments can be updated.');
+    if (existing.status !== "DRAFT") {
+      throw new BadRequestException("Only draft payments can be updated.");
     }
     if (dto.allocations) {
-      throw new BadRequestException('Use allocation endpoints to change allocations.');
+      throw new BadRequestException(
+        "Use allocation endpoints to change allocations.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       if (dto.party_id) await this.assertParty(tx, tenantId, dto.party_id);
-      const amount = dto.amount !== undefined ? Number(dto.amount) : Number(existing.amount);
-      const allocated = existing.allocations.reduce((s, a) => s + Number(a.amount), 0);
+      const amount =
+        dto.amount !== undefined ? Number(dto.amount) : Number(existing.amount);
+      const allocated = existing.allocations.reduce(
+        (s, a) => s + Number(a.amount),
+        0,
+      );
       if (allocated - amount > 0.0001) {
-        throw new BadRequestException('Payment amount cannot be less than allocated total.');
+        throw new BadRequestException(
+          "Payment amount cannot be less than allocated total.",
+        );
       }
 
       await tx.payment.update({
         where: { id },
         data: {
           ...(dto.direction !== undefined ? { direction: dto.direction } : {}),
-          ...(dto.payment_method !== undefined ? { payment_method: dto.payment_method } : {}),
+          ...(dto.payment_method !== undefined
+            ? { payment_method: dto.payment_method }
+            : {}),
           ...(dto.party_id !== undefined ? { party_id: dto.party_id } : {}),
-          ...(dto.amount !== undefined ? { amount, amount_base: amount * Number(dto.exchange_rate ?? existing.exchange_rate) } : {}),
-          ...(dto.currency_code !== undefined ? { currency_code: dto.currency_code } : {}),
-          ...(dto.exchange_rate !== undefined ? { exchange_rate: dto.exchange_rate } : {}),
-          ...(dto.payment_date !== undefined ? { payment_date: new Date(dto.payment_date) } : {}),
-          ...(dto.company_id !== undefined ? { company_id: dto.company_id } : {}),
+          ...(dto.amount !== undefined
+            ? {
+                amount,
+                amount_base:
+                  amount * Number(dto.exchange_rate ?? existing.exchange_rate),
+              }
+            : {}),
+          ...(dto.currency_code !== undefined
+            ? { currency_code: dto.currency_code }
+            : {}),
+          ...(dto.exchange_rate !== undefined
+            ? { exchange_rate: dto.exchange_rate }
+            : {}),
+          ...(dto.payment_date !== undefined
+            ? { payment_date: new Date(dto.payment_date) }
+            : {}),
+          ...(dto.company_id !== undefined
+            ? { company_id: dto.company_id }
+            : {}),
           ...(dto.branch_id !== undefined ? { branch_id: dto.branch_id } : {}),
-          ...(dto.bank_account_id !== undefined ? { bank_account_id: dto.bank_account_id } : {}),
-          ...(dto.gl_account_id !== undefined ? { gl_account_id: dto.gl_account_id } : {}),
-          ...(dto.reference_number !== undefined ? { reference_number: dto.reference_number } : {}),
+          ...(dto.bank_account_id !== undefined
+            ? { bank_account_id: dto.bank_account_id }
+            : {}),
+          ...(dto.gl_account_id !== undefined
+            ? { gl_account_id: dto.gl_account_id }
+            : {}),
+          ...(dto.reference_number !== undefined
+            ? { reference_number: dto.reference_number }
+            : {}),
           ...(dto.narration !== undefined ? { narration: dto.narration } : {}),
           unallocated_amount: amount - allocated,
           updated_by: actorId,
@@ -250,13 +305,17 @@ export class PaymentsService {
 
   async softDelete(tenantId: string, id: string, actorId?: string) {
     const existing = await this.findOne(tenantId, id);
-    if (existing.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft payments can be deleted.');
+    if (existing.status !== "DRAFT") {
+      throw new BadRequestException("Only draft payments can be deleted.");
     }
     await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.payment.update({
         where: { id },
-        data: { deleted_at: new Date(), status: 'CANCELLED', updated_by: actorId },
+        data: {
+          deleted_at: new Date(),
+          status: "CANCELLED",
+          updated_by: actorId,
+        },
       }),
     );
   }
@@ -268,15 +327,23 @@ export class PaymentsService {
     actorId?: string,
   ) {
     const payment = await this.findOne(tenantId, paymentId);
-    if (payment.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft payments can be allocated.');
+    if (payment.status !== "DRAFT") {
+      throw new BadRequestException("Only draft payments can be allocated.");
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.assertAllocationsValid(tx, tenantId, payment.direction, payment.party_id, [dto]);
-      const allocated = payment.allocations.reduce((s, a) => s + Number(a.amount), 0) + Number(dto.amount);
+      await this.assertAllocationsValid(
+        tx,
+        tenantId,
+        payment.direction,
+        payment.party_id,
+        [dto],
+      );
+      const allocated =
+        payment.allocations.reduce((s, a) => s + Number(a.amount), 0) +
+        Number(dto.amount);
       if (allocated - Number(payment.amount) > 0.0001) {
-        throw new BadRequestException('Allocation exceeds payment amount.');
+        throw new BadRequestException("Allocation exceeds payment amount.");
       }
 
       await tx.paymentAllocation.create({
@@ -300,13 +367,18 @@ export class PaymentsService {
     });
   }
 
-  async removeAllocation(tenantId: string, paymentId: string, allocationId: string, actorId?: string) {
+  async removeAllocation(
+    tenantId: string,
+    paymentId: string,
+    allocationId: string,
+    actorId?: string,
+  ) {
     const payment = await this.findOne(tenantId, paymentId);
-    if (payment.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft payments can be edited.');
+    if (payment.status !== "DRAFT") {
+      throw new BadRequestException("Only draft payments can be edited.");
     }
     const alloc = payment.allocations.find((a) => a.id === allocationId);
-    if (!alloc) throw new NotFoundException('Allocation not found.');
+    if (!alloc) throw new NotFoundException("Allocation not found.");
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await tx.paymentAllocation.update({
@@ -329,10 +401,13 @@ export class PaymentsService {
 
   async post(tenantId: string, id: string, actorId?: string) {
     const payment = await this.findOne(tenantId, id);
-    if (payment.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft payments can be posted.');
+    if (payment.status !== "DRAFT") {
+      throw new BadRequestException("Only draft payments can be posted.");
     }
-    if (!payment.allocations.length && Number(payment.unallocated_amount) === Number(payment.amount)) {
+    if (
+      !payment.allocations.length &&
+      Number(payment.unallocated_amount) === Number(payment.amount)
+    ) {
       // Allow full advances (unallocated) — still posts to AR/AP control account.
     }
 
@@ -341,38 +416,41 @@ export class PaymentsService {
       gl_account_id: payment.gl_account_id ?? undefined,
       bank_account_id: payment.bank_account_id ?? undefined,
     });
-    const arAp = await this.glAutoPost.resolveArApAccount(tenantId, payment.direction);
+    const arAp = await this.glAutoPost.resolveArApAccount(
+      tenantId,
+      payment.direction,
+    );
 
     const amount = Number(payment.amount);
     const rate = Number(payment.exchange_rate) || 1;
     const voucherType: VoucherType =
-      payment.direction === 'RECEIPT'
-        ? payment.payment_method === 'CASH'
-          ? 'CASH_RECEIPT'
-          : 'BANK_RECEIPT'
-        : payment.payment_method === 'CASH'
-          ? 'CASH_PAYMENT'
-          : 'BANK_PAYMENT';
+      payment.direction === "RECEIPT"
+        ? payment.payment_method === "CASH"
+          ? "CASH_RECEIPT"
+          : "BANK_RECEIPT"
+        : payment.payment_method === "CASH"
+          ? "CASH_PAYMENT"
+          : "BANK_PAYMENT";
 
     const voucherNumber = await this.numberGenerator.generate(
       tenantId,
       DocumentNumberType.VOUCHER,
       {
         extraSegment:
-          voucherType === 'BANK_RECEIPT'
-            ? 'BRV'
-            : voucherType === 'CASH_RECEIPT'
-              ? 'CRV'
-              : voucherType === 'BANK_PAYMENT'
-                ? 'BPV'
-                : 'CPV',
+          voucherType === "BANK_RECEIPT"
+            ? "BRV"
+            : voucherType === "CASH_RECEIPT"
+              ? "CRV"
+              : voucherType === "BANK_PAYMENT"
+                ? "BPV"
+                : "CPV",
       },
     );
 
     const posted = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const lockedPayment = await lockPaymentRow(tx, tenantId, id);
-      if (!lockedPayment || lockedPayment.status !== 'DRAFT') {
-        throw new BadRequestException('Only draft payments can be posted.');
+      if (!lockedPayment || lockedPayment.status !== "DRAFT") {
+        throw new BadRequestException("Only draft payments can be posted.");
       }
 
       const sortedAllocations = [...payment.allocations].sort((a, b) =>
@@ -381,7 +459,10 @@ export class PaymentsService {
 
       for (const alloc of sortedAllocations) {
         const inv = await lockInvoiceRow(tx, tenantId, alloc.invoice_id);
-        if (!inv) throw new BadRequestException(`Invoice ${alloc.invoice_id} not found.`);
+        if (!inv)
+          throw new BadRequestException(
+            `Invoice ${alloc.invoice_id} not found.`,
+          );
         if (Number(alloc.amount) - Number(inv.balance_due) > 0.0001) {
           throw new BadRequestException(
             `Allocation ${alloc.amount} exceeds balance due ${inv.balance_due} on invoice.`,
@@ -390,7 +471,7 @@ export class PaymentsService {
       }
 
       const lines =
-        payment.direction === 'RECEIPT'
+        payment.direction === "RECEIPT"
           ? [
               {
                 account_id: cashBank.id,
@@ -425,7 +506,7 @@ export class PaymentsService {
           tenant_id: tenantId,
           voucher_number: voucherNumber,
           voucher_type: voucherType,
-          status: 'POSTED',
+          status: "POSTED",
           voucher_date: payment.payment_date,
           currency_code: payment.currency_code,
           exchange_rate: rate,
@@ -462,15 +543,22 @@ export class PaymentsService {
 
       for (const alloc of payment.allocations) {
         const inv = await tx.invoice.findFirst({
-          where: { id: alloc.invoice_id, tenant_id: tenantId, deleted_at: null },
+          where: {
+            id: alloc.invoice_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
         });
         if (!inv) continue;
         const paid = Number(inv.amount_paid) + Number(alloc.amount);
         // Preserve CN/DN adjustments already reflected in balance_due.
-        const balance = Math.max(0, Number(inv.balance_due) - Number(alloc.amount));
+        const balance = Math.max(
+          0,
+          Number(inv.balance_due) - Number(alloc.amount),
+        );
         let status: InvoiceStatus = inv.status;
-        if (balance <= 0.0001) status = 'PAID';
-        else if (paid > 0) status = 'PARTIALLY_PAID';
+        if (balance <= 0.0001) status = "PAID";
+        else if (paid > 0) status = "PARTIALLY_PAID";
 
         await tx.invoice.update({
           where: { id: inv.id },
@@ -487,7 +575,7 @@ export class PaymentsService {
         await tx.cheque.update({
           where: { id: payment.cheque_id },
           data: {
-            status: payment.cheque?.is_pdc ? 'PENDING' : 'DEPOSITED',
+            status: payment.cheque?.is_pdc ? "PENDING" : "DEPOSITED",
             deposited_at: payment.cheque?.is_pdc ? undefined : new Date(),
             updated_by: actorId,
           },
@@ -497,7 +585,7 @@ export class PaymentsService {
       return tx.payment.update({
         where: { id },
         data: {
-          status: 'POSTED',
+          status: "POSTED",
           posted_at: new Date(),
           posted_by: actorId,
           voucher_id: voucher.id,
@@ -513,26 +601,34 @@ export class PaymentsService {
       });
     });
 
-    if (payment.direction === 'RECEIPT' && payment.party_id) {
-      await this.notifications.notifyPartyPortalUsers(tenantId, payment.party_id, {
-        type: 'PAYMENT_RECEIVED',
-        title: 'Payment received',
-        message: `We recorded payment ${payment.payment_number} for your account.`,
-        entity_type: 'payment',
-        entity_id: payment.id,
-        link_path: `/portal/payments`,
-      });
+    if (payment.direction === "RECEIPT" && payment.party_id) {
+      await this.notifications.notifyPartyPortalUsers(
+        tenantId,
+        payment.party_id,
+        {
+          type: "PAYMENT_RECEIVED",
+          title: "Payment received",
+          message: `We recorded payment ${payment.payment_number} for your account.`,
+          entity_type: "payment",
+          entity_id: payment.id,
+          link_path: `/portal/payments`,
+        },
+      );
     }
 
-    if (payment.direction === 'PAYMENT' && payment.party_id) {
-      await this.notifications.notifyPartyVendorUsers(tenantId, payment.party_id, {
-        type: 'VENDOR_PAYMENT_POSTED',
-        title: 'Payment posted',
-        message: `Payment ${payment.payment_number} was posted to your account.`,
-        entity_type: 'payment',
-        entity_id: payment.id,
-        link_path: `/vendor/payments`,
-      });
+    if (payment.direction === "PAYMENT" && payment.party_id) {
+      await this.notifications.notifyPartyVendorUsers(
+        tenantId,
+        payment.party_id,
+        {
+          type: "VENDOR_PAYMENT_POSTED",
+          title: "Payment posted",
+          message: `Payment ${payment.payment_number} was posted to your account.`,
+          entity_type: "payment",
+          entity_id: payment.id,
+          link_path: `/vendor/payments`,
+        },
+      );
     }
 
     return posted;
@@ -540,34 +636,45 @@ export class PaymentsService {
 
   async cancel(tenantId: string, id: string, actorId?: string) {
     const payment = await this.findOne(tenantId, id);
-    if (payment.status === 'CANCELLED') {
-      throw new BadRequestException('Payment is already cancelled.');
+    if (payment.status === "CANCELLED") {
+      throw new BadRequestException("Payment is already cancelled.");
     }
-    if (payment.status === 'DRAFT') {
+    if (payment.status === "DRAFT") {
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.payment.update({
           where: { id },
-          data: { deleted_at: new Date(), status: 'CANCELLED', updated_by: actorId },
+          data: {
+            deleted_at: new Date(),
+            status: "CANCELLED",
+            updated_by: actorId,
+          },
         }),
       );
-      return { id, status: 'CANCELLED' as const };
+      return { id, status: "CANCELLED" as const };
     }
 
     // Posted: reverse invoice balances + reverse voucher
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       for (const alloc of payment.allocations) {
         const inv = await tx.invoice.findFirst({
-          where: { id: alloc.invoice_id, tenant_id: tenantId, deleted_at: null },
+          where: {
+            id: alloc.invoice_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
         });
         if (!inv) continue;
-        const paid = Math.max(Number(inv.amount_paid) - Number(alloc.amount), 0);
+        const paid = Math.max(
+          Number(inv.amount_paid) - Number(alloc.amount),
+          0,
+        );
         // Restore only the cancelled allocation; keep prior CN/DN effects on balance_due.
         const balance = Number(inv.balance_due) + Number(alloc.amount);
-        let status: InvoiceStatus = 'POSTED';
+        let status: InvoiceStatus = "POSTED";
         if (paid <= 0.0001) {
-          status = inv.sent_at ? 'SENT' : 'POSTED';
+          status = inv.sent_at ? "SENT" : "POSTED";
         } else {
-          status = 'PARTIALLY_PAID';
+          status = "PARTIALLY_PAID";
         }
         await tx.invoice.update({
           where: { id: inv.id },
@@ -582,21 +689,25 @@ export class PaymentsService {
 
       if (payment.voucher_id) {
         const original = await tx.voucher.findFirst({
-          where: { id: payment.voucher_id, tenant_id: tenantId, deleted_at: null },
+          where: {
+            id: payment.voucher_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
           include: { lines: { where: { deleted_at: null } } },
         });
-        if (original && original.status === 'POSTED') {
+        if (original && original.status === "POSTED") {
           const reversalNumber = await this.numberGenerator.generate(
             tenantId,
             DocumentNumberType.VOUCHER,
-            { extraSegment: 'JV' },
+            { extraSegment: "JV" },
           );
           await tx.voucher.create({
             data: {
               tenant_id: tenantId,
               voucher_number: reversalNumber,
               voucher_type: original.voucher_type,
-              status: 'POSTED',
+              status: "POSTED",
               voucher_date: new Date(),
               currency_code: original.currency_code,
               exchange_rate: original.exchange_rate,
@@ -632,7 +743,7 @@ export class PaymentsService {
           await tx.voucher.update({
             where: { id: original.id },
             data: {
-              status: 'REVERSED',
+              status: "REVERSED",
               reversed_at: new Date(),
               reversed_by: actorId,
               updated_by: actorId,
@@ -643,7 +754,7 @@ export class PaymentsService {
 
       return tx.payment.update({
         where: { id },
-        data: { status: 'CANCELLED', updated_by: actorId },
+        data: { status: "CANCELLED", updated_by: actorId },
         include: {
           allocations: { where: { deleted_at: null } },
           party: { select: { id: true, code: true, name: true } },
@@ -652,10 +763,13 @@ export class PaymentsService {
     });
   }
 
-  private assertAllocationTotal(amount: number, allocations: PaymentAllocationInputDto[]) {
+  private assertAllocationTotal(
+    amount: number,
+    allocations: PaymentAllocationInputDto[],
+  ) {
     const sum = allocations.reduce((s, a) => s + Number(a.amount), 0);
     if (sum - amount > 0.0001) {
-      throw new BadRequestException('Allocations exceed payment amount.');
+      throw new BadRequestException("Allocations exceed payment amount.");
     }
   }
 
@@ -663,7 +777,7 @@ export class PaymentsService {
   private async ensurePaymentNumberFormat(tenantId: string) {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.documentNumberFormat.findFirst({
-        where: { tenant_id: tenantId, document_type: 'PAYMENT' },
+        where: { tenant_id: tenantId, document_type: "PAYMENT" },
       });
       if (existing) {
         if (!existing.is_active) {
@@ -677,25 +791,29 @@ export class PaymentsService {
       await tx.documentNumberFormat.create({
         data: {
           tenant_id: tenantId,
-          document_type: 'PAYMENT',
-          prefix: 'PAY',
-          separator: '/',
+          document_type: "PAYMENT",
+          prefix: "PAY",
+          separator: "/",
           include_year: true,
           include_month: true,
           year_digits: 2,
           sequence_length: 5,
-          reset_frequency: 'YEARLY',
+          reset_frequency: "YEARLY",
           is_active: true,
         },
       });
     });
   }
 
-  private async assertParty(tx: Prisma.TransactionClient, tenantId: string, partyId: string) {
+  private async assertParty(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    partyId: string,
+  ) {
     const party = await tx.party.findFirst({
       where: { id: partyId, tenant_id: tenantId, deleted_at: null },
     });
-    if (!party) throw new NotFoundException('Party not found.');
+    if (!party) throw new NotFoundException("Party not found.");
   }
 
   private async assertAllocationsValid(
@@ -706,24 +824,35 @@ export class PaymentsService {
     allocations: PaymentAllocationInputDto[],
   ) {
     const expectedTypes: InvoiceType[] =
-      direction === 'RECEIPT' ? ['CUSTOMER_INVOICE', 'DEBIT_NOTE'] : ['PURCHASE_INVOICE'];
-    const openStatuses = direction === 'RECEIPT' ? OPEN_AR_STATUSES : OPEN_AP_STATUSES;
+      direction === "RECEIPT"
+        ? ["CUSTOMER_INVOICE", "DEBIT_NOTE"]
+        : ["PURCHASE_INVOICE"];
+    const openStatuses =
+      direction === "RECEIPT" ? OPEN_AR_STATUSES : OPEN_AP_STATUSES;
 
     for (const alloc of allocations) {
       const inv = await tx.invoice.findFirst({
         where: { id: alloc.invoice_id, tenant_id: tenantId, deleted_at: null },
       });
-      if (!inv) throw new BadRequestException(`Invoice ${alloc.invoice_id} not found.`);
+      if (!inv)
+        throw new BadRequestException(`Invoice ${alloc.invoice_id} not found.`);
       if (inv.party_id !== partyId) {
-        throw new BadRequestException(`Invoice ${inv.invoice_number} belongs to a different party.`);
+        throw new BadRequestException(
+          `Invoice ${inv.invoice_number} belongs to a different party.`,
+        );
       }
       if (!expectedTypes.includes(inv.invoice_type)) {
         throw new BadRequestException(
           `Invoice ${inv.invoice_number} type ${inv.invoice_type} cannot be allocated to a ${direction}.`,
         );
       }
-      if (!openStatuses.includes(inv.status) && inv.status !== 'PARTIALLY_PAID') {
-        throw new BadRequestException(`Invoice ${inv.invoice_number} is not open for payment (${inv.status}).`);
+      if (
+        !openStatuses.includes(inv.status) &&
+        inv.status !== "PARTIALLY_PAID"
+      ) {
+        throw new BadRequestException(
+          `Invoice ${inv.invoice_number} is not open for payment (${inv.status}).`,
+        );
       }
       if (Number(alloc.amount) - Number(inv.balance_due) > 0.0001) {
         throw new BadRequestException(

@@ -1,8 +1,8 @@
 export const TRANSPORT_PERMISSION_CONSTANTS = {
-  MODULE: 'transport',
+  MODULE: "transport",
   ACTIONS: {
-    VIEW: 'view',
-    MANAGE: 'manage',
+    VIEW: "view",
+    MANAGE: "manage",
   },
 } as const;
 

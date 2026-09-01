@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
@@ -11,15 +11,18 @@ import {
   Length,
   Min,
   ValidateNested,
-} from 'class-validator';
+} from "class-validator";
 
 export class CreateJobCargoDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   container_id?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'House consignee for co-loading / split' })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "House consignee for co-loading / split",
+  })
   @IsOptional()
   @IsUUID()
   consignee_id?: string;
@@ -58,7 +61,7 @@ export class CreateJobCargoDto {
   @Min(0)
   gross_weight?: number;
 
-  @ApiPropertyOptional({ description: 'Measurement in CBM' })
+  @ApiPropertyOptional({ description: "Measurement in CBM" })
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -68,13 +71,13 @@ export class CreateJobCargoDto {
 export class UpdateJobCargoDto extends PartialType(CreateJobCargoDto) {}
 
 export class AssignCargoToContainerDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   cargo_id!: string;
 }
 
 export class ContainerSplitPortionDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   consignee_id!: string;
 

@@ -1,13 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { CreateVesselScheduleDto, UpdateVesselScheduleDto, VesselScheduleQueryDto } from '../dto/vessel-schedule.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import {
+  CreateVesselScheduleDto,
+  UpdateVesselScheduleDto,
+  VesselScheduleQueryDto,
+} from "../dto/vessel-schedule.dto";
 
 @Injectable()
 export class VesselSchedulesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(tenantId: string, vesselId: string, query: VesselScheduleQueryDto) {
+  async list(
+    tenantId: string,
+    vesselId: string,
+    query: VesselScheduleQueryDto,
+  ) {
     await this.assertVesselExists(tenantId, vesselId);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -18,7 +26,10 @@ export class VesselSchedulesService {
       };
 
       if (query.voyage_number) {
-        where.voyage_number = { contains: query.voyage_number, mode: 'insensitive' };
+        where.voyage_number = {
+          contains: query.voyage_number,
+          mode: "insensitive",
+        };
       }
 
       if (query.etd_from || query.etd_to) {
@@ -37,12 +48,17 @@ export class VesselSchedulesService {
 
       return tx.vesselSchedule.findMany({
         where,
-        orderBy: [{ etd: 'asc' }, { created_at: 'desc' }],
+        orderBy: [{ etd: "asc" }, { created_at: "desc" }],
       });
     });
   }
 
-  async create(tenantId: string, vesselId: string, dto: CreateVesselScheduleDto, actorId?: string) {
+  async create(
+    tenantId: string,
+    vesselId: string,
+    dto: CreateVesselScheduleDto,
+    actorId?: string,
+  ) {
     await this.assertVesselExists(tenantId, vesselId);
     if (dto.shipping_line_id) {
       await this.assertShippingLineExists(tenantId, dto.shipping_line_id);
@@ -82,11 +98,16 @@ export class VesselSchedulesService {
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.vesselSchedule.findFirst({
-        where: { id: scheduleId, vessel_id: vesselId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: scheduleId,
+          vessel_id: vesselId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       if (!existing) {
-        throw new NotFoundException('Vessel schedule not found.');
+        throw new NotFoundException("Vessel schedule not found.");
       }
 
       const { etd, eta, ...rest } = dto;
@@ -103,16 +124,26 @@ export class VesselSchedulesService {
     });
   }
 
-  async remove(tenantId: string, vesselId: string, scheduleId: string, actorId?: string): Promise<void> {
+  async remove(
+    tenantId: string,
+    vesselId: string,
+    scheduleId: string,
+    actorId?: string,
+  ): Promise<void> {
     await this.assertVesselExists(tenantId, vesselId);
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.vesselSchedule.findFirst({
-        where: { id: scheduleId, vessel_id: vesselId, tenant_id: tenantId, deleted_at: null },
+        where: {
+          id: scheduleId,
+          vessel_id: vesselId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
       });
 
       if (!existing) {
-        throw new NotFoundException('Vessel schedule not found.');
+        throw new NotFoundException("Vessel schedule not found.");
       }
 
       await tx.vesselSchedule.update({
@@ -124,21 +155,28 @@ export class VesselSchedulesService {
 
   private async assertVesselExists(tenantId: string, vesselId: string) {
     const vessel = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.vessel.findFirst({ where: { id: vesselId, tenant_id: tenantId, deleted_at: null } }),
+      tx.vessel.findFirst({
+        where: { id: vesselId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!vessel) {
-      throw new NotFoundException('Vessel not found.');
+      throw new NotFoundException("Vessel not found.");
     }
   }
 
-  private async assertShippingLineExists(tenantId: string, shippingLineId: string) {
+  private async assertShippingLineExists(
+    tenantId: string,
+    shippingLineId: string,
+  ) {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.shippingLine.findFirst({ where: { id: shippingLineId, tenant_id: tenantId, deleted_at: null } }),
+      tx.shippingLine.findFirst({
+        where: { id: shippingLineId, tenant_id: tenantId, deleted_at: null },
+      }),
     );
 
     if (!exists) {
-      throw new NotFoundException('Shipping line not found.');
+      throw new NotFoundException("Shipping line not found.");
     }
   }
 }

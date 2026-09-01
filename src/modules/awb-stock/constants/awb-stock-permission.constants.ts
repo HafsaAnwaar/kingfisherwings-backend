@@ -1,12 +1,12 @@
 export const AWB_STOCK_PERMISSION_CONSTANTS = {
-  MODULE: 'awb_stock',
+  MODULE: "awb_stock",
   ACTIONS: {
-    VIEW: 'view',
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
-    ALLOCATE: 'allocate',
-    VOID: 'void',
+    VIEW: "view",
+    CREATE: "create",
+    UPDATE: "update",
+    DELETE: "delete",
+    ALLOCATE: "allocate",
+    VOID: "void",
   },
 } as const;
 

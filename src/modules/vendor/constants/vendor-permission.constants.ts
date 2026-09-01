@@ -1,11 +1,11 @@
 export const VENDOR_PERMISSION_CONSTANTS = {
-  MODULE: 'vendor',
+  MODULE: "vendor",
   ACTIONS: {
-    MANAGE_USERS: 'manage_users',
-    VIEW_USERS: 'view_users',
-    VIEW_PERMISSIONS: 'view_permissions',
-    MANAGE_PERMISSIONS: 'manage_permissions',
-    MANAGE_DISPUTES: 'manage_disputes',
+    MANAGE_USERS: "manage_users",
+    VIEW_USERS: "view_users",
+    VIEW_PERMISSIONS: "view_permissions",
+    MANAGE_PERMISSIONS: "manage_permissions",
+    MANAGE_DISPUTES: "manage_disputes",
   },
 } as const;
 
@@ -18,21 +18,21 @@ export const VENDOR_PERMISSIONS = {
 } as const;
 
 export const DEFAULT_VENDOR_DOCUMENT_TYPES = [
-  'PURCHASE_INVOICE',
-  'REMITTANCE',
-  'CREDIT_NOTE',
-  'STATEMENT',
-  'TDS_CERTIFICATE',
+  "PURCHASE_INVOICE",
+  "REMITTANCE",
+  "CREDIT_NOTE",
+  "STATEMENT",
+  "TDS_CERTIFICATE",
 ] as const;
 
 export const VENDOR_ELIGIBLE_PARTY_TYPES = [
-  'SUPPLIER',
-  'AIRLINE',
-  'SHIPPING_LINE',
-  'TRUCKER',
-  'CUSTOMS_BROKER',
-  'CFS_PORT_AGENT',
-  'WAREHOUSE',
-  'OVERSEAS_AGENT',
-  'AGENT',
+  "SUPPLIER",
+  "AIRLINE",
+  "SHIPPING_LINE",
+  "TRUCKER",
+  "CUSTOMS_BROKER",
+  "CFS_PORT_AGENT",
+  "WAREHOUSE",
+  "OVERSEAS_AGENT",
+  "AGENT",
 ] as const;

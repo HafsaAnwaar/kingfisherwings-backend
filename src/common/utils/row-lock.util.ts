@@ -1,8 +1,12 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 
 type Tx = Prisma.TransactionClient;
 
-export async function lockInvoiceRow(tx: Tx, tenantId: string, invoiceId: string) {
+export async function lockInvoiceRow(
+  tx: Tx,
+  tenantId: string,
+  invoiceId: string,
+) {
   const rows = await tx.$queryRaw<
     Array<{
       id: string;
@@ -24,7 +28,11 @@ export async function lockInvoiceRow(tx: Tx, tenantId: string, invoiceId: string
   return rows[0] ?? null;
 }
 
-export async function lockPaymentRow(tx: Tx, tenantId: string, paymentId: string) {
+export async function lockPaymentRow(
+  tx: Tx,
+  tenantId: string,
+  paymentId: string,
+) {
   const rows = await tx.$queryRaw<
     Array<{ id: string; status: string; amount: unknown; direction: string }>
   >`
@@ -38,9 +46,18 @@ export async function lockPaymentRow(tx: Tx, tenantId: string, paymentId: string
   return rows[0] ?? null;
 }
 
-export async function lockVoucherRow(tx: Tx, tenantId: string, voucherId: string) {
+export async function lockVoucherRow(
+  tx: Tx,
+  tenantId: string,
+  voucherId: string,
+) {
   const rows = await tx.$queryRaw<
-    Array<{ id: string; status: string; total_debit: unknown; total_credit: unknown }>
+    Array<{
+      id: string;
+      status: string;
+      total_debit: unknown;
+      total_credit: unknown;
+    }>
   >`
     SELECT id, status, total_debit, total_credit
     FROM vouchers

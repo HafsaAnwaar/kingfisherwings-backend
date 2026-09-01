@@ -3,12 +3,15 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { resolvePortalAccessSecret } from '../../../common/utils/jwt-secrets.util';
-import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { CurrentPortalUser, PortalJwtPayload } from '../interfaces/portal-auth.interfaces';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { resolvePortalAccessSecret } from "../../../common/utils/jwt-secrets.util";
+import { JwtService } from "@nestjs/jwt";
+import { PrismaService } from "../../../prisma/prisma.service";
+import {
+  CurrentPortalUser,
+  PortalJwtPayload,
+} from "../interfaces/portal-auth.interfaces";
 
 @Injectable()
 export class PortalAuthGuard implements CanActivate {
@@ -25,13 +28,13 @@ export class PortalAuthGuard implements CanActivate {
     }>();
 
     const header = request.headers.authorization;
-    if (!header?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing portal access token.');
+    if (!header?.startsWith("Bearer ")) {
+      throw new UnauthorizedException("Missing portal access token.");
     }
 
-    const token = header.slice('Bearer '.length).trim();
+    const token = header.slice("Bearer ".length).trim();
     if (!token) {
-      throw new UnauthorizedException('Missing portal access token.');
+      throw new UnauthorizedException("Missing portal access token.");
     }
 
     let payload: PortalJwtPayload;
@@ -40,11 +43,11 @@ export class PortalAuthGuard implements CanActivate {
         secret: this.portalAccessSecret(),
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired portal token.');
+      throw new UnauthorizedException("Invalid or expired portal token.");
     }
 
-    if (payload.principal !== 'portal' || payload.type !== 'access') {
-      throw new UnauthorizedException('Invalid portal token.');
+    if (payload.principal !== "portal" || payload.type !== "access") {
+      throw new UnauthorizedException("Invalid portal token.");
     }
 
     const session = await this.prisma.portalSession.findUnique({
@@ -59,7 +62,13 @@ export class PortalAuthGuard implements CanActivate {
             full_name: true,
             status: true,
             deleted_at: true,
-            party: { select: { portal_access: true, deleted_at: true, is_active: true } },
+            party: {
+              select: {
+                portal_access: true,
+                deleted_at: true,
+                is_active: true,
+              },
+            },
           },
         },
       },
@@ -71,23 +80,23 @@ export class PortalAuthGuard implements CanActivate {
       session.revoked_at ||
       session.expires_at < new Date()
     ) {
-      throw new UnauthorizedException('Portal session is no longer valid.');
+      throw new UnauthorizedException("Portal session is no longer valid.");
     }
 
     const user = session.portal_user;
     if (
       !user ||
       user.deleted_at ||
-      user.status !== 'ACTIVE' ||
+      user.status !== "ACTIVE" ||
       !user.party.portal_access ||
       user.party.deleted_at ||
       !user.party.is_active
     ) {
-      throw new UnauthorizedException('Portal account is not active.');
+      throw new UnauthorizedException("Portal account is not active.");
     }
 
     if (user.id !== payload.sub || user.tenant_id !== payload.tenantId) {
-      throw new UnauthorizedException('Portal token mismatch.');
+      throw new UnauthorizedException("Portal token mismatch.");
     }
 
     request.portalUser = {

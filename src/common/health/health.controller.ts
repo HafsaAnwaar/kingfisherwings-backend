@@ -1,9 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Public } from '../decorators/public.decorators';
+import { Controller, Get } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { Public } from "../decorators/public.decorators";
 
 @Public()
-@Controller('health')
+@Controller("health")
 export class HealthController {
   constructor(private prisma: PrismaService) {}
 
@@ -13,8 +13,8 @@ export class HealthController {
 
     return {
       success: true,
-      message: 'Backend is running',
-      database: 'Connected',
+      message: "Backend is running",
+      database: "Connected",
     };
   }
 }

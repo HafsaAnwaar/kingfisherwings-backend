@@ -1,6 +1,6 @@
-import { SetMetadata } from '@nestjs/common';
+import { SetMetadata } from "@nestjs/common";
 
-export const SKIP_STAFF_JWT_KEY = 'skipStaffJwt';
+export const SKIP_STAFF_JWT_KEY = "skipStaffJwt";
 
 /**
  * Skips the global staff JwtAuthGuard so portal/vendor guards can

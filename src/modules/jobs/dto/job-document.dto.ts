@@ -1,18 +1,29 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { DocumentType } from '@prisma/client';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Length, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { DocumentType } from "@prisma/client";
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+} from "class-validator";
 
 export class CreateJobDocumentDto {
   @ApiProperty({ enum: DocumentType })
   @IsEnum(DocumentType)
   document_type!: DocumentType;
 
-  @ApiProperty({ example: 'HAWB-KFW-AE-001.pdf' })
+  @ApiProperty({ example: "HAWB-KFW-AE-001.pdf" })
   @IsString()
   @Length(1, 300)
   file_name!: string;
 
-  @ApiProperty({ description: 'Public or signed URL where the generated/uploaded file is stored.' })
+  @ApiProperty({
+    description:
+      "Public or signed URL where the generated/uploaded file is stored.",
+  })
   @IsString()
   file_url!: string;
 

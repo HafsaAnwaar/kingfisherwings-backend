@@ -1,7 +1,12 @@
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  scryptSync,
+} from "crypto";
 
-const ALGORITHM = 'aes-256-gcm';
-const SALT = 'freightsaas-two-factor-secret-v1';
+const ALGORITHM = "aes-256-gcm";
+const SALT = "freightsaas-two-factor-secret-v1";
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 
@@ -19,19 +24,25 @@ export class TwoFactorCrypto {
     const key = this.deriveKey(secret);
     const iv = randomBytes(IV_LENGTH);
     const cipher = createCipheriv(ALGORITHM, key, iv);
-    const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()]);
+    const encrypted = Buffer.concat([
+      cipher.update(plainText, "utf8"),
+      cipher.final(),
+    ]);
     const authTag = cipher.getAuthTag();
-    return Buffer.concat([iv, authTag, encrypted]).toString('base64');
+    return Buffer.concat([iv, authTag, encrypted]).toString("base64");
   }
 
   static decrypt(payload: string, secret: string): string {
     const key = this.deriveKey(secret);
-    const raw = Buffer.from(payload, 'base64');
+    const raw = Buffer.from(payload, "base64");
     const iv = raw.subarray(0, IV_LENGTH);
     const authTag = raw.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
     const encrypted = raw.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
     const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
-    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+    return Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]).toString("utf8");
   }
 }

@@ -1,12 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { NvoccCargoType, NvoccTariff, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { NvoccCargoType, NvoccTariff, Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 import {
   CreateNvoccTariffDto,
   NvoccTariffLookupDto,
   NvoccTariffQueryDto,
   UpdateNvoccTariffDto,
-} from './dto/nvocc-tariff.dto';
+} from "./dto/nvocc-tariff.dto";
 
 export interface NvoccTariffChargeLine {
   description: string;
@@ -21,7 +21,11 @@ export interface NvoccTariffChargeLine {
 export class NvoccTariffsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(tenantId: string, dto: CreateNvoccTariffDto, actorId?: string): Promise<NvoccTariff> {
+  async create(
+    tenantId: string,
+    dto: CreateNvoccTariffDto,
+    actorId?: string,
+  ): Promise<NvoccTariff> {
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccTariff.create({
         data: {
@@ -31,7 +35,7 @@ export class NvoccTariffsService {
           pod_region: dto.pod_region,
           origin_port_id: dto.origin_port_id,
           dest_port_id: dto.dest_port_id,
-          commodity_type: dto.commodity_type ?? 'GENERAL',
+          commodity_type: dto.commodity_type ?? "GENERAL",
           container_type_id: dto.container_type_id,
           lcl_rate_cbm: dto.lcl_rate_cbm,
           lcl_rate_wm: dto.lcl_rate_wm,
@@ -45,10 +49,12 @@ export class NvoccTariffsService {
           pss_surcharge: dto.pss_surcharge,
           gri_surcharge: dto.gri_surcharge,
           rate_valid_from: new Date(dto.rate_valid_from),
-          rate_valid_to: dto.rate_valid_to ? new Date(dto.rate_valid_to) : undefined,
+          rate_valid_to: dto.rate_valid_to
+            ? new Date(dto.rate_valid_to)
+            : undefined,
           customer_id: dto.customer_id,
           currency_code: dto.currency_code.toUpperCase(),
-          status: dto.status ?? 'ACTIVE',
+          status: dto.status ?? "ACTIVE",
           created_by: actorId,
           updated_by: actorId,
         },
@@ -64,28 +70,35 @@ export class NvoccTariffsService {
       ...(query.search
         ? {
             OR: [
-              { trade_lane: { contains: query.search, mode: 'insensitive' } },
-              { pol_region: { contains: query.search, mode: 'insensitive' } },
-              { pod_region: { contains: query.search, mode: 'insensitive' } },
+              { trade_lane: { contains: query.search, mode: "insensitive" } },
+              { pol_region: { contains: query.search, mode: "insensitive" } },
+              { pod_region: { contains: query.search, mode: "insensitive" } },
             ],
           }
         : {}),
     };
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.nvoccTariff.findMany({ where, orderBy: { created_at: 'desc' } }),
+      tx.nvoccTariff.findMany({ where, orderBy: { created_at: "desc" } }),
     );
   }
 
   async findOne(tenantId: string, id: string) {
     const row = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.nvoccTariff.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } }),
+      tx.nvoccTariff.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      }),
     );
-    if (!row) throw new NotFoundException('NVOCC tariff not found.');
+    if (!row) throw new NotFoundException("NVOCC tariff not found.");
     return row;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateNvoccTariffDto, actorId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateNvoccTariffDto,
+    actorId?: string,
+  ) {
     await this.findOne(tenantId, id);
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.nvoccTariff.update({
@@ -93,8 +106,12 @@ export class NvoccTariffsService {
         data: {
           ...dto,
           currency_code: dto.currency_code?.toUpperCase(),
-          rate_valid_from: dto.rate_valid_from ? new Date(dto.rate_valid_from) : undefined,
-          rate_valid_to: dto.rate_valid_to ? new Date(dto.rate_valid_to) : undefined,
+          rate_valid_from: dto.rate_valid_from
+            ? new Date(dto.rate_valid_from)
+            : undefined,
+          rate_valid_to: dto.rate_valid_to
+            ? new Date(dto.rate_valid_to)
+            : undefined,
           updated_by: actorId,
         },
       }),
@@ -111,30 +128,37 @@ export class NvoccTariffsService {
     );
   }
 
-  async findMatch(tenantId: string, dto: NvoccTariffLookupDto): Promise<NvoccTariff | null> {
-    const validity = dto.validity_date ? new Date(dto.validity_date) : new Date();
+  async findMatch(
+    tenantId: string,
+    dto: NvoccTariffLookupDto,
+  ): Promise<NvoccTariff | null> {
+    const validity = dto.validity_date
+      ? new Date(dto.validity_date)
+      : new Date();
     const where: Prisma.NvoccTariffWhereInput = {
       tenant_id: tenantId,
       deleted_at: null,
-      status: 'ACTIVE',
+      status: "ACTIVE",
       rate_valid_from: { lte: validity },
       OR: [{ rate_valid_to: null }, { rate_valid_to: { gte: validity } }],
       ...(dto.origin_port_id ? { origin_port_id: dto.origin_port_id } : {}),
       ...(dto.dest_port_id ? { dest_port_id: dto.dest_port_id } : {}),
-      ...(dto.container_type_id ? { container_type_id: dto.container_type_id } : {}),
+      ...(dto.container_type_id
+        ? { container_type_id: dto.container_type_id }
+        : {}),
     };
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       if (dto.customer_id) {
         const customerSpecific = await tx.nvoccTariff.findFirst({
           where: { ...where, customer_id: dto.customer_id },
-          orderBy: { created_at: 'desc' },
+          orderBy: { created_at: "desc" },
         });
         if (customerSpecific) return customerSpecific;
       }
       return tx.nvoccTariff.findFirst({
         where: { ...where, customer_id: null },
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
       });
     });
   }
@@ -148,11 +172,11 @@ export class NvoccTariffsService {
     const lines: NvoccTariffChargeLine[] = [];
     const currency = tariff.currency_code;
 
-    if (cargoType === 'FCL' && tariff.fcl_rate != null) {
+    if (cargoType === "FCL" && tariff.fcl_rate != null) {
       const qty = containerCount ?? 1;
       const rate = Number(tariff.fcl_rate);
       lines.push({
-        description: 'Ocean Freight (FCL)',
+        description: "Ocean Freight (FCL)",
         quantity: qty,
         unit_price: rate,
         amount: rate * qty,
@@ -161,7 +185,7 @@ export class NvoccTariffsService {
       });
     }
 
-    if (cargoType === 'LCL') {
+    if (cargoType === "LCL") {
       const cbmQty = cbm ?? 1;
       const cbmRate = Number(tariff.lcl_rate_cbm ?? 0);
       const wmRate = Number(tariff.lcl_rate_wm ?? 0);
@@ -170,7 +194,7 @@ export class NvoccTariffsService {
       if (wmRate > 0) amount = Math.max(amount, wmRate * cbmQty);
       if (minCharge > 0) amount = Math.max(amount, minCharge);
       lines.push({
-        description: 'Ocean Freight (LCL)',
+        description: "Ocean Freight (LCL)",
         quantity: cbmQty,
         unit_price: amount / cbmQty,
         amount,
@@ -180,13 +204,13 @@ export class NvoccTariffsService {
     }
 
     const surcharges: Array<[string, Prisma.Decimal | null]> = [
-      ['Origin THC', tariff.origin_thc],
-      ['Destination THC', tariff.dest_thc],
-      ['BL Fee', tariff.bl_fee],
-      ['BAF Surcharge', tariff.baf_surcharge],
-      ['CAF Surcharge', tariff.caf_surcharge],
-      ['PSS Surcharge', tariff.pss_surcharge],
-      ['GRI Surcharge', tariff.gri_surcharge],
+      ["Origin THC", tariff.origin_thc],
+      ["Destination THC", tariff.dest_thc],
+      ["BL Fee", tariff.bl_fee],
+      ["BAF Surcharge", tariff.baf_surcharge],
+      ["CAF Surcharge", tariff.caf_surcharge],
+      ["PSS Surcharge", tariff.pss_surcharge],
+      ["GRI Surcharge", tariff.gri_surcharge],
     ];
 
     for (const [label, value] of surcharges) {

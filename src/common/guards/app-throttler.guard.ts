@@ -1,5 +1,5 @@
-import { ExecutionContext, Injectable } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ExecutionContext, Injectable } from "@nestjs/common";
+import { ThrottlerGuard } from "@nestjs/throttler";
 
 /**
  * Skips rate limiting when X-Throttle-Bypass matches CRON_SECRET (live test suites / CI).
@@ -7,9 +7,11 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 @Injectable()
 export class AppThrottlerGuard extends ThrottlerGuard {
   protected async shouldSkip(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest<{ headers?: Record<string, string> }>();
+    const req = context
+      .switchToHttp()
+      .getRequest<{ headers?: Record<string, string> }>();
     const secret = process.env.CRON_SECRET;
-    const bypass = req.headers?.['x-throttle-bypass'];
+    const bypass = req.headers?.["x-throttle-bypass"];
     if (secret && bypass && bypass === secret) {
       return true;
     }

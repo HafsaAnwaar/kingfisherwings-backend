@@ -1,12 +1,12 @@
 export const JOBS_PERMISSION_CONSTANTS = {
-  MODULE: 'jobs',
+  MODULE: "jobs",
   ACTIONS: {
-    VIEW: 'view',
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
-    CLOSE: 'close',
-    VIEW_GP: 'view_gp',
+    VIEW: "view",
+    CREATE: "create",
+    UPDATE: "update",
+    DELETE: "delete",
+    CLOSE: "close",
+    VIEW_GP: "view_gp",
   },
 } as const;
 

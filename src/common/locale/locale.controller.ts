@@ -1,21 +1,21 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CountryLocaleService } from './country-locale.service';
-import { Public } from '../decorators/public.decorators';
+import { Controller, Get, Param, Query } from "@nestjs/common";
+import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { CountryLocaleService } from "./country-locale.service";
+import { Public } from "../decorators/public.decorators";
 
-@ApiTags('Locale')
+@ApiTags("Locale")
 @Public()
-@Controller('locale')
+@Controller("locale")
 export class LocaleController {
   constructor(private readonly locale: CountryLocaleService) {}
 
-  @Get('defaults')
+  @Get("defaults")
   @ApiOperation({
-    summary: 'Optional country → suggested dial / currency / timezone',
+    summary: "Optional country → suggested dial / currency / timezone",
     description:
-      'Country is optional. Pass ?country=AE to get suggestions for forms. Omit country (or call without query) to receive null suggestions — nothing is forced.',
+      "Country is optional. Pass ?country=AE to get suggestions for forms. Omit country (or call without query) to receive null suggestions — nothing is forced.",
   })
-  getDefaults(@Query('country') country?: string) {
+  getDefaults(@Query("country") country?: string) {
     const defaults = this.locale.getLocaleDefaults(country);
     const profile = this.locale.getProfile(defaults.countryCode);
     return {
@@ -33,9 +33,11 @@ export class LocaleController {
     };
   }
 
-  @Get(':countryCode')
-  @ApiOperation({ summary: 'Locale suggestions for an ISO country (still optional to use)' })
-  getProfile(@Param('countryCode') countryCode: string) {
+  @Get(":countryCode")
+  @ApiOperation({
+    summary: "Locale suggestions for an ISO country (still optional to use)",
+  })
+  getProfile(@Param("countryCode") countryCode: string) {
     return this.getDefaults(countryCode);
   }
 }

@@ -1,23 +1,32 @@
-import { BadRequestException } from '@nestjs/common';
-import { JobType, Prisma } from '@prisma/client';
+import { BadRequestException } from "@nestjs/common";
+import { JobType, Prisma } from "@prisma/client";
 import {
   AIR_IMPORT_CREATE_MILESTONE,
   AIR_IMPORT_MILESTONES,
-} from '../constants/air-import-milestones';
-import { AIR_EXPORT_MILESTONES } from '../constants/air-export-milestones';
-import { SEA_FCL_EXPORT_MILESTONES } from '../constants/sea-fcl-export-milestones';
-import { SEA_FCL_IMPORT_MILESTONES } from '../constants/sea-fcl-import-milestones';
+} from "../constants/air-import-milestones";
+import { AIR_EXPORT_MILESTONES } from "../constants/air-export-milestones";
+import { SEA_FCL_EXPORT_MILESTONES } from "../constants/sea-fcl-export-milestones";
+import { SEA_FCL_IMPORT_MILESTONES } from "../constants/sea-fcl-import-milestones";
 import {
   SEA_LCL_EXPORT_CREATE_MILESTONE,
   SEA_LCL_EXPORT_MILESTONES,
-} from '../constants/sea-lcl-export-milestones';
+} from "../constants/sea-lcl-export-milestones";
 import {
   SEA_LCL_IMPORT_CREATE_MILESTONE,
   SEA_LCL_IMPORT_MILESTONES,
-} from '../constants/sea-lcl-import-milestones';
-import { LAND_CREATE_MILESTONE, LAND_MILESTONES } from '../constants/land-milestones';
-import { COURIER_CREATE_MILESTONE, COURIER_MILESTONES } from '../constants/courier-milestones';
-import { NVOCC_CREATE_MILESTONE, NVOCC_MILESTONES } from '../../nvocc/constants/nvocc-milestones';
+} from "../constants/sea-lcl-import-milestones";
+import {
+  LAND_CREATE_MILESTONE,
+  LAND_MILESTONES,
+} from "../constants/land-milestones";
+import {
+  COURIER_CREATE_MILESTONE,
+  COURIER_MILESTONES,
+} from "../constants/courier-milestones";
+import {
+  NVOCC_CREATE_MILESTONE,
+  NVOCC_MILESTONES,
+} from "../../nvocc/constants/nvocc-milestones";
 
 /**
  * Seeds mode-specific detail rows and standard milestones after job create / quote convert.
@@ -43,10 +52,11 @@ export async function seedJobTypeExtras(
 }
 
 function isMissingRelationError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const code = 'code' in error ? String((error as { code?: unknown }).code) : '';
-  const message = error instanceof Error ? error.message : '';
-  return code === 'P2021' || /does not exist/i.test(message);
+  if (!error || typeof error !== "object") return false;
+  const code =
+    "code" in error ? String((error as { code?: unknown }).code) : "";
+  const message = error instanceof Error ? error.message : "";
+  return code === "P2021" || /does not exist/i.test(message);
 }
 
 async function seedJobTypeExtrasInner(
@@ -56,60 +66,90 @@ async function seedJobTypeExtrasInner(
   jobType: JobType,
   actorId?: string,
 ): Promise<void> {
-  if (jobType === 'AIR_EXPORT' || jobType === 'AIR_IMPORT') {
+  if (jobType === "AIR_EXPORT" || jobType === "AIR_IMPORT") {
     await tx.airJobDetail.create({
-      data: { tenant_id: tenantId, job_id: jobId, created_by: actorId, updated_by: actorId },
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        created_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 
-  if (jobType === 'SEA_FCL_EXPORT' || jobType === 'SEA_FCL_IMPORT') {
+  if (jobType === "SEA_FCL_EXPORT" || jobType === "SEA_FCL_IMPORT") {
     await tx.seaFclJobDetail.create({
-      data: { tenant_id: tenantId, job_id: jobId, created_by: actorId, updated_by: actorId },
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        created_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 
-  if (jobType === 'SEA_LCL_EXPORT' || jobType === 'SEA_LCL_IMPORT') {
+  if (jobType === "SEA_LCL_EXPORT" || jobType === "SEA_LCL_IMPORT") {
     await tx.seaLclJobDetail.create({
-      data: { tenant_id: tenantId, job_id: jobId, created_by: actorId, updated_by: actorId },
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        created_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 
-  if (jobType === 'LAND') {
+  if (jobType === "LAND") {
     await tx.landJobDetail.create({
-      data: { tenant_id: tenantId, job_id: jobId, created_by: actorId, updated_by: actorId },
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        created_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 
-  if (jobType === 'COURIER') {
+  if (jobType === "COURIER") {
     await tx.courierJobDetail.create({
-      data: { tenant_id: tenantId, job_id: jobId, created_by: actorId, updated_by: actorId },
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        created_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 
-  if (jobType === 'NVOCC_EXPORT' || jobType === 'NVOCC_IMPORT') {
+  if (jobType === "NVOCC_EXPORT" || jobType === "NVOCC_IMPORT") {
     await tx.nvoccJobDetail.create({
-      data: { tenant_id: tenantId, job_id: jobId, created_by: actorId, updated_by: actorId },
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        created_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 
   const milestoneNames =
-    jobType === 'AIR_EXPORT'
+    jobType === "AIR_EXPORT"
       ? AIR_EXPORT_MILESTONES
-      : jobType === 'AIR_IMPORT'
+      : jobType === "AIR_IMPORT"
         ? AIR_IMPORT_MILESTONES
-        : jobType === 'SEA_FCL_EXPORT'
+        : jobType === "SEA_FCL_EXPORT"
           ? SEA_FCL_EXPORT_MILESTONES
-          : jobType === 'SEA_FCL_IMPORT'
+          : jobType === "SEA_FCL_IMPORT"
             ? SEA_FCL_IMPORT_MILESTONES
-            : jobType === 'SEA_LCL_EXPORT'
+            : jobType === "SEA_LCL_EXPORT"
               ? SEA_LCL_EXPORT_MILESTONES
-              : jobType === 'SEA_LCL_IMPORT'
+              : jobType === "SEA_LCL_IMPORT"
                 ? SEA_LCL_IMPORT_MILESTONES
-                : jobType === 'LAND'
+                : jobType === "LAND"
                   ? LAND_MILESTONES
-                  : jobType === 'COURIER'
+                  : jobType === "COURIER"
                     ? COURIER_MILESTONES
-                    : jobType === 'NVOCC_EXPORT' || jobType === 'NVOCC_IMPORT'
+                    : jobType === "NVOCC_EXPORT" || jobType === "NVOCC_IMPORT"
                       ? NVOCC_MILESTONES
                       : null;
 
@@ -125,7 +165,7 @@ async function seedJobTypeExtrasInner(
     });
   }
 
-  if (jobType === 'AIR_IMPORT') {
+  if (jobType === "AIR_IMPORT") {
     await tx.jobMilestone.updateMany({
       where: {
         tenant_id: tenantId,
@@ -142,9 +182,11 @@ async function seedJobTypeExtrasInner(
     });
   }
 
-  if (jobType === 'SEA_LCL_EXPORT' || jobType === 'SEA_LCL_IMPORT') {
+  if (jobType === "SEA_LCL_EXPORT" || jobType === "SEA_LCL_IMPORT") {
     const createMilestone =
-      jobType === 'SEA_LCL_EXPORT' ? SEA_LCL_EXPORT_CREATE_MILESTONE : SEA_LCL_IMPORT_CREATE_MILESTONE;
+      jobType === "SEA_LCL_EXPORT"
+        ? SEA_LCL_EXPORT_CREATE_MILESTONE
+        : SEA_LCL_IMPORT_CREATE_MILESTONE;
     await tx.jobMilestone.updateMany({
       where: {
         tenant_id: tenantId,
@@ -161,8 +203,9 @@ async function seedJobTypeExtrasInner(
     });
   }
 
-  if (jobType === 'LAND' || jobType === 'COURIER') {
-    const createMilestone = jobType === 'LAND' ? LAND_CREATE_MILESTONE : COURIER_CREATE_MILESTONE;
+  if (jobType === "LAND" || jobType === "COURIER") {
+    const createMilestone =
+      jobType === "LAND" ? LAND_CREATE_MILESTONE : COURIER_CREATE_MILESTONE;
     await tx.jobMilestone.updateMany({
       where: {
         tenant_id: tenantId,
@@ -179,7 +222,7 @@ async function seedJobTypeExtrasInner(
     });
   }
 
-  if (jobType === 'NVOCC_EXPORT' || jobType === 'NVOCC_IMPORT') {
+  if (jobType === "NVOCC_EXPORT" || jobType === "NVOCC_IMPORT") {
     await tx.jobMilestone.updateMany({
       where: {
         tenant_id: tenantId,

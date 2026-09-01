@@ -1,11 +1,14 @@
-import { Process, Processor } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
-import { CampaignStatus } from '@prisma/client';
-import { Job as BullJob } from 'bull';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../shared/email/email.service';
-import { NotificationEmitterService } from '../../modules/notifications/notification-emitter.service';
-import { EMAIL_CAMPAIGN_QUEUE, EmailCampaignJobPayload } from './queue.constants';
+import { Process, Processor } from "@nestjs/bull";
+import { Logger } from "@nestjs/common";
+import { CampaignStatus } from "@prisma/client";
+import { Job as BullJob } from "bull";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../shared/email/email.service";
+import { NotificationEmitterService } from "../../modules/notifications/notification-emitter.service";
+import {
+  EMAIL_CAMPAIGN_QUEUE,
+  EmailCampaignJobPayload,
+} from "./queue.constants";
 
 const BATCH_SIZE = 50;
 
@@ -19,9 +22,15 @@ export class EmailCampaignProcessor {
     private readonly notifications: NotificationEmitterService,
   ) {}
 
-  @Process('dispatch-batch')
+  @Process("dispatch-batch")
   async handleBatch(job: BullJob<EmailCampaignJobPayload>) {
-    const { tenantId, campaignId, actorId, offset = 0, batchSize = BATCH_SIZE } = job.data;
+    const {
+      tenantId,
+      campaignId,
+      actorId,
+      offset = 0,
+      batchSize = BATCH_SIZE,
+    } = job.data;
 
     const campaign = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.emailCampaign.findFirst({
@@ -29,13 +38,27 @@ export class EmailCampaignProcessor {
       }),
     );
 
-    if (!campaign || campaign.status === CampaignStatus.SENT || campaign.status === CampaignStatus.CANCELLED) {
+    if (
+      !campaign ||
+      campaign.status === CampaignStatus.SENT ||
+      campaign.status === CampaignStatus.CANCELLED
+    ) {
       return;
     }
 
-    const subscribers = await this.resolveRecipients(tenantId, campaign, offset, batchSize);
+    const subscribers = await this.resolveRecipients(
+      tenantId,
+      campaign,
+      offset,
+      batchSize,
+    );
     if (!subscribers.length) {
-      await this.finalizeIfComplete(tenantId, campaignId, actorId, campaign.name);
+      await this.finalizeIfComplete(
+        tenantId,
+        campaignId,
+        actorId,
+        campaign.name,
+      );
       return;
     }
 
@@ -45,13 +68,13 @@ export class EmailCampaignProcessor {
     for (const sub of subscribers) {
       const log = await this.email.send({
         tenantId,
-        eventType: 'CRM_CAMPAIGN',
+        eventType: "CRM_CAMPAIGN",
         to: sub.email,
         subject: campaign.subject,
         body: campaign.body,
         createdBy: actorId,
       });
-      if (log.status === 'SENT') sentDelta += 1;
+      if (log.status === "SENT") sentDelta += 1;
       else failedDelta += 1;
     }
 
@@ -67,8 +90,14 @@ export class EmailCampaignProcessor {
 
     if (subscribers.length === batchSize) {
       await job.queue.add(
-        'dispatch-batch',
-        { tenantId, campaignId, actorId, offset: offset + batchSize, batchSize },
+        "dispatch-batch",
+        {
+          tenantId,
+          campaignId,
+          actorId,
+          offset: offset + batchSize,
+          batchSize,
+        },
         { jobId: `${campaignId}:${offset + batchSize}` },
       );
       return;
@@ -95,10 +124,10 @@ export class EmailCampaignProcessor {
 
     if (actorId) {
       await this.notifications.notifyStaffUser(tenantId, actorId, {
-        type: 'CAMPAIGN_SENT',
-        title: 'Campaign sent',
+        type: "CAMPAIGN_SENT",
+        title: "Campaign sent",
         message: `${campaignName}: ${updated.sent_count} sent, ${updated.failed_count} failed.`,
-        entity_type: 'email_campaign',
+        entity_type: "email_campaign",
         entity_id: campaignId,
         link_path: `/crm/campaigns/${campaignId}`,
       });
@@ -107,7 +136,10 @@ export class EmailCampaignProcessor {
 
   private async resolveRecipients(
     tenantId: string,
-    campaign: { filter_party_type: string | null; filter_country: string | null },
+    campaign: {
+      filter_party_type: string | null;
+      filter_country: string | null;
+    },
     offset: number,
     take: number,
   ) {
@@ -116,7 +148,9 @@ export class EmailCampaignProcessor {
         where: {
           tenant_id: tenantId,
           unsubscribed_at: null,
-          ...(campaign.filter_country ? { country_code: campaign.filter_country } : {}),
+          ...(campaign.filter_country
+            ? { country_code: campaign.filter_country }
+            : {}),
           ...(campaign.filter_party_type
             ? { party: { party_type: campaign.filter_party_type as never } }
             : {}),
@@ -124,7 +158,7 @@ export class EmailCampaignProcessor {
         select: { id: true, email: true },
         skip: offset,
         take,
-        orderBy: { created_at: 'asc' },
+        orderBy: { created_at: "asc" },
       }),
     );
   }

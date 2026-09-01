@@ -1,1 +1,1 @@
-export { ChangePasswordDto } from '../../users/dto/change-password.dto';
+export { ChangePasswordDto } from "../../users/dto/change-password.dto";
