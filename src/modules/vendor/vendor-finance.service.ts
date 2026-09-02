@@ -7,6 +7,7 @@ import { StorageService } from "../../shared/storage/storage.service";
 import { ArApService } from "../gl/ar-ap.service";
 import { PaymentsService } from "../gl/payments.service";
 import { InvoicesService } from "../invoices/invoices.service";
+import { PaymentProofsService } from "../invoices/payment-proofs/payment-proofs.service";
 import { PaymentRequestsService } from "../invoices/payment-requests.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import {
@@ -34,6 +35,7 @@ export class VendorFinanceService {
     private readonly storage: StorageService,
     private readonly pdf: PdfService,
     private readonly notifications: NotificationEmitterService,
+    private readonly paymentProofs: PaymentProofsService,
   ) {}
 
   async listInvoices(
@@ -409,6 +411,93 @@ export class VendorFinanceService {
       message: "Invoice submitted as draft for finance review.",
       data: this.toInvoiceItem(created),
     };
+  }
+
+  async listOpenItems(user: CurrentVendorUser) {
+    const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.invoice.findMany({
+        where: {
+          tenant_id: user.tenantId,
+          party_id: user.partyId,
+          deleted_at: null,
+          invoice_type: "PURCHASE_INVOICE",
+          status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
+          balance_due: { gt: 0.0001 },
+        },
+        orderBy: [{ due_date: "asc" }, { invoice_date: "desc" }],
+      }),
+    );
+    return {
+      success: true,
+      data: rows.map((inv) => this.toInvoiceItem(inv)),
+      meta: {
+        total_pending: rows.reduce(
+          (sum, inv) => sum + Number(inv.balance_due),
+          0,
+        ),
+        count: rows.length,
+      },
+    };
+  }
+
+  async paymentsSummary(user: CurrentVendorUser) {
+    const yearStart = new Date(new Date().getFullYear(), 0, 1);
+    const [openRows, payments] = await Promise.all([
+      this.listOpenItems(user),
+      this.listPayments(user),
+    ]);
+    const totalReceivedYtd = (payments.data as any[]).filter(
+      (p) => new Date(p.payment_date) >= yearStart,
+    ).reduce((sum, p) => sum + Number(p.amount), 0);
+
+    return {
+      success: true,
+      data: {
+        total_pending_receipt: openRows.meta.total_pending,
+        total_received_ytd: totalReceivedYtd,
+        currency_code: openRows.data[0]?.currency_code ?? "USD",
+      },
+    };
+  }
+
+  async listPaymentProofs(user: CurrentVendorUser, invoiceId: string) {
+    await this.getInvoice(user, invoiceId);
+    return this.paymentProofs.listForInvoice(user.tenantId, invoiceId);
+  }
+
+  async uploadPaymentProof(
+    user: CurrentVendorUser,
+    invoiceId: string,
+    body: {
+      amount_claimed: number;
+      payment_date: string;
+      reference_number?: string;
+      notes?: string;
+    },
+    file: Express.Multer.File,
+  ) {
+    await this.getInvoice(user, invoiceId);
+    return this.paymentProofs.create({
+      tenantId: user.tenantId,
+      direction: "TENANT_TO_VENDOR",
+      invoiceId,
+      amountClaimed: body.amount_claimed,
+      paymentDate: body.payment_date,
+      referenceNumber: body.reference_number,
+      notes: body.notes,
+      submittedByPartyId: user.partyId,
+      submittedByUserId: user.id,
+      file,
+      actorId: user.id,
+    });
+  }
+
+  async getPaymentRequest(user: CurrentVendorUser, id: string) {
+    return this.paymentRequests.findOneForVendor(
+      user.tenantId,
+      user.partyId,
+      id,
+    );
   }
 
   private toPaymentItem(p: {

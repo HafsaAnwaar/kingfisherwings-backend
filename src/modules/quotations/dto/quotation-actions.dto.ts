@@ -30,3 +30,21 @@ export class ApprovalDecisionDto {
   @MaxLength(500)
   comments?: string;
 }
+
+export class ReviseAndSendDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(1000)
+  message!: string;
+}
+
+export class NegotiationRejectDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(1000)
+  message!: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  terminal?: boolean;
+}

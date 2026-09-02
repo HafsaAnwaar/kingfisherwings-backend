@@ -14,6 +14,9 @@ import { Response } from "express";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import {
+  PortalQuotationAcceptDto,
+  PortalQuotationCounterOfferDto,
+  PortalQuotationEstimateDto,
   PortalQuotationQueryDto,
   PortalQuotationRejectDto,
   PortalQuotationRequestDto,
@@ -43,6 +46,26 @@ export class PortalQuotationsController {
     return this.quotations.summary(user);
   }
 
+  @Get("service-catalog")
+  @ApiOperation({ summary: "List services available for portal quote requests" })
+  serviceCatalog(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Query("job_type") jobType?: string,
+  ) {
+    return this.quotations.getServiceCatalog(user, jobType);
+  }
+
+  @Post("estimate")
+  @ApiOperation({
+    summary: "Preview quote pricing with packages and selected services",
+  })
+  estimate(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Body() dto: PortalQuotationEstimateDto,
+  ) {
+    return this.quotations.estimate(user, dto);
+  }
+
   @Post("request")
   @ApiOperation({
     summary: "Request a new freight quote",
@@ -65,8 +88,9 @@ export class PortalQuotationsController {
   accept(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PortalQuotationAcceptDto,
   ) {
-    return this.quotations.accept(user, id);
+    return this.quotations.accept(user, id, dto);
   }
 
   @Post(":id/reject")
@@ -81,6 +105,25 @@ export class PortalQuotationsController {
     @Body() dto: PortalQuotationRejectDto,
   ) {
     return this.quotations.reject(user, id, dto);
+  }
+
+  @Post(":id/counter-offer")
+  @ApiOperation({ summary: "Submit a counter-offer on a sent or revised quote" })
+  counterOffer(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PortalQuotationCounterOfferDto,
+  ) {
+    return this.quotations.counterOffer(user, id, dto);
+  }
+
+  @Get(":id/negotiation")
+  @ApiOperation({ summary: "Negotiation timeline for this quotation" })
+  negotiation(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.quotations.negotiationTimeline(user, id);
   }
 
   @Get()

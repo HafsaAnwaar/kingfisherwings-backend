@@ -12,7 +12,7 @@ import {
   Max,
   Min,
 } from "class-validator";
-import { JobType } from "@prisma/client";
+import { JobType, QuotationSource } from "@prisma/client";
 
 const INCOTERMS = [
   "EXW",
@@ -196,6 +196,11 @@ export class CreateQuotationDto {
   @IsNumber()
   @Min(0)
   discount_amount?: number;
+
+  @ApiPropertyOptional({ enum: QuotationSource })
+  @IsOptional()
+  @IsEnum(QuotationSource)
+  source?: QuotationSource;
 }
 
 export class UpdateQuotationDto extends PartialType(CreateQuotationDto) {}

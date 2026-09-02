@@ -12,8 +12,10 @@ import { CreditNotesController } from "./credit-notes.controller";
 import { DebitNotesController } from "./debit-notes.controller";
 import { PurchaseInvoicesController } from "./purchase-invoices.controller";
 import { PaymentRequestsController } from "./payment-requests.controller";
+import { PaymentProofsController, InvoicePaymentProofsController } from "./payment-proofs/payment-proofs.controller";
 import { InvoicesService } from "./invoices.service";
 import { PaymentRequestsService } from "./payment-requests.service";
+import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
 
 @Module({
   imports: [
@@ -32,8 +34,10 @@ import { PaymentRequestsService } from "./payment-requests.service";
     DebitNotesController,
     PurchaseInvoicesController,
     PaymentRequestsController,
+    PaymentProofsController,
+    InvoicePaymentProofsController,
   ],
-  providers: [InvoicesService, PaymentRequestsService],
-  exports: [InvoicesService, PaymentRequestsService],
+  providers: [InvoicesService, PaymentRequestsService, PaymentProofsService],
+  exports: [InvoicesService, PaymentRequestsService, PaymentProofsService],
 })
 export class InvoicesModule {}

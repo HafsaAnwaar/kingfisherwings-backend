@@ -10,6 +10,9 @@ import { QuotationsController } from "./quotations.controller";
 import { QuotationsService } from "./quotations.service";
 import { TariffsController } from "./tariffs/tariffs.controller";
 import { TariffsService } from "./tariffs/tariffs.service";
+import { ServiceCatalogController } from "./service-catalog/service-catalog.controller";
+import { ServiceCatalogService } from "./service-catalog/service-catalog.service";
+import { QuotationNegotiationService } from "./quotation-negotiation.service";
 import { ZipDistancesController } from "./zip-distances/zip-distances.controller";
 import { ZipDistancesService } from "./zip-distances/zip-distances.service";
 
@@ -25,6 +28,7 @@ import { ZipDistancesService } from "./zip-distances/zip-distances.service";
   // Tariffs + zip-distances MUST register before QuotationsController so
   // Nest does not let GET /quotations/:id swallow /quotations/tariffs.
   controllers: [
+    ServiceCatalogController,
     TariffsController,
     ZipDistancesController,
     QuotationsController,
@@ -32,9 +36,16 @@ import { ZipDistancesService } from "./zip-distances/zip-distances.service";
   providers: [
     QuotationsService,
     TariffsService,
+    ServiceCatalogService,
+    QuotationNegotiationService,
     ZipDistancesService,
     CronSecretGuard,
   ],
-  exports: [QuotationsService, TariffsService],
+  exports: [
+    QuotationsService,
+    TariffsService,
+    ServiceCatalogService,
+    QuotationNegotiationService,
+  ],
 })
 export class QuotationsModule {}

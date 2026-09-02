@@ -7,9 +7,12 @@ import {
   Post,
   Query,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Response } from "express";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
 import { CurrentPortal } from "./decorators/portal.decorators";
@@ -29,6 +32,12 @@ import { PortalFinanceService } from "./portal-finance.service";
 @Controller("portal/invoices")
 export class PortalInvoicesController {
   constructor(private readonly finance: PortalFinanceService) {}
+
+  @Get("open-items")
+  @ApiOperation({ summary: "Invoices with outstanding balance" })
+  openItems(@CurrentPortal() user: CurrentPortalUser) {
+    return this.finance.listOpenItems(user);
+  }
 
   @Get("summary")
   @ApiOperation({ summary: "Invoice outstanding / overdue counters" })
@@ -75,6 +84,44 @@ export class PortalInvoicesController {
     @Res() res: Response,
   ) {
     return this.finance.downloadInvoicePdf(user, id, res);
+  }
+
+  @Get(":id/payment-proofs")
+  @ApiOperation({ summary: "List payment proofs for an invoice" })
+  listPaymentProofs(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.finance.listPaymentProofs(user, id);
+  }
+
+  @Post(":id/payment-proofs")
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({ summary: "Upload payment proof for an invoice" })
+  @UseInterceptors(FileInterceptor("file"))
+  uploadPaymentProof(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body()
+    body: {
+      amount_claimed: string;
+      payment_date: string;
+      reference_number?: string;
+      notes?: string;
+    },
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.finance.uploadPaymentProof(
+      user,
+      id,
+      {
+        amount_claimed: Number(body.amount_claimed),
+        payment_date: body.payment_date,
+        reference_number: body.reference_number,
+        notes: body.notes,
+      },
+      file,
+    );
   }
 }
 
@@ -147,6 +194,12 @@ export class PortalPaymentsController {
     @Query() query: PortalPaymentQueryDto,
   ) {
     return this.finance.listPayments(user, query);
+  }
+
+  @Get("summary")
+  @ApiOperation({ summary: "Total paid YTD vs outstanding" })
+  summary(@CurrentPortal() user: CurrentPortalUser) {
+    return this.finance.paymentsSummary(user);
   }
 }
 

@@ -757,6 +757,41 @@ Executives: CRM services call `salespersonScope()` — if role is `SALES_EXECUTI
 
 ---
 
+## 11. Portal quote, negotiation & payment proof (2026-09)
+
+### Customer quote request with pricing
+
+```
+POST /portal/quotations/estimate   → CBM + catalog-priced lines (no persist)
+POST /portal/quotations/request    → Quotation + QuotationCargoPackage[] + lines
+GET  /portal/quotations/service-catalog
+```
+
+Tenant staff maintains `GET/POST/PATCH /quotations/service-catalog`.
+
+### Negotiation loop
+
+```
+Staff: POST /quotations/:id/revise-and-send  → CUSTOMER_REVIEW + QuotationNegotiationEvent
+Portal: POST /portal/quotations/:id/counter-offer → NEGOTIATING
+Staff: POST /quotations/:id/negotiation/accept|reject
+Portal: POST /portal/quotations/:id/accept|reject
+GET  */quotations/:id/negotiation (staff + portal)
+WON → staff POST /quotations/:id/convert-to-job
+```
+
+### Partial payments & proofs
+
+```
+GET /portal/invoices/open-items, GET /portal/payments/summary
+GET /vendor/invoices/open-items, GET /vendor/payments/summary
+POST /payment-requests/:id/mark-paid → GL Payment create + post
+POST /portal/invoices/:id/payment-proofs (multipart)
+PATCH /payment-proofs/:id/acknowledge|reject
+```
+
+---
+
 ## Related
 
 - [decision.md](./decision.md)

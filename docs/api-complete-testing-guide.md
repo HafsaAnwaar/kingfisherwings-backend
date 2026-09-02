@@ -1303,6 +1303,34 @@ BASE_URL=http://localhost:3000 node scripts/financial-accuracy-audit.cjs
 
 Compares job revenue charge totals vs invoice line totals (tolerance 0.01).
 
+## Portal quotes, negotiation & payment proofs
+
+Smoke scripts (endpoint catalog; pass tokens for live runs):
+
+```bash
+node scripts/portal-quote-negotiation-test.cjs
+node scripts/portal-open-items-test.cjs
+node scripts/payment-proof-api-test.cjs
+```
+
+Key routes:
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/portal/quotations/service-catalog` | Portal-visible services |
+| POST | `/portal/quotations/estimate` | `{ packages[], service_codes[] }` |
+| POST | `/portal/quotations/request` | Extended DTO or legacy simple request |
+| POST | `/quotations/:id/revise-and-send` | Staff negotiation |
+| GET | `/portal/invoices/open-items` | Outstanding AR |
+| POST | `/portal/invoices/:id/payment-proofs` | Multipart + file |
+| PATCH | `/payment-proofs/:id/acknowledge` | Staff review |
+
+Apply migration before testing:
+
+```bash
+npx prisma migrate deploy
+```
+
 ---
 
 *Generated for FreightSaas (Kingfisher Wings ERP). For interactive schemas, use Swagger at `/docs`.*

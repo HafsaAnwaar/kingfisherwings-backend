@@ -38,6 +38,7 @@ import { PortalService } from "./portal.service";
 import { PortalDocumentsService } from "./portal-documents.service";
 import { PortalPermissionsService } from "./portal-permissions.service";
 import { PortalPreferencesService } from "./portal-preferences.service";
+import { PortalQuotePricingService } from "./portal-quote-pricing.service";
 import { PortalQuotationsService } from "./portal-quotations.service";
 import { PortalShipmentsService } from "./portal-shipments.service";
 import { PortalFinanceService } from "./portal-finance.service";
@@ -80,6 +81,7 @@ import { PortalCcpService } from "./portal-ccp.service";
     PortalService,
     PortalShipmentsService,
     PortalQuotationsService,
+    PortalQuotePricingService,
     PortalPermissionsService,
     PortalDocumentsService,
     PortalFinanceService,
@@ -91,6 +93,7 @@ import { PortalCcpService } from "./portal-ccp.service";
     PortalService,
     PortalShipmentsService,
     PortalQuotationsService,
+    PortalQuotePricingService,
     PortalPermissionsService,
     PortalDocumentsService,
     PortalFinanceService,

@@ -861,4 +861,55 @@ export class PaymentsService {
       }
     }
   }
+
+  async createAndPostForPaymentRequest(
+    tenantId: string,
+    input: {
+      partyId: string;
+      invoiceId: string;
+      amount: number;
+      currencyCode: string;
+      referenceNumber?: string;
+      narration?: string;
+    },
+    actorId?: string,
+  ) {
+    const invoice = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.findFirst({
+        where: {
+          id: input.invoiceId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
+      }),
+    );
+    if (!invoice) {
+      throw new BadRequestException("Linked invoice not found.");
+    }
+
+    const direction =
+      invoice.invoice_type === "PURCHASE_INVOICE" ||
+      invoice.invoice_type === "CREDIT_NOTE"
+        ? "PAYMENT"
+        : "RECEIPT";
+
+    const payment = await this.create(
+      tenantId,
+      {
+        direction,
+        party_id: input.partyId,
+        amount: input.amount,
+        currency_code: input.currencyCode,
+        payment_method: "BANK_TRANSFER",
+        reference_number: input.referenceNumber,
+        narration:
+          input.narration ??
+          `Payment request settlement for invoice ${invoice.invoice_number}`,
+        allocations: [{ invoice_id: input.invoiceId, amount: input.amount }],
+      },
+      actorId,
+    );
+
+    return this.post(tenantId, payment.id, actorId);
+  }
 }

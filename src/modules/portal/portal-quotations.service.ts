@@ -10,13 +10,19 @@ import { StorageService } from "../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { QuotationsService } from "../quotations/quotations.service";
 import {
+  PortalQuotationAcceptDto,
+  PortalQuotationCounterOfferDto,
+  PortalQuotationEstimateDto,
   PortalQuotationQueryDto,
   PortalQuotationRejectDto,
   PortalQuotationRequestDto,
 } from "./dto/portal-quotation.dto";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
+import { PortalQuotePricingService } from "./portal-quote-pricing.service";
+import { QuotationNegotiationService } from "../quotations/quotation-negotiation.service";
+import { ServiceCatalogService } from "../quotations/service-catalog/service-catalog.service";
 
-const PORTAL_CUSTOMER_REMARKS = ["customer portal", "online quote"];
+const PORTAL_CUSTOMER_SOURCES = ["CUSTOMER_PORTAL", "ONLINE_WIDGET"] as const;
 
 @Injectable()
 export class PortalQuotationsService {
@@ -25,15 +31,45 @@ export class PortalQuotationsService {
     private readonly quotations: QuotationsService,
     private readonly notifications: NotificationEmitterService,
     private readonly storage: StorageService,
+    private readonly pricing: PortalQuotePricingService,
+    private readonly negotiation: QuotationNegotiationService,
+    private readonly catalog: ServiceCatalogService,
   ) {}
 
-  async requestQuote(user: CurrentPortalUser, dto: PortalQuotationRequestDto) {
-    const result = await this.quotations.createPortalQuoteRequest(
+  async getServiceCatalog(user: CurrentPortalUser, jobType?: string) {
+    return this.catalog.findPortalVisible(user.tenantId, jobType as any);
+  }
+
+  async estimate(user: CurrentPortalUser, dto: PortalQuotationEstimateDto) {
+    const estimate = await this.pricing.buildEstimate(
       user.tenantId,
       user.partyId,
       dto,
-      user.id,
     );
+    return { success: true, data: estimate };
+  }
+
+  async requestQuote(user: CurrentPortalUser, dto: PortalQuotationRequestDto) {
+    const hasRichPayload =
+      "packages" in dto &&
+      Array.isArray((dto as PortalQuotationEstimateDto).packages) &&
+      (dto as PortalQuotationEstimateDto).packages.length > 0 &&
+      "service_codes" in dto &&
+      Array.isArray((dto as PortalQuotationEstimateDto).service_codes);
+
+    const result = hasRichPayload
+      ? await this.pricing.persistQuote(
+          user.tenantId,
+          user.partyId,
+          dto as PortalQuotationEstimateDto,
+          user.id,
+        )
+      : await this.quotations.createPortalQuoteRequest(
+          user.tenantId,
+          user.partyId,
+          dto,
+          user.id,
+        );
 
     await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
       type: "QUOTATION_REQUEST",
@@ -123,7 +159,8 @@ export class PortalQuotationsService {
     }
 
     const pending = byStatus.DRAFT + byStatus.SUBMITTED + byStatus.APPROVED;
-    const active = byStatus.SENT;
+    const active =
+      byStatus.SENT + byStatus.NEGOTIATING + byStatus.CUSTOMER_REVIEW;
     const closed =
       byStatus.WON +
       byStatus.LOST +
@@ -159,6 +196,7 @@ export class PortalQuotationsService {
               where: { is_cost: false },
               orderBy: { sort_order: "asc" },
             },
+            packages: { orderBy: { sort_order: "asc" } },
             status_history: {
               orderBy: { created_at: "asc" },
               select: {
@@ -206,6 +244,21 @@ export class PortalQuotationsService {
       },
     );
 
+    let convertedJobNumber: string | null = null;
+    if (quotation.converted_job_id) {
+      const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+        tx.job.findFirst({
+          where: {
+            id: quotation.converted_job_id!,
+            tenant_id: user.tenantId,
+            deleted_at: null,
+          },
+          select: { job_number: true },
+        }),
+      );
+      convertedJobNumber = job?.job_number ?? null;
+    }
+
     const revenueTotal = quotation.lines.reduce(
       (sum, line) => sum + Number(line.amount),
       0,
@@ -252,12 +305,24 @@ export class PortalQuotationsService {
           currency_code: line.currency_code,
           amount: line.amount,
         })),
+        packages: quotation.packages.map((pkg) => ({
+          id: pkg.id,
+          length_cm: pkg.length_cm,
+          width_cm: pkg.width_cm,
+          height_cm: pkg.height_cm,
+          gross_weight_kg: pkg.gross_weight_kg,
+          pieces: pkg.pieces,
+          cbm: pkg.cbm,
+        })),
         status_history: quotation.status_history,
         sent_at: quotation.sent_at,
         won_at: quotation.won_at,
         lost_at: quotation.lost_at,
         lost_reason: quotation.lost_reason,
         converted_job_id: quotation.converted_job_id,
+        converted_job_number: convertedJobNumber,
+        negotiation_round: quotation.negotiation_round,
+        source: quotation.source,
         customer_pdf_url: quotation.customer_pdf_url,
         has_pdf: Boolean(quotation.customer_pdf_url),
         created_at: quotation.created_at,
@@ -307,16 +372,20 @@ export class PortalQuotationsService {
     res.send(file.buffer);
   }
 
-  async accept(user: CurrentPortalUser, quotationId: string) {
+  async accept(
+    user: CurrentPortalUser,
+    quotationId: string,
+    dto?: PortalQuotationAcceptDto,
+  ) {
     const quotation = await this.getOwnedOrThrow(user, quotationId);
-    if (quotation.status !== "SENT") {
-      throw new ConflictException("Only a SENT quotation can be accepted.");
-    }
+    this.negotiation.assertCustomerActionable(quotation.status);
 
     const updated = await this.quotations.markWon(
       user.tenantId,
       quotationId,
       user.id,
+      dto?.message,
+      { fromPortal: true },
     );
     return {
       success: true,
@@ -336,19 +405,21 @@ export class PortalQuotationsService {
     dto: PortalQuotationRejectDto,
   ) {
     const quotation = await this.getOwnedOrThrow(user, quotationId);
-    if (quotation.status !== "SENT") {
-      throw new ConflictException("Only a SENT quotation can be rejected.");
-    }
+    this.negotiation.assertCustomerActionable(quotation.status);
 
     const updated = await this.quotations.markLost(
       user.tenantId,
       quotationId,
       { reason: dto.reason, notes: dto.notes },
       user.id,
+      { allowRenegotiate: true, fromPortal: true },
     );
     return {
       success: true,
-      message: "Quotation rejected.",
+      message:
+        updated.status === "NEGOTIATING"
+          ? "Counter-offer submitted for review."
+          : "Quotation rejected.",
       data: {
         id: updated.id,
         quotation_number: updated.quotation_number,
@@ -357,6 +428,35 @@ export class PortalQuotationsService {
         lost_reason: updated.lost_reason,
       },
     };
+  }
+
+  async counterOffer(
+    user: CurrentPortalUser,
+    quotationId: string,
+    dto: PortalQuotationCounterOfferDto,
+  ) {
+    const result = await this.quotations.customerCounterOffer(
+      user.tenantId,
+      quotationId,
+      dto,
+      user.id,
+    );
+
+    await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
+      type: "QUOTATION_COUNTER_OFFER",
+      title: "Customer counter-offer",
+      message: `${user.fullName} submitted a counter-offer on ${result.data.quotation_number}.`,
+      entity_type: "quotation",
+      entity_id: quotationId,
+      link_path: `/quotations/${quotationId}`,
+    });
+
+    return result;
+  }
+
+  async negotiationTimeline(user: CurrentPortalUser, quotationId: string) {
+    await this.getOwnedOrThrow(user, quotationId);
+    return this.negotiation.getTimeline(user.tenantId, quotationId);
   }
 
   private async getOwnedOrThrow(user: CurrentPortalUser, quotationId: string) {
@@ -385,9 +485,7 @@ export class PortalQuotationsService {
       deleted_at: null,
       OR: [
         { status: { not: "DRAFT" } },
-        ...PORTAL_CUSTOMER_REMARKS.map((phrase) => ({
-          remarks: { contains: phrase, mode: "insensitive" as const },
-        })),
+        { source: { in: [...PORTAL_CUSTOMER_SOURCES] } },
       ],
     };
   }
