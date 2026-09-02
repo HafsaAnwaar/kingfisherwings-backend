@@ -24,6 +24,10 @@ Backend UAT uses Swagger (`/docs`) and smoke scripts. Frontend UAT is a separate
 - [ ] Documentation: BOE dashboard, bulk cost, EDI generate/submit, uploads
 - [ ] Public API: `/api/v1/jobs`, scope enforcement on `/api/v1/track/:token`
 - [ ] Webhooks: CRUD + test dispatch + delivery log
+- [ ] Portal quote: estimate with packages/services, request, negotiation timeline
+- [ ] Portal/vendor open-items + payment summary endpoints
+- [ ] Payment proof upload + staff acknowledge/reject
+- [ ] Payment request markPaid creates GL payment record
 
 ## Defect triage
 

@@ -31,7 +31,7 @@ import {
 import { QuotationQueryDto } from "./dto/quotation-query.dto";
 import { QuotationAnalyticsQueryDto } from "./dto/quotation-analytics-query.dto";
 import { CreateOnlineQuoteDto } from "./dto/online-quote.dto";
-import { MarkLostDto, ApprovalDecisionDto } from "./dto/quotation-actions.dto";
+import { MarkLostDto, ApprovalDecisionDto, ReviseAndSendDto, NegotiationRejectDto } from "./dto/quotation-actions.dto";
 import {
   GenerateQuotationPdfDto,
   SendQuotationEmailDto,
@@ -334,6 +334,52 @@ export class QuotationsController {
     @Body() dto: MarkLostDto,
   ) {
     return this.service.markLost(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/revise-and-send")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.NEGOTIATE)
+  @ApiOperation({ summary: "Revise and send updated quote to customer for review" })
+  reviseAndSend(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ReviseAndSendDto,
+  ) {
+    return this.service.reviseAndSend(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/negotiation")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Negotiation event timeline" })
+  negotiationTimeline(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.getNegotiationTimeline(tenantId, id);
+  }
+
+  @Post(":id/negotiation/accept")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
+  @ApiOperation({ summary: "Accept customer counter-offer" })
+  negotiationAccept(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ApprovalDecisionDto,
+  ) {
+    return this.service.tenantNegotiationAccept(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/negotiation/reject")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
+  @ApiOperation({ summary: "Reject customer counter-offer" })
+  negotiationReject(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: NegotiationRejectDto,
+  ) {
+    return this.service.tenantNegotiationReject(tenantId, id, dto, actorId);
   }
 
   @Post(":id/duplicate")

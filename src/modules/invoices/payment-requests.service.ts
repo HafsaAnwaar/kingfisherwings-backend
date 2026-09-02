@@ -6,6 +6,7 @@ import {
 import { PaymentRequestStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { PaymentsService } from "../gl/payments.service";
 import {
   CreatePaymentRequestDto,
   PaymentRequestQueryDto,
@@ -20,6 +21,7 @@ export class PaymentRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
+    private readonly payments: PaymentsService,
   ) {}
 
   async findAll(tenantId: string, query: PaymentRequestQueryDto) {
@@ -242,60 +244,136 @@ export class PaymentRequestsService {
       );
     }
 
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const updated = await tx.paymentRequest.update({
-        where: { id },
-        data: { status: "PAID", paid_at: new Date(), updated_by: actorId },
-      });
+    if (request.payment_id) {
+      return request;
+    }
 
-      if (request.invoice_id) {
-        const invoice = await tx.invoice.findFirst({
+    if (request.invoice_id) {
+      const invoice = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.invoice.findFirst({
           where: {
-            id: request.invoice_id,
+            id: request.invoice_id!,
             tenant_id: tenantId,
             deleted_at: null,
           },
-        });
-        if (!invoice) {
-          throw new BadRequestException(
-            "Linked invoice not found or has been deleted.",
-          );
-        }
-        if (["CANCELLED", "VOID"].includes(invoice.status)) {
-          throw new BadRequestException(
-            "Cannot apply payment to a cancelled or void invoice.",
-          );
-        }
-
-        const requestAmount = Number(request.amount);
-        const currentBalance = Number(invoice.balance_due);
-        if (requestAmount <= 0) {
-          throw new BadRequestException(
-            "Payment request amount must be positive.",
-          );
-        }
-        if (requestAmount > currentBalance + 0.005) {
-          throw new BadRequestException(
-            `Payment amount (${requestAmount}) exceeds invoice balance due (${currentBalance}).`,
-          );
-        }
-
-        const amountPaid = Number(invoice.amount_paid) + requestAmount;
-        // Preserve CN/DN adjustments already reflected in balance_due.
-        const balanceDue = Math.max(0, currentBalance - requestAmount);
-        await tx.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            amount_paid: amountPaid,
-            balance_due: balanceDue,
-            status: balanceDue <= 0 ? "PAID" : "PARTIALLY_PAID",
-            updated_by: actorId,
-          },
-        });
+        }),
+      );
+      if (!invoice) {
+        throw new BadRequestException(
+          "Linked invoice not found or has been deleted.",
+        );
+      }
+      if (["CANCELLED", "VOID"].includes(invoice.status)) {
+        throw new BadRequestException(
+          "Cannot apply payment to a cancelled or void invoice.",
+        );
       }
 
-      return updated;
-    });
+      const requestAmount = Number(request.amount);
+      const currentBalance = Number(invoice.balance_due);
+      if (requestAmount <= 0) {
+        throw new BadRequestException(
+          "Payment request amount must be positive.",
+        );
+      }
+      if (requestAmount > currentBalance + 0.005) {
+        throw new BadRequestException(
+          `Payment amount (${requestAmount}) exceeds invoice balance due (${currentBalance}).`,
+        );
+      }
+    }
+
+    let paymentId: string | undefined;
+    if (request.invoice_id) {
+      const posted = await this.payments.createAndPostForPaymentRequest(
+        tenantId,
+        {
+          partyId: request.party_id,
+          invoiceId: request.invoice_id,
+          amount: Number(request.amount),
+          currencyCode: request.currency_code,
+          referenceNumber: request.request_number,
+          narration: request.remarks ?? undefined,
+        },
+        actorId,
+      );
+      paymentId = posted.id;
+    }
+
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.paymentRequest.update({
+        where: { id },
+        data: {
+          status: "PAID",
+          paid_at: new Date(),
+          payment_id: paymentId,
+          updated_by: actorId,
+        },
+        include: {
+          invoice: {
+            select: {
+              id: true,
+              invoice_number: true,
+              amount_paid: true,
+              balance_due: true,
+              status: true,
+            },
+          },
+          payment: { select: { id: true, payment_number: true, status: true } },
+        },
+      }),
+    );
+  }
+
+  async findOneForVendor(tenantId: string, partyId: string, id: string) {
+    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.paymentRequest.findFirst({
+        where: {
+          id,
+          tenant_id: tenantId,
+          party_id: partyId,
+          deleted_at: null,
+        },
+        include: {
+          invoice: {
+            select: {
+              id: true,
+              invoice_number: true,
+              total_amount: true,
+              amount_paid: true,
+              balance_due: true,
+              status: true,
+              currency_code: true,
+            },
+          },
+          payment: {
+            select: {
+              id: true,
+              payment_number: true,
+              amount: true,
+              status: true,
+              payment_date: true,
+            },
+          },
+        },
+      }),
+    );
+    if (!row) throw new NotFoundException("Payment request not found.");
+
+    const approvedAmount = Number(row.amount);
+    const paidAmount =
+      row.status === "PAID" ? approvedAmount : row.payment_id ? approvedAmount : 0;
+    const pendingAmount =
+      row.status === "PAID" ? 0 : approvedAmount - paidAmount;
+
+    return {
+      success: true,
+      data: {
+        ...row,
+        paid_amount: paidAmount,
+        pending_amount: pendingAmount,
+      },
+    };
   }
 
   async softDelete(tenantId: string, id: string, actorId?: string) {

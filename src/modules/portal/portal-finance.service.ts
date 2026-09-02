@@ -16,6 +16,7 @@ import { PdfService } from "../../shared/pdf/pdf.service";
 import { ArApService } from "../gl/ar-ap.service";
 import { PaymentsService } from "../gl/payments.service";
 import { InvoicesService } from "../invoices/invoices.service";
+import { PaymentProofsService } from "../invoices/payment-proofs/payment-proofs.service";
 import {
   PortalCreditAgingQueryDto,
   PortalInvoiceQueryDto,
@@ -36,6 +37,7 @@ export class PortalFinanceService {
     private readonly permissions: PortalPermissionsService,
     private readonly storage: StorageService,
     private readonly pdf: PdfService,
+    private readonly paymentProofs: PaymentProofsService,
   ) {}
 
   async listInvoices(user: CurrentPortalUser, query: PortalInvoiceQueryDto) {
@@ -531,6 +533,147 @@ export class PortalFinanceService {
       `inline; filename="statement-${user.partyId.slice(0, 8)}-${asOf}.pdf"`,
     );
     res.send(buffer);
+  }
+
+  async listOpenItems(user: CurrentPortalUser) {
+    const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.invoice.findMany({
+        where: {
+          tenant_id: user.tenantId,
+          party_id: user.partyId,
+          deleted_at: null,
+          invoice_type: {
+            in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.DEBIT_NOTE],
+          },
+          status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
+          balance_due: { gt: 0.0001 },
+        },
+        orderBy: [{ due_date: "asc" }, { invoice_date: "desc" }],
+        select: {
+          id: true,
+          invoice_number: true,
+          invoice_type: true,
+          total_amount: true,
+          amount_paid: true,
+          balance_due: true,
+          currency_code: true,
+          due_date: true,
+          status: true,
+        },
+      }),
+    );
+
+    return {
+      success: true,
+      data: rows.map((inv) => this.toOpenItem(inv)),
+      meta: {
+        total_outstanding: rows.reduce(
+          (sum, inv) => sum + Number(inv.balance_due),
+          0,
+        ),
+        count: rows.length,
+      },
+    };
+  }
+
+  async paymentsSummary(user: CurrentPortalUser) {
+    const yearStart = new Date(new Date().getFullYear(), 0, 1);
+    const openRows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.invoice.findMany({
+        where: {
+          tenant_id: user.tenantId,
+          party_id: user.partyId,
+          deleted_at: null,
+          invoice_type: {
+            in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.DEBIT_NOTE],
+          },
+          balance_due: { gt: 0.0001 },
+          status: { in: ["POSTED", "SENT", "PARTIALLY_PAID", "PAID"] },
+        },
+        select: { balance_due: true, currency_code: true },
+      }),
+    );
+    const paidRows = await this.payments.findAll(user.tenantId, {
+        direction: "RECEIPT",
+        status: "POSTED",
+        party_id: user.partyId,
+        from_date: yearStart.toISOString().slice(0, 10),
+      });
+
+    const totalOutstanding = openRows.reduce(
+      (sum, inv) => sum + Number(inv.balance_due),
+      0,
+    );
+    const totalPaidYtd = paidRows.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0,
+    );
+
+    return {
+      success: true,
+      data: {
+        total_outstanding: totalOutstanding,
+        total_paid_ytd: totalPaidYtd,
+        currency_code: openRows[0]?.currency_code ?? "USD",
+        invoice_count_open: openRows.length,
+      },
+    };
+  }
+
+  async uploadPaymentProof(
+    user: CurrentPortalUser,
+    invoiceId: string,
+    body: {
+      amount_claimed: number;
+      payment_date: string;
+      reference_number?: string;
+      notes?: string;
+    },
+    file: Express.Multer.File,
+  ) {
+    const invoice = await this.getInvoice(user, invoiceId);
+    return this.paymentProofs.create({
+      tenantId: user.tenantId,
+      direction: "CUSTOMER_TO_TENANT",
+      invoiceId: invoice.data.id,
+      amountClaimed: Number(body.amount_claimed),
+      paymentDate: body.payment_date,
+      referenceNumber: body.reference_number,
+      notes: body.notes,
+      submittedByPartyId: user.partyId,
+      submittedByUserId: user.id,
+      file,
+      actorId: user.id,
+    });
+  }
+
+  async listPaymentProofs(user: CurrentPortalUser, invoiceId: string) {
+    await this.getInvoice(user, invoiceId);
+    return this.paymentProofs.listForInvoice(user.tenantId, invoiceId);
+  }
+
+  private toOpenItem(inv: {
+    id: string;
+    invoice_number: string;
+    invoice_type: InvoiceType;
+    total_amount: unknown;
+    amount_paid: unknown;
+    balance_due: unknown;
+    currency_code: string;
+    due_date: Date | null;
+    status: InvoiceStatus;
+  }) {
+    return {
+      invoice_id: inv.id,
+      invoice_number: inv.invoice_number,
+      invoice_type: inv.invoice_type,
+      total_amount: inv.total_amount,
+      amount_paid: inv.amount_paid,
+      balance_due: inv.balance_due,
+      currency_code: inv.currency_code,
+      due_date: inv.due_date,
+      status: inv.status,
+    };
   }
 
   private assertOwnedInvoice(

@@ -45,6 +45,12 @@ export class VendorInvoicesController {
     private readonly ccp: VendorCcpService,
   ) {}
 
+  @Get("open-items")
+  @ApiOperation({ summary: "Purchase invoices with outstanding balance" })
+  openItems(@CurrentVendor() user: CurrentVendorUser) {
+    return this.finance.listOpenItems(user);
+  }
+
   @Get("summary")
   @ApiOperation({ summary: "Purchase invoice outstanding / overdue counters" })
   summary(@CurrentVendor() user: CurrentVendorUser) {
@@ -115,6 +121,43 @@ export class VendorInvoicesController {
   ) {
     return this.finance.downloadInvoicePdf(user, id, res);
   }
+
+  @Get(":id/payment-proofs")
+  @ApiOperation({ summary: "List payment proofs for purchase invoice" })
+  listPaymentProofs(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.finance.listPaymentProofs(user, id);
+  }
+
+  @Post(":id/payment-proofs")
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(FileInterceptor("file"))
+  uploadPaymentProof(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body()
+    body: {
+      amount_claimed: string;
+      payment_date: string;
+      reference_number?: string;
+      notes?: string;
+    },
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.finance.uploadPaymentProof(
+      user,
+      id,
+      {
+        amount_claimed: Number(body.amount_claimed),
+        payment_date: body.payment_date,
+        reference_number: body.reference_number,
+        notes: body.notes,
+      },
+      file,
+    );
+  }
 }
 
 @ApiTags("Vendor Payments")
@@ -181,6 +224,21 @@ export class VendorPaymentsController {
   @ApiOperation({ summary: "Payment requests raised against this vendor" })
   paymentRequests(@CurrentVendor() user: CurrentVendorUser) {
     return this.finance.listPaymentRequests(user);
+  }
+
+  @Get("payments/summary")
+  @ApiOperation({ summary: "Received vs pending payment totals" })
+  paymentsSummary(@CurrentVendor() user: CurrentVendorUser) {
+    return this.finance.paymentsSummary(user);
+  }
+
+  @Get("payment-requests/:id")
+  @ApiOperation({ summary: "Payment request detail with paid vs pending" })
+  paymentRequestDetail(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.finance.getPaymentRequest(user, id);
   }
 
   @Get("documents/tds")

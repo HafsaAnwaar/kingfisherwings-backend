@@ -134,10 +134,50 @@ enum QuotationStatus {
   APPROVED
   REJECTED
   SENT
+  NEGOTIATING
+  CUSTOMER_REVIEW
   WON
   LOST
   EXPIRED
   CONVERTED
+}
+
+enum ServicePricingBasis {
+  FLAT
+  PER_KG
+  PER_CBM
+  PER_PIECE
+  PER_CONTAINER
+}
+
+enum QuotationSource {
+  STAFF
+  CUSTOMER_PORTAL
+  ONLINE_WIDGET
+}
+
+enum QuotationNegotiationActor {
+  TENANT
+  CUSTOMER
+}
+
+enum QuotationNegotiationAction {
+  REVISE
+  SEND
+  ACCEPT
+  REJECT
+  COUNTER_OFFER
+}
+
+enum PaymentProofStatus {
+  SUBMITTED
+  ACKNOWLEDGED
+  REJECTED
+}
+
+enum PaymentProofDirection {
+  CUSTOMER_TO_TENANT
+  TENANT_TO_VENDOR
 }
 
 enum ApprovalStatus {
@@ -3372,8 +3412,10 @@ model Quotation {
   // Revisions — cloning creates a new row with parent_quotation_id set
   // and version incremented; the original is left untouched (status
   // history is per-row, so the full chain is reconstructable).
-  version             Int     @default(1)
-  parent_quotation_id String? @db.Uuid
+  version             Int              @default(1)
+  parent_quotation_id String?          @db.Uuid
+  source              QuotationSource  @default(STAFF)
+  negotiation_round   Int              @default(0)
 
   // Lifecycle timestamps
   lost_reason  String?   @db.VarChar(200)
@@ -3404,12 +3446,14 @@ model Quotation {
   updated_by String?   @db.Uuid
   deleted_at DateTime? @db.Timestamptz
 
-  company               Company?                 @relation(fields: [company_id], references: [id])
+  company               Company?                     @relation(fields: [company_id], references: [id])
   lines                 QuotationLine[]
+  packages              QuotationCargoPackage[]
+  negotiation_events    QuotationNegotiationEvent[]
   status_history        QuotationStatusHistory[]
   approvals             QuotationApproval[]
-  document_gen_tasks    DocumentGenerationTask[] @relation("QuotationDocumentTasks")
-  email_logs            EmailLog[]               @relation("QuotationEmailLogs")
+  document_gen_tasks    DocumentGenerationTask[]     @relation("QuotationDocumentTasks")
+  email_logs            EmailLog[]                   @relation("QuotationEmailLogs")
 
   @@unique([tenant_id, quotation_number])
   @@index([tenant_id])
@@ -3489,6 +3533,71 @@ model QuotationApproval {
   @@unique([tenant_id, quotation_id, level])
   @@index([tenant_id, quotation_id])
   @@map("quotation_approvals")
+}
+
+model QuotationCargoPackage {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String   @db.Uuid
+  quotation_id    String   @db.Uuid
+  length_cm       Decimal  @db.Decimal(10, 2)
+  width_cm        Decimal  @db.Decimal(10, 2)
+  height_cm       Decimal  @db.Decimal(10, 2)
+  gross_weight_kg Decimal  @db.Decimal(12, 3)
+  pieces          Int      @default(1)
+  cbm             Decimal  @db.Decimal(12, 6)
+  sort_order      Int      @default(0)
+  created_at      DateTime @default(now()) @db.Timestamptz
+  updated_at      DateTime @updatedAt @db.Timestamptz
+
+  quotation Quotation @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, quotation_id])
+  @@map("quotation_cargo_packages")
+}
+
+model QuotationNegotiationEvent {
+  id             String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String                     @db.Uuid
+  quotation_id   String                     @db.Uuid
+  round          Int
+  actor          QuotationNegotiationActor
+  action         QuotationNegotiationAction
+  message        String?                    @db.Text
+  proposed_total Decimal?                   @db.Decimal(18, 4)
+  proposed_lines Json?
+  created_by     String?                    @db.Uuid
+  created_at     DateTime                   @default(now()) @db.Timestamptz
+
+  quotation Quotation @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, quotation_id])
+  @@map("quotation_negotiation_events")
+}
+
+model TenantServiceCatalogItem {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String              @db.Uuid
+  code              String              @db.VarChar(30)
+  name              String              @db.VarChar(200)
+  job_type          JobType?
+  charge_code_id    String?             @db.Uuid
+  pricing_basis     ServicePricingBasis @default(FLAT)
+  unit_price        Decimal             @db.Decimal(18, 4)
+  currency_code     String              @db.Char(3)
+  min_charge        Decimal             @default(0) @db.Decimal(18, 4)
+  is_portal_visible Boolean             @default(true)
+  is_active         Boolean             @default(true)
+  sort_order        Int                 @default(0)
+  created_at        DateTime            @default(now()) @db.Timestamptz
+  updated_at        DateTime            @updatedAt @db.Timestamptz
+  created_by        String?             @db.Uuid
+  updated_by        String?             @db.Uuid
+  deleted_at        DateTime?           @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@index([tenant_id, is_active, is_portal_visible])
+  @@map("tenant_service_catalog_items")
 }
 
 // =====================================================
@@ -3740,6 +3849,7 @@ model Invoice {
   credit_notes     Invoice[] @relation("InvoiceCreditNotes")
   lines            InvoiceLine[]
   payment_requests PaymentRequest[]
+  payment_proofs   PaymentProof[]
   vouchers         Voucher[]
   payment_allocations PaymentAllocation[]
   air_import_storage_for AirJobDetail[] @relation("AirImportStorageInvoice")
@@ -3804,6 +3914,7 @@ model PaymentRequest {
   approved_by     String?              @db.Uuid
   rejected_reason String?              @db.VarChar(500)
   paid_at         DateTime?            @db.Timestamptz
+  payment_id      String?              @db.Uuid
   created_at      DateTime             @default(now()) @db.Timestamptz
   updated_at      DateTime             @updatedAt @db.Timestamptz
   created_by      String?              @db.Uuid
@@ -3813,6 +3924,7 @@ model PaymentRequest {
   invoice Invoice? @relation(fields: [invoice_id], references: [id])
   job     Job?     @relation(fields: [job_id], references: [id])
   party   Party    @relation(fields: [party_id], references: [id])
+  payment Payment? @relation(fields: [payment_id], references: [id])
 
   @@unique([tenant_id, request_number])
   @@index([tenant_id])
@@ -3821,6 +3933,40 @@ model PaymentRequest {
   @@index([tenant_id, invoice_id])
   @@index([tenant_id, job_id])
   @@map("payment_requests")
+}
+
+model PaymentProof {
+  id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String                @db.Uuid
+  direction             PaymentProofDirection
+  invoice_id            String                @db.Uuid
+  submitted_by_party_id String?               @db.Uuid
+  submitted_by_user_id  String?               @db.Uuid
+  submitted_by_staff_id String?               @db.Uuid
+  amount_claimed        Decimal               @db.Decimal(18, 4)
+  payment_date          DateTime              @db.Date
+  reference_number      String?               @db.VarChar(100)
+  notes                 String?               @db.Text
+  file_url              String?               @db.VarChar(500)
+  s3_key                String?               @db.VarChar(500)
+  mime_type             String?               @db.VarChar(100)
+  file_size             Int?
+  status                PaymentProofStatus    @default(SUBMITTED)
+  reviewed_by           String?               @db.Uuid
+  reviewed_at           DateTime?             @db.Timestamptz
+  review_notes          String?               @db.Text
+  linked_payment_id     String?               @db.Uuid
+  created_at            DateTime              @default(now()) @db.Timestamptz
+  updated_at            DateTime              @updatedAt @db.Timestamptz
+  created_by            String?               @db.Uuid
+  updated_by            String?               @db.Uuid
+  deleted_at            DateTime?             @db.Timestamptz
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id])
+
+  @@index([tenant_id, invoice_id])
+  @@index([tenant_id, status])
+  @@map("payment_proofs")
 }
 
 // =====================================================
@@ -4004,6 +4150,7 @@ model Payment {
   cheque       Cheque?           @relation(fields: [cheque_id], references: [id])
   voucher      Voucher?          @relation(fields: [voucher_id], references: [id])
   allocations  PaymentAllocation[]
+  payment_requests PaymentRequest[]
 
   @@unique([tenant_id, payment_number])
   @@index([tenant_id])
@@ -4383,7 +4530,13 @@ enum NotificationType {
   JOB_MILESTONE_UPDATED
   QUOTATION_APPROVED
   QUOTATION_REJECTED
+  QUOTATION_REVISED
+  QUOTATION_COUNTER_OFFER
+  QUOTATION_CUSTOMER_ACCEPTED
+  QUOTATION_CUSTOMER_REJECTED
   PAYMENT_RECEIVED
+  PAYMENT_PROOF_SUBMITTED
+  PAYMENT_PROOF_REVIEWED
   PDC_MATURITY_APPROACHING
   DOCUMENT_EXPIRY
   DOCUMENT_READY

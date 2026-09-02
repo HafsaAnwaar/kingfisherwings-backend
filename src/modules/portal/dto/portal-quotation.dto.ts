@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
+  IsArray,
   IsDateString,
   IsEnum,
   IsIn,
@@ -13,8 +14,38 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
+  ArrayMinSize,
 } from "class-validator";
 import { JobType, QuotationStatus } from "@prisma/client";
+
+export class PortalCargoPackageDto {
+  @ApiProperty({ example: 120 })
+  @IsNumber()
+  @Min(0.01)
+  length_cm!: number;
+
+  @ApiProperty({ example: 80 })
+  @IsNumber()
+  @Min(0.01)
+  width_cm!: number;
+
+  @ApiProperty({ example: 100 })
+  @IsNumber()
+  @Min(0.01)
+  height_cm!: number;
+
+  @ApiProperty({ example: 250 })
+  @IsNumber()
+  @Min(0)
+  gross_weight_kg!: number;
+
+  @ApiPropertyOptional({ example: 1, default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  pieces?: number = 1;
+}
 
 export class PortalQuotationQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -122,10 +153,52 @@ export class PortalQuotationRequestDto {
   @IsDateString()
   valid_until?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  container_count?: number;
+
   @ApiProperty({ example: "AED" })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
+}
+
+export class PortalQuotationEstimateDto extends PortalQuotationRequestDto {
+  @ApiProperty({ type: [PortalCargoPackageDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => PortalCargoPackageDto)
+  packages!: PortalCargoPackageDto[];
+
+  @ApiProperty({ example: ["AIR_FREIGHT", "CUSTOMS_CLEARANCE"] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  service_codes!: string[];
+}
+
+export class PortalQuotationAcceptDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  message?: string;
+}
+
+export class PortalQuotationCounterOfferDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(1000)
+  message!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  proposed_total?: number;
 }
 
 const PORTAL_LOSS_REASONS = [

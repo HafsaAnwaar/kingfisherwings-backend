@@ -28,6 +28,7 @@ import { QuotationQueryDto } from "./dto/quotation-query.dto";
 import { QuotationAnalyticsQueryDto } from "./dto/quotation-analytics-query.dto";
 import { CreateOnlineQuoteDto } from "./dto/online-quote.dto";
 import { MarkLostDto, ApprovalDecisionDto } from "./dto/quotation-actions.dto";
+import { QuotationNegotiationService } from "./quotation-negotiation.service";
 import {
   GenerateQuotationPdfDto,
   SendQuotationEmailDto,
@@ -84,6 +85,7 @@ export class QuotationsService {
     private readonly emailService: EmailService,
     private readonly storage: StorageService,
     private readonly notifications: NotificationEmitterService,
+    private readonly negotiation: QuotationNegotiationService,
   ) {}
 
   // ============================================================
@@ -150,6 +152,7 @@ export class QuotationsService {
           exchange_rate: dto.exchange_rate ?? 1,
           discount_percent: dto.discount_percent,
           discount_amount: dto.discount_amount,
+          source: dto.source,
           created_by: actorId,
           updated_by: actorId,
         },
@@ -1058,6 +1061,7 @@ export class QuotationsService {
         special_requirements: dto.special_requirements,
         valid_until: dto.valid_until,
         currency_code: dto.currency_code,
+        source: "ONLINE_WIDGET",
         remarks: "Submitted via online quote widget.",
       },
       undefined,
@@ -1118,7 +1122,8 @@ export class QuotationsService {
         special_requirements: dto.special_requirements,
         valid_until: dto.valid_until,
         currency_code: dto.currency_code,
-        remarks: `Submitted via customer portal by user ${portalUserId ?? "unknown"}.`,
+        source: "CUSTOMER_PORTAL",
+        remarks: `Submitted via customer portal.`,
       },
       portalUserId,
     );
@@ -1370,13 +1375,19 @@ export class QuotationsService {
     tenantId: string,
     id: string,
     actorId?: string,
+    message?: string,
+    options?: { fromPortal?: boolean },
   ): Promise<Quotation> {
+    const fromPortal = options?.fromPortal ?? false;
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      if (quotation.status !== "SENT") {
+      const allowed = fromPortal
+        ? ["SENT", "CUSTOMER_REVIEW", "NEGOTIATING"]
+        : ["SENT"];
+      if (!allowed.includes(quotation.status)) {
         throw new BadRequestException(
-          "Only a SENT quotation can be marked won.",
+          "Quotation cannot be marked won in its current status.",
         );
       }
 
@@ -1392,7 +1403,19 @@ export class QuotationsService {
         quotation.status,
         "WON",
         actorId,
+        message,
       );
+
+      if (fromPortal) {
+        await this.negotiation.appendEvent(tx, tenantId, {
+          quotationId: id,
+          round: quotation.negotiation_round,
+          actor: "CUSTOMER",
+          action: "ACCEPT",
+          message,
+          createdBy: actorId,
+        });
+      }
 
       return result;
     });
@@ -1402,6 +1425,15 @@ export class QuotationsService {
       "QUOTATION_APPROVED",
       "Quotation won",
     );
+    if (fromPortal) {
+      await this.notifyStaffQuotationCustomerAction(
+        tenantId,
+        updated,
+        "QUOTATION_CUSTOMER_ACCEPTED",
+        "Customer accepted quotation",
+        message,
+      );
+    }
     return updated;
   }
 
@@ -1410,22 +1442,31 @@ export class QuotationsService {
     id: string,
     dto: MarkLostDto,
     actorId?: string,
+    options?: { allowRenegotiate?: boolean; fromPortal?: boolean },
   ): Promise<Quotation> {
+    const fromPortal = options?.fromPortal ?? false;
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      if (quotation.status !== "SENT") {
+      const allowed = fromPortal
+        ? ["SENT", "CUSTOMER_REVIEW", "NEGOTIATING"]
+        : ["SENT"];
+      if (!allowed.includes(quotation.status)) {
         throw new BadRequestException(
-          "Only a SENT quotation can be marked lost.",
+          "Quotation cannot be marked lost in its current status.",
         );
       }
+
+      const renegotiate = (options?.allowRenegotiate ?? false) && fromPortal;
+      const nextStatus: QuotationStatus = renegotiate ? "NEGOTIATING" : "LOST";
 
       const result = await tx.quotation.update({
         where: { id },
         data: {
-          status: "LOST",
-          lost_at: new Date(),
-          lost_reason: dto.reason,
+          status: nextStatus,
+          ...(renegotiate
+            ? {}
+            : { lost_at: new Date(), lost_reason: dto.reason }),
           updated_by: actorId,
         },
       });
@@ -1435,25 +1476,303 @@ export class QuotationsService {
         tenantId,
         id,
         quotation.status,
-        "LOST",
+        nextStatus,
         actorId,
         dto.notes ?? dto.reason,
       );
+
+      if (fromPortal) {
+        await this.negotiation.appendEvent(tx, tenantId, {
+          quotationId: id,
+          round: quotation.negotiation_round,
+          actor: "CUSTOMER",
+          action: "REJECT",
+          message: dto.notes ?? dto.reason,
+          createdBy: actorId,
+        });
+      }
+
+      if (renegotiate) {
+        await tx.quotation.update({
+          where: { id },
+          data: { negotiation_round: quotation.negotiation_round + 1 },
+        });
+      }
+
+      return result;
+    });
+
+    if (updated.status === "LOST") {
+      await this.notifyCustomerQuotationStatus(
+        updated,
+        "QUOTATION_REJECTED",
+        "Quotation lost",
+      );
+    }
+    if (fromPortal) {
+      await this.notifyStaffQuotationCustomerAction(
+        tenantId,
+        updated,
+        "QUOTATION_CUSTOMER_REJECTED",
+        "Customer rejected quotation",
+        dto.notes ?? dto.reason,
+      );
+    }
+    return updated;
+  }
+
+  async customerCounterOffer(
+    tenantId: string,
+    id: string,
+    dto: { message: string; proposed_total?: number },
+    actorId?: string,
+  ) {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await this.getOrThrow(tx, tenantId, id);
+      this.negotiation.assertCustomerActionable(quotation.status);
+
+      const nextRound = quotation.negotiation_round + 1;
+      const result = await tx.quotation.update({
+        where: { id },
+        data: {
+          status: "NEGOTIATING",
+          negotiation_round: nextRound,
+          updated_by: actorId,
+        },
+      });
+
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "NEGOTIATING",
+        actorId,
+        dto.message,
+      );
+
+      await this.negotiation.appendEvent(tx, tenantId, {
+        quotationId: id,
+        round: nextRound,
+        actor: "CUSTOMER",
+        action: "COUNTER_OFFER",
+        message: dto.message,
+        proposedTotal: dto.proposed_total,
+        createdBy: actorId,
+      });
+
+      return result;
+    });
+
+    return {
+      success: true,
+      message: "Counter-offer submitted.",
+      data: {
+        id: updated.id,
+        quotation_number: updated.quotation_number,
+        status: updated.status,
+        negotiation_round: updated.negotiation_round,
+      },
+    };
+  }
+
+  async reviseAndSend(
+    tenantId: string,
+    id: string,
+    dto: { message: string },
+    actorId?: string,
+  ) {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await this.getOrThrow(tx, tenantId, id);
+      this.negotiation.assertTenantNegotiable(quotation.status);
+
+      const refreshed = await tx.quotation.findFirst({
+        where: { id, tenant_id: tenantId },
+        include: {
+          lines: { where: { is_cost: false }, orderBy: { sort_order: "asc" } },
+        },
+      });
+      if (!refreshed) throw new NotFoundException("Quotation not found.");
+
+      const nextRound = quotation.negotiation_round + 1;
+      const result = await tx.quotation.update({
+        where: { id },
+        data: {
+          status: "CUSTOMER_REVIEW",
+          negotiation_round: nextRound,
+          sent_at: new Date(),
+          updated_by: actorId,
+        },
+      });
+
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "CUSTOMER_REVIEW",
+        actorId,
+        dto.message,
+      );
+
+      await this.negotiation.appendEvent(tx, tenantId, {
+        quotationId: id,
+        round: nextRound,
+        actor: "TENANT",
+        action: "REVISE",
+        message: dto.message,
+        proposedTotal: Number(refreshed.revenue_total),
+        proposedLines: refreshed.lines.map((line) => ({
+          description: line.description,
+          quantity: line.quantity,
+          unit_price: line.unit_price,
+          amount: line.amount,
+        })),
+        createdBy: actorId,
+      });
+
+      await this.negotiation.appendEvent(tx, tenantId, {
+        quotationId: id,
+        round: nextRound,
+        actor: "TENANT",
+        action: "SEND",
+        message: dto.message,
+        proposedTotal: Number(refreshed.revenue_total),
+        createdBy: actorId,
+      });
 
       return result;
     });
 
     await this.notifyCustomerQuotationStatus(
       updated,
-      "QUOTATION_REJECTED",
-      "Quotation lost",
+      "QUOTATION_REVISED",
+      "Revised quotation sent",
     );
-    return updated;
+    return {
+      success: true,
+      message: "Revised quotation sent to customer.",
+      data: updated,
+    };
+  }
+
+  async tenantNegotiationAccept(
+    tenantId: string,
+    id: string,
+    dto: { message?: string; comments?: string },
+    actorId?: string,
+  ) {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await this.getOrThrow(tx, tenantId, id);
+      if (quotation.status !== "NEGOTIATING") {
+        throw new BadRequestException(
+          "Only NEGOTIATING quotations can be accepted from customer counter-offer.",
+        );
+      }
+
+      const result = await tx.quotation.update({
+        where: { id },
+        data: { status: "WON", won_at: new Date(), updated_by: actorId },
+      });
+
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "WON",
+        actorId,
+        dto.message ?? dto.comments,
+      );
+
+      await this.negotiation.appendEvent(tx, tenantId, {
+        quotationId: id,
+        round: quotation.negotiation_round,
+        actor: "TENANT",
+        action: "ACCEPT",
+        message: dto.message ?? dto.comments,
+        createdBy: actorId,
+      });
+
+      return result;
+    });
+
+    await this.notifyCustomerQuotationStatus(
+      updated,
+      "QUOTATION_APPROVED",
+      "Quotation accepted",
+    );
+    return { success: true, data: updated };
+  }
+
+  async tenantNegotiationReject(
+    tenantId: string,
+    id: string,
+    dto: { message: string; terminal?: boolean },
+    actorId?: string,
+  ) {
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await this.getOrThrow(tx, tenantId, id);
+      if (quotation.status !== "NEGOTIATING") {
+        throw new BadRequestException(
+          "Only NEGOTIATING quotations can be rejected.",
+        );
+      }
+
+      const nextStatus: QuotationStatus = dto.terminal ? "LOST" : "CUSTOMER_REVIEW";
+      const result = await tx.quotation.update({
+        where: { id },
+        data: {
+          status: nextStatus,
+          ...(dto.terminal
+            ? { lost_at: new Date(), lost_reason: dto.message }
+            : {}),
+          updated_by: actorId,
+        },
+      });
+
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        nextStatus,
+        actorId,
+        dto.message,
+      );
+
+      await this.negotiation.appendEvent(tx, tenantId, {
+        quotationId: id,
+        round: quotation.negotiation_round,
+        actor: "TENANT",
+        action: "REJECT",
+        message: dto.message,
+        createdBy: actorId,
+      });
+
+      return result;
+    });
+
+    if (updated.status === "LOST") {
+      await this.notifyCustomerQuotationStatus(
+        updated,
+        "QUOTATION_REJECTED",
+        "Quotation rejected",
+      );
+    }
+    return { success: true, data: updated };
+  }
+
+  async getNegotiationTimeline(tenantId: string, quotationId: string) {
+    return this.negotiation.getTimeline(tenantId, quotationId);
   }
 
   private async notifyCustomerQuotationStatus(
     quotation: Quotation,
-    type: "QUOTATION_APPROVED" | "QUOTATION_REJECTED",
+    type:
+      | "QUOTATION_APPROVED"
+      | "QUOTATION_REJECTED"
+      | "QUOTATION_REVISED",
     title: string,
   ) {
     if (!quotation.customer_id) return;
@@ -1469,6 +1788,25 @@ export class QuotationsService {
         link_path: `/portal/quotations/${quotation.id}`,
       },
     );
+  }
+
+  private async notifyStaffQuotationCustomerAction(
+    tenantId: string,
+    quotation: Quotation,
+    type: "QUOTATION_CUSTOMER_ACCEPTED" | "QUOTATION_CUSTOMER_REJECTED",
+    title: string,
+    message?: string,
+  ) {
+    await this.notifications.notifyStaffOfPortalEvent(tenantId, {
+      type,
+      title,
+      message: message
+        ? `${title} (${quotation.quotation_number}): ${message}`
+        : `${title}: ${quotation.quotation_number}`,
+      entity_type: "quotation",
+      entity_id: quotation.id,
+      link_path: `/quotations/${quotation.id}`,
+    });
   }
 
   // ============================================================
