@@ -84,7 +84,7 @@ describe("Integration — quote to GL (e2e)", () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   it("creates quotation, marks won, converts to job", async () => {

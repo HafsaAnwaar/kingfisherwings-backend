@@ -14,5 +14,6 @@
     "^@modules/(.*)$": "<rootDir>/src/modules/$1",
     "^@shared/(.*)$": "<rootDir>/src/shared/$1"
   },
-  "testTimeout": 120000
+  "testTimeout": 120000,
+  "forceExit": true
 }
