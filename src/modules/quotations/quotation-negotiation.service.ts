@@ -66,7 +66,7 @@ export class QuotationNegotiationService {
 
   assertTenantNegotiable(status: QuotationStatus) {
     if (
-      !["SENT", "NEGOTIATING", "CUSTOMER_REVIEW", "APPROVED"].includes(status)
+      !["SENT", "NEGOTIATING", "CUSTOMER_REVIEW"].includes(status)
     ) {
       throw new BadRequestException(
         `Quotation in ${status} status cannot be revised.`,

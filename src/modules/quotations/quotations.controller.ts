@@ -304,7 +304,7 @@ export class QuotationsController {
 
   @Post(":id/send")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
-  @ApiOperation({ summary: "APPROVED -> SENT" })
+  @ApiOperation({ summary: "INTERNALLY_APPROVED -> SENT" })
   send(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -315,7 +315,7 @@ export class QuotationsController {
 
   @Post(":id/mark-won")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
-  @ApiOperation({ summary: "SENT -> WON" })
+  @ApiOperation({ summary: "SENT -> APPROVED (customer accepted)" })
   markWon(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -326,7 +326,7 @@ export class QuotationsController {
 
   @Post(":id/mark-lost")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
-  @ApiOperation({ summary: "SENT -> LOST, with a reason code" })
+  @ApiOperation({ summary: "SENT -> DISAPPROVED, with a reason code" })
   markLost(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -400,7 +400,7 @@ export class QuotationsController {
   @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
   @ApiOperation({
     summary:
-      "WON -> CONVERTED. Creates a minimal Job + carries charge lines over. Full job management (milestones, documents) is a separate module.",
+      "APPROVED -> CONVERTED. Creates a minimal Job + carries charge lines over. Full job management (milestones, documents) is a separate module.",
   })
   convertToJob(
     @CurrentUser("tenantId") tenantId: string,

@@ -15,7 +15,14 @@ const OPEN_JOB_STATUSES = [
   "ON_HOLD",
 ] as const;
 
-const OPEN_QUOTE_STATUSES = ["DRAFT", "SUBMITTED", "APPROVED", "SENT"] as const;
+const OPEN_QUOTE_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "INTERNALLY_APPROVED",
+  "SENT",
+  "NEGOTIATING",
+  "CUSTOMER_REVIEW",
+] as const;
 
 @Injectable()
 export class MisService {
@@ -88,7 +95,7 @@ export class MisService {
           where: {
             tenant_id: tenantId,
             deleted_at: null,
-            status: "WON",
+            status: "APPROVED",
             updated_at: { gte: from, lte: to },
             ...companyFilter,
           },

@@ -1219,7 +1219,7 @@ Manual equivalent: `POST /quotations/expire-due`.
 4. Number formats (QUOTATION, JOB_NUMBER, INVOICE, CREDIT_NOTE, PURCHASE_INVOICE, VOUCHER)  
 5. Masters: currency, country, ports, airline, charge-code, tax-rate, branch  
 6. Party customer (+ contact)  
-7. Quotation → lines → submit → approve → send → mark-won → convert-to-job  
+7. Quotation → lines → submit → approve (INTERNALLY_APPROVED) → send → mark-won (APPROVED) → convert-to-job  
 8. Air details → AWB batch → allocate  
 9. Job charge → HAWB PDF → pre-alert  
 10. Invoice from-job → post → pdf → send  

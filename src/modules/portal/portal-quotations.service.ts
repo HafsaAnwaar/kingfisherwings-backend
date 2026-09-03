@@ -159,12 +159,13 @@ export class PortalQuotationsService {
       total += row._count._all;
     }
 
-    const pending = byStatus.DRAFT + byStatus.SUBMITTED + byStatus.APPROVED;
+    const pending =
+      byStatus.DRAFT + byStatus.SUBMITTED + byStatus.INTERNALLY_APPROVED;
     const active =
       byStatus.SENT + byStatus.NEGOTIATING + byStatus.CUSTOMER_REVIEW;
     const closed =
-      byStatus.WON +
-      byStatus.LOST +
+      byStatus.APPROVED +
+      byStatus.DISAPPROVED +
       byStatus.EXPIRED +
       byStatus.CONVERTED +
       byStatus.REJECTED;
