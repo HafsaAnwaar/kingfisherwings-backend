@@ -18,13 +18,13 @@ export class MasterQueryDto {
   @Min(1)
   page: number = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 200 })
+  @ApiPropertyOptional({ default: 50, minimum: 1, maximum: 500 })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
   @Min(1)
-  @Max(200)
-  limit: number = 20;
+  @Max(500)
+  limit: number = 50;
 
   @ApiPropertyOptional({
     description: "Free-text search — matched fields vary per entity.",

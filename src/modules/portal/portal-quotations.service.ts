@@ -309,6 +309,9 @@ export class PortalQuotationsService {
         })),
         packages: quotation.packages.map((pkg) => ({
           id: pkg.id,
+          length_m: Number(pkg.length_cm) / 100,
+          width_m: Number(pkg.width_cm) / 100,
+          height_m: Number(pkg.height_cm) / 100,
           length_cm: pkg.length_cm,
           width_cm: pkg.width_cm,
           height_cm: pkg.height_cm,

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -22,6 +23,8 @@ import {
 import { Throttle } from "@nestjs/throttler";
 
 import { QuotationsService } from "./quotations.service";
+import { SendJobToVendorDto } from "../vendor/dto/vendor-quote.dto";
+import { VendorQuotesService } from "../vendor/vendor-quotes.service";
 
 import { CreateQuotationDto, UpdateQuotationDto } from "./dto/quotation.dto";
 import {
@@ -51,7 +54,10 @@ import { QUOTATIONS_PERMISSIONS } from "./constants/quotations-permission.consta
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("quotations")
 export class QuotationsController {
-  constructor(private readonly service: QuotationsService) {}
+  constructor(
+    private readonly service: QuotationsService,
+    private readonly vendorQuotes: VendorQuotesService,
+  ) {}
 
   @Get()
   @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
@@ -394,6 +400,46 @@ export class QuotationsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.duplicate(tenantId, id, actorId);
+  }
+
+  @Post([":id/pass-to-vendor", ":id/job-offers", ":id/send-to-vendor"])
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
+  @ApiOperation({
+    summary:
+      "Pass an APPROVED quotation's job to a vendor for pricing (converts to job if needed). Customer prices are not shared.",
+  })
+  async passToVendor(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: SendJobToVendorDto,
+  ) {
+    const quotation = await this.service.findOne(tenantId, id);
+    let jobId = quotation.converted_job_id;
+    if (!jobId) {
+      if (quotation.status !== "APPROVED") {
+        throw new BadRequestException(
+          "Only an APPROVED quotation can be passed to a vendor. Convert or approve it first.",
+        );
+      }
+      const converted = await this.service.convertToJob(tenantId, id, actorId);
+      jobId = converted.jobId;
+    }
+    return this.vendorQuotes.sendJobToVendor(tenantId, jobId, dto, actorId);
+  }
+
+  @Get(":id/job-offers")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Vendor job offers linked to this quotation's job" })
+  async listQuotationJobOffers(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    const quotation = await this.service.findOne(tenantId, id);
+    if (!quotation.converted_job_id) {
+      return { success: true, data: [] };
+    }
+    return this.vendorQuotes.listForJob(tenantId, quotation.converted_job_id);
   }
 
   @Post(":id/convert-to-job")

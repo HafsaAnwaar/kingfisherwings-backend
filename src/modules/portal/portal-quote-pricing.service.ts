@@ -10,7 +10,8 @@ import {
   TenantServiceCatalogItem,
 } from "@prisma/client";
 import {
-  cbmFromCm,
+  cbmFromMeters,
+  resolveCargoPackage,
   chargeableWeightKg,
   sumPackageCbm,
   totalGrossWeightKg,
@@ -33,6 +34,9 @@ export interface PricedLinePreview {
 }
 
 export interface PackagePreview {
+  length_m: number;
+  width_m: number;
+  height_m: number;
   length_cm: number;
   width_cm: number;
   height_cm: number;
@@ -235,30 +239,29 @@ export class PortalQuotePricingService {
     }
 
     return packages.map((pkg) => {
-      const length = Number(pkg.length_cm);
-      const width = Number(pkg.width_cm);
-      const height = Number(pkg.height_cm);
-      const gross = Number(pkg.gross_weight_kg);
-      const pieces = Number(pkg.pieces ?? 1);
-
-      if (length <= 0 || width <= 0 || height <= 0) {
+      let normalized;
+      try {
+        normalized = resolveCargoPackage(pkg);
+      } catch (err) {
         throw new BadRequestException(
-          "Package length, width, and height must be positive.",
+          err instanceof Error ? err.message : "Invalid cargo dimensions.",
         );
       }
-      if (gross < 0 || pieces <= 0) {
-        throw new BadRequestException(
-          "Package weight must be non-negative and pieces must be positive.",
-        );
+      const gross = Number(pkg.gross_weight_kg);
+      if (gross < 0) {
+        throw new BadRequestException("Package weight must be non-negative.");
       }
 
       return {
-        length_cm: length,
-        width_cm: width,
-        height_cm: height,
+        length_m: normalized.length_m,
+        width_m: normalized.width_m,
+        height_m: normalized.height_m,
+        length_cm: normalized.length_cm,
+        width_cm: normalized.width_cm,
+        height_cm: normalized.height_cm,
         gross_weight_kg: gross,
-        pieces,
-        cbm: cbmFromCm(length, width, height, pieces),
+        pieces: normalized.pieces,
+        cbm: normalized.cbm,
       };
     });
   }

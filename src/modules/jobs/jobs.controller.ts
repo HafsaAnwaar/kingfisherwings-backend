@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -89,6 +90,8 @@ import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
+import { SendJobToVendorDto, VendorQuoteQueryDto } from "../vendor/dto/vendor-quote.dto";
+import { VendorQuotesService } from "../vendor/vendor-quotes.service";
 import { SeaFclImportService } from "./sea-fcl-import.service";
 import { AirImportService } from "./air-import.service";
 import { SeaLclService } from "./sea-lcl.service";
@@ -132,6 +135,7 @@ export class JobsController {
     private readonly land: LandService,
     private readonly courier: CourierService,
     private readonly transport: TransportService,
+    private readonly vendorQuotes: VendorQuotesService,
   ) {}
 
   @Get()
@@ -139,9 +143,64 @@ export class JobsController {
   @ApiOperation({ summary: "List jobs" })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: JobQueryDto,
   ) {
-    return this.service.findAll(tenantId, query);
+    return this.service.findAll(tenantId, query, permissions);
+  }
+
+  @Get("job-offers")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List vendor job offers (feature-detect path)" })
+  listAllJobOffers(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query() query: VendorQuoteQueryDto,
+  ) {
+    return this.vendorQuotes.listForTenant(tenantId, query);
+  }
+
+  @Post("job-offers")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Pass a job to a vendor (body.job_id required)" })
+  createJobOffer(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Body() dto: SendJobToVendorDto,
+  ) {
+    if (!dto.job_id) {
+      throw new BadRequestException("job_id is required.");
+    }
+    return this.vendorQuotes.sendJobToVendor(
+      tenantId,
+      dto.job_id,
+      dto,
+      actorId,
+    );
+  }
+
+  @Get([":id/job-offers", ":id/vendor-quotes"])
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List vendor job offers for this job" })
+  listVendorQuotes(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.vendorQuotes.listForJob(tenantId, id);
+  }
+
+  @Post([":id/job-offers", ":id/pass-to-vendor", ":id/send-to-vendor"])
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Pass this job to a vendor for pricing. Customer revenue/cost is not shared.",
+  })
+  sendToVendor(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: SendJobToVendorDto,
+  ) {
+    return this.vendorQuotes.sendJobToVendor(tenantId, id, dto, actorId);
   }
 
   @Get(":id")
@@ -152,9 +211,10 @@ export class JobsController {
   })
   findOne(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id);
+    return this.service.findOne(tenantId, id, permissions);
   }
 
   @Get(":id/house-jobs")
@@ -298,9 +358,32 @@ export class JobsController {
   create(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Body() dto: CreateJobDto,
   ) {
-    return this.service.create(tenantId, dto, actorId);
+    return this.service.create(tenantId, dto, actorId, permissions);
+  }
+
+  @Post(["vendor-quotes/:quoteId/approve", "job-offers/:quoteId/approve"])
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Approve a vendor-priced quote" })
+  approveVendorQuote(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("quoteId", ParseUUIDPipe) quoteId: string,
+  ) {
+    return this.vendorQuotes.decide(tenantId, quoteId, true, actorId);
+  }
+
+  @Post(["vendor-quotes/:quoteId/disapprove", "job-offers/:quoteId/disapprove"])
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Disapprove a vendor-priced quote" })
+  disapproveVendorQuote(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("quoteId", ParseUUIDPipe) quoteId: string,
+  ) {
+    return this.vendorQuotes.decide(tenantId, quoteId, false, actorId);
   }
 
   @Patch(":id")

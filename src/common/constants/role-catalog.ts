@@ -16,6 +16,7 @@ import { TRANSPORT_PERMISSIONS } from "../../modules/transport/constants/transpo
 import { NVOCC_PERMISSIONS } from "../../modules/nvocc/constants/nvocc-permission.constants";
 import { NOTIFICATIONS_PERMISSIONS } from "../../modules/notifications/constants/notifications-permission.constants";
 import { DOCUMENTATION_PERMISSIONS } from "../../modules/documentation/constants/documentation-permission.constants";
+import { ALL_MATRIX_PERMISSION_CODES } from "./module-permission-tree";
 
 export interface RoleCatalogEntry {
   /** Matches a UserRole enum value — kept 1:1 so User.role and the Role row it's assigned agree. */
@@ -60,6 +61,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(NVOCC_PERMISSIONS),
       ...Object.values(DOCUMENTATION_PERMISSIONS),
       ...Object.values(NOTIFICATIONS_PERMISSIONS),
+      ...ALL_MATRIX_PERMISSION_CODES,
     ],
   },
   {

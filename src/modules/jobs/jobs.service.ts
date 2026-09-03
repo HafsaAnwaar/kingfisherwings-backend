@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -27,6 +28,11 @@ import { SEA_LCL_IMPORT_MBL_RECEIVED_MILESTONE } from "./constants/sea-lcl-impor
 import { seedJobTypeExtras } from "./utils/job-type-seed.util";
 import { mintTrackingToken } from "./utils/tracking-token.util";
 import { markJobMilestoneIfPresent } from "./utils/mark-milestone.util";
+import {
+  canSeeJobType,
+  canWriteJobType,
+  visibleJobTypes,
+} from "../../common/constants/module-permission-tree";
 
 import { CreateJobDto, UpdateJobDto } from "./dto/job.dto";
 import { UpdateAirJobDetailDto } from "./dto/air-job-detail.dto";
@@ -113,7 +119,13 @@ export class JobsService {
     tenantId: string,
     dto: CreateJobDto,
     actorId?: string,
+    permissions?: string[],
   ): Promise<Job> {
+    if (permissions && !canWriteJobType(permissions, dto.job_type)) {
+      throw new ForbiddenException(
+        `You do not have write access for ${dto.job_type} jobs.`,
+      );
+    }
     const branchCode = dto.branch_id
       ? (
           await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -242,7 +254,11 @@ export class JobsService {
     });
   }
 
-  async findAll(tenantId: string, query: JobQueryDto) {
+  async findAll(
+    tenantId: string,
+    query: JobQueryDto,
+    permissions?: string[],
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
@@ -251,6 +267,16 @@ export class JobsService {
 
       if (query.status) where.status = query.status;
       if (query.job_type) where.job_type = query.job_type;
+      const allowedTypes = visibleJobTypes(permissions ?? []);
+      if (allowedTypes) {
+        if (query.job_type) {
+          if (!allowedTypes.includes(query.job_type)) {
+            where.job_type = { in: [] };
+          }
+        } else {
+          where.job_type = { in: allowedTypes };
+        }
+      }
       if (query.shipper_id) where.shipper_id = query.shipper_id;
       if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
       if (query.branch_id) where.branch_id = query.branch_id;
@@ -494,7 +520,7 @@ export class JobsService {
     });
   }
 
-  async findOne(tenantId: string, id: string) {
+  async findOne(tenantId: string, id: string, permissions?: string[]) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -563,6 +589,12 @@ export class JobsService {
 
       if (!job) {
         throw new NotFoundException("Job not found.");
+      }
+
+      if (permissions && !canSeeJobType(permissions, job.job_type)) {
+        throw new ForbiddenException(
+          `You do not have access to ${job.job_type} jobs.`,
+        );
       }
 
       return job;

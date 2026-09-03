@@ -138,4 +138,32 @@ export class WorldPortsSeedService {
     );
     return { success: true, sea, air };
   }
+
+  async ensureSeaPorts(tenantId: string, actorId?: string) {
+    const count = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.port.count({
+        where: { tenant_id: tenantId, deleted_at: null },
+      }),
+    );
+    if (count < 100) {
+      this.logger.log(
+        `Tenant ${tenantId} has ${count} ports — seeding world sea catalog.`,
+      );
+      await this.seedSeaPorts(tenantId, actorId);
+    }
+  }
+
+  async ensureAirports(tenantId: string, actorId?: string) {
+    const count = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.airport.count({
+        where: { tenant_id: tenantId, deleted_at: null },
+      }),
+    );
+    if (count < 50) {
+      this.logger.log(
+        `Tenant ${tenantId} has ${count} airports — seeding world airport catalog.`,
+      );
+      await this.seedAirports(tenantId, actorId);
+    }
+  }
 }
