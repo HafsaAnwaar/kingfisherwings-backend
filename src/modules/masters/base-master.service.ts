@@ -36,6 +36,8 @@ export abstract class BaseMasterService<T> {
   /** Set false for models with no `is_active` column (e.g. Holiday). */
   protected readonly supportsIsActive: boolean = true;
 
+  protected readonly orderByField: string = "created_at";
+
   constructor(protected readonly prisma: PrismaService) {}
 
   private delegate(tx: Prisma.TransactionClient) {
@@ -93,7 +95,7 @@ export abstract class BaseMasterService<T> {
           where,
           skip: (query.page - 1) * query.limit,
           take: query.limit,
-          orderBy: { created_at: query.order },
+          orderBy: { [this.orderByField]: query.order },
         }),
         this.delegate(tx).count({ where }),
       ]);

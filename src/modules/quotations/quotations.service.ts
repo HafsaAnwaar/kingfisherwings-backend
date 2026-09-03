@@ -19,6 +19,13 @@ import { TariffsService } from "./tariffs/tariffs.service";
 import { seedJobTypeExtras } from "../jobs/utils/job-type-seed.util";
 import { mintTrackingToken } from "../jobs/utils/tracking-token.util";
 
+import { CargoPackageDto } from "../../common/dto/cargo-package.dto";
+import {
+  cbmFromMeters,
+  resolveCargoPackage,
+  sumPackageCbm,
+  totalPieces,
+} from "../../common/utils/cargo-dimensions.util";
 import { CreateQuotationDto, UpdateQuotationDto } from "./dto/quotation.dto";
 import {
   CreateQuotationLineDto,
@@ -127,8 +134,10 @@ export class QuotationsService {
       },
     );
 
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.quotation.create({
+    const cargo = this.resolveQuotationCargo(dto);
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const created = await tx.quotation.create({
         data: {
           tenant_id: tenantId,
           company_id: dto.company_id,
@@ -147,8 +156,8 @@ export class QuotationsService {
           hs_code: dto.hs_code,
           gross_weight: dto.gross_weight,
           chargeable_weight: dto.chargeable_weight,
-          volume_cbm: dto.volume_cbm,
-          pieces: dto.pieces,
+          volume_cbm: cargo.volume_cbm,
+          pieces: cargo.pieces ?? dto.pieces,
           container_type_id: dto.container_type_id,
           container_count: dto.container_count,
           is_dg: dto.is_dg ?? false,
@@ -168,8 +177,11 @@ export class QuotationsService {
           created_by: actorId,
           updated_by: actorId,
         },
-      }),
-    );
+      });
+
+      await this.replaceCargoPackages(tx, tenantId, created.id, cargo.packages);
+      return created;
+    });
   }
 
   // ============================================================
@@ -366,16 +378,33 @@ export class QuotationsService {
       const existing = await this.getOrThrow(tx, tenantId, id);
       this.assertEditable(existing);
 
-      const { valid_until, ...rest } = dto;
+      const {
+        valid_until,
+        packages,
+        length_m,
+        width_m,
+        height_m,
+        volume_cbm: _ignoredVolume,
+        ...rest
+      } = dto;
+      const cargo = this.resolveQuotationCargo(dto);
 
-      return tx.quotation.update({
+      const updated = await tx.quotation.update({
         where: { id },
         data: {
           ...rest,
           ...(valid_until ? { valid_until: new Date(valid_until) } : {}),
+          ...(cargo.volume_cbm != null ? { volume_cbm: cargo.volume_cbm } : {}),
+          ...(cargo.pieces != null ? { pieces: cargo.pieces } : {}),
           updated_by: actorId,
         },
       });
+
+      if (packages?.length || (length_m && width_m && height_m)) {
+        await this.replaceCargoPackages(tx, tenantId, id, cargo.packages);
+      }
+
+      return updated;
     });
   }
 
@@ -2441,5 +2470,85 @@ export class QuotationsService {
     if (!exists) {
       throw new NotFoundException(`${label} not found.`);
     }
+  }
+
+  private resolveQuotationCargo(dto: {
+    packages?: CargoPackageDto[];
+    length_m?: number;
+    width_m?: number;
+    height_m?: number;
+    pieces?: number;
+    volume_cbm?: number;
+  }): {
+    volume_cbm?: number;
+    pieces?: number;
+    packages: ReturnType<typeof resolveCargoPackage>[];
+  } {
+    if (dto.packages?.length) {
+      const packages = dto.packages.map((pkg) => {
+        try {
+          return resolveCargoPackage(pkg);
+        } catch (err) {
+          throw new BadRequestException(
+            err instanceof Error ? err.message : "Invalid cargo dimensions.",
+          );
+        }
+      });
+      return {
+        volume_cbm: sumPackageCbm(packages),
+        pieces: totalPieces(packages),
+        packages,
+      };
+    }
+
+    if (dto.length_m && dto.width_m && dto.height_m) {
+      const pieces = dto.pieces ?? 1;
+      const volume_cbm = cbmFromMeters(
+        dto.length_m,
+        dto.width_m,
+        dto.height_m,
+        pieces,
+      );
+      const pkg = resolveCargoPackage({
+        length_m: dto.length_m,
+        width_m: dto.width_m,
+        height_m: dto.height_m,
+        pieces,
+      });
+      return { volume_cbm, pieces, packages: [pkg] };
+    }
+
+    return {
+      volume_cbm: dto.volume_cbm,
+      pieces: dto.pieces,
+      packages: [],
+    };
+  }
+
+  private async replaceCargoPackages(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    quotationId: string,
+    packages: ReturnType<typeof resolveCargoPackage>[],
+  ) {
+    if (!packages.length) return;
+
+    await tx.quotationCargoPackage.deleteMany({
+      where: { tenant_id: tenantId, quotation_id: quotationId },
+    });
+
+    await tx.quotationCargoPackage.createMany({
+      data: packages.map((pkg, index) => ({
+        tenant_id: tenantId,
+        quotation_id: quotationId,
+        length_cm: pkg.length_cm,
+        width_cm: pkg.width_cm,
+        height_cm: pkg.height_cm,
+        gross_weight_kg: pkg.gross_weight_kg,
+        pieces: pkg.pieces,
+        cbm: pkg.cbm,
+        sort_order: index,
+      })),
+    });
   }
 }

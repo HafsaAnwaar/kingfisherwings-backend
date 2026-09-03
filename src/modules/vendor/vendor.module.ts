@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PrismaModule } from "../../prisma/prisma.module";
+import { MastersModule } from "../masters/masters.module";
 import { EmailModule } from "../../shared/email/email.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { PdfModule } from "../../shared/pdf/pdf.module";
@@ -26,10 +27,15 @@ import { VendorService } from "./vendor.service";
 import { VendorPermissionsService } from "./vendor-permissions.service";
 import { VendorFinanceService } from "./vendor-finance.service";
 import { VendorCcpService } from "./vendor-ccp.service";
+import { VendorQuotesService } from "./vendor-quotes.service";
+import { VendorQuotesController } from "./vendor-quotes.controller";
+import { VendorLookupsController } from "./vendor-lookups.controller";
+import { JobOffersController } from "./job-offers.controller";
 
 @Module({
   imports: [
     PrismaModule,
+    MastersModule,
     EmailModule,
     StorageModule,
     PdfModule,
@@ -47,12 +53,16 @@ import { VendorCcpService } from "./vendor-ccp.service";
     VendorPaymentsController,
     VendorDisputesController,
     VendorAdminDisputesController,
+    VendorQuotesController,
+    VendorLookupsController,
+    JobOffersController,
   ],
   providers: [
     VendorService,
     VendorPermissionsService,
     VendorFinanceService,
     VendorCcpService,
+    VendorQuotesService,
     VendorAuthGuard,
   ],
   exports: [
@@ -60,6 +70,7 @@ import { VendorCcpService } from "./vendor-ccp.service";
     VendorPermissionsService,
     VendorFinanceService,
     VendorCcpService,
+    VendorQuotesService,
     VendorAuthGuard,
   ],
 })

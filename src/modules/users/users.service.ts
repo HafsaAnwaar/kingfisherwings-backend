@@ -25,6 +25,7 @@ import { PasswordUtil } from "../../common/utils/password.util";
 import { PasswordHelper } from "./helpers/password.helper";
 import { AuditHelper } from "./helpers/audit.helper";
 
+import { MODULE_ACCESS_LEVELS, MODULE_PERMISSION_TREE, matrixPermissionCode, matrixPermissionModule } from "../../common/constants/module-permission-tree";
 import { USERS_CONSTANTS } from "./constants/users.constants";
 import { PASSWORD_CONSTANTS } from "./constants/password.constants";
 
@@ -47,6 +48,7 @@ import { UpdateStatusDto } from "./dto/update-status.dto";
 import { BulkUserDto, BulkUserAction } from "./dto/bulk-user.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { UpdatePermissionMatrixDto } from "./dto/permission-matrix.dto";
 import { AdminResetPasswordDto } from "./dto/admin-reset-password.dto";
 
 @Injectable()
@@ -978,5 +980,153 @@ export class UsersService {
     });
 
     this.log("RESET_PASSWORD", `Password reset via token for user ${user.id}`);
+  }
+
+  getPermissionTree() {
+    return { success: true, data: MODULE_PERMISSION_TREE };
+  }
+
+  async getUserPermissionMatrix(tenantId: string, userId: string) {
+    await this.validateTenant(tenantId);
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      this.getExistingOrThrow(tx, tenantId, userId),
+    );
+
+    const effective = await this.loadEffectivePermissionCodes(tenantId, userId);
+
+    const modules = MODULE_PERMISSION_TREE.map((mod) => ({
+      key: mod.key,
+      label: mod.label,
+      submodules: mod.submodules.map((sub) => {
+        const see = effective.has(matrixPermissionCode(mod.key, sub.key, "see"));
+        const read = effective.has(
+          matrixPermissionCode(mod.key, sub.key, "read"),
+        );
+        const write = effective.has(
+          matrixPermissionCode(mod.key, sub.key, "write"),
+        );
+        return {
+          key: sub.key,
+          label: sub.label,
+          job_type: sub.jobType ?? null,
+          see,
+          read,
+          write,
+        };
+      }),
+    }));
+
+    return {
+      success: true,
+      data: {
+        user_id: userId,
+        tree: modules,
+        note: "Saving this matrix updates the user's direct grants. Re-login to refresh the JWT. Operations job types with no operations_* grants remain unrestricted.",
+      },
+    };
+  }
+
+  async updateUserPermissionMatrix(
+    tenantId: string,
+    userId: string,
+    dto: UpdatePermissionMatrixDto,
+    actorId?: string,
+  ) {
+    await this.validateTenant(tenantId);
+
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getExistingOrThrow(tx, tenantId, userId);
+
+      const matrixPerms = await tx.permission.findMany({
+        where: {
+          tenant_id: tenantId,
+          action: { in: [...MODULE_ACCESS_LEVELS] },
+        },
+      });
+      const matrixIds = matrixPerms
+        .filter((p) =>
+          MODULE_PERMISSION_TREE.some((mod) =>
+            mod.submodules.some(
+              (sub) => p.module === matrixPermissionModule(mod.key, sub.key),
+            ),
+          ),
+        )
+        .map((p) => p.id);
+
+      await tx.userPermission.deleteMany({
+        where: {
+          tenant_id: tenantId,
+          user_id: userId,
+          permission_id: { in: matrixIds },
+        },
+      });
+
+      const byCode = new Map<string, (typeof matrixPerms)[number]>(
+        matrixPerms.map((p) => [`${p.module}.${p.action}`, p]),
+      );
+
+      for (const grant of dto.grants) {
+        const see = grant.write || grant.read || grant.see;
+        const read = grant.write || grant.read;
+        const write = grant.write;
+        const flags: Array<["see" | "read" | "write", boolean]> = [
+          ["see", see],
+          ["read", read],
+          ["write", write],
+        ];
+        for (const [level, on] of flags) {
+          if (!on) continue;
+          const code = matrixPermissionCode(grant.module, grant.submodule, level);
+          const perm = byCode.get(code);
+          if (!perm) {
+            throw new BadRequestException(
+              `Unknown permission ${code}. Sync tenant permissions first (POST /tenants/:id/sync-permissions).`,
+            );
+          }
+          await tx.userPermission.create({
+            data: {
+              tenant_id: tenantId,
+              user_id: userId,
+              permission_id: perm.id,
+              granted: true,
+              created_by: actorId,
+            },
+          });
+        }
+      }
+    });
+
+    return this.getUserPermissionMatrix(tenantId, userId);
+  }
+
+  private async loadEffectivePermissionCodes(
+    tenantId: string,
+    userId: string,
+  ): Promise<Set<string>> {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const roleAssignments = await tx.userRoleAssignment.findMany({
+        where: { tenant_id: tenantId, user_id: userId },
+        include: {
+          role: {
+            include: { role_permissions: { include: { permission: true } } },
+          },
+        },
+      });
+      const direct = await tx.userPermission.findMany({
+        where: { tenant_id: tenantId, user_id: userId, granted: true },
+        include: { permission: true },
+      });
+      const codes = new Set<string>();
+      for (const assignment of roleAssignments) {
+        if (!assignment.role.is_active || assignment.role.deleted_at) continue;
+        for (const rp of assignment.role.role_permissions) {
+          codes.add(`${rp.permission.module}.${rp.permission.action}`);
+        }
+      }
+      for (const grant of direct) {
+        codes.add(`${grant.permission.module}.${grant.permission.action}`);
+      }
+      return codes;
+    });
   }
 }

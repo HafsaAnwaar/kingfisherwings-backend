@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsDateString,
@@ -11,8 +12,12 @@ import {
   Length,
   Max,
   Min,
+  ArrayMinSize,
+  IsArray,
+  ValidateNested,
 } from "class-validator";
 import { JobType, QuotationSource } from "@prisma/client";
+import { CargoPackageDto } from "../../../common/dto/cargo-package.dto";
 
 const INCOTERMS = [
   "EXW",
@@ -104,11 +109,40 @@ export class CreateQuotationDto {
   @Min(0)
   chargeable_weight?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      "Ignored when packages or metre dimensions are sent — CBM is Length(m)×Width(m)×Height(m)×pieces.",
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   volume_cbm?: number;
+
+  @ApiPropertyOptional({ example: 1.2, description: "Length in metres (auto CBM)" })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.001)
+  length_m?: number;
+
+  @ApiPropertyOptional({ example: 0.8 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.001)
+  width_m?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.001)
+  height_m?: number;
+
+  @ApiPropertyOptional({ type: [CargoPackageDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CargoPackageDto)
+  packages?: CargoPackageDto[];
 
   @ApiPropertyOptional()
   @IsOptional()

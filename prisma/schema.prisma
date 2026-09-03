@@ -2178,6 +2178,7 @@ model Party {
   vendor_users             VendorUser[]
   vendor_permissions       VendorPermission[]
   vendor_disputes          VendorDispute[]
+  vendor_quotes            VendorQuote[]
   leads_converted          Lead[]              @relation("LeadConvertedParty")
   call_logs                CallLog[]
   follow_ups               FollowUp[]
@@ -2343,6 +2344,7 @@ model Job {
   transport_requests   TransportRequest[]
   courier_checkpoints  CourierDeliveryCheckpoint[]
   nvocc_details        NvoccJobDetail?
+  vendor_quotes        VendorQuote[]
 
   @@unique([tenant_id, job_number])
   @@index([tenant_id])
@@ -2354,6 +2356,62 @@ model Job {
   @@index([tenant_id, company_id])
   @@index([tenant_id, billing_party_id])
   @@map("jobs")
+}
+
+enum VendorQuoteStatus {
+  SENT
+  PRICED
+  APPROVED
+  DISAPPROVED
+}
+
+/// Job sent by tenant staff to a vendor to price. Customer revenue is never copied.
+model VendorQuote {
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String            @db.Uuid
+  job_id           String            @db.Uuid
+  vendor_party_id  String            @db.Uuid
+  status           VendorQuoteStatus @default(SENT)
+  currency_code    String            @default("AED") @db.Char(3)
+  cost_total       Decimal           @default(0) @db.Decimal(18, 4)
+  vendor_notes     String?           @db.Text
+  staff_notes      String?           @db.Text
+  sent_at          DateTime          @default(now()) @db.Timestamptz
+  priced_at        DateTime?         @db.Timestamptz
+  decided_at       DateTime?         @db.Timestamptz
+  decided_by       String?           @db.Uuid
+  created_at       DateTime          @default(now()) @db.Timestamptz
+  updated_at       DateTime          @updatedAt @db.Timestamptz
+  created_by       String?           @db.Uuid
+  updated_by       String?           @db.Uuid
+  deleted_at       DateTime?         @db.Timestamptz
+
+  job          Job               @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  vendor_party Party             @relation(fields: [vendor_party_id], references: [id], onDelete: Restrict)
+  lines        VendorQuoteLine[]
+
+  @@index([tenant_id, vendor_party_id])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, status])
+  @@map("vendor_quotes")
+}
+
+model VendorQuoteLine {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String   @db.Uuid
+  vendor_quote_id String   @db.Uuid
+  description     String   @db.VarChar(500)
+  quantity        Decimal  @default(1) @db.Decimal(12, 4)
+  unit_price      Decimal  @default(0) @db.Decimal(18, 4)
+  amount          Decimal  @default(0) @db.Decimal(18, 4)
+  sort_order      Int      @default(0)
+  created_at      DateTime @default(now()) @db.Timestamptz
+  updated_at      DateTime @updatedAt @db.Timestamptz
+
+  vendor_quote VendorQuote @relation(fields: [vendor_quote_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, vendor_quote_id])
+  @@map("vendor_quote_lines")
 }
 
 model AirJobDetail {
@@ -4558,6 +4616,7 @@ enum NotificationType {
   VENDOR_INVOICE_SUBMITTED
   VENDOR_PAYMENT_POSTED
   VENDOR_DISPUTE
+  VENDOR_QUOTE_SENT
   FOLLOW_UP_DUE
   LEAD_ASSIGNED
   CAMPAIGN_SENT

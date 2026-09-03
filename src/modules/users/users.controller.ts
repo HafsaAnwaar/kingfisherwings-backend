@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   BadRequestException,
   UnauthorizedException,
@@ -39,6 +40,7 @@ import { QueryUserDto } from "./dto/query-user.dto";
 import { UpdateStatusDto } from "./dto/update-status.dto";
 import { BulkUserDto } from "./dto/bulk-user.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { UpdatePermissionMatrixDto } from "./dto/permission-matrix.dto";
 import { AdminResetPasswordDto } from "./dto/admin-reset-password.dto";
 
 import { UserResponse } from "./responses/user.response";
@@ -71,6 +73,45 @@ export class UsersController {
     @Query() query: QueryUserDto,
   ): Promise<PaginatedUsersResponse> {
     return this.usersService.findAll(tenantId, query);
+  }
+
+  @Get("permission-matrix")
+  @RequirePermissions(USERS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Permission tree for the admin panel (modules → submodules → see/read/write).",
+  })
+  permissionTree() {
+    return this.usersService.getPermissionTree();
+  }
+
+  @Get(":id/permission-matrix")
+  @RequirePermissions(USERS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Get a user's module/submodule permission matrix." })
+  getUserMatrix(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.getUserPermissionMatrix(tenantId, id);
+  }
+
+  @Put(":id/permission-matrix")
+  @RequirePermissions(USERS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Set a user's module/submodule see/read/write grants. User must log in again to refresh JWT.",
+  })
+  putUserMatrix(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePermissionMatrixDto,
+  ) {
+    return this.usersService.updateUserPermissionMatrix(
+      tenantId,
+      id,
+      dto,
+      actorId,
+    );
   }
 
   @Get(":id")

@@ -5,6 +5,7 @@ import { QueueModule } from "../../shared/queue/queue.module";
 import { EmailModule } from "../../shared/email/email.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { VendorModule } from "../vendor/vendor.module";
 import { CronSecretGuard } from "../../common/guards/cron-secret.guard";
 import { QuotationsController } from "./quotations.controller";
 import { QuotationsService } from "./quotations.service";
@@ -24,6 +25,7 @@ import { ZipDistancesService } from "./zip-distances/zip-distances.service";
     EmailModule,
     StorageModule,
     NotificationsModule,
+    VendorModule,
   ],
   // Tariffs + zip-distances MUST register before QuotationsController so
   // Nest does not let GET /quotations/:id swallow /quotations/tariffs.

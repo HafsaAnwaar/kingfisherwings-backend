@@ -16,6 +16,7 @@ import { TRANSPORT_PERMISSION_CONSTANTS } from "../../modules/transport/constant
 import { NVOCC_PERMISSION_CONSTANTS } from "../../modules/nvocc/constants/nvocc-permission.constants";
 import { NOTIFICATIONS_PERMISSION_CONSTANTS } from "../../modules/notifications/constants/notifications-permission.constants";
 import { DOCUMENTATION_PERMISSION_CONSTANTS } from "../../modules/documentation/constants/documentation-permission.constants";
+import { MATRIX_PERMISSION_CATALOG } from "./module-permission-tree";
 
 export interface PermissionCatalogEntry {
   module: string;
@@ -128,4 +129,5 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
       description: `${DOCUMENTATION_PERMISSION_CONSTANTS.MODULE}.${action}`,
     }),
   ),
+  ...MATRIX_PERMISSION_CATALOG,
 ];

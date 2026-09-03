@@ -20,6 +20,7 @@ import { SeaLclImportService } from "./sea-lcl-import.service";
 import { LandService } from "./land.service";
 import { CourierService } from "./courier.service";
 import { TransportModule } from "../transport/transport.module";
+import { VendorModule } from "../vendor/vendor.module";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TransportModule } from "../transport/transport.module";
     InvoicesModule,
     StorageModule,
     TransportModule,
+    VendorModule,
   ],
   controllers: [JobsController, JobsSeaScansController, SeaKpiReportController],
   providers: [

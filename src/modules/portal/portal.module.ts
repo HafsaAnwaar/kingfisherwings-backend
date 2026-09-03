@@ -5,9 +5,11 @@ import { EmailModule } from "../../shared/email/email.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { PdfModule } from "../../shared/pdf/pdf.module";
 import { QuotationsModule } from "../quotations/quotations.module";
+import { MastersModule } from "../masters/masters.module";
 import { InvoicesModule } from "../invoices/invoices.module";
 import { GlModule } from "../gl/gl.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { PortalLookupsController } from "./portal-lookups.controller";
 import { PortalAuthController } from "./portal-auth.controller";
 import {
   PartyPortalUsersController,
@@ -51,12 +53,14 @@ import { PortalCcpService } from "./portal-ccp.service";
     StorageModule,
     PdfModule,
     QuotationsModule,
+    MastersModule,
     InvoicesModule,
     GlModule,
     NotificationsModule,
     JwtModule.register({}),
   ],
   controllers: [
+    PortalLookupsController,
     PortalAuthController,
     PartyPortalUsersController,
     PortalUsersAdminController,

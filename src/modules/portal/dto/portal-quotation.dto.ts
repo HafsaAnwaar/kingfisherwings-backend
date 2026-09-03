@@ -17,35 +17,10 @@ import {
   ValidateNested,
   ArrayMinSize,
 } from "class-validator";
+import { CargoPackageDto } from "../../../common/dto/cargo-package.dto";
 import { JobType, QuotationStatus } from "@prisma/client";
 
-export class PortalCargoPackageDto {
-  @ApiProperty({ example: 120 })
-  @IsNumber()
-  @Min(0.01)
-  length_cm!: number;
-
-  @ApiProperty({ example: 80 })
-  @IsNumber()
-  @Min(0.01)
-  width_cm!: number;
-
-  @ApiProperty({ example: 100 })
-  @IsNumber()
-  @Min(0.01)
-  height_cm!: number;
-
-  @ApiProperty({ example: 250 })
-  @IsNumber()
-  @Min(0)
-  gross_weight_kg!: number;
-
-  @ApiPropertyOptional({ example: 1, default: 1 })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  pieces?: number = 1;
-}
+export { CargoPackageDto as PortalCargoPackageDto };
 
 export class PortalQuotationQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -166,12 +141,12 @@ export class PortalQuotationRequestDto {
 }
 
 export class PortalQuotationEstimateDto extends PortalQuotationRequestDto {
-  @ApiProperty({ type: [PortalCargoPackageDto] })
+  @ApiProperty({ type: [CargoPackageDto] })
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
-  @Type(() => PortalCargoPackageDto)
-  packages!: PortalCargoPackageDto[];
+  @Type(() => CargoPackageDto)
+  packages!: CargoPackageDto[];
 
   @ApiProperty({ example: ["AIR_FREIGHT", "CUSTOMS_CLEARANCE"] })
   @IsArray()
