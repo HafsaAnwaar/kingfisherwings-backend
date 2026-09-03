@@ -257,6 +257,79 @@ export class ArApService {
     };
   }
 
+  async arOpenItems(
+    tenantId: string,
+    query: { party_id?: string; company_id?: string },
+  ) {
+    return this.listOpenItems(tenantId, query, "AR");
+  }
+
+  async apOpenItems(
+    tenantId: string,
+    query: { party_id?: string; company_id?: string },
+  ) {
+    return this.listOpenItems(tenantId, query, "AP");
+  }
+
+  private async listOpenItems(
+    tenantId: string,
+    query: { party_id?: string; company_id?: string },
+    side: "AR" | "AP",
+  ) {
+    const types: InvoiceType[] =
+      side === "AR" ? ["CUSTOMER_INVOICE", "DEBIT_NOTE"] : ["PURCHASE_INVOICE"];
+
+    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          invoice_type: { in: types },
+          status: { in: ["POSTED", "SENT", "PARTIALLY_PAID"] },
+          balance_due: { gt: 0.0001 },
+          ...(query.party_id ? { party_id: query.party_id } : {}),
+          ...(query.company_id ? { company_id: query.company_id } : {}),
+        },
+        orderBy: [{ due_date: "asc" }, { invoice_date: "desc" }],
+        include: {
+          party: { select: { id: true, code: true, name: true } },
+        },
+      }),
+    );
+
+    const items = rows.map((inv) => ({
+      invoice_id: inv.id,
+      invoice_number: inv.invoice_number,
+      invoice_type: inv.invoice_type,
+      party_id: inv.party_id,
+      party_code: inv.party.code,
+      party_name: inv.party.name,
+      total_amount: inv.total_amount,
+      amount_paid: inv.amount_paid,
+      balance_due: inv.balance_due,
+      currency_code: inv.currency_code,
+      due_date: inv.due_date,
+      status: inv.status,
+    }));
+
+    return {
+      success: true,
+      side,
+      data: items,
+      meta: {
+        count: items.length,
+        total_outstanding: items.reduce(
+          (sum, row) => sum + Number(row.balance_due),
+          0,
+        ),
+        total_paid: items.reduce(
+          (sum, row) => sum + Number(row.amount_paid),
+          0,
+        ),
+      },
+    };
+  }
+
   private bucketFor(daysOverdue: number): AgingBucket {
     if (daysOverdue <= 0) return "current";
     if (daysOverdue <= 30) return "days_1_30";

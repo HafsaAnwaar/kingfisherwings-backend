@@ -3416,6 +3416,10 @@ model Quotation {
   parent_quotation_id String?          @db.Uuid
   source              QuotationSource  @default(STAFF)
   negotiation_round   Int              @default(0)
+  /// Latest customer counter-offer total (visible to both parties until tenant revises or accepts).
+  customer_proposed_total  Decimal?    @db.Decimal(18, 4)
+  customer_proposed_lines  Json?
+  customer_proposed_at     DateTime?   @db.Timestamptz
 
   // Lifecycle timestamps
   lost_reason  String?   @db.VarChar(200)

@@ -65,4 +65,38 @@ export class ArApController {
   ) {
     return this.service.partyStatement(tenantId, partyId, query, "AP");
   }
+
+  @Get("ar/open-items")
+  @RequirePermissions(GL_PERMISSIONS.VIEW_AGING)
+  @ApiOperation({
+    summary:
+      "Customer invoices with outstanding balance (amount paid vs pending)",
+  })
+  arOpenItems(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query("party_id") partyId?: string,
+    @Query("company_id") companyId?: string,
+  ) {
+    return this.service.arOpenItems(tenantId, {
+      party_id: partyId,
+      company_id: companyId,
+    });
+  }
+
+  @Get("ap/open-items")
+  @RequirePermissions(GL_PERMISSIONS.VIEW_AGING)
+  @ApiOperation({
+    summary:
+      "Vendor purchase invoices with outstanding balance (tenant owes vs paid)",
+  })
+  apOpenItems(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query("party_id") partyId?: string,
+    @Query("company_id") companyId?: string,
+  ) {
+    return this.service.apOpenItems(tenantId, {
+      party_id: partyId,
+      company_id: companyId,
+    });
+  }
 }
