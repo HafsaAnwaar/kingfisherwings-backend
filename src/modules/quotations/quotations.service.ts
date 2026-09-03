@@ -30,6 +30,12 @@ import { CreateOnlineQuoteDto } from "./dto/online-quote.dto";
 import { MarkLostDto, ApprovalDecisionDto } from "./dto/quotation-actions.dto";
 import { QuotationNegotiationService } from "./quotation-negotiation.service";
 import {
+  applyTotalToRevenueLines,
+  buildLineSnapshots,
+  buildNegotiationPricingView,
+} from "./quotation-negotiation-pricing.util";
+import { ReviseAndSendDto } from "./dto/quotation-actions.dto";
+import {
   GenerateQuotationPdfDto,
   SendQuotationEmailDto,
 } from "./dto/quotation-pdf.dto";
@@ -309,6 +315,7 @@ export class QuotationsService {
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
           lines: { orderBy: { sort_order: "asc" } },
+          packages: { orderBy: { sort_order: "asc" } },
           status_history: { orderBy: { created_at: "asc" } },
           approvals: { orderBy: { level: "asc" } },
         },
@@ -318,7 +325,10 @@ export class QuotationsService {
         throw new NotFoundException("Quotation not found.");
       }
 
-      return quotation;
+      return {
+        ...quotation,
+        negotiation_pricing: buildNegotiationPricingView(quotation),
+      };
     });
   }
 
@@ -1524,12 +1534,38 @@ export class QuotationsService {
   async customerCounterOffer(
     tenantId: string,
     id: string,
-    dto: { message: string; proposed_total?: number },
+    dto: {
+      message: string;
+      proposed_total: number;
+      proposed_lines?: Array<{
+        description: string;
+        quantity?: number;
+        unit_price?: number;
+        amount?: number;
+      }>;
+    },
     actorId?: string,
   ) {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
       this.negotiation.assertCustomerActionable(quotation.status);
+
+      const proposedLines =
+        dto.proposed_lines?.map((line) => ({
+          description: line.description,
+          quantity: line.quantity ?? 1,
+          unit_price: line.unit_price ?? line.amount ?? dto.proposed_total,
+          amount:
+            line.amount ??
+            (line.quantity ?? 1) * (line.unit_price ?? dto.proposed_total),
+        })) ?? [
+          {
+            description: "Customer counter-offer",
+            quantity: 1,
+            unit_price: dto.proposed_total,
+            amount: dto.proposed_total,
+          },
+        ];
 
       const nextRound = quotation.negotiation_round + 1;
       const result = await tx.quotation.update({
@@ -1537,6 +1573,9 @@ export class QuotationsService {
         data: {
           status: "NEGOTIATING",
           negotiation_round: nextRound,
+          customer_proposed_total: dto.proposed_total,
+          customer_proposed_lines: proposedLines,
+          customer_proposed_at: new Date(),
           updated_by: actorId,
         },
       });
@@ -1558,6 +1597,7 @@ export class QuotationsService {
         action: "COUNTER_OFFER",
         message: dto.message,
         proposedTotal: dto.proposed_total,
+        proposedLines,
         createdBy: actorId,
       });
 
@@ -1567,24 +1607,49 @@ export class QuotationsService {
     return {
       success: true,
       message: "Counter-offer submitted.",
-      data: {
-        id: updated.id,
-        quotation_number: updated.quotation_number,
-        status: updated.status,
-        negotiation_round: updated.negotiation_round,
-      },
+      data: await this.findOne(tenantId, id),
     };
   }
 
   async reviseAndSend(
     tenantId: string,
     id: string,
-    dto: { message: string },
+    dto: ReviseAndSendDto,
     actorId?: string,
   ) {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
       this.negotiation.assertTenantNegotiable(quotation.status);
+
+      if (dto.lines?.length) {
+        for (const lineDto of dto.lines) {
+          if (!lineDto.line_id) continue;
+          const qty = lineDto.quantity ?? 1;
+          const unitPrice = lineDto.unit_price ?? lineDto.amount ?? 0;
+          const amount = lineDto.amount ?? qty * unitPrice;
+          await tx.quotationLine.update({
+            where: { id: lineDto.line_id },
+            data: {
+              ...(lineDto.description ? { description: lineDto.description } : {}),
+              quantity: qty,
+              unit_price: unitPrice,
+              amount,
+              amount_base_currency: amount,
+              updated_by: actorId,
+            },
+          });
+        }
+        await this.recalculateTotals(tx, tenantId, id);
+      } else if (dto.proposed_total !== undefined) {
+        await applyTotalToRevenueLines(
+          tx,
+          tenantId,
+          id,
+          dto.proposed_total,
+          actorId,
+        );
+        await this.recalculateTotals(tx, tenantId, id);
+      }
 
       const refreshed = await tx.quotation.findFirst({
         where: { id, tenant_id: tenantId },
@@ -1594,14 +1659,22 @@ export class QuotationsService {
       });
       if (!refreshed) throw new NotFoundException("Quotation not found.");
 
+      const offeredTotal = Number(refreshed.revenue_total);
+      const offeredLines = buildLineSnapshots(refreshed.lines);
       const nextRound = quotation.negotiation_round + 1;
       const result = await tx.quotation.update({
         where: { id },
         data: {
           status: "CUSTOMER_REVIEW",
           negotiation_round: nextRound,
+          customer_proposed_total: null,
+          customer_proposed_lines: Prisma.JsonNull,
+          customer_proposed_at: null,
           sent_at: new Date(),
           updated_by: actorId,
+        },
+        include: {
+          lines: { where: { is_cost: false }, orderBy: { sort_order: "asc" } },
         },
       });
 
@@ -1621,13 +1694,8 @@ export class QuotationsService {
         actor: "TENANT",
         action: "REVISE",
         message: dto.message,
-        proposedTotal: Number(refreshed.revenue_total),
-        proposedLines: refreshed.lines.map((line) => ({
-          description: line.description,
-          quantity: line.quantity,
-          unit_price: line.unit_price,
-          amount: line.amount,
-        })),
+        proposedTotal: offeredTotal,
+        proposedLines: offeredLines,
         createdBy: actorId,
       });
 
@@ -1637,7 +1705,8 @@ export class QuotationsService {
         actor: "TENANT",
         action: "SEND",
         message: dto.message,
-        proposedTotal: Number(refreshed.revenue_total),
+        proposedTotal: offeredTotal,
+        proposedLines: offeredLines,
         createdBy: actorId,
       });
 
@@ -1652,7 +1721,10 @@ export class QuotationsService {
     return {
       success: true,
       message: "Revised quotation sent to customer.",
-      data: updated,
+      data: {
+        ...updated,
+        negotiation_pricing: buildNegotiationPricingView(updated),
+      },
     };
   }
 
@@ -1670,9 +1742,34 @@ export class QuotationsService {
         );
       }
 
+      if (!quotation.customer_proposed_total) {
+        throw new BadRequestException(
+          "No customer proposed total to accept on this quotation.",
+        );
+      }
+
+      await applyTotalToRevenueLines(
+        tx,
+        tenantId,
+        id,
+        Number(quotation.customer_proposed_total),
+        actorId,
+      );
+      await this.recalculateTotals(tx, tenantId, id);
+
       const result = await tx.quotation.update({
         where: { id },
-        data: { status: "WON", won_at: new Date(), updated_by: actorId },
+        data: {
+          status: "WON",
+          won_at: new Date(),
+          customer_proposed_total: null,
+          customer_proposed_lines: Prisma.JsonNull,
+          customer_proposed_at: null,
+          updated_by: actorId,
+        },
+        include: {
+          lines: { where: { is_cost: false }, orderBy: { sort_order: "asc" } },
+        },
       });
 
       await this.recordStatusChange(
@@ -1764,7 +1861,14 @@ export class QuotationsService {
   }
 
   async getNegotiationTimeline(tenantId: string, quotationId: string) {
-    return this.negotiation.getTimeline(tenantId, quotationId);
+    const [events, quotation] = await Promise.all([
+      this.negotiation.getTimeline(tenantId, quotationId),
+      this.findOne(tenantId, quotationId),
+    ]);
+    return {
+      ...events,
+      negotiation_pricing: quotation.negotiation_pricing,
+    };
   }
 
   private async notifyCustomerQuotationStatus(

@@ -194,11 +194,34 @@ export class PortalQuotationCounterOfferDto {
   @MaxLength(1000)
   message!: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({
+    description: "Customer counter-offer total shown on the quotation to both parties.",
+  })
   @IsNumber()
   @Min(0)
-  proposed_total?: number;
+  proposed_total!: number;
+
+  @ApiPropertyOptional({
+    description: "Optional line-level breakdown of the counter-offer.",
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        description: { type: "string" },
+        quantity: { type: "number" },
+        unit_price: { type: "number" },
+        amount: { type: "number" },
+      },
+    },
+  })
+  @IsOptional()
+  @IsArray()
+  proposed_lines?: Array<{
+    description: string;
+    quantity?: number;
+    unit_price?: number;
+    amount?: number;
+  }>;
 }
 
 const PORTAL_LOSS_REASONS = [

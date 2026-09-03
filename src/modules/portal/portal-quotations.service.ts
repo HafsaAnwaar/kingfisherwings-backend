@@ -19,6 +19,7 @@ import {
 } from "./dto/portal-quotation.dto";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalQuotePricingService } from "./portal-quote-pricing.service";
+import { buildNegotiationPricingView } from "../quotations/quotation-negotiation-pricing.util";
 import { QuotationNegotiationService } from "../quotations/quotation-negotiation.service";
 import { ServiceCatalogService } from "../quotations/service-catalog/service-catalog.service";
 
@@ -323,6 +324,7 @@ export class PortalQuotationsService {
         converted_job_number: convertedJobNumber,
         negotiation_round: quotation.negotiation_round,
         source: quotation.source,
+        negotiation_pricing: buildNegotiationPricingView(quotation),
         customer_pdf_url: quotation.customer_pdf_url,
         has_pdf: Boolean(quotation.customer_pdf_url),
         created_at: quotation.created_at,
@@ -456,7 +458,15 @@ export class PortalQuotationsService {
 
   async negotiationTimeline(user: CurrentPortalUser, quotationId: string) {
     await this.getOwnedOrThrow(user, quotationId);
-    return this.negotiation.getTimeline(user.tenantId, quotationId);
+    const result = await this.negotiation.getTimeline(
+      user.tenantId,
+      quotationId,
+    );
+    const detail = await this.findOne(user, quotationId);
+    return {
+      ...result,
+      negotiation_pricing: detail.data.negotiation_pricing,
+    };
   }
 
   private async getOwnedOrThrow(user: CurrentPortalUser, quotationId: string) {
