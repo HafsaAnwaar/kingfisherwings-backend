@@ -131,15 +131,21 @@ enum ContainerSize {
 enum QuotationStatus {
   DRAFT
   SUBMITTED
-  APPROVED
+  /// Staff signed off internally; quote may be sent to the customer.
+  INTERNALLY_APPROVED
   REJECTED
   SENT
   NEGOTIATING
   CUSTOMER_REVIEW
-  WON
-  LOST
+  /// Customer accepted the quote (formerly WON).
+  APPROVED
+  /// Customer rejected the quote (formerly LOST).
+  DISAPPROVED
   EXPIRED
   CONVERTED
+  /// Deprecated DB values kept so PostgreSQL enum drop is not required.
+  WON
+  LOST
 }
 
 enum ServicePricingBasis {

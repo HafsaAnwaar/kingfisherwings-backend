@@ -458,7 +458,7 @@ Staff read: `GET /notifications`. Portal: `GET /portal/notifications`. Vendor in
 ## 7. Money path (end-to-end)
 
 ```
-Quote (DRAFT→SENT→WON)
+Quote (DRAFT→SUBMITTED→INTERNALLY_APPROVED→SENT→APPROVED)
   → Job (charges, P&L)
   → Customer Invoice (DRAFT→POSTED) → GL voucher
   → Receipt payment POSTED → allocate → AR aging / portal statement
@@ -774,10 +774,11 @@ Tenant staff maintains `GET/POST/PATCH /quotations/service-catalog`.
 ```
 Staff: POST /quotations/:id/revise-and-send  → CUSTOMER_REVIEW + QuotationNegotiationEvent
 Portal: POST /portal/quotations/:id/counter-offer → NEGOTIATING
+  (quotation revenue_total + revenue lines jump immediately to proposed_total)
 Staff: POST /quotations/:id/negotiation/accept|reject
 Portal: POST /portal/quotations/:id/accept|reject
 GET  */quotations/:id/negotiation (staff + portal)
-WON → staff POST /quotations/:id/convert-to-job
+APPROVED → staff POST /quotations/:id/convert-to-job
 ```
 
 ### Partial payments & proofs

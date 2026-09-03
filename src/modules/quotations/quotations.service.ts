@@ -65,18 +65,24 @@ const EDITABLE_STATUSES: QuotationStatus[] = ["DRAFT", "REJECTED"];
 
 const ARCHIVABLE_STATUSES: QuotationStatus[] = [
   "SENT",
-  "WON",
-  "LOST",
+  "APPROVED",
+  "DISAPPROVED",
   "EXPIRED",
   "CONVERTED",
-  "APPROVED",
+  "INTERNALLY_APPROVED",
 ];
 
 const EXPIRABLE_STATUSES: QuotationStatus[] = [
   "SENT",
-  "APPROVED",
+  "INTERNALLY_APPROVED",
   "DRAFT",
   "SUBMITTED",
+];
+
+const CUSTOMER_OUTCOME_ALLOWED: QuotationStatus[] = [
+  "SENT",
+  "CUSTOMER_REVIEW",
+  "NEGOTIATING",
 ];
 
 @Injectable()
@@ -873,8 +879,8 @@ export class QuotationsService {
 
       const [total, won, lost, sent, byStatus, byJobType] = await Promise.all([
         tx.quotation.count({ where }),
-        tx.quotation.count({ where: { ...where, status: "WON" } }),
-        tx.quotation.count({ where: { ...where, status: "LOST" } }),
+        tx.quotation.count({ where: { ...where, status: "APPROVED" } }),
+        tx.quotation.count({ where: { ...where, status: "DISAPPROVED" } }),
         tx.quotation.count({ where: { ...where, status: "SENT" } }),
         tx.quotation.groupBy({ by: ["status"], where, _count: { id: true } }),
         tx.quotation.groupBy({ by: ["job_type"], where, _count: { id: true } }),
@@ -920,8 +926,8 @@ export class QuotationsService {
       const where = this.buildAnalyticsWhere(tenantId, query);
 
       const [won, lost, converted] = await Promise.all([
-        tx.quotation.count({ where: { ...where, status: "WON" } }),
-        tx.quotation.count({ where: { ...where, status: "LOST" } }),
+        tx.quotation.count({ where: { ...where, status: "APPROVED" } }),
+        tx.quotation.count({ where: { ...where, status: "DISAPPROVED" } }),
         tx.quotation.count({ where: { ...where, status: "CONVERTED" } }),
       ]);
 
@@ -946,7 +952,7 @@ export class QuotationsService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.QuotationWhereInput = {
         ...this.buildAnalyticsWhere(tenantId, query),
-        status: "LOST",
+        status: "DISAPPROVED",
         lost_reason: { not: null },
       };
 
@@ -1315,7 +1321,7 @@ export class QuotationsService {
       });
 
       const newStatus: QuotationStatus =
-        decision === "APPROVED" ? "APPROVED" : "REJECTED";
+        decision === "APPROVED" ? "INTERNALLY_APPROVED" : "REJECTED";
 
       const updated = await tx.quotation.update({
         where: { id },
@@ -1350,9 +1356,9 @@ export class QuotationsService {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      if (quotation.status !== "APPROVED") {
+      if (quotation.status !== "INTERNALLY_APPROVED") {
         throw new BadRequestException(
-          "Only an APPROVED quotation can be sent.",
+          "Only an internally approved quotation can be sent.",
         );
       }
 
@@ -1393,17 +1399,17 @@ export class QuotationsService {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
       const allowed = fromPortal
-        ? ["SENT", "CUSTOMER_REVIEW", "NEGOTIATING"]
-        : ["SENT"];
+        ? CUSTOMER_OUTCOME_ALLOWED
+        : (["SENT"] as QuotationStatus[]);
       if (!allowed.includes(quotation.status)) {
         throw new BadRequestException(
-          "Quotation cannot be marked won in its current status.",
+          "Quotation cannot be approved in its current status. Price and send it first.",
         );
       }
 
       const result = await tx.quotation.update({
         where: { id },
-        data: { status: "WON", won_at: new Date(), updated_by: actorId },
+        data: { status: "APPROVED", won_at: new Date(), updated_by: actorId },
       });
 
       await this.recordStatusChange(
@@ -1411,7 +1417,7 @@ export class QuotationsService {
         tenantId,
         id,
         quotation.status,
-        "WON",
+        "APPROVED",
         actorId,
         message,
       );
@@ -1459,16 +1465,18 @@ export class QuotationsService {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
       const allowed = fromPortal
-        ? ["SENT", "CUSTOMER_REVIEW", "NEGOTIATING"]
-        : ["SENT"];
+        ? CUSTOMER_OUTCOME_ALLOWED
+        : (["SENT"] as QuotationStatus[]);
       if (!allowed.includes(quotation.status)) {
         throw new BadRequestException(
-          "Quotation cannot be marked lost in its current status.",
+          "Quotation cannot be disapproved in its current status. Price and send it first.",
         );
       }
 
       const renegotiate = (options?.allowRenegotiate ?? false) && fromPortal;
-      const nextStatus: QuotationStatus = renegotiate ? "NEGOTIATING" : "LOST";
+      const nextStatus: QuotationStatus = renegotiate
+        ? "NEGOTIATING"
+        : "DISAPPROVED";
 
       const result = await tx.quotation.update({
         where: { id },
@@ -1512,7 +1520,7 @@ export class QuotationsService {
       return result;
     });
 
-    if (updated.status === "LOST") {
+    if (updated.status === "DISAPPROVED") {
       await this.notifyCustomerQuotationStatus(
         updated,
         "QUOTATION_REJECTED",
@@ -1600,6 +1608,15 @@ export class QuotationsService {
         proposedLines,
         createdBy: actorId,
       });
+
+      await applyTotalToRevenueLines(
+        tx,
+        tenantId,
+        id,
+        dto.proposed_total,
+        actorId,
+      );
+      await this.recalculateTotals(tx, tenantId, id);
 
       return result;
     });
@@ -1760,7 +1777,7 @@ export class QuotationsService {
       const result = await tx.quotation.update({
         where: { id },
         data: {
-          status: "WON",
+          status: "APPROVED",
           won_at: new Date(),
           customer_proposed_total: null,
           customer_proposed_lines: Prisma.JsonNull,
@@ -1777,7 +1794,7 @@ export class QuotationsService {
         tenantId,
         id,
         quotation.status,
-        "WON",
+        "APPROVED",
         actorId,
         dto.message ?? dto.comments,
       );
@@ -1816,7 +1833,9 @@ export class QuotationsService {
         );
       }
 
-      const nextStatus: QuotationStatus = dto.terminal ? "LOST" : "CUSTOMER_REVIEW";
+      const nextStatus: QuotationStatus = dto.terminal
+        ? "DISAPPROVED"
+        : "CUSTOMER_REVIEW";
       const result = await tx.quotation.update({
         where: { id },
         data: {
@@ -1850,7 +1869,7 @@ export class QuotationsService {
       return result;
     });
 
-    if (updated.status === "LOST") {
+    if (updated.status === "DISAPPROVED") {
       await this.notifyCustomerQuotationStatus(
         updated,
         "QUOTATION_REJECTED",
@@ -2063,9 +2082,9 @@ export class QuotationsService {
       throw new NotFoundException("Quotation not found.");
     }
 
-    if (quotation.status !== "WON") {
+    if (quotation.status !== "APPROVED") {
       throw new BadRequestException(
-        "Only a WON quotation can be converted to a job.",
+        "Only an APPROVED quotation can be converted to a job.",
       );
     }
 
@@ -2172,7 +2191,7 @@ export class QuotationsService {
         tx,
         tenantId,
         id,
-        "WON",
+        "APPROVED",
         "CONVERTED",
         actorId,
       );

@@ -15,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { PortsService } from "./ports.service";
+import { WorldPortsSeedService } from "../world-ports-seed.service";
 import { CreatePortDto, UpdatePortDto } from "../dto/port.dto";
 import { MasterQueryDto } from "../dto/master-query.dto";
 
@@ -29,7 +30,24 @@ import { MASTERS_PERMISSIONS } from "../constants/masters-permission.constants";
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("masters/ports")
 export class PortsController {
-  constructor(private readonly service: PortsService) {}
+  constructor(
+    private readonly service: PortsService,
+    private readonly worldPorts: WorldPortsSeedService,
+  ) {}
+
+  @Post("seed-defaults")
+  @RequirePermissions(MASTERS_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary: "Seed world sea ports (UN/LOCODE) for this tenant",
+    description:
+      "Inserts the default world sea-port catalog. Safe to re-run; existing UN/LOCODEs are skipped.",
+  })
+  seedDefaults(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+  ) {
+    return this.worldPorts.seedSeaPorts(tenantId, actorId);
+  }
 
   @Get()
   @RequirePermissions(MASTERS_PERMISSIONS.VIEW)

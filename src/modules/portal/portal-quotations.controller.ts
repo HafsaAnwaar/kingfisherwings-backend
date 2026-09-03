@@ -81,9 +81,9 @@ export class PortalQuotationsController {
 
   @Post(":id/accept")
   @ApiOperation({
-    summary: "Accept a SENT quotation",
+    summary: "Accept a sent quotation",
     description:
-      "Marks the quote WON for the customer Party. Only SENT quotes can be accepted.",
+      "Marks the quote APPROVED (customer accepted). Only SENT, CUSTOMER_REVIEW, or NEGOTIATING quotes can be accepted — not a new portal enquiry.",
   })
   accept(
     @CurrentPortal() user: CurrentPortalUser,
@@ -95,9 +95,9 @@ export class PortalQuotationsController {
 
   @Post(":id/reject")
   @ApiOperation({
-    summary: "Reject a SENT quotation",
+    summary: "Reject a sent quotation",
     description:
-      "Marks the quote LOST with a standard loss reason. Only SENT quotes can be rejected.",
+      "Marks the quote DISAPPROVED. Only SENT, CUSTOMER_REVIEW, or NEGOTIATING quotes can be rejected — not a new portal enquiry.",
   })
   reject(
     @CurrentPortal() user: CurrentPortalUser,

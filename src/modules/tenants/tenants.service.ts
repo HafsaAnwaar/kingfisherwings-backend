@@ -21,6 +21,7 @@ import { CreateTenantDto } from "./dto/create-tenant.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
 import { TenantQueryDto } from "./dto/tenant-query.dto";
 import { CountryLocaleService } from "../../common/locale/country-locale.service";
+import { WorldPortsSeedService } from "../masters/world-ports-seed.service";
 
 const OWNER_ROLE_CODE = "TENANT_ADMIN";
 
@@ -29,6 +30,7 @@ export class TenantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locale: CountryLocaleService,
+    private readonly worldPorts: WorldPortsSeedService,
   ) {}
 
   // =====================================================
@@ -213,6 +215,19 @@ export class TenantsService {
       },
       { maxWait: 20_000, timeout: 60_000 },
     );
+
+    // World sea/air ports are large catalogs — seed outside the create
+    // transaction so tenant provisioning stays fast. Failures are logged
+    // and can be retried via POST /masters/ports|airports/seed-defaults.
+    void this.worldPorts
+      .seedAllForTenant(result.tenant.id, createdBySuperAdminId)
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(
+          `World ports seed failed for tenant ${result.tenant.id}:`,
+          err,
+        );
+      });
 
     return {
       success: true,

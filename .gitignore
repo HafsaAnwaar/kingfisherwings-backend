@@ -19,6 +19,9 @@ prisma/dev.db-journal
 logs
 *.log
 
+# Port seed rebuild inputs (generated JSON is committed)
+prisma/seed/data/*_raw.csv
+
 # OS
 .DS_Store
 Thumbs.db

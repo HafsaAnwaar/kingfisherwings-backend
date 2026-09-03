@@ -42,6 +42,8 @@ import { CourierVendorsService } from "./courier-vendors/courier-vendors.service
 import { WarehousesController } from "./warehouses/warehouses.controller";
 import { WarehousesService } from "./warehouses/warehouses.service";
 
+import { WorldPortsSeedService } from "./world-ports-seed.service";
+
 import { ChargeCodesController } from "./charge-codes/charge-codes.controller";
 import { ChargeCodesService } from "./charge-codes/charge-codes.service";
 
@@ -114,6 +116,7 @@ const SERVICES = [
   BranchesService,
   DepartmentsService,
   DesignationsService,
+  WorldPortsSeedService,
 ];
 
 @Module({

@@ -15,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { AirportsService } from "./airports.service";
+import { WorldPortsSeedService } from "../world-ports-seed.service";
 import { CreateAirportDto, UpdateAirportDto } from "../dto/airport.dto";
 import { MasterQueryDto } from "../dto/master-query.dto";
 
@@ -29,7 +30,24 @@ import { MASTERS_PERMISSIONS } from "../constants/masters-permission.constants";
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("masters/airports")
 export class AirportsController {
-  constructor(private readonly service: AirportsService) {}
+  constructor(
+    private readonly service: AirportsService,
+    private readonly worldPorts: WorldPortsSeedService,
+  ) {}
+
+  @Post("seed-defaults")
+  @RequirePermissions(MASTERS_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary: "Seed world airports (IATA) for this tenant",
+    description:
+      "Inserts the default world airport catalog. Safe to re-run; existing IATA codes are skipped.",
+  })
+  seedDefaults(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+  ) {
+    return this.worldPorts.seedAirports(tenantId, actorId);
+  }
 
   @Get()
   @RequirePermissions(MASTERS_PERMISSIONS.VIEW)

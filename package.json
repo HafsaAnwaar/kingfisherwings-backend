@@ -30,7 +30,9 @@
     "prisma:migrate:reset": "prisma migrate reset --force",
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node -r tsconfig-paths/register prisma/seed/index.ts",
-    "prisma:validate": "prisma validate"
+    "prisma:validate": "prisma validate",
+    "seed:world-ports:build": "node scripts/build-world-ports-seed.cjs",
+    "seed:world-ports": "node scripts/seed-world-ports-all-tenants.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",
