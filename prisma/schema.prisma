@@ -2359,13 +2359,34 @@ model Job {
 }
 
 enum VendorQuoteStatus {
+  /// Tenant sent offer (optionally with seeded cost lines / total).
   SENT
+  /// Vendor has a pending counter; tenant should respond.
+  NEGOTIATING
+  /// Tenant revised; waiting for vendor response.
+  VENDOR_REVIEW
+  /// Vendor submitted a price (legacy / one-shot) — treat like negotiating until decided.
   PRICED
   APPROVED
   DISAPPROVED
 }
 
+enum VendorQuoteNegotiationActor {
+  TENANT
+  VENDOR
+}
+
+enum VendorQuoteNegotiationAction {
+  SEND
+  REVISE
+  ACCEPT
+  REJECT
+  COUNTER_OFFER
+  PRICE
+}
+
 /// Job sent by tenant staff to a vendor to price. Customer revenue is never copied.
+/// Negotiation mirrors customer quotations: cost_total is the live offer on the quote.
 model VendorQuote {
   id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id        String            @db.Uuid
@@ -2373,7 +2394,12 @@ model VendorQuote {
   vendor_party_id  String            @db.Uuid
   status           VendorQuoteStatus @default(SENT)
   currency_code    String            @default("AED") @db.Char(3)
+  /// Live negotiated cost on this offer (tenant seed, revise, or vendor counter jump).
   cost_total       Decimal           @default(0) @db.Decimal(18, 4)
+  negotiation_round Int              @default(0)
+  vendor_proposed_total  Decimal?    @db.Decimal(18, 4)
+  vendor_proposed_lines  Json?
+  vendor_proposed_at     DateTime?   @db.Timestamptz
   vendor_notes     String?           @db.Text
   staff_notes      String?           @db.Text
   sent_at          DateTime          @default(now()) @db.Timestamptz
@@ -2389,6 +2415,7 @@ model VendorQuote {
   job          Job               @relation(fields: [job_id], references: [id], onDelete: Cascade)
   vendor_party Party             @relation(fields: [vendor_party_id], references: [id], onDelete: Restrict)
   lines        VendorQuoteLine[]
+  negotiation_events VendorQuoteNegotiationEvent[]
 
   @@index([tenant_id, vendor_party_id])
   @@index([tenant_id, job_id])
@@ -2412,6 +2439,25 @@ model VendorQuoteLine {
 
   @@index([tenant_id, vendor_quote_id])
   @@map("vendor_quote_lines")
+}
+
+model VendorQuoteNegotiationEvent {
+  id              String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String                       @db.Uuid
+  vendor_quote_id String                       @db.Uuid
+  round           Int
+  actor           VendorQuoteNegotiationActor
+  action          VendorQuoteNegotiationAction
+  message         String?                      @db.Text
+  proposed_total  Decimal?                     @db.Decimal(18, 4)
+  proposed_lines  Json?
+  created_by      String?                      @db.Uuid
+  created_at      DateTime                     @default(now()) @db.Timestamptz
+
+  vendor_quote VendorQuote @relation(fields: [vendor_quote_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, vendor_quote_id])
+  @@map("vendor_quote_negotiation_events")
 }
 
 model AirJobDetail {

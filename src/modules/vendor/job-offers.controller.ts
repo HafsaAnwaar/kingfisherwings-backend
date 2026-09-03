@@ -17,13 +17,15 @@ import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { JOBS_PERMISSIONS } from "../jobs/constants/jobs-permission.constants";
 import {
   SendJobToVendorDto,
+  VendorNegotiationAcceptDto,
+  VendorNegotiationRejectDto,
   VendorQuoteQueryDto,
+  VendorReviseAndSendDto,
 } from "./dto/vendor-quote.dto";
 import { VendorQuotesService } from "./vendor-quotes.service";
 
 /**
- * Staff job-offers API. Frontend feature-detects these paths;
- * aliases also exist under /jobs/:id/....
+ * Staff job-offers API — same negotiation shape as customer quotations.
  */
 @ApiTags("Job Offers")
 @ApiBearerAuth()
@@ -45,7 +47,8 @@ export class JobOffersController {
   @Post()
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Pass a job to a vendor for pricing (no customer rates)",
+    summary:
+      "Pass a job to a vendor with optional seeded cost (proposed_total / lines).",
   })
   create(
     @CurrentUser("tenantId") tenantId: string,
@@ -58,8 +61,65 @@ export class JobOffersController {
     return this.quotes.sendJobToVendor(tenantId, dto.job_id, dto, actorId);
   }
 
+  @Get(":id")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Vendor offer detail + shared negotiation_pricing" })
+  get(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.quotes.getForTenant(tenantId, id);
+  }
+
+  @Get(":id/negotiation")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Negotiation timeline (same shape as quotations)" })
+  negotiation(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.quotes.getNegotiationTimeline(tenantId, id);
+  }
+
+  @Post(":id/revise-and-send")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Revise cost offer and send back to vendor" })
+  reviseAndSend(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: VendorReviseAndSendDto,
+  ) {
+    return this.quotes.reviseAndSend(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/negotiation/accept")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Accept vendor counter-offer" })
+  negotiationAccept(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: VendorNegotiationAcceptDto,
+  ) {
+    return this.quotes.tenantAcceptCounter(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/negotiation/reject")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Reject vendor counter-offer" })
+  negotiationReject(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: VendorNegotiationRejectDto,
+  ) {
+    return this.quotes.tenantRejectCounter(tenantId, id, dto, actorId);
+  }
+
   @Post(":id/approve")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Approve vendor-priced / countered offer" })
   approve(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -70,6 +130,7 @@ export class JobOffersController {
 
   @Post(":id/disapprove")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Disapprove vendor offer (terminal)" })
   disapprove(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
