@@ -20,7 +20,8 @@ export class PortsService extends BaseMasterService<Port> {
   }
 
   async findAll(tenantId: string, query: MasterQueryDto) {
-    await this.worldPorts.ensureSeaPorts(tenantId);
+    // Background seed only — never block or fail the list on catalog insert.
+    await this.worldPorts.ensureSeaPorts(tenantId).catch(() => undefined);
     return super.findAll(tenantId, query);
   }
 }

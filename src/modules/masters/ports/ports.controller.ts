@@ -40,9 +40,9 @@ export class PortsController {
   @ApiOperation({
     summary: "Seed world sea ports (UN/LOCODE) for this tenant",
     description:
-      "Inserts the default world sea-port catalog. Safe to re-run; existing UN/LOCODEs are skipped.",
+      "Inserts the default world sea-port catalog (~17k UN/LOCODEs) in batches. Safe to re-run; existing codes are skipped. Prefer this over relying on list auto-seed.",
   })
-  seedDefaults(
+  async seedDefaults(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
   ) {
