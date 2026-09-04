@@ -20,7 +20,7 @@ export class AirportsService extends BaseMasterService<Airport> {
   }
 
   async findAll(tenantId: string, query: MasterQueryDto) {
-    await this.worldPorts.ensureAirports(tenantId);
+    await this.worldPorts.ensureAirports(tenantId).catch(() => undefined);
     return super.findAll(tenantId, query);
   }
 }
