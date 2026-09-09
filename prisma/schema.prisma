@@ -3530,6 +3530,8 @@ model Quotation {
   customer_proposed_total  Decimal?    @db.Decimal(18, 4)
   customer_proposed_lines  Json?
   customer_proposed_at     DateTime?   @db.Timestamptz
+  /// Portal book-quote costing audit (sale rates / customer lines at create). Never stores cost rates.
+  portal_estimate_snapshot Json?
 
   // Lifecycle timestamps
   lost_reason  String?   @db.VarChar(200)

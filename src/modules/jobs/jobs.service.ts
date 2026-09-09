@@ -33,6 +33,7 @@ import {
   canWriteJobType,
   visibleJobTypes,
 } from "../../common/constants/module-permission-tree";
+import { MasterLabelService } from "../masters/master-label.service";
 
 import { CreateJobDto, UpdateJobDto } from "./dto/job.dto";
 import { UpdateAirJobDetailDto } from "./dto/air-job-detail.dto";
@@ -109,6 +110,7 @@ export class JobsService {
     private readonly emailService: EmailService,
     private readonly whatsApp: WhatsAppService,
     private readonly notifications: NotificationEmitterService,
+    private readonly masterLabels: MasterLabelService,
   ) {}
 
   // ============================================================
@@ -597,7 +599,7 @@ export class JobsService {
         );
       }
 
-      return job;
+      return this.enrichJobDetail(tenantId, job, tx);
     });
   }
 
@@ -1354,7 +1356,7 @@ export class JobsService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
 
-      return tx.jobContainer.findMany({
+      const containers = await tx.jobContainer.findMany({
         where: {
           tenant_id: tenantId,
           sea_fcl_detail_id: detail.id,
@@ -1363,7 +1365,213 @@ export class JobsService {
         include: { cargo_lines: { where: { deleted_at: null } } },
         orderBy: { created_at: "asc" },
       });
+
+      const types = await this.masterLabels.resolveContainerTypes(
+        tenantId,
+        containers.map((c) => c.container_type_id),
+        tx,
+      );
+
+      return containers.map((c) => {
+        const type = types.get(c.container_type_id);
+        return {
+          ...c,
+          container_type_code: type?.code ?? null,
+          container_type_name: type?.name ?? null,
+        };
+      });
     });
+  }
+
+  private async enrichJobDetail(
+    tenantId: string,
+    job: any,
+    tx: Prisma.TransactionClient,
+  ) {
+    const seaFcl = job.sea_fcl_details;
+    const seaLcl = job.sea_lcl_details;
+    const air = job.air_details;
+    const containers = seaFcl?.containers ?? [];
+
+    const portIds = [
+      job.origin_port_id,
+      job.dest_port_id,
+      seaFcl?.port_of_loading_id,
+      seaFcl?.port_of_discharge_id,
+      seaLcl?.port_of_loading_id,
+      seaLcl?.port_of_discharge_id,
+    ];
+    const airportIds = [air?.origin_airport_id, air?.dest_airport_id];
+    const partyIds = [
+      job.shipper_id,
+      job.consignee_id,
+      job.billing_party_id,
+      job.agent_id,
+    ];
+    const containerTypeIds = [
+      job.container_type_id,
+      ...containers.map((c: { container_type_id?: string | null }) =>
+        c.container_type_id,
+      ),
+    ];
+    const vesselIds = [seaFcl?.vessel_id, seaLcl?.vessel_id];
+    const shippingLineIds = [
+      seaFcl?.shipping_line_id,
+      seaLcl?.shipping_line_id,
+    ];
+    const airlineIds = [air?.airline_id];
+
+    const [
+      ports,
+      airports,
+      parties,
+      containerTypes,
+      vessels,
+      shippingLines,
+      airlines,
+    ] = await Promise.all([
+      this.masterLabels.resolvePorts(tenantId, portIds, tx),
+      this.masterLabels.resolveAirports(tenantId, airportIds, tx),
+      this.masterLabels.resolvePartiesWithPrimaryContact(
+        tenantId,
+        partyIds,
+        tx,
+      ),
+      this.masterLabels.resolveContainerTypes(
+        tenantId,
+        containerTypeIds,
+        tx,
+      ),
+      this.masterLabels.resolveVessels(tenantId, vesselIds, tx),
+      this.masterLabels.resolveShippingLines(
+        tenantId,
+        shippingLineIds,
+        tx,
+      ),
+      this.masterLabels.resolveAirlines(tenantId, airlineIds, tx),
+    ]);
+
+    const originPort = job.origin_port_id
+      ? ports.get(job.origin_port_id)
+      : undefined;
+    const destPort = job.dest_port_id
+      ? ports.get(job.dest_port_id)
+      : undefined;
+    const containerType = job.container_type_id
+      ? containerTypes.get(job.container_type_id)
+      : undefined;
+    const shipper = job.shipper_id
+      ? parties.get(job.shipper_id)
+      : undefined;
+    const consignee = job.consignee_id
+      ? parties.get(job.consignee_id)
+      : undefined;
+
+    const enrichedContainers = containers.map(
+      (c: Record<string, unknown> & { container_type_id?: string }) => {
+        const type = c.container_type_id
+          ? containerTypes.get(c.container_type_id)
+          : undefined;
+        return {
+          ...c,
+          container_type_code: type?.code ?? null,
+          container_type_name: type?.name ?? null,
+        };
+      },
+    );
+
+    let sea_fcl_details = seaFcl;
+    if (seaFcl) {
+      const line = seaFcl.shipping_line_id
+        ? shippingLines.get(seaFcl.shipping_line_id)
+        : undefined;
+      const vessel = seaFcl.vessel_id
+        ? vessels.get(seaFcl.vessel_id)
+        : undefined;
+      const pol = seaFcl.port_of_loading_id
+        ? ports.get(seaFcl.port_of_loading_id)
+        : undefined;
+      const pod = seaFcl.port_of_discharge_id
+        ? ports.get(seaFcl.port_of_discharge_id)
+        : undefined;
+      sea_fcl_details = {
+        ...seaFcl,
+        shipping_line_name: line?.name ?? null,
+        shipping_line_code: line?.code ?? null,
+        vessel_name: vessel?.name ?? null,
+        port_of_loading: pol ?? null,
+        port_of_discharge: pod ?? null,
+        containers: enrichedContainers,
+      };
+    }
+
+    let sea_lcl_details = seaLcl;
+    if (seaLcl) {
+      const line = seaLcl.shipping_line_id
+        ? shippingLines.get(seaLcl.shipping_line_id)
+        : undefined;
+      const vessel = seaLcl.vessel_id
+        ? vessels.get(seaLcl.vessel_id)
+        : undefined;
+      const pol = seaLcl.port_of_loading_id
+        ? ports.get(seaLcl.port_of_loading_id)
+        : undefined;
+      const pod = seaLcl.port_of_discharge_id
+        ? ports.get(seaLcl.port_of_discharge_id)
+        : undefined;
+      sea_lcl_details = {
+        ...seaLcl,
+        shipping_line_name: line?.name ?? null,
+        shipping_line_code: line?.code ?? null,
+        vessel_name: vessel?.name ?? null,
+        port_of_loading: pol ?? null,
+        port_of_discharge: pod ?? null,
+      };
+    }
+
+    let air_details = air;
+    if (air) {
+      const airline = air.airline_id
+        ? airlines.get(air.airline_id)
+        : undefined;
+      const originAirport = air.origin_airport_id
+        ? airports.get(air.origin_airport_id)
+        : undefined;
+      const destAirport = air.dest_airport_id
+        ? airports.get(air.dest_airport_id)
+        : undefined;
+      air_details = {
+        ...air,
+        airline_name: airline?.name ?? null,
+        airline_code: airline?.code ?? null,
+        origin_airport: originAirport ?? null,
+        dest_airport: destAirport ?? null,
+        origin_airport_code: originAirport?.code ?? null,
+        origin_airport_name: originAirport?.name ?? null,
+        dest_airport_code: destAirport?.code ?? null,
+        dest_airport_name: destAirport?.name ?? null,
+      };
+    }
+
+    return {
+      ...job,
+      origin_port_code: originPort?.code ?? null,
+      origin_port_name: originPort?.name ?? null,
+      origin_port: originPort ?? null,
+      dest_port_code: destPort?.code ?? null,
+      dest_port_name: destPort?.name ?? null,
+      dest_port: destPort ?? null,
+      container_type_code: containerType?.code ?? null,
+      container_type_name: containerType?.name ?? null,
+      shipper_name: shipper?.name ?? null,
+      consignee_name: consignee?.name ?? null,
+      shipper: shipper ?? null,
+      consignee: consignee ?? null,
+      containers: enrichedContainers,
+      sea_fcl_details,
+      sea_lcl_details,
+      air_details,
+    };
   }
 
   async getContainerFill(

@@ -31,6 +31,8 @@ import { VendorQuotesService } from "./vendor-quotes.service";
 import { VendorQuotesController } from "./vendor-quotes.controller";
 import { VendorLookupsController } from "./vendor-lookups.controller";
 import { JobOffersController } from "./job-offers.controller";
+import { VendorDashboardService } from "./vendor-dashboard.service";
+import { VendorDashboardController } from "./vendor-dashboard.controller";
 
 @Module({
   imports: [
@@ -56,6 +58,7 @@ import { JobOffersController } from "./job-offers.controller";
     VendorQuotesController,
     VendorLookupsController,
     JobOffersController,
+    VendorDashboardController,
   ],
   providers: [
     VendorService,
@@ -63,6 +66,7 @@ import { JobOffersController } from "./job-offers.controller";
     VendorFinanceService,
     VendorCcpService,
     VendorQuotesService,
+    VendorDashboardService,
     VendorAuthGuard,
   ],
   exports: [
@@ -71,6 +75,7 @@ import { JobOffersController } from "./job-offers.controller";
     VendorFinanceService,
     VendorCcpService,
     VendorQuotesService,
+    VendorDashboardService,
     VendorAuthGuard,
   ],
 })

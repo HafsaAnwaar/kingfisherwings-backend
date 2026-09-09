@@ -16,6 +16,8 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { JobsService } from "./jobs.service";
+import { JobsDashboardService } from "./jobs-dashboard.service";
+import { JobsDashboardQueryDto } from "../../common/dto/dashboard-period-query.dto";
 
 import { CreateJobDto, UpdateJobDto } from "./dto/job.dto";
 import { UpdateAirJobDetailDto } from "./dto/air-job-detail.dto";
@@ -128,6 +130,7 @@ import {
 export class JobsController {
   constructor(
     private readonly service: JobsService,
+    private readonly dashboard: JobsDashboardService,
     private readonly seaFclImport: SeaFclImportService,
     private readonly airImport: AirImportService,
     private readonly seaLcl: SeaLclService,
@@ -147,6 +150,34 @@ export class JobsController {
     @Query() query: JobQueryDto,
   ) {
     return this.service.findAll(tenantId, query, permissions);
+  }
+
+  @Get("dashboard-counts")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Job KPI counters for staff dashboards",
+    description:
+      "Single-round-trip aggregates by status/type. Supports period=7d|30d|mtd|custom.",
+  })
+  dashboardCounts(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query() query: JobsDashboardQueryDto,
+  ) {
+    return this.dashboard.dashboardCounts(tenantId, query);
+  }
+
+  @Get("team-workload")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Per-user open jobs, capacity utilization, and milestone SLA %",
+    description:
+      "Capacity default is 25 open jobs per ops user. SLA uses milestones with planned_date in period.",
+  })
+  teamWorkload(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query() query: JobsDashboardQueryDto,
+  ) {
+    return this.dashboard.teamWorkload(tenantId, query);
   }
 
   @Get("job-offers")

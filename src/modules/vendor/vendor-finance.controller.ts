@@ -22,6 +22,7 @@ import {
 import { Response } from "express";
 import "multer";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
+import { DashboardPeriodQueryDto } from "../../common/dto/dashboard-period-query.dto";
 import { CurrentVendor } from "./decorators/vendor.decorators";
 import {
   VendorInvoiceQueryDto,
@@ -52,9 +53,15 @@ export class VendorInvoicesController {
   }
 
   @Get("summary")
-  @ApiOperation({ summary: "Purchase invoice outstanding / overdue counters" })
-  summary(@CurrentVendor() user: CurrentVendorUser) {
-    return this.finance.invoiceSummary(user);
+  @ApiOperation({
+    summary: "Purchase invoice outstanding / overdue counters",
+    description: "Supports period=7d|30d|mtd|custom (filters by invoice_date).",
+  })
+  summary(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Query() query: DashboardPeriodQueryDto,
+  ) {
+    return this.finance.invoiceSummary(user, query.resolve("30d"));
   }
 
   @Get("export.csv")

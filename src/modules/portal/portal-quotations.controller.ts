@@ -12,8 +12,10 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Response } from "express";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
+import { DashboardPeriodQueryDto } from "../../common/dto/dashboard-period-query.dto";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import {
+  PortalCostingOptionsDto,
   PortalQuotationAcceptDto,
   PortalQuotationCounterOfferDto,
   PortalQuotationEstimateDto,
@@ -41,9 +43,13 @@ export class PortalQuotationsController {
   @Get("summary")
   @ApiOperation({
     summary: "Quotation dashboard counters for the logged-in customer",
+    description: "Supports period=7d|30d|mtd|custom.",
   })
-  summary(@CurrentPortal() user: CurrentPortalUser) {
-    return this.quotations.summary(user);
+  summary(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Query() query: DashboardPeriodQueryDto,
+  ) {
+    return this.quotations.summary(user, query.resolve("30d"));
   }
 
   @Get("service-catalog")
@@ -58,6 +64,8 @@ export class PortalQuotationsController {
   @Post("estimate")
   @ApiOperation({
     summary: "Preview quote pricing with packages and selected services",
+    description:
+      "Read-only. Optionally accept customer_lines to overlay proposed unit prices. Sale rates only — never cost rates.",
   })
   estimate(
     @CurrentPortal() user: CurrentPortalUser,
@@ -66,11 +74,24 @@ export class PortalQuotationsController {
     return this.quotations.estimate(user, dto);
   }
 
+  @Post("costing-options")
+  @ApiOperation({
+    summary: "List catalog/tariff costing options for a lane (sale rates only)",
+    description:
+      "Portal-auth only. Returns portal-visible catalog options plus a matching Online Tariff Master option when the lane matches. Never exposes cost_rate, supplier, or margin.",
+  })
+  costingOptions(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Body() dto: PortalCostingOptionsDto,
+  ) {
+    return this.quotations.costingOptions(user, dto);
+  }
+
   @Post("request")
   @ApiOperation({
     summary: "Request a new freight quote",
     description:
-      "Creates a quotation enquiry bound to the portal user’s Party. Staff price and send the formal quote.",
+      "Creates a DRAFT quotation bound to the portal user’s Party. Optional packages, service_codes, and customer_lines materialize draft revenue lines. Lean enquiry (no costing) remains supported.",
   })
   request(
     @CurrentPortal() user: CurrentPortalUser,

@@ -21,6 +21,10 @@ import { GlAutoPostService } from "../gl/gl-auto-post.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { WebhookDispatcherService } from "../public-api/webhook-dispatcher.service";
 import {
+  lineTotal,
+  MasterLabelService,
+} from "../masters/master-label.service";
+import {
   CreateCreditNoteDto,
   CreateDebitNoteDto,
   CreateInvoiceDto,
@@ -45,6 +49,7 @@ export class InvoicesService {
     private readonly glAutoPost: GlAutoPostService,
     private readonly notifications: NotificationEmitterService,
     private readonly webhooks: WebhookDispatcherService,
+    private readonly masterLabels: MasterLabelService,
   ) {}
 
   async findAll(
@@ -91,9 +96,35 @@ export class InvoicesService {
               code: true,
               vat_number: true,
               email: true,
+              phone: true,
+              address: true,
+              city: true,
             },
           },
-          job: { select: { id: true, job_number: true, job_type: true } },
+          job: {
+            select: {
+              id: true,
+              job_number: true,
+              job_type: true,
+              origin_port_id: true,
+              dest_port_id: true,
+              commodity: true,
+              gross_weight: true,
+              volume_cbm: true,
+              etd: true,
+              eta: true,
+              air_details: true,
+              sea_fcl_details: {
+                include: {
+                  containers: {
+                    where: { deleted_at: null },
+                    select: { container_number: true },
+                  },
+                },
+              },
+              sea_lcl_details: true,
+            },
+          },
           company: { select: { id: true, name: true, vat_number: true } },
           credited_invoice: { select: { id: true, invoice_number: true } },
           lines: {
@@ -107,7 +138,90 @@ export class InvoicesService {
         throw new NotFoundException("Invoice not found.");
       }
 
-      return invoice;
+      const [parties, chargeCodes, taxRates, shipment] = await Promise.all([
+        this.masterLabels.resolvePartiesWithPrimaryContact(
+          tenantId,
+          [invoice.party_id],
+          tx,
+        ),
+        this.masterLabels.resolveChargeCodes(
+          tenantId,
+          invoice.lines.map((l) => l.charge_code_id),
+          tx,
+        ),
+        this.masterLabels.resolveTaxRates(
+          tenantId,
+          invoice.lines.map((l) => l.tax_rate_id),
+          tx,
+        ),
+        invoice.job
+          ? this.masterLabels.buildJobShipmentSummary(
+              tenantId,
+              invoice.job,
+              tx,
+            )
+          : Promise.resolve(null),
+      ]);
+
+      const billTo = parties.get(invoice.party_id);
+      const party = billTo
+        ? {
+            id: billTo.id,
+            name: billTo.name,
+            code: billTo.code ?? invoice.party?.code ?? null,
+            vat_number: billTo.vat_number ?? invoice.party?.vat_number ?? null,
+            email: billTo.email ?? invoice.party?.email ?? null,
+            phone: billTo.phone ?? null,
+            address: billTo.address ?? null,
+            city: invoice.party?.city ?? null,
+            primary_contact: billTo.primary_contact ?? null,
+          }
+        : invoice.party
+          ? {
+              ...invoice.party,
+              phone: null,
+              address: invoice.party.address ?? null,
+              primary_contact: null,
+            }
+          : null;
+
+      const lines = invoice.lines.map((line) => {
+        const charge = line.charge_code_id
+          ? chargeCodes.get(line.charge_code_id)
+          : undefined;
+        const tax = line.tax_rate_id
+          ? taxRates.get(line.tax_rate_id)
+          : undefined;
+        return {
+          ...line,
+          charge_code: charge?.code ?? null,
+          charge_code_name: charge?.name ?? null,
+          unit: charge?.unit ?? null,
+          tax_percent: tax?.rate ?? null,
+          line_total: lineTotal(line.amount, line.tax_amount),
+        };
+      });
+
+      const { job, ...rest } = invoice;
+
+      return {
+        ...rest,
+        job_id: invoice.job_id,
+        job_number: job?.job_number ?? null,
+        job: job
+          ? {
+              id: job.id,
+              job_number: job.job_number,
+              job_type: job.job_type,
+            }
+          : null,
+        party,
+        party_name: party?.name ?? null,
+        party_phone: party?.phone ?? null,
+        party_email: party?.email ?? null,
+        shipment,
+        lines,
+      };
     });
   }
 
@@ -1166,10 +1280,10 @@ export class InvoicesService {
       invoice_number: invoice.invoice_number,
       invoice_type: invoice.invoice_type,
       status: invoice.status,
-      party_name: invoice.party.name,
+      party_name: invoice.party_name ?? invoice.party?.name ?? "",
       party_vat_number:
-        invoice.party_vat_number ?? invoice.party.vat_number ?? undefined,
-      job_number: invoice.job?.job_number,
+        invoice.party_vat_number ?? invoice.party?.vat_number ?? undefined,
+      job_number: invoice.job_number ?? invoice.job?.job_number,
       currency_code: invoice.currency_code,
       subtotal: invoice.subtotal.toString(),
       tax_amount: invoice.tax_amount.toString(),

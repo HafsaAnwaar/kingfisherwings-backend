@@ -10,6 +10,7 @@ import { StorageService } from "../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { QuotationsService } from "../quotations/quotations.service";
 import {
+  PortalCostingOptionsDto,
   PortalQuotationAcceptDto,
   PortalQuotationCounterOfferDto,
   PortalQuotationEstimateDto,
@@ -22,8 +23,30 @@ import { PortalQuotePricingService } from "./portal-quote-pricing.service";
 import { buildNegotiationPricingView } from "../quotations/quotation-negotiation-pricing.util";
 import { QuotationNegotiationService } from "../quotations/quotation-negotiation.service";
 import { ServiceCatalogService } from "../quotations/service-catalog/service-catalog.service";
+import {
+  lineTotal,
+  MasterLabelService,
+  sumLineTotals,
+} from "../masters/master-label.service";
 
 const PORTAL_CUSTOMER_SOURCES = ["CUSTOMER_PORTAL", "ONLINE_WIDGET"] as const;
+
+function pricingSourceFromSnapshot(
+  snapshot: unknown,
+  chargeCodeId: string | null | undefined,
+  chargeCode?: string | null,
+): string | null {
+  if (!snapshot || typeof snapshot !== "object") return null;
+  const lines = (snapshot as { lines?: Array<Record<string, unknown>> }).lines;
+  if (!Array.isArray(lines)) return null;
+  const match = lines.find((l) => {
+    if (chargeCodeId && l.charge_code_id === chargeCodeId) return true;
+    if (chargeCode && String(l.code ?? "").toUpperCase() === chargeCode.toUpperCase())
+      return true;
+    return false;
+  });
+  return match?.source ? String(match.source) : null;
+}
 
 @Injectable()
 export class PortalQuotationsService {
@@ -35,10 +58,20 @@ export class PortalQuotationsService {
     private readonly pricing: PortalQuotePricingService,
     private readonly negotiation: QuotationNegotiationService,
     private readonly catalog: ServiceCatalogService,
+    private readonly masterLabels: MasterLabelService,
   ) {}
 
   async getServiceCatalog(user: CurrentPortalUser, jobType?: string) {
     return this.catalog.findPortalVisible(user.tenantId, jobType as any);
+  }
+
+  async costingOptions(user: CurrentPortalUser, dto: PortalCostingOptionsDto) {
+    const data = await this.pricing.buildCostingOptions(
+      user.tenantId,
+      user.partyId,
+      dto,
+    );
+    return { success: true, data };
   }
 
   async estimate(user: CurrentPortalUser, dto: PortalQuotationEstimateDto) {
@@ -51,26 +84,37 @@ export class PortalQuotationsService {
   }
 
   async requestQuote(user: CurrentPortalUser, dto: PortalQuotationRequestDto) {
-    const hasRichPayload =
-      "packages" in dto &&
-      Array.isArray((dto as PortalQuotationEstimateDto).packages) &&
-      (dto as PortalQuotationEstimateDto).packages.length > 0 &&
-      "service_codes" in dto &&
-      Array.isArray((dto as PortalQuotationEstimateDto).service_codes);
+    const hasCustomerLines = Boolean(dto.customer_lines?.length);
+    const hasServiceCodes = Boolean(dto.service_codes?.length);
 
-    const result = hasRichPayload
-      ? await this.pricing.persistQuote(
-          user.tenantId,
-          user.partyId,
-          dto as PortalQuotationEstimateDto,
-          user.id,
-        )
-      : await this.quotations.createPortalQuoteRequest(
-          user.tenantId,
-          user.partyId,
-          dto,
-          user.id,
-        );
+    let result;
+    if (hasCustomerLines) {
+      result = await this.pricing.persistCustomerLinesQuote(
+        user.tenantId,
+        user.partyId,
+        dto,
+        user.id,
+      );
+    } else if (hasServiceCodes) {
+      result = await this.pricing.persistQuote(
+        user.tenantId,
+        user.partyId,
+        {
+          ...dto,
+          packages: dto.packages ?? [],
+          service_codes: dto.service_codes!,
+        } as PortalQuotationEstimateDto,
+        user.id,
+        dto.estimate_snapshot,
+      );
+    } else {
+      result = await this.quotations.createPortalQuoteRequest(
+        user.tenantId,
+        user.partyId,
+        dto,
+        user.id,
+      );
+    }
 
     await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
       type: "QUOTATION_REQUEST",
@@ -134,8 +178,16 @@ export class PortalQuotationsService {
     };
   }
 
-  async summary(user: CurrentPortalUser) {
-    const base = this.baseOwnershipWhere(user.partyId);
+  async summary(
+    user: CurrentPortalUser,
+    period?: { from: Date; to: Date; period?: string },
+  ) {
+    const base = {
+      ...this.baseOwnershipWhere(user.partyId),
+      ...(period
+        ? { created_at: { gte: period.from, lte: period.to } }
+        : {}),
+    };
 
     const groups = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.quotation.groupBy({
@@ -218,33 +270,47 @@ export class PortalQuotationsService {
       throw new NotFoundException("Quotation not found.");
     }
 
-    const [originPort, destPort] = await this.prisma.runWithTenant(
-      user.tenantId,
-      async (tx) => {
-        const ids = [quotation.origin_port_id, quotation.dest_port_id].filter(
-          Boolean,
-        ) as string[];
-        if (!ids.length) return [null, null];
+    const [parties, ports, containerTypes, chargeCodes, taxRates] =
+      await this.prisma.runWithTenant(user.tenantId, async (tx) =>
+        Promise.all([
+          this.masterLabels.resolvePartiesWithPrimaryContact(
+            user.tenantId,
+            [quotation.customer_id],
+            tx,
+          ),
+          this.masterLabels.resolvePorts(
+            user.tenantId,
+            [quotation.origin_port_id, quotation.dest_port_id],
+            tx,
+          ),
+          this.masterLabels.resolveContainerTypes(
+            user.tenantId,
+            [quotation.container_type_id],
+            tx,
+          ),
+          this.masterLabels.resolveChargeCodes(
+            user.tenantId,
+            quotation.lines.map((l) => l.charge_code_id),
+            tx,
+          ),
+          this.masterLabels.resolveTaxRates(
+            user.tenantId,
+            quotation.lines.map((l) => l.tax_rate_id),
+            tx,
+          ),
+        ]),
+      );
 
-        const ports = await tx.port.findMany({
-          where: {
-            tenant_id: user.tenantId,
-            id: { in: ids },
-            deleted_at: null,
-          },
-          select: { id: true, name: true, un_locode: true, country_code: true },
-        });
-        const map = new Map(ports.map((p) => [p.id, p]));
-        return [
-          quotation.origin_port_id
-            ? (map.get(quotation.origin_port_id) ?? null)
-            : null,
-          quotation.dest_port_id
-            ? (map.get(quotation.dest_port_id) ?? null)
-            : null,
-        ];
-      },
-    );
+    const customer = parties.get(quotation.customer_id);
+    const originPort = quotation.origin_port_id
+      ? ports.get(quotation.origin_port_id)
+      : undefined;
+    const destPort = quotation.dest_port_id
+      ? ports.get(quotation.dest_port_id)
+      : undefined;
+    const containerType = quotation.container_type_id
+      ? containerTypes.get(quotation.container_type_id)
+      : undefined;
 
     let convertedJobNumber: string | null = null;
     if (quotation.converted_job_id) {
@@ -261,10 +327,34 @@ export class PortalQuotationsService {
       convertedJobNumber = job?.job_number ?? null;
     }
 
-    const revenueTotal = quotation.lines.reduce(
-      (sum, line) => sum + Number(line.amount),
-      0,
-    );
+    const lines = quotation.lines.map((line) => {
+      const charge = chargeCodes.get(line.charge_code_id);
+      const tax = line.tax_rate_id
+        ? taxRates.get(line.tax_rate_id)
+        : undefined;
+      return {
+        id: line.id,
+        description: line.description,
+        unit: line.unit ?? charge?.unit ?? null,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        currency_code: line.currency_code,
+        amount: line.amount,
+        charge_code: charge?.code ?? null,
+        charge_code_name: charge?.name ?? null,
+        tax_percent: tax?.rate ?? null,
+        tax_amount: line.tax_amount,
+        line_total: lineTotal(line.amount, line.tax_amount),
+        is_cost: false,
+        pricing_source: pricingSourceFromSnapshot(
+          quotation.portal_estimate_snapshot,
+          line.charge_code_id,
+          charge?.code,
+        ),
+      };
+    });
+
+    const totals = sumLineTotals(lines, true);
 
     return {
       success: true,
@@ -282,31 +372,39 @@ export class PortalQuotationsService {
         incoterm: quotation.incoterm,
         valid_until: quotation.valid_until,
         currency_code: quotation.currency_code,
-        revenue_total: revenueTotal,
+        revenue_total: totals.subtotal,
+        subtotal: totals.subtotal,
+        tax_total: totals.tax_total,
+        total_amount: totals.total_amount,
         remarks: quotation.remarks,
+        portal_estimate_snapshot: quotation.portal_estimate_snapshot ?? null,
+        customer_name: customer?.name ?? null,
+        contact_name: customer?.primary_contact?.name ?? null,
+        contact_email: customer?.primary_contact?.email ?? null,
+        contact_phone: customer?.primary_contact?.phone ?? null,
+        origin_port_code: originPort?.code ?? null,
+        origin_port_name: originPort?.name ?? null,
+        dest_port_code: destPort?.code ?? null,
+        dest_port_name: destPort?.name ?? null,
+        container_type_code: containerType?.code ?? null,
+        container_type_name: containerType?.name ?? null,
         origin: originPort
           ? {
+              id: originPort.id,
               name: originPort.name,
-              code: originPort.un_locode,
+              code: originPort.code,
               country_code: originPort.country_code,
             }
           : null,
         destination: destPort
           ? {
+              id: destPort.id,
               name: destPort.name,
-              code: destPort.un_locode,
+              code: destPort.code,
               country_code: destPort.country_code,
             }
           : null,
-        lines: quotation.lines.map((line) => ({
-          id: line.id,
-          description: line.description,
-          unit: line.unit,
-          quantity: line.quantity,
-          unit_price: line.unit_price,
-          currency_code: line.currency_code,
-          amount: line.amount,
-        })),
+        lines,
         packages: quotation.packages.map((pkg) => ({
           id: pkg.id,
           length_m: Number(pkg.length_cm) / 100,

@@ -1,8 +1,16 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsDateString, IsEnum, IsOptional, IsUUID } from "class-validator";
+import { IsDateString, IsEnum, IsIn, IsOptional, IsUUID } from "class-validator";
 import { JobType } from "@prisma/client";
 
 export class QuotationAnalyticsQueryDto {
+  @ApiPropertyOptional({
+    enum: ["7d", "30d", "mtd", "custom"],
+    example: "30d",
+  })
+  @IsOptional()
+  @IsIn(["7d", "30d", "mtd", "custom"])
+  period?: "7d" | "30d" | "mtd" | "custom";
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()

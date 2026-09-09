@@ -69,6 +69,19 @@ export class QuotationsController {
     return this.service.findAll(tenantId, query);
   }
 
+  @Get("dashboard-stats")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Quotation KPI counters for staff dashboards",
+    description: "Supports period=7d|30d|mtd|custom. Single round-trip.",
+  })
+  dashboardStats(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query() query: QuotationAnalyticsQueryDto,
+  ) {
+    return this.service.getDashboardStats(tenantId, query);
+  }
+
   @Get("reports/chargewise")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
   @ApiOperation({

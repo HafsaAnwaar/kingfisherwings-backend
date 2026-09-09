@@ -4,6 +4,8 @@ import {
   MisDashboardQueryDto,
   ProfitabilityQueryDto,
 } from "./dto/financial-reports.dto";
+import { resolveDashboardPeriod } from "../../common/utils/dashboard-period.util";
+import { summarizeOnTimePerformance } from "../../common/utils/on-time.util";
 
 const OPEN_JOB_STATUSES = [
   "ENQUIRY",
@@ -147,6 +149,35 @@ export class MisService {
         }),
       ]);
 
+      const onTimeJobRows = await tx.job.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          eta: { gte: from, lte: to },
+          ...companyFilter,
+          ...branchFilter,
+        },
+        select: {
+          eta: true,
+          status: true,
+          air_details: { select: { actual_eta: true } },
+          sea_fcl_details: { select: { actual_eta: true } },
+          sea_lcl_details: { select: { actual_eta: true } },
+        },
+      });
+      const onTime = summarizeOnTimePerformance(
+        onTimeJobRows.map((j) => ({
+          eta: j.eta,
+          status: j.status,
+          actual_eta:
+            j.air_details?.actual_eta ??
+            j.sea_fcl_details?.actual_eta ??
+            j.sea_lcl_details?.actual_eta ??
+            null,
+        })),
+        to,
+      );
+
       const sales = Number(periodJobTotals._sum.revenue_total ?? 0);
       const cost = Number(periodJobTotals._sum.cost_total ?? 0);
       const gp = Number(periodJobTotals._sum.gp_amount ?? 0);
@@ -214,6 +245,10 @@ export class MisService {
           period_gp_pct: sales > 0 ? round2((gp / sales) * 100) : 0,
           pdc_due_30d: pdcDue,
           cash_and_bank_total: round2(cashBankTotal),
+          on_time_percent: onTime.on_time_percent,
+          on_time_jobs: onTime.on_time_jobs,
+          late_jobs: onTime.late_jobs,
+          scored_jobs: onTime.scored_jobs,
         },
         recent_jobs: recentJobs.map((j) => ({
           ...j,
@@ -407,13 +442,15 @@ export class MisService {
   }
 
   private resolvePeriod(query: MisDashboardQueryDto) {
-    const to = query.to_date ? new Date(query.to_date) : new Date();
-    to.setHours(23, 59, 59, 999);
-    const from = query.from_date
-      ? new Date(query.from_date)
-      : new Date(to.getFullYear(), to.getMonth(), 1);
-    from.setHours(0, 0, 0, 0);
-    return { from, to };
+    const resolved = resolveDashboardPeriod(
+      {
+        period: query.period,
+        from_date: query.from_date,
+        to_date: query.to_date,
+      },
+      query.from_date || query.to_date ? "custom" : "mtd",
+    );
+    return { from: resolved.from, to: resolved.to, period: resolved.period };
   }
 }
 

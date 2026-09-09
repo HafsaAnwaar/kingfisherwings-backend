@@ -78,6 +78,7 @@ export class ServiceCatalogService {
           unit_price: true,
           currency_code: true,
           min_charge: true,
+          charge_code_id: true,
         },
       }),
     );
@@ -191,6 +192,36 @@ export class ServiceCatalogService {
 
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.tenantServiceCatalogItem.findMany({ where }),
+    );
+  }
+
+  /**
+   * Portal-safe catalog lookup — active + portal-visible only.
+   * When `codes` is omitted, returns all portal-visible items for the job type.
+   */
+  async findPortalByCodes(
+    tenantId: string,
+    codes: string[] | undefined,
+    jobType?: JobType,
+  ) {
+    const where: Prisma.TenantServiceCatalogItemWhereInput = {
+      tenant_id: tenantId,
+      deleted_at: null,
+      is_active: true,
+      is_portal_visible: true,
+    };
+    if (jobType) {
+      where.OR = [{ job_type: null }, { job_type: jobType }];
+    }
+    if (codes?.length) {
+      where.code = { in: codes.map((c) => c.toUpperCase()) };
+    }
+
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.tenantServiceCatalogItem.findMany({
+        where,
+        orderBy: [{ sort_order: "asc" }, { name: "asc" }],
+      }),
     );
   }
 
