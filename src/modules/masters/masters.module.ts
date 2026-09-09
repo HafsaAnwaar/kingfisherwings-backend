@@ -67,6 +67,7 @@ import { DepartmentsService } from "./departments/departments.service";
 
 import { DesignationsController } from "./designations/designations.controller";
 import { DesignationsService } from "./designations/designations.service";
+import { MasterLabelService } from "./master-label.service";
 
 const CONTROLLERS = [
   CountriesController,
@@ -117,6 +118,7 @@ const SERVICES = [
   DepartmentsService,
   DesignationsService,
   WorldPortsSeedService,
+  MasterLabelService,
 ];
 
 @Module({

@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
@@ -76,6 +77,14 @@ export class VatReturnQueryDto {
 }
 
 export class MisDashboardQueryDto {
+  @ApiPropertyOptional({
+    enum: ["7d", "30d", "mtd", "custom"],
+    example: "mtd",
+  })
+  @IsOptional()
+  @IsIn(["7d", "30d", "mtd", "custom"])
+  period?: "7d" | "30d" | "mtd" | "custom";
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()

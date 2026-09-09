@@ -26,6 +26,7 @@ import {
   sumPackageCbm,
   totalPieces,
 } from "../../common/utils/cargo-dimensions.util";
+import { resolveDashboardPeriod } from "../../common/utils/dashboard-period.util";
 import { CreateQuotationDto, UpdateQuotationDto } from "./dto/quotation.dto";
 import {
   CreateQuotationLineDto,
@@ -50,6 +51,11 @@ import { DocumentGenerationService } from "../../shared/queue/document-generatio
 import { EmailService } from "../../shared/email/email.service";
 import { StorageService } from "../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import {
+  lineTotal,
+  MasterLabelService,
+  sumLineTotals,
+} from "../masters/master-label.service";
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -105,6 +111,7 @@ export class QuotationsService {
     private readonly storage: StorageService,
     private readonly notifications: NotificationEmitterService,
     private readonly negotiation: QuotationNegotiationService,
+    private readonly masterLabels: MasterLabelService,
   ) {}
 
   // ============================================================
@@ -343,8 +350,115 @@ export class QuotationsService {
         throw new NotFoundException("Quotation not found.");
       }
 
+      const [parties, ports, containerTypes, chargeCodes, taxRates] =
+        await Promise.all([
+          this.masterLabels.resolvePartiesWithPrimaryContact(
+            tenantId,
+            [quotation.customer_id],
+            tx,
+          ),
+          this.masterLabels.resolvePorts(
+            tenantId,
+            [quotation.origin_port_id, quotation.dest_port_id],
+            tx,
+          ),
+          this.masterLabels.resolveContainerTypes(
+            tenantId,
+            [quotation.container_type_id],
+            tx,
+          ),
+          this.masterLabels.resolveChargeCodes(
+            tenantId,
+            quotation.lines.map((l) => l.charge_code_id),
+            tx,
+          ),
+          this.masterLabels.resolveTaxRates(
+            tenantId,
+            quotation.lines.map((l) => l.tax_rate_id),
+            tx,
+          ),
+        ]);
+
+      const customer = parties.get(quotation.customer_id);
+      const originPort = quotation.origin_port_id
+        ? ports.get(quotation.origin_port_id)
+        : undefined;
+      const destPort = quotation.dest_port_id
+        ? ports.get(quotation.dest_port_id)
+        : undefined;
+      const containerType = quotation.container_type_id
+        ? containerTypes.get(quotation.container_type_id)
+        : undefined;
+
+      const snapshot = quotation.portal_estimate_snapshot;
+      const lines = quotation.lines.map((line) => {
+        const charge = chargeCodes.get(line.charge_code_id);
+        const tax = line.tax_rate_id
+          ? taxRates.get(line.tax_rate_id)
+          : undefined;
+        const pricing_source =
+          snapshot && typeof snapshot === "object"
+            ? (() => {
+                const snapLines = (
+                  snapshot as { lines?: Array<Record<string, unknown>> }
+                ).lines;
+                if (!Array.isArray(snapLines)) return null;
+                const match = snapLines.find(
+                  (l) =>
+                    l.charge_code_id === line.charge_code_id ||
+                    (charge?.code &&
+                      String(l.code ?? "").toUpperCase() ===
+                        charge.code.toUpperCase()),
+                );
+                return match?.source ? String(match.source) : null;
+              })()
+            : null;
+        return {
+          ...line,
+          charge_code: charge?.code ?? null,
+          charge_code_name: charge?.name ?? null,
+          unit: line.unit ?? charge?.unit ?? null,
+          tax_percent: tax?.rate ?? null,
+          tax_amount: line.tax_amount,
+          line_total: lineTotal(line.amount, line.tax_amount),
+          pricing_source,
+        };
+      });
+
+      const totals = sumLineTotals(lines, true);
+
       return {
         ...quotation,
+        portal_estimate_snapshot: snapshot ?? null,
+        portal_costing: snapshot
+          ? {
+              estimate_snapshot: snapshot,
+              has_customer_proposed_lines: Array.isArray(
+                (snapshot as { lines?: unknown[] }).lines,
+              )
+                ? ((snapshot as { lines: Array<{ source?: string }> }).lines.some(
+                    (l) => l.source === "CUSTOMER_PROPOSED",
+                  ) ?? false)
+                : false,
+            }
+          : null,
+        customer_name: customer?.name ?? null,
+        contact_name: customer?.primary_contact?.name ?? null,
+        contact_email: customer?.primary_contact?.email ?? null,
+        contact_phone: customer?.primary_contact?.phone ?? null,
+        customer: customer ?? null,
+        origin_port_code: originPort?.code ?? null,
+        origin_port_name: originPort?.name ?? null,
+        origin_port: originPort ?? null,
+        dest_port_code: destPort?.code ?? null,
+        dest_port_name: destPort?.name ?? null,
+        dest_port: destPort ?? null,
+        container_type_code: containerType?.code ?? null,
+        container_type_name: containerType?.name ?? null,
+        lines,
+        subtotal: totals.subtotal,
+        tax_total: totals.tax_total,
+        total_amount: totals.total_amount,
         negotiation_pricing: buildNegotiationPricingView(quotation),
       };
     });
@@ -892,14 +1006,68 @@ export class QuotationsService {
     if (query.customer_id) where.customer_id = query.customer_id;
     if (query.job_type) where.job_type = query.job_type;
 
-    if (query.from_date || query.to_date) {
-      where.created_at = {
-        ...(query.from_date ? { gte: new Date(query.from_date) } : {}),
-        ...(query.to_date ? { lte: new Date(query.to_date) } : {}),
-      };
+    if (query.period || query.from_date || query.to_date) {
+      const { from, to } = resolveDashboardPeriod(
+        {
+          period: query.period,
+          from_date: query.from_date,
+          to_date: query.to_date,
+        },
+        "30d",
+      );
+      where.created_at = { gte: from, lte: to };
     }
 
     return where;
+  }
+
+  async getDashboardStats(tenantId: string, query: QuotationAnalyticsQueryDto) {
+    const analytics = await this.getAnalytics(tenantId, query);
+    const byStatus = Object.fromEntries(
+      analytics.by_status.map((r) => [r.status, r.count]),
+    );
+    const resolved = resolveDashboardPeriod(
+      {
+        period: query.period,
+        from_date: query.from_date,
+        to_date: query.to_date,
+      },
+      "30d",
+    );
+    const openRevenue = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.aggregate({
+        where: {
+          ...this.buildAnalyticsWhere(tenantId, query),
+          status: {
+            in: [
+              "DRAFT",
+              "SUBMITTED",
+              "INTERNALLY_APPROVED",
+              "SENT",
+              "NEGOTIATING",
+              "CUSTOMER_REVIEW",
+            ],
+          },
+        },
+        _sum: { revenue_total: true },
+      }),
+    );
+
+    return {
+      success: true,
+      data: {
+        period: resolved.period,
+        total: analytics.summary.total,
+        draft: byStatus["DRAFT"] ?? 0,
+        sent: byStatus["SENT"] ?? 0,
+        approved: byStatus["APPROVED"] ?? 0,
+        disapproved: byStatus["DISAPPROVED"] ?? 0,
+        converted: byStatus["CONVERTED"] ?? 0,
+        conversion_rate: analytics.summary.conversion_rate,
+        revenue_total_open: Number(openRevenue._sum.revenue_total ?? 0),
+        by_status: analytics.by_status,
+      },
+    };
   }
 
   async getAnalytics(tenantId: string, query: QuotationAnalyticsQueryDto) {
@@ -1164,6 +1332,7 @@ export class QuotationsService {
         volume_cbm: dto.volume_cbm,
         pieces: dto.pieces,
         container_type_id: dto.container_type_id,
+        container_count: (dto as { container_count?: number }).container_count,
         special_requirements: dto.special_requirements,
         valid_until: dto.valid_until,
         currency_code: dto.currency_code,

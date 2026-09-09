@@ -229,7 +229,10 @@ export class PortalFinanceService {
     return where;
   }
 
-  async invoiceSummary(user: CurrentPortalUser) {
+  async invoiceSummary(
+    user: CurrentPortalUser,
+    period?: { from: Date; to: Date; period?: string },
+  ) {
     const invoices = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.invoice.findMany({
         where: {
@@ -240,6 +243,9 @@ export class PortalFinanceService {
             in: [InvoiceType.CUSTOMER_INVOICE, InvoiceType.DEBIT_NOTE],
           },
           status: { in: PORTAL_VISIBLE_INVOICE_STATUSES },
+          ...(period
+            ? { invoice_date: { gte: period.from, lte: period.to } }
+            : {}),
         },
         select: {
           status: true,
@@ -298,12 +304,21 @@ export class PortalFinanceService {
         currency_code: invoice.currency_code,
         subtotal: invoice.subtotal,
         tax_amount: invoice.tax_amount,
+        tax_total: invoice.tax_amount,
         total_amount: invoice.total_amount,
         amount_paid: invoice.amount_paid,
         balance_due: invoice.balance_due,
+        vat_rate: invoice.vat_rate,
         remarks: invoice.remarks,
         lpo_number: invoice.lpo_number,
+        job_id: invoice.job_id,
+        job_number: invoice.job_number ?? invoice.job?.job_number ?? null,
         job: invoice.job,
+        party: invoice.party,
+        party_name: invoice.party_name ?? invoice.party?.name ?? null,
+        party_phone: invoice.party_phone ?? invoice.party?.phone ?? null,
+        party_email: invoice.party_email ?? invoice.party?.email ?? null,
+        shipment: invoice.shipment ?? null,
         credited_invoice: invoice.credited_invoice,
         has_pdf: Boolean(invoice.pdf_url),
         lines: invoice.lines.map((line) => ({
@@ -313,6 +328,12 @@ export class PortalFinanceService {
           unit_price: line.unit_price,
           amount: line.amount,
           tax_amount: line.tax_amount,
+          tax_rate: line.tax_rate,
+          tax_percent: line.tax_percent ?? line.tax_rate ?? null,
+          charge_code: line.charge_code ?? null,
+          line_total:
+            line.line_total ??
+            Number(line.amount ?? 0) + Number(line.tax_amount ?? 0),
         })),
         created_at: invoice.created_at,
         // Never: internal_notes

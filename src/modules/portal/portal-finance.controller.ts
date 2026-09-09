@@ -15,6 +15,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Response } from "express";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
+import { DashboardPeriodQueryDto } from "../../common/dto/dashboard-period-query.dto";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import {
   PortalCreditAgingQueryDto,
@@ -40,9 +41,15 @@ export class PortalInvoicesController {
   }
 
   @Get("summary")
-  @ApiOperation({ summary: "Invoice outstanding / overdue counters" })
-  summary(@CurrentPortal() user: CurrentPortalUser) {
-    return this.finance.invoiceSummary(user);
+  @ApiOperation({
+    summary: "Invoice outstanding / overdue counters",
+    description: "Supports period=7d|30d|mtd|custom (filters by invoice_date).",
+  })
+  summary(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Query() query: DashboardPeriodQueryDto,
+  ) {
+    return this.finance.invoiceSummary(user, query.resolve("30d"));
   }
 
   @Get("export.csv")

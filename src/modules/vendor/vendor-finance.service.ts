@@ -72,7 +72,10 @@ export class VendorFinanceService {
     };
   }
 
-  async invoiceSummary(user: CurrentVendorUser) {
+  async invoiceSummary(
+    user: CurrentVendorUser,
+    period?: { from: Date; to: Date; period?: string },
+  ) {
     const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.invoice.findMany({
         where: {
@@ -81,6 +84,9 @@ export class VendorFinanceService {
           deleted_at: null,
           invoice_type: InvoiceType.PURCHASE_INVOICE,
           status: { in: VISIBLE },
+          ...(period
+            ? { invoice_date: { gte: period.from, lte: period.to } }
+            : {}),
         },
         select: { status: true, balance_due: true, due_date: true },
       }),
@@ -117,10 +123,20 @@ export class VendorFinanceService {
         invoice_date: invoice.invoice_date,
         due_date: invoice.due_date,
         currency_code: invoice.currency_code,
+        subtotal: invoice.subtotal,
+        tax_amount: invoice.tax_amount,
+        tax_total: invoice.tax_amount,
         total_amount: invoice.total_amount,
         amount_paid: invoice.amount_paid,
         balance_due: invoice.balance_due,
+        vat_rate: invoice.vat_rate,
         remarks: invoice.remarks,
+        reference: invoice.job_number ?? invoice.job?.job_number ?? null,
+        job_id: invoice.job_id,
+        job_number: invoice.job_number ?? invoice.job?.job_number ?? null,
+        party_name: invoice.party_name ?? invoice.party?.name ?? null,
+        party_phone: invoice.party_phone ?? invoice.party?.phone ?? null,
+        party_email: invoice.party_email ?? invoice.party?.email ?? null,
         has_pdf: Boolean(invoice.pdf_url),
         lines: invoice.lines.map((l) => ({
           id: l.id,
@@ -128,6 +144,10 @@ export class VendorFinanceService {
           quantity: l.quantity,
           unit_price: l.unit_price,
           amount: l.amount,
+          tax_amount: l.tax_amount,
+          charge_code: l.charge_code ?? null,
+          line_total:
+            l.line_total ?? Number(l.amount ?? 0) + Number(l.tax_amount ?? 0),
         })),
       },
     };

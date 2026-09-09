@@ -7,6 +7,7 @@ import { EmailModule } from "../../shared/email/email.module";
 import { GlModule } from "../gl/gl.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { PublicApiModule } from "../public-api/public-api.module";
+import { MastersModule } from "../masters/masters.module";
 import { InvoicesController } from "./invoices.controller";
 import { CreditNotesController } from "./credit-notes.controller";
 import { DebitNotesController } from "./debit-notes.controller";
@@ -27,6 +28,7 @@ import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
     GlModule,
     NotificationsModule,
     PublicApiModule,
+    MastersModule,
   ],
   controllers: [
     InvoicesController,

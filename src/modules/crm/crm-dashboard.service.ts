@@ -5,6 +5,7 @@ import { QuotationsService } from "../quotations/quotations.service";
 import { CurrentUser } from "../users/interfaces/current-user.interface";
 import { salespersonScope } from "./crm-access";
 import { CreateBudgetDto, DashboardQueryDto } from "./dto/crm.dto";
+import { resolveDashboardPeriod } from "../../common/utils/dashboard-period.util";
 
 const REPORT_TYPES = [
   "weekly_sales",
@@ -215,10 +216,76 @@ export class CrmDashboardService {
     }
     return {
       success: true,
-      data: [...buckets.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([period, v]) => ({ period, ...v })),
+      data: await this.attachMonthlyTargets(
+        tenantId,
+        salespersonId,
+        [...buckets.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([period, v]) => ({ period, ...v })),
+        grain,
+      ),
     };
+  }
+
+  private async attachMonthlyTargets(
+    tenantId: string,
+    salespersonId: string | undefined,
+    rows: Array<{ period: string; revenue: number; volume: number }>,
+    grain: "week" | "month",
+  ) {
+    if (grain !== "month" || !rows.length) {
+      return rows.map((r) => ({
+        ...r,
+        target_amount: null,
+        target_volume: null,
+        achievement_pct: null,
+      }));
+    }
+
+    const budgets = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.salespersonBudget.findMany({
+        where: {
+          tenant_id: tenantId,
+          period_type: "MONTHLY",
+          ...(salespersonId ? { salesperson_id: salespersonId } : {}),
+        },
+        select: {
+          salesperson_id: true,
+          period_start: true,
+          target_amount: true,
+          target_volume: true,
+        },
+      }),
+    );
+
+    const targetByMonth = new Map<
+      string,
+      { amount: number; volume: number }
+    >();
+    for (const b of budgets) {
+      const d = b.period_start;
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      const cur = targetByMonth.get(key) ?? { amount: 0, volume: 0 };
+      cur.amount += Number(b.target_amount);
+      cur.volume += Number(b.target_volume ?? 0);
+      targetByMonth.set(key, cur);
+    }
+
+    return rows.map((r) => {
+      const t = targetByMonth.get(r.period);
+      const target_amount = t ? t.amount : null;
+      const target_volume = t && t.volume > 0 ? t.volume : t ? 0 : null;
+      const achievement_pct =
+        target_amount && target_amount > 0
+          ? Math.round((r.revenue / target_amount) * 10000) / 100
+          : null;
+      return {
+        ...r,
+        target_amount,
+        target_volume,
+        achievement_pct,
+      };
+    });
   }
 
   private async groupJobRevenue(
@@ -489,11 +556,15 @@ export class CrmDashboardService {
   }
 
   private range(query: DashboardQueryDto): Prisma.DateTimeFilter {
-    const to = query.to ? new Date(query.to) : new Date();
-    const from = query.from
-      ? new Date(query.from)
-      : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
-    return { gte: from, lte: to };
+    const resolved = resolveDashboardPeriod(
+      {
+        period: query.period,
+        from_date: query.from,
+        to_date: query.to,
+      },
+      "30d",
+    );
+    return { gte: resolved.from, lte: resolved.to };
   }
 
   private isoWeek(d: Date): string {

@@ -21,6 +21,8 @@ import { LandService } from "./land.service";
 import { CourierService } from "./courier.service";
 import { TransportModule } from "../transport/transport.module";
 import { VendorModule } from "../vendor/vendor.module";
+import { MastersModule } from "../masters/masters.module";
+import { JobsDashboardService } from "./jobs-dashboard.service";
 
 @Module({
   imports: [
@@ -34,10 +36,12 @@ import { VendorModule } from "../vendor/vendor.module";
     StorageModule,
     TransportModule,
     VendorModule,
+    MastersModule,
   ],
   controllers: [JobsController, JobsSeaScansController, SeaKpiReportController],
   providers: [
     JobsService,
+    JobsDashboardService,
     SeaFclImportService,
     AirImportService,
     SeaLclService,
@@ -47,6 +51,7 @@ import { VendorModule } from "../vendor/vendor.module";
   ],
   exports: [
     JobsService,
+    JobsDashboardService,
     SeaFclImportService,
     AirImportService,
     SeaLclService,

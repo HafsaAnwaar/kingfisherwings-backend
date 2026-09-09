@@ -45,6 +45,8 @@ import { PortalQuotationsService } from "./portal-quotations.service";
 import { PortalShipmentsService } from "./portal-shipments.service";
 import { PortalFinanceService } from "./portal-finance.service";
 import { PortalCcpService } from "./portal-ccp.service";
+import { PortalTasksService } from "./portal-tasks.service";
+import { PortalTasksController } from "./portal-tasks.controller";
 
 @Module({
   imports: [
@@ -80,6 +82,7 @@ import { PortalCcpService } from "./portal-ccp.service";
     PortalNotificationsController,
     PortalPreferencesController,
     PortalDashboardController,
+    PortalTasksController,
   ],
   providers: [
     PortalService,
@@ -91,6 +94,7 @@ import { PortalCcpService } from "./portal-ccp.service";
     PortalFinanceService,
     PortalCcpService,
     PortalPreferencesService,
+    PortalTasksService,
     PortalAuthGuard,
   ],
   exports: [
@@ -103,6 +107,7 @@ import { PortalCcpService } from "./portal-ccp.service";
     PortalFinanceService,
     PortalCcpService,
     PortalPreferencesService,
+    PortalTasksService,
     PortalAuthGuard,
   ],
 })

@@ -19,6 +19,7 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -500,6 +501,14 @@ export class CreateCampaignTemplateDto {
 }
 
 export class DashboardQueryDto {
+  @ApiPropertyOptional({
+    enum: ["7d", "30d", "mtd", "custom"],
+    example: "30d",
+  })
+  @IsOptional()
+  @IsIn(["7d", "30d", "mtd", "custom"])
+  period?: "7d" | "30d" | "mtd" | "custom";
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()

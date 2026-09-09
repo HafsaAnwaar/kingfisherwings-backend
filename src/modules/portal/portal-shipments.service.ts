@@ -13,6 +13,7 @@ type PortalJobRow = Job & {
     mawb_number: string | null;
     flight_number: string | null;
     flight_date: Date | null;
+    airline_id: string | null;
     origin_airport_id: string | null;
     dest_airport_id: string | null;
     awb_type: string | null;
@@ -24,6 +25,7 @@ type PortalJobRow = Job & {
     mbl_number: string | null;
     booking_number: string | null;
     vessel_id: string | null;
+    shipping_line_id: string | null;
     etd: Date | null;
     eta: Date | null;
     sailed_at: Date | null;
@@ -244,11 +246,17 @@ export class PortalShipmentsService {
     res.send(csv);
   }
 
-  async summary(user: CurrentPortalUser) {
+  async summary(
+    user: CurrentPortalUser,
+    period?: { from: Date; to: Date; period?: string },
+  ) {
     const base: Prisma.JobWhereInput = {
       tenant_id: user.tenantId,
       deleted_at: null,
       ...portalJobOwnershipWhere(user.partyId),
+      ...(period
+        ? { created_at: { gte: period.from, lte: period.to } }
+        : {}),
     };
 
     const groups = await this.prisma.runWithTenant(user.tenantId, (tx) =>
@@ -478,6 +486,7 @@ export class PortalShipmentsService {
                   mawb_number: true,
                   flight_number: true,
                   flight_date: true,
+                  airline_id: true,
                   origin_airport_id: true,
                   dest_airport_id: true,
                   awb_type: true,
@@ -491,6 +500,7 @@ export class PortalShipmentsService {
                   mbl_number: true,
                   booking_number: true,
                   vessel_id: true,
+                  shipping_line_id: true,
                   etd: true,
                   eta: true,
                   sailed_at: true,
@@ -542,6 +552,8 @@ export class PortalShipmentsService {
     const airportIds = new Set<string>();
     const partyIds = new Set<string>();
     const vesselIds = new Set<string>();
+    const airlineIds = new Set<string>();
+    const shippingLineIds = new Set<string>();
 
     for (const job of jobs) {
       if (job.origin_port_id) portIds.add(job.origin_port_id);
@@ -552,13 +564,16 @@ export class PortalShipmentsService {
         airportIds.add(job.air_details.origin_airport_id);
       if (job.air_details?.dest_airport_id)
         airportIds.add(job.air_details.dest_airport_id);
+      if (job.air_details?.airline_id)
+        airlineIds.add(job.air_details.airline_id);
       if (job.sea_fcl_details?.vessel_id)
         vesselIds.add(job.sea_fcl_details.vessel_id);
+      if (job.sea_fcl_details?.shipping_line_id)
+        shippingLineIds.add(job.sea_fcl_details.shipping_line_id);
     }
 
-    const [ports, airports, parties, vessels] = await this.prisma.runWithTenant(
-      tenantId,
-      async (tx) => {
+    const [ports, airports, parties, vessels, airlines, shippingLines] =
+      await this.prisma.runWithTenant(tenantId, async (tx) => {
         return Promise.all([
           portIds.size
             ? tx.port.findMany({
@@ -610,14 +625,35 @@ export class PortalShipmentsService {
                 select: { id: true, name: true, imo_number: true },
               })
             : Promise.resolve([]),
+          airlineIds.size
+            ? tx.airline.findMany({
+                where: {
+                  tenant_id: tenantId,
+                  id: { in: [...airlineIds] },
+                  deleted_at: null,
+                },
+                select: { id: true, name: true, iata_code: true },
+              })
+            : Promise.resolve([]),
+          shippingLineIds.size
+            ? tx.shippingLine.findMany({
+                where: {
+                  tenant_id: tenantId,
+                  id: { in: [...shippingLineIds] },
+                  deleted_at: null,
+                },
+                select: { id: true, name: true, scac_code: true },
+              })
+            : Promise.resolve([]),
         ]);
-      },
-    );
+      });
 
     const portMap = new Map(ports.map((p) => [p.id, p]));
     const airportMap = new Map(airports.map((a) => [a.id, a]));
     const partyMap = new Map(parties.map((p) => [p.id, p]));
     const vesselMap = new Map(vessels.map((v) => [v.id, v]));
+    const airlineMap = new Map(airlines.map((a) => [a.id, a]));
+    const shippingLineMap = new Map(shippingLines.map((s) => [s.id, s]));
 
     return jobs.map((job) => ({
       ...job,
@@ -639,6 +675,12 @@ export class PortalShipmentsService {
         : null,
       _vessel: job.sea_fcl_details?.vessel_id
         ? (vesselMap.get(job.sea_fcl_details.vessel_id) ?? null)
+        : null,
+      _airline: job.air_details?.airline_id
+        ? (airlineMap.get(job.air_details.airline_id) ?? null)
+        : null,
+      _shipping_line: job.sea_fcl_details?.shipping_line_id
+        ? (shippingLineMap.get(job.sea_fcl_details.shipping_line_id) ?? null)
         : null,
     }));
   }
@@ -697,9 +739,54 @@ export class PortalShipmentsService {
     partyId: string,
   ) {
     const list = this.toListItem(job, partyId);
+    const originObj = list.origin;
+    const destObj = list.destination;
+    const containerNumbers = (job.sea_fcl_details?.containers ?? [])
+      .map((c) => c.container_number)
+      .filter((n): n is string => Boolean(n));
+    const vesselName = job._vessel?.name ?? null;
+    const voyage = job.sea_fcl_details?.voyage_number ?? null;
+    const flight = job.air_details?.flight_number ?? null;
+    const airlineName = job._airline?.name ?? null;
+    const shippingLineName = job._shipping_line?.name ?? null;
+
+    const cargoParts = [
+      job.commodity,
+      job.pieces != null ? `${job.pieces} pcs` : null,
+      job.gross_weight != null ? `${job.gross_weight} kg` : null,
+      job.volume_cbm != null ? `${job.volume_cbm} cbm` : null,
+    ].filter(Boolean);
 
     return {
       ...list,
+      reference: job.job_number,
+      // String aliases alongside object-shaped origin/destination for PDF templates.
+      origin_string: originObj
+        ? [originObj.code, originObj.name].filter(Boolean).join(" — ")
+        : null,
+      destination_string: destObj
+        ? [destObj.code, destObj.name].filter(Boolean).join(" — ")
+        : null,
+      origin_name: originObj?.name ?? null,
+      destination_name: destObj?.name ?? null,
+      origin_code: originObj?.code ?? null,
+      destination_code: destObj?.code ?? null,
+      cargo_summary: cargoParts.join(" · ") || null,
+      container_numbers: containerNumbers,
+      vessel_name: vesselName,
+      voyage_number: voyage,
+      flight_number: flight,
+      vessel_flight: vesselName
+        ? voyage
+          ? `${vesselName} / ${voyage}`
+          : vesselName
+        : flight,
+      mbl_number: job.sea_fcl_details?.mbl_number ?? null,
+      hbl_number: job.sea_fcl_details?.hbl_number ?? null,
+      mawb_number: job.air_details?.mawb_number ?? null,
+      hawb_number: job.air_details?.hawb_number ?? null,
+      airline_name: airlineName,
+      shipping_line_name: shippingLineName,
       customer_remarks: job.customer_remarks,
       incoterms: job.incoterms,
       is_dg: job.is_dg,
@@ -713,6 +800,8 @@ export class PortalShipmentsService {
             flight_date: job.air_details.flight_date,
             awb_type: job.air_details.awb_type,
             freight_type: job.air_details.freight_type,
+            airline_name: airlineName,
+            airline_code: job._airline?.iata_code ?? null,
             origin_airport: this.formatAirport(job._origin_airport),
             dest_airport: this.formatAirport(job._dest_airport),
           }
@@ -731,6 +820,8 @@ export class PortalShipmentsService {
             freight_terms: job.sea_fcl_details.freight_terms,
             transhipment_port: job.sea_fcl_details.transhipment_port,
             vessel: job._vessel,
+            shipping_line_name: shippingLineName,
+            shipping_line_code: job._shipping_line?.scac_code ?? null,
             containers: job.sea_fcl_details.containers.map((c) => ({
               id: c.id,
               container_number: c.container_number,

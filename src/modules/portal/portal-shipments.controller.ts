@@ -10,6 +10,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Response } from "express";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
+import { DashboardPeriodQueryDto } from "../../common/dto/dashboard-period-query.dto";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import { PortalShipmentLookupDto } from "./dto/portal-shipment-lookup.dto";
 import { PortalShipmentQueryDto } from "./dto/portal-shipment-query.dto";
@@ -37,10 +38,13 @@ export class PortalShipmentsController {
   @ApiOperation({
     summary: "Shipment dashboard counters for the logged-in customer",
     description:
-      "Totals by status for dashboard widgets (open / in-transit / completed).",
+      "Totals by status for dashboard widgets (open / in-transit / completed). Supports period=7d|30d|mtd|custom.",
   })
-  summary(@CurrentPortal() user: CurrentPortalUser) {
-    return this.shipments.summary(user);
+  summary(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Query() query: DashboardPeriodQueryDto,
+  ) {
+    return this.shipments.summary(user, query.resolve("30d"));
   }
 
   @Get("lookup")
