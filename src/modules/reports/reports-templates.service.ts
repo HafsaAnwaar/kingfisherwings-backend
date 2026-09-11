@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -53,8 +54,10 @@ export class ReportsTemplatesService {
   }
 
   async getByIdOrCode(tenantId: string, idOrCode: string) {
-    const template = await this.findTemplate(idOrCode, true);
-    if (!template || !template.is_active) {
+    // Return inactive templates too so FRESA browse can show "not activated yet".
+    // Default list still filters is_active=true; generate still rejects inactive.
+    const template = await this.findTemplate(idOrCode, false);
+    if (!template) {
       throw new NotFoundException(`Report template "${idOrCode}" not found`);
     }
     const parameters = await this.hydrateParameters(
@@ -64,7 +67,36 @@ export class ReportsTemplatesService {
     return {
       ...this.toListItem(template),
       parameters,
+      renderer_key: template.renderer_key,
+      sort_order: template.sort_order,
     };
+  }
+
+  async activate(code: string) {
+    const template = await this.findTemplate(code, false);
+    if (!template) {
+      throw new NotFoundException(`Report template "${code}" not found`);
+    }
+    if (template.renderer_key.startsWith("pending.")) {
+      throw new BadRequestException(
+        `Renderer not implemented for "${code}" (renderer_key=${template.renderer_key}). Implement a data pack before activating.`,
+      );
+    }
+    return this.prisma.reportTemplate.update({
+      where: { id: template.id },
+      data: { is_active: true },
+    });
+  }
+
+  async deactivate(code: string) {
+    const template = await this.findTemplate(code, false);
+    if (!template) {
+      throw new NotFoundException(`Report template "${code}" not found`);
+    }
+    return this.prisma.reportTemplate.update({
+      where: { id: template.id },
+      data: { is_active: false },
+    });
   }
 
   async findTemplate(idOrCode: string, activeOnly = false) {

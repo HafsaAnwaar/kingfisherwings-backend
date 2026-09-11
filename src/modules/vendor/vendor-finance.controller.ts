@@ -32,6 +32,8 @@ import { VendorAuthGuard } from "./guards/vendor-auth.guard";
 import { CurrentVendorUser } from "./interfaces/vendor-auth.interfaces";
 import { VendorCcpService } from "./vendor-ccp.service";
 import { VendorFinanceService } from "./vendor-finance.service";
+import { VendorDocumentShareService } from "./vendor-document-share.service";
+import { DocumentShareEmailDto } from "../../shared/email/dto/document-share-email.dto";
 
 const PDF_MIME = new Set(["application/pdf"]);
 
@@ -44,6 +46,7 @@ export class VendorInvoicesController {
   constructor(
     private readonly finance: VendorFinanceService,
     private readonly ccp: VendorCcpService,
+    private readonly share: VendorDocumentShareService,
   ) {}
 
   @Get("open-items")
@@ -129,6 +132,31 @@ export class VendorInvoicesController {
     return this.finance.downloadInvoicePdf(user, id, res);
   }
 
+  @Post(":id/send-email")
+  @ApiOperation({
+    summary: "Email purchase invoice PDF to tenant admin (vendor → admin)",
+  })
+  sendInvoiceEmail(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: DocumentShareEmailDto,
+  ) {
+    return this.share.sendInvoicePdf(user, id, dto);
+  }
+
+  @Post(":id/payment-proofs/:proofId/send-email")
+  @ApiOperation({
+    summary: "Email payment proof to tenant admin (vendor → admin)",
+  })
+  sendProofEmail(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("proofId", ParseUUIDPipe) proofId: string,
+    @Body() dto: DocumentShareEmailDto,
+  ) {
+    return this.share.sendPaymentProof(user, id, proofId, dto);
+  }
+
   @Get(":id/payment-proofs")
   @ApiOperation({ summary: "List payment proofs for purchase invoice" })
   listPaymentProofs(
@@ -173,7 +201,10 @@ export class VendorInvoicesController {
 @UseGuards(VendorAuthGuard)
 @Controller("vendor")
 export class VendorPaymentsController {
-  constructor(private readonly finance: VendorFinanceService) {}
+  constructor(
+    private readonly finance: VendorFinanceService,
+    private readonly share: VendorDocumentShareService,
+  ) {}
 
   @Get("payments")
   @ApiOperation({ summary: "Posted payments to this vendor" })
@@ -189,6 +220,18 @@ export class VendorPaymentsController {
     @Res() res: Response,
   ) {
     return this.finance.remittancePdf(user, id, res);
+  }
+
+  @Post("payments/:id/remittance/send-email")
+  @ApiOperation({
+    summary: "Email remittance copy to tenant admin (vendor → admin)",
+  })
+  sendRemittanceEmail(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: DocumentShareEmailDto,
+  ) {
+    return this.share.sendRemittance(user, id, dto);
   }
 
   @Get("credit-notes")

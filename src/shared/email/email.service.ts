@@ -1,7 +1,12 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as nodemailer from "nodemailer";
-import { EmailEventType, EmailStatus, Prisma } from "@prisma/client";
+import { EmailEventType, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 export interface SendEmailOptions {
@@ -18,10 +23,13 @@ export interface SendEmailOptions {
   jobId?: string;
   jobDocumentId?: string;
   createdBy?: string;
+  replyTo?: string;
+  /** When true, throw if SMTP is not configured or send fails (document share). */
+  requireDelivery?: boolean;
 }
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter | null = null;
 
@@ -34,14 +42,44 @@ export class EmailService {
     const user = this.config.get<string>("smtp.user");
     const pass = this.config.get<string>("smtp.pass");
 
-    if (host) {
+    if (host && host !== "localhost") {
       this.transporter = nodemailer.createTransport({
         host,
         port,
         secure: this.config.get<boolean>("smtp.secure"),
         auth: user && pass ? { user, pass } : undefined,
       });
+    } else if (host === "localhost" && user && pass) {
+      this.transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: this.config.get<boolean>("smtp.secure"),
+        auth: { user, pass },
+      });
     }
+  }
+
+  async onModuleInit() {
+    if (!this.transporter) {
+      this.logger.warn(
+        "SMTP transporter not configured — document share endpoints will return 503 until SMTP_* is set.",
+      );
+      return;
+    }
+    try {
+      await this.transporter.verify();
+      this.logger.log(
+        `SMTP ready (${this.config.get<string>("smtp.host")} → ${this.config.get<string>("smtp.from")})`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `SMTP verify failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  isConfigured(): boolean {
+    return this.transporter != null;
   }
 
   async send(options: SendEmailOptions) {
@@ -66,20 +104,28 @@ export class EmailService {
     );
 
     if (!this.transporter) {
-      this.logger.warn(
-        `SMTP not configured — email logged only (id=${log.id})`,
-      );
+      const msg = "SMTP not configured — email not delivered.";
+      this.logger.warn(`${msg} (id=${log.id})`);
       await this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.update({
           where: { id: log.id },
           data: {
-            status: "SENT",
-            sent_at: new Date(),
-            error_message: "SMTP not configured — logged only.",
+            status: options.requireDelivery ? "FAILED" : "SENT",
+            sent_at: options.requireDelivery ? undefined : new Date(),
+            error_message: options.requireDelivery
+              ? msg
+              : "SMTP not configured — logged only.",
           },
         }),
       );
-      return log;
+      if (options.requireDelivery) {
+        throw new ServiceUnavailableException(
+          "Email delivery is unavailable. Configure SMTP_HOST / SMTP_USER / SMTP_PASS (see docs/EMAIL_SETUP_GMAIL.md).",
+        );
+      }
+      return this.prisma.runWithTenant(options.tenantId, (tx) =>
+        tx.emailLog.findUniqueOrThrow({ where: { id: log.id } }),
+      );
     }
 
     try {
@@ -97,6 +143,7 @@ export class EmailService {
         from,
         to: options.to,
         cc: options.cc,
+        replyTo: options.replyTo,
         subject: options.subject,
         html: options.body,
         attachments,
@@ -113,12 +160,19 @@ export class EmailService {
         error instanceof Error ? error.message : "Unknown email error";
       this.logger.error(`Email failed: ${message}`);
 
-      return this.prisma.runWithTenant(options.tenantId, (tx) =>
+      const failed = await this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.update({
           where: { id: log.id },
           data: { status: "FAILED", error_message: message },
         }),
       );
+
+      if (options.requireDelivery) {
+        throw new ServiceUnavailableException(
+          `Email delivery failed: ${message}`,
+        );
+      }
+      return failed;
     }
   }
 

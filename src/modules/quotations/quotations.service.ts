@@ -938,15 +938,31 @@ export class QuotationsService {
         mode === QuotationPdfMode.CUSTOMER
           ? refreshed.customer_pdf_url
           : refreshed.internal_pdf_url;
+    }
 
-      if (pdfUrl && !pdfUrl.startsWith("http")) {
+    if (pdfUrl) {
+      try {
+        const refreshed = await this.findOne(tenantId, quotationId);
+        const file = await this.storage.readByStoredFile(tenantId, {
+          file_name:
+            pdfUrl.split("/").pop() ?? `${quotation.quotation_number}.pdf`,
+          file_url: pdfUrl,
+          s3_key:
+            mode === QuotationPdfMode.CUSTOMER
+              ? refreshed.customer_pdf_s3_key
+              : refreshed.internal_pdf_s3_key,
+          mime_type: "application/pdf",
+        });
+        attachmentBuffer = file.buffer;
+        attachmentName = file.fileName;
+      } catch {
         const filename = pdfUrl.split("/").pop();
-        if (filename) {
+        if (filename && !pdfUrl.startsWith("http")) {
           attachmentBuffer = await this.storage.readBuffer(
             tenantId,
             decodeURIComponent(filename),
           );
-          attachmentName = filename;
+          attachmentName = decodeURIComponent(filename);
         }
       }
     }
@@ -967,6 +983,7 @@ export class QuotationsService {
       attachmentPath: pdfUrl ?? undefined,
       quotationId,
       createdBy: actorId,
+      requireDelivery: true,
     });
 
     await this.prisma.runWithTenant(tenantId, (tx) =>

@@ -33,6 +33,7 @@ import { VendorLookupsController } from "./vendor-lookups.controller";
 import { JobOffersController } from "./job-offers.controller";
 import { VendorDashboardService } from "./vendor-dashboard.service";
 import { VendorDashboardController } from "./vendor-dashboard.controller";
+import { VendorDocumentShareService } from "./vendor-document-share.service";
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { VendorDashboardController } from "./vendor-dashboard.controller";
     VendorCcpService,
     VendorQuotesService,
     VendorDashboardService,
+    VendorDocumentShareService,
     VendorAuthGuard,
   ],
   exports: [

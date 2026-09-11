@@ -1,9 +1,13 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-} from "@nestjs/swagger";
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RolesGuard } from "../users/guards/roles.guard";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
@@ -11,13 +15,18 @@ import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { REPORTS_PERMISSIONS } from "./constants/reports-permission.constants";
 import { ReportTemplatesQueryDto } from "./dto/report-templates-query.dto";
 import { ReportsTemplatesService } from "./reports-templates.service";
+import { ReportsSeedService } from "./seed/reports.seed";
+import { RegistryEntry } from "./seed/fresa-registry.util";
 
 @ApiTags("Reports — Catalog")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("reports/templates")
 export class ReportsTemplatesController {
-  constructor(private readonly service: ReportsTemplatesService) {}
+  constructor(
+    private readonly service: ReportsTemplatesService,
+    private readonly seed: ReportsSeedService,
+  ) {}
 
   @Get()
   @RequirePermissions(REPORTS_PERMISSIONS.READ)
@@ -28,10 +37,74 @@ export class ReportsTemplatesController {
     return this.service.list(query);
   }
 
+  @Post("import")
+  @RequirePermissions(REPORTS_PERMISSIONS.MANAGE)
+  @ApiOperation({
+    summary:
+      "Import FRESA registry entries (inactive unless pack-protected). Body: array or { templates: [] }",
+  })
+  @ApiBody({
+    schema: {
+      oneOf: [
+        { type: "array", items: { type: "object" } },
+        {
+          type: "object",
+          properties: {
+            templates: { type: "array", items: { type: "object" } },
+          },
+        },
+      ],
+    },
+  })
+  async importRegistry(@Body() body: unknown) {
+    const list = Array.isArray(body)
+      ? body
+      : ((body as { templates?: unknown[] })?.templates ?? []);
+    const result = await this.seed.importRegistryEntries(
+      list as RegistryEntry[],
+    );
+    return { success: true, ...result };
+  }
+
+  @Post(":code/activate")
+  @RequirePermissions(REPORTS_PERMISSIONS.MANAGE)
+  @ApiOperation({
+    summary:
+      "Activate template (requires non-pending renderer_key). Zero FE change for catalog list.",
+  })
+  async activate(@Param("code") code: string) {
+    const row = await this.service.activate(code);
+    return {
+      success: true,
+      data: {
+        id: row.id,
+        code: row.code,
+        is_active: row.is_active,
+        renderer_key: row.renderer_key,
+      },
+    };
+  }
+
+  @Post(":code/deactivate")
+  @RequirePermissions(REPORTS_PERMISSIONS.MANAGE)
+  @ApiOperation({ summary: "Deactivate template (hide from default catalog list)" })
+  async deactivate(@Param("code") code: string) {
+    const row = await this.service.deactivate(code);
+    return {
+      success: true,
+      data: {
+        id: row.id,
+        code: row.code,
+        is_active: row.is_active,
+      },
+    };
+  }
+
   @Get(":idOrCode")
   @RequirePermissions(REPORTS_PERMISSIONS.READ)
   @ApiOperation({
-    summary: "Template detail + parameter schema (UUID or stable code)",
+    summary:
+      "Template detail + parameter schema (UUID or stable code). Returns inactive templates for FRESA browse.",
   })
   detail(
     @CurrentUser("tenantId") tenantId: string,

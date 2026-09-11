@@ -17,8 +17,10 @@ import { RolesGuard } from "../users/guards/roles.guard";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
+import { DocumentShareEmailDto } from "../../shared/email/dto/document-share-email.dto";
 import { GL_PERMISSIONS } from "./constants/gl-permission.constants";
 import { PaymentsService } from "./payments.service";
+import { GlDocumentShareService } from "./gl-document-share.service";
 import {
   CreatePaymentDto,
   PaymentAllocationInputDto,
@@ -31,7 +33,10 @@ import {
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("gl/payments")
 export class PaymentsController {
-  constructor(private readonly service: PaymentsService) {}
+  constructor(
+    private readonly service: PaymentsService,
+    private readonly share: GlDocumentShareService,
+  ) {}
 
   @Get()
   @RequirePermissions(GL_PERMISSIONS.VIEW)
@@ -53,6 +58,20 @@ export class PaymentsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.findOne(tenantId, id);
+  }
+
+  @Post(":id/remittance/send-email")
+  @RequirePermissions(GL_PERMISSIONS.MANAGE_PAYMENTS)
+  @ApiOperation({
+    summary: "Email remittance advice PDF to vendor contacts",
+  })
+  sendRemittance(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: DocumentShareEmailDto,
+  ) {
+    return this.share.sendRemittance(tenantId, id, dto, actorId);
   }
 
   @Post()

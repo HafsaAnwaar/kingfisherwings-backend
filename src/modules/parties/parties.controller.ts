@@ -49,6 +49,8 @@ import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { PARTIES_PERMISSIONS } from "./constants/parties-permission.constants";
+import { DocumentShareEmailDto } from "../../shared/email/dto/document-share-email.dto";
+import { GlDocumentShareService } from "../gl/gl-document-share.service";
 
 @ApiTags("Parties")
 @ApiBearerAuth()
@@ -58,6 +60,7 @@ export class PartiesController {
   constructor(
     private readonly service: PartiesService,
     private readonly extensions: PartyExtensionsService,
+    private readonly glShare: GlDocumentShareService,
   ) {}
 
   // ============================================================
@@ -199,6 +202,20 @@ export class PartiesController {
     @Body() dto: UpdateCreditStatusDto,
   ) {
     return this.service.updateCreditStatus(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/credit/summary/send-email")
+  @RequirePermissions(PARTIES_PERMISSIONS.MANAGE_CREDIT)
+  @ApiOperation({
+    summary: "Email accounts / credit summary (with optional statement PDF)",
+  })
+  sendCreditSummary(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: DocumentShareEmailDto,
+  ) {
+    return this.glShare.sendCreditSummary(tenantId, id, dto, actorId);
   }
 
   // ============================================================

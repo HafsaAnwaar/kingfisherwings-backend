@@ -1,0 +1,4 @@
+{
+  "_comment": "Optional: replace with FE src/features/reports/data/fresaReportRegistry.json. If this file is missing or empty array, boot uses generated ~607 stubs. Format: array of { code, name, family, contexts, formats, description, parameters_schema?, sort_order? }",
+  "templates": []
+}

@@ -22,7 +22,7 @@ import {
   REPORT_TTL_HOURS,
 } from "./constants/reports.constants";
 import { ReportGenerateDto } from "./dto/report-generate.dto";
-import { OpsListDataPackService } from "./data-packs/ops-list.data-pack";
+import { ReportDataPackRegistry } from "./data-packs/report-data-pack.registry";
 import { ReportRendererService } from "./renderers/report-renderer.service";
 import { ReportsTemplatesService } from "./reports-templates.service";
 import { ReportParamDef } from "./types/report.types";
@@ -34,7 +34,7 @@ export class ReportsGenerateService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly templates: ReportsTemplatesService,
-    private readonly dataPack: OpsListDataPackService,
+    private readonly dataPacks: ReportDataPackRegistry,
     private readonly renderer: ReportRendererService,
     private readonly storage: StorageService,
     private readonly config: ConfigService,
@@ -125,6 +125,9 @@ export class ReportsGenerateService {
         status: refreshed?.status ?? ReportJobStatus.ready,
         format: dto.format,
         template_code: template.code,
+        download_url: refreshed?.download_url ?? null,
+        expires_at: refreshed?.expires_at?.toISOString() ?? null,
+        error: refreshed?.error ?? null,
       };
     }
 
@@ -174,10 +177,17 @@ export class ReportsGenerateService {
 
     try {
       const parameters = (job.parameters ?? {}) as Record<string, unknown>;
-      const dataset = await this.dataPack.load(
+      const context = (job.context ?? {}) as {
+        job_id?: string;
+        quotation_id?: string;
+        invoice_id?: string;
+        party_id?: string;
+      };
+      const dataset = await this.dataPacks.load(
         tenantId,
         job.template.renderer_key,
         parameters,
+        context,
       );
       const rendered = await this.renderer.render(job.format, dataset);
       const fileName = `report-${job.template_code}-${jobId}.${rendered.extension}`;
