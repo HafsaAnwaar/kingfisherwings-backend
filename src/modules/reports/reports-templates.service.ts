@@ -5,15 +5,31 @@ import {
 } from "@nestjs/common";
 import { Prisma, ReportTemplate } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ReportDataPackRegistry } from "./data-packs/report-data-pack.registry";
+import { ActivateTemplateDto, BindRendererDto } from "./dto/bind-renderer.dto";
 import { ReportTemplatesQueryDto } from "./dto/report-templates-query.dto";
 import { ReportParamDef } from "./types/report.types";
+import { OPS_LIST_PHASE1_SEED } from "./seed/ops-list-phase1.seed";
+import { SEA_DOCS_PHASE2_SEED } from "./seed/sea-docs-phase2.seed";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Donor pack seed used to copy parameters_schema when binding an empty stub. */
+const RENDERER_DONOR_SCHEMA: Record<string, ReportParamDef[]> = (() => {
+  const map: Record<string, ReportParamDef[]> = {};
+  for (const row of [...OPS_LIST_PHASE1_SEED, ...SEA_DOCS_PHASE2_SEED]) {
+    map[row.renderer_key] = row.parameters_schema;
+  }
+  return map;
+})();
+
 @Injectable()
 export class ReportsTemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dataPacks: ReportDataPackRegistry,
+  ) {}
 
   async list(query: ReportTemplatesQueryDto) {
     const page = query.page ?? 1;
@@ -53,6 +69,15 @@ export class ReportsTemplatesService {
     };
   }
 
+  listRenderers() {
+    return {
+      data: this.dataPacks.listImplemented(),
+      meta: {
+        note: "Bind one of these keys to a FRESA code via POST /reports/templates/:code/bind-renderer (or activate with body.renderer_key).",
+      },
+    };
+  }
+
   async getByIdOrCode(tenantId: string, idOrCode: string) {
     // Return inactive templates too so FRESA browse can show "not activated yet".
     // Default list still filters is_active=true; generate still rejects inactive.
@@ -72,16 +97,59 @@ export class ReportsTemplatesService {
     };
   }
 
-  async activate(code: string) {
+  /**
+   * Clear pending.* by assigning an implemented pack renderer_key.
+   * Optionally activate in the same call (FE Activate flow).
+   */
+  async bindRenderer(code: string, dto: BindRendererDto) {
+    this.dataPacks.assertImplemented(dto.renderer_key);
     const template = await this.findTemplate(code, false);
     if (!template) {
       throw new NotFoundException(`Report template "${code}" not found`);
     }
+
+    const schemaEmpty =
+      !Array.isArray(template.parameters_schema) ||
+      (template.parameters_schema as unknown[]).length === 0;
+    const donorSchema = RENDERER_DONOR_SCHEMA[dto.renderer_key];
+
+    return this.prisma.reportTemplate.update({
+      where: { id: template.id },
+      data: {
+        renderer_key: dto.renderer_key,
+        ...(dto.formats?.length ? { formats: dto.formats } : {}),
+        ...(schemaEmpty && donorSchema
+          ? {
+              parameters_schema:
+                donorSchema as unknown as Prisma.InputJsonValue,
+            }
+          : {}),
+        ...(dto.activate ? { is_active: true } : {}),
+      },
+    });
+  }
+
+  async activate(code: string, dto?: ActivateTemplateDto) {
+    const template = await this.findTemplate(code, false);
+    if (!template) {
+      throw new NotFoundException(`Report template "${code}" not found`);
+    }
+
+    if (dto?.renderer_key) {
+      return this.bindRenderer(code, {
+        renderer_key: dto.renderer_key,
+        activate: true,
+      });
+    }
+
     if (template.renderer_key.startsWith("pending.")) {
       throw new BadRequestException(
-        `Renderer not implemented for "${code}" (renderer_key=${template.renderer_key}). Implement a data pack before activating.`,
+        `Renderer not implemented for "${code}" (renderer_key=${template.renderer_key}). Bind an implemented pack first: POST /reports/templates/${code}/bind-renderer with { "renderer_key": "ops.…" } (see GET /reports/templates/renderers), or pass renderer_key on this activate body.`,
       );
     }
+
+    this.dataPacks.assertImplemented(template.renderer_key);
+
     return this.prisma.reportTemplate.update({
       where: { id: template.id },
       data: { is_active: true },

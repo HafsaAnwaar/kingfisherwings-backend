@@ -13,6 +13,10 @@ import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { REPORTS_PERMISSIONS } from "./constants/reports-permission.constants";
+import {
+  ActivateTemplateDto,
+  BindRendererDto,
+} from "./dto/bind-renderer.dto";
 import { ReportTemplatesQueryDto } from "./dto/report-templates-query.dto";
 import { ReportsTemplatesService } from "./reports-templates.service";
 import { ReportsSeedService } from "./seed/reports.seed";
@@ -35,6 +39,16 @@ export class ReportsTemplatesController {
   })
   list(@Query() query: ReportTemplatesQueryDto) {
     return this.service.list(query);
+  }
+
+  @Get("renderers")
+  @RequirePermissions(REPORTS_PERMISSIONS.READ)
+  @ApiOperation({
+    summary:
+      "List implemented data-pack renderer_keys (for bind / activate). Not Jasper upload.",
+  })
+  listRenderers() {
+    return this.service.listRenderers();
   }
 
   @Post("import")
@@ -66,14 +80,41 @@ export class ReportsTemplatesController {
     return { success: true, ...result };
   }
 
+  @Post(":code/bind-renderer")
+  @RequirePermissions(REPORTS_PERMISSIONS.MANAGE)
+  @ApiOperation({
+    summary:
+      "Set a real renderer_key (clears pending.*). Optional activate=true for one-shot FE Activate.",
+  })
+  async bindRenderer(
+    @Param("code") code: string,
+    @Body() dto: BindRendererDto,
+  ) {
+    const row = await this.service.bindRenderer(code, dto);
+    return {
+      success: true,
+      data: {
+        id: row.id,
+        code: row.code,
+        is_active: row.is_active,
+        renderer_key: row.renderer_key,
+        formats: row.formats,
+      },
+    };
+  }
+
   @Post(":code/activate")
   @RequirePermissions(REPORTS_PERMISSIONS.MANAGE)
   @ApiOperation({
     summary:
-      "Activate template (requires non-pending renderer_key). Zero FE change for catalog list.",
+      "Activate template. If still pending.*, pass body.renderer_key to bind+activate.",
   })
-  async activate(@Param("code") code: string) {
-    const row = await this.service.activate(code);
+  @ApiBody({ type: ActivateTemplateDto, required: false })
+  async activate(
+    @Param("code") code: string,
+    @Body() dto: ActivateTemplateDto = {},
+  ) {
+    const row = await this.service.activate(code, dto);
     return {
       success: true,
       data: {
