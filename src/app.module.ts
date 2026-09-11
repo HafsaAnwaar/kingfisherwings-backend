@@ -33,6 +33,7 @@ import { WmsModule } from "./modules/wms/wms.module";
 import { TransportModule } from "./modules/transport/transport.module";
 import { NvoccModule } from "./modules/nvocc/nvocc.module";
 import { DocumentationModule } from "./modules/documentation/documentation.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 import { PublicApiModule } from "./modules/public-api/public-api.module";
 import { TrackModule } from "./modules/track/track.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
@@ -88,6 +89,7 @@ import { LocaleModule } from "./common/locale/locale.module";
     TransportModule,
     NvoccModule,
     DocumentationModule,
+    ReportsModule,
     PublicApiModule,
   ],
   providers: [
