@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiProduces,
   ApiTags,
@@ -30,6 +31,20 @@ export class ReportsJobsController {
   @Get(":jobId")
   @RequirePermissions(REPORTS_PERMISSIONS.READ)
   @ApiOperation({ summary: "Poll report job status" })
+  @ApiOkResponse({
+    description: "Job poll shape (same download fields as sync generate when ready)",
+    schema: {
+      example: {
+        id: "00000000-0000-4000-8000-000000000001",
+        status: "ready",
+        format: "PDF",
+        template_code: "SEA_ARRIVAL_NOTICE_LIST",
+        download_url: "/reports/jobs/00000000-0000-4000-8000-000000000001/download",
+        expires_at: "2026-09-12T12:00:00.000Z",
+        error: null,
+      },
+    },
+  })
   status(
     @CurrentUser("tenantId") tenantId: string,
     @Param("jobId") jobId: string,

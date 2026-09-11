@@ -1153,24 +1153,43 @@ export class InvoicesService {
 
     let pdfBuffer: Buffer | undefined;
     let pdfWarning: string | undefined;
-    if (!invoice.pdf_url) {
+    try {
+      if (invoice.pdf_url || invoice.pdf_s3_key) {
+        const file = await this.storage.readByStoredFile(tenantId, {
+          file_name: `${invoice.invoice_number}.pdf`,
+          file_url: invoice.pdf_url ?? "",
+          s3_key: invoice.pdf_s3_key,
+          mime_type: "application/pdf",
+        });
+        pdfBuffer = file.buffer;
+      } else {
+        const generated = await this.generatePdf(tenantId, id, actorId);
+        pdfBuffer = generated.buffer;
+      }
+    } catch (err) {
+      pdfWarning =
+        err instanceof Error ? err.message : "PDF generation failed";
       try {
         const generated = await this.generatePdf(tenantId, id, actorId);
         pdfBuffer = generated.buffer;
-      } catch (err) {
+        pdfWarning = undefined;
+      } catch (err2) {
         pdfWarning =
-          err instanceof Error ? err.message : "PDF generation failed";
+          err2 instanceof Error ? err2.message : "PDF generation failed";
       }
     }
+
+    const isPurchase = invoice.invoice_type === "PURCHASE_INVOICE";
+    const label = isPurchase ? "Purchase invoice" : "Invoice";
 
     const emailLog = await this.emailService.send({
       tenantId,
       eventType: "INVOICE_SENT",
       to: dto.to_email,
-      subject: `Invoice ${invoice.invoice_number}`,
+      subject: `${label} ${invoice.invoice_number}`,
       body:
         (dto.message ??
-          `<p>Please find invoice <strong>${invoice.invoice_number}</strong>.</p>`) +
+          `<p>Please find ${label.toLowerCase()} <strong>${invoice.invoice_number}</strong> attached.</p>`) +
         (pdfWarning
           ? `<p><em>Note: PDF attachment unavailable (${pdfWarning})</em></p>`
           : ""),
@@ -1178,6 +1197,7 @@ export class InvoicesService {
       attachmentName: pdfBuffer ? `${invoice.invoice_number}.pdf` : undefined,
       attachmentPath: invoice.pdf_url ?? undefined,
       createdBy: actorId,
+      requireDelivery: true,
     });
 
     return this.prisma
@@ -1197,7 +1217,7 @@ export class InvoicesService {
         success: emailLog.status === "SENT",
         email_log_id: emailLog.id,
         status: emailLog.status,
-        pdf_attached: Boolean(pdfBuffer || invoice.pdf_url),
+        pdf_attached: Boolean(pdfBuffer),
         pdf_warning: pdfWarning,
       }));
   }

@@ -36,6 +36,8 @@ import {
 import { VendorAuthGuard } from "./guards/vendor-auth.guard";
 import { CurrentVendorUser } from "./interfaces/vendor-auth.interfaces";
 import { VendorCcpService } from "./vendor-ccp.service";
+import { VendorDocumentShareService } from "./vendor-document-share.service";
+import { DocumentShareEmailDto } from "../../shared/email/dto/document-share-email.dto";
 
 const ATTACHMENT_MIME = new Set([
   "application/pdf",
@@ -50,7 +52,10 @@ const ATTACHMENT_MIME = new Set([
 @UseGuards(VendorAuthGuard)
 @Controller("vendor/disputes")
 export class VendorDisputesController {
-  constructor(private readonly ccp: VendorCcpService) {}
+  constructor(
+    private readonly ccp: VendorCcpService,
+    private readonly share: VendorDocumentShareService,
+  ) {}
 
   @Post()
   @ApiConsumes("multipart/form-data", "application/json")
@@ -98,6 +103,18 @@ export class VendorDisputesController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.ccp.getMyDispute(user, id);
+  }
+
+  @Post(":id/send-email")
+  @ApiOperation({
+    summary: "Email dispute package to tenant admin (vendor → admin)",
+  })
+  sendEmail(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: DocumentShareEmailDto,
+  ) {
+    return this.share.sendDispute(user, id, dto);
   }
 }
 

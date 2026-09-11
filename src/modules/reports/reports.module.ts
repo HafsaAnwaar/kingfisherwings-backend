@@ -12,6 +12,8 @@ import {
 import { REPORT_GENERATION_QUEUE } from "../../shared/queue/queue.constants";
 import { createNoopQueue } from "../../shared/queue/noop-queue";
 import { OpsListDataPackService } from "./data-packs/ops-list.data-pack";
+import { SeaDocsDataPackService } from "./data-packs/sea-docs.data-pack";
+import { ReportDataPackRegistry } from "./data-packs/report-data-pack.registry";
 import { ReportRendererService } from "./renderers/report-renderer.service";
 import { ReportGenerationProcessor } from "./report-generation.processor";
 import { ReportsGenerateController } from "./reports-generate.controller";
@@ -64,6 +66,8 @@ const queueProviders = redisEnabled
     ReportsGenerateService,
     ReportsJobsService,
     OpsListDataPackService,
+    SeaDocsDataPackService,
+    ReportDataPackRegistry,
     ReportRendererService,
     ReportsSeedService,
     ...queueProviders,

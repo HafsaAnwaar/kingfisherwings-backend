@@ -109,14 +109,17 @@ AWS_SECRET_ACCESS_KEY=...
 4. Optional email for invoice send:
 
 ```env
-SMTP_HOST=smtp.example.com
+SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
-SMTP_USER=...
-SMTP_PASS=...
-SMTP_FROM_EMAIL=noreply@yourdomain.com
+SMTP_USER=kingfisherwings@gmail.com
+SMTP_PASS=<gmail-app-password>
+SMTP_FROM_EMAIL=kingfisherwings@gmail.com
 SMTP_FROM_NAME=KingFisher Wings
+SMTP_FROM="KingFisher Wings <kingfisherwings@gmail.com>"
 ```
+
+See also [`docs/EMAIL_SETUP_GMAIL.md`](EMAIL_SETUP_GMAIL.md).
 
 5. After deploy, hit:
 
