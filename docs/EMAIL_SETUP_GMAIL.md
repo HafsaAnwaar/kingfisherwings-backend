@@ -1,60 +1,107 @@
-# Email setup — Gmail SMTP
+# Email setup — Gmail on local + Render
 
-KingFisher Wings sends document-share emails (invoices, statements, remittance, vendor→admin) via **Gmail SMTP + App Password**.
+## Why Render returns `503 Connection timeout`
 
-## 1. Create App Password
+[Render free web services block outbound SMTP](https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports) on ports **25 / 465 / 587**.
 
-1. Sign in to the mailbox (e.g. `kingfisherwingserp@gmail.com`).
-2. Enable **2-Step Verification**.
-3. Google Account → Security → **App passwords** → Mail → generate.
-4. Paste the 16-character password into `SMTP_PASS` (spaces are OK; backend strips them).
+So this always fails on free Render, even with a perfect Gmail App Password:
 
-## 2. Environment variables
+```text
+Email delivery failed: Connection timeout
+```
+
+`GET /health` will show `provider: "smtp"`, `smtp_reachable: false`, and `last_verify_error` with the timeout.
+
+**Fix (pick one):**
+
+| Option | Works on Render free? | Keeps Gmail From? |
+|--------|----------------------|-------------------|
+| **A. `EMAIL_PROVIDER=gmail_api`** (HTTPS Gmail API + OAuth) | Yes | Yes |
+| **B. `EMAIL_PROVIDER=resend`** (HTTPS Resend API) | Yes | Needs verified Resend domain / `RESEND_FROM` |
+| **C. Upgrade Render to paid** + keep SMTP | Yes (SMTP allowed) | Yes |
+
+---
+
+## Option A — Gmail API (recommended for your Gmail mailbox)
+
+### 1. Google Cloud (once)
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create/select project  
+2. Enable **Gmail API**  
+3. **APIs & Services → Credentials → Create OAuth client ID**  
+   - Application type: **Desktop app** (or Web with redirect `http://127.0.0.1:53682/oauth2callback`)  
+4. OAuth consent screen: External → add `kingfisherwingserp@gmail.com` as test user  
+5. Copy **Client ID** and **Client Secret**
+
+### 2. Get refresh token (local machine)
+
+```bash
+set GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
+set GMAIL_CLIENT_SECRET=your-secret
+node scripts/gmail-oauth-setup.cjs
+```
+
+Sign in as `kingfisherwingserp@gmail.com`, allow send mail. Terminal prints `GMAIL_REFRESH_TOKEN=...`.
+
+### 3. Render → Environment
 
 ```env
+EMAIL_PROVIDER=gmail_api
+GMAIL_CLIENT_ID=...
+GMAIL_CLIENT_SECRET=...
+GMAIL_REFRESH_TOKEN=...
+GMAIL_USER=kingfisherwingserp@gmail.com
+SMTP_FROM_NAME=KingFisher Wings
+SMTP_FROM_EMAIL=kingfisherwingserp@gmail.com
+SMTP_FROM="KingFisher Wings <kingfisherwingserp@gmail.com>"
+```
+
+Redeploy. Health should show `"provider":"gmail_api"` and `configured: true` (no SMTP timeout).
+
+---
+
+## Option B — Resend HTTPS
+
+1. Create API key at [resend.com](https://resend.com)  
+2. Verify a domain (or use `beth.t@example.com` for smoke tests only)
+
+```env
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_...
+RESEND_FROM=KingFisher Wings <beth.t@example.com>
+```
+
+---
+
+## Option C — Local / paid Render SMTP (App Password)
+
+```env
+EMAIL_PROVIDER=smtp
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=kingfisherwingserp@gmail.com
-SMTP_PASS=xxxx xxxx xxxx xxxx
+SMTP_PASS=<gmail-app-password>
 SMTP_FROM_NAME=KingFisher Wings
 SMTP_FROM_EMAIL=kingfisherwingserp@gmail.com
-SMTP_FROM="KingFisher Wings <kingfisherwingserp@gmail.com>"
-VENDOR_NOTIFY_EMAIL=
-# Optional timeouts (ms)
-SMTP_CONNECTION_TIMEOUT_MS=20000
-SMTP_GREETING_TIMEOUT_MS=20000
-SMTP_SOCKET_TIMEOUT_MS=60000
 ```
 
-**Do not** put the mailbox address in `SMTP_HOST` — that must stay `smtp.gmail.com` (wrong host → `queryA EBADNAME`).
+`EMAIL_PROVIDER=auto` (default) picks `gmail_api` if OAuth env is present, else `resend` if `RESEND_API_KEY` is set, else `smtp`.
 
-| Port | `SMTP_SECURE` | Notes |
-|------|---------------|--------|
-| **587** | `false` | STARTTLS — **recommended** (local + Render) |
-| **465** | `true` | Implicit TLS |
-| **25** | — | **Blocked** on Render / most clouds — backend auto-rewrites to 587 |
+Restart Nest after `.env` changes (watch mode does not reload env).
 
-Restart the API after changing `.env` (`nest start --watch` does **not** reload env).
+---
 
-## 3. Confirm
+## Confirm
 
-1. Boot log: `SMTP ready (smtp.gmail.com:587 → …)`.
-2. `GET /health` → `smtp.configured: true`, `last_verify_error: null`.
-3. Send a share email from the UI or `POST /invoices/:id/send`.
+1. `GET https://kingfisherwings-backend.onrender.com/health`  
+   - `smtp.provider` = `gmail_api` or `resend`  
+   - `smtp.configured` = `true`  
+   - `last_verify_error` = `null`  
+2. Send invoice/quotation share from UI or Swagger — expect **200**, not 503.
 
-## 4. If FE shows “Connection timeout”
+## Share endpoints
 
-| Cause | Fix |
-|-------|-----|
-| API pointing at Render free / blocked egress | Test against **local** API first; on Render use 587/465 (not 25). Some hosts block SMTP — use a relay (SendGrid/Resend SMTP) over allowed ports |
-| `SMTP_HOST` = email address | Set `SMTP_HOST=smtp.gmail.com` |
-| Wrong / normal password | Use **App Password** only |
-| Env not reloaded | Restart Nest after `.env` change |
-| Spaces / bad `SMTP_pass` casing | Use `SMTP_PASS`; spaces are stripped automatically |
-
-## 5. Share endpoints
-
-Staff: invoices / quotations / AR·AP statement / remittance / credit summary `…/send-email`.  
-Vendor→admin: invoice / payment-proof / dispute / remittance share.  
-Share calls use `requireDelivery: true` (503 on SMTP failure, not silent success).
+Staff: invoices / quotations / AR·AP statement / remittance / credit summary.  
+Vendor→admin: invoice / payment-proof / dispute / remittance.  
+Share uses `requireDelivery: true` (real 503 on failure).
