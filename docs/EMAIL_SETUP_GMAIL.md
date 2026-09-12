@@ -1,13 +1,13 @@
-# Email setup — Gmail (kingfisherwings@gmail.com)
+# Email setup — Gmail SMTP
 
-KingFisher Wings uses **Gmail SMTP** with an App Password for outbound document share emails (invoices, statements, remittance, vendor→admin shares).
+KingFisher Wings sends document-share emails (invoices, statements, remittance, vendor→admin) via **Gmail SMTP + App Password**.
 
-## 1. Create / prepare the mailbox
+## 1. Create App Password
 
-1. Create or sign in to Google account: **`kingfisherwings@gmail.com`**.
-2. Enable **2-Step Verification** (Google Account → Security).
-3. Create an **App Password**: Security → App passwords → Mail → generate.
-4. Copy the 16-character password into `SMTP_PASS` (never commit it to git).
+1. Sign in to the mailbox (e.g. `kingfisherwingserp@gmail.com`).
+2. Enable **2-Step Verification**.
+3. Google Account → Security → **App passwords** → Mail → generate.
+4. Paste the 16-character password into `SMTP_PASS` (spaces are OK; backend strips them).
 
 ## 2. Environment variables
 
@@ -15,56 +15,46 @@ KingFisher Wings uses **Gmail SMTP** with an App Password for outbound document 
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
-SMTP_USER=kingfisherwings@gmail.com
-SMTP_PASS=<gmail-app-password>
+SMTP_USER=kingfisherwingserp@gmail.com
+SMTP_PASS=xxxx xxxx xxxx xxxx
 SMTP_FROM_NAME=KingFisher Wings
-SMTP_FROM_EMAIL=kingfisherwings@gmail.com
-SMTP_FROM="KingFisher Wings <kingfisherwings@gmail.com>"
-VENDOR_NOTIFY_EMAIL=   # optional override for vendor→admin default inbox
+SMTP_FROM_EMAIL=kingfisherwingserp@gmail.com
+SMTP_FROM="KingFisher Wings <kingfisherwingserp@gmail.com>"
+VENDOR_NOTIFY_EMAIL=
+# Optional timeouts (ms)
+SMTP_CONNECTION_TIMEOUT_MS=20000
+SMTP_GREETING_TIMEOUT_MS=20000
+SMTP_SOCKET_TIMEOUT_MS=60000
 ```
 
-`smtp.config.ts` builds `From` from `SMTP_FROM_NAME` + `SMTP_FROM_EMAIL` when `SMTP_FROM` is empty.
+**Do not** put the mailbox address in `SMTP_HOST` — that must stay `smtp.gmail.com` (wrong host → `queryA EBADNAME`).
 
-## 3. Smoke checklist
+| Port | `SMTP_SECURE` | Notes |
+|------|---------------|--------|
+| **587** | `false` | STARTTLS — **recommended** (local + Render) |
+| **465** | `true` | Implicit TLS |
+| **25** | — | **Blocked** on Render / most clouds — backend auto-rewrites to 587 |
 
-With SMTP configured and app restarted:
+Restart the API after changing `.env` (`nest start --watch` does **not** reload env).
 
-1. `POST /invoices/:id/send` `{ "to_email": "you@example.com" }` — PDF attached, real inbox delivery.
-2. `POST /quotations/:id/send-email` — same.
-3. `POST /gl/ar/statement/:partyId/send-email` — AR statement PDF.
-4. `POST /gl/ap/statement/:partyId/send-email` — AP statement PDF.
-5. `POST /gl/payments/:id/remittance/send-email` — remittance to vendor.
-6. `POST /parties/:id/credit/summary/send-email` — credit summary.
-7. Vendor JWT: `POST /vendor/invoices/:id/send-email` — arrives at tenant admin / `VENDOR_NOTIFY_EMAIL`.
-8. Misconfigured SMTP → share endpoints return **503** (not fake success).
+## 3. Confirm
 
-## 4. Share endpoints (summary)
+1. Boot log: `SMTP ready (smtp.gmail.com:587 → …)`.
+2. `GET /health` → `smtp.configured: true`, `last_verify_error: null`.
+3. Send a share email from the UI or `POST /invoices/:id/send`.
 
-### Staff → customer / vendor
+## 4. If FE shows “Connection timeout”
 
-| Method | Path |
-|--------|------|
-| POST | `/invoices/:id/send` |
-| POST | `/quotations/:id/send-email` |
-| POST | `/gl/ar/statement/:partyId/send-email` |
-| POST | `/gl/ap/statement/:partyId/send-email` |
-| POST | `/gl/payments/:id/remittance/send-email` |
-| POST | `/parties/:id/credit/summary/send-email` |
+| Cause | Fix |
+|-------|-----|
+| API pointing at Render free / blocked egress | Test against **local** API first; on Render use 587/465 (not 25). Some hosts block SMTP — use a relay (SendGrid/Resend SMTP) over allowed ports |
+| `SMTP_HOST` = email address | Set `SMTP_HOST=smtp.gmail.com` |
+| Wrong / normal password | Use **App Password** only |
+| Env not reloaded | Restart Nest after `.env` change |
+| Spaces / bad `SMTP_pass` casing | Use `SMTP_PASS`; spaces are stripped automatically |
 
-### Vendor → admin
+## 5. Share endpoints
 
-| Method | Path |
-|--------|------|
-| POST | `/vendor/invoices/:id/send-email` |
-| POST | `/vendor/invoices/:id/payment-proofs/:proofId/send-email` |
-| POST | `/vendor/disputes/:id/send-email` |
-| POST | `/vendor/payments/:id/remittance/send-email` |
-
-Body (share DTO): `{ "to": [], "cc": [], "message": "", "include_pdf": true }` — if `to` omitted, recipients are resolved from party contacts or tenant admin emails.
-
-## 5. Notes
-
-- Document share calls use `requireDelivery: true` (fail loudly without SMTP).
-- Optional alerts without `requireDelivery` may still log-only when SMTP is off.
-- PDF download APIs are unchanged; share is additive.
-- Vendor shares are rate-limited to **20/hour** per vendor user.
+Staff: invoices / quotations / AR·AP statement / remittance / credit summary `…/send-email`.  
+Vendor→admin: invoice / payment-proof / dispute / remittance share.  
+Share calls use `requireDelivery: true` (503 on SMTP failure, not silent success).

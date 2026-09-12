@@ -65,8 +65,8 @@ export async function importFresaRegistry(
     } else {
       entries = buildGeneratedFresaRegistry();
       source = "generated-stubs";
-      logger.warn(
-        `fresaReportRegistry.json missing or empty — seeding ${entries.length} generated FRESA stubs as inactive. Drop FE taxonomy JSON into src/modules/reports/seed/fresaReportRegistry.json to replace.`,
+      logger.log(
+        `fresaReportRegistry.json missing or empty — using ${entries.length} generated FRESA stubs as inactive. Optional: drop FE taxonomy JSON into src/modules/reports/seed/fresaReportRegistry.json.`,
       );
     }
   }
