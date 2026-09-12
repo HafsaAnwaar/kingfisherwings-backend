@@ -12,6 +12,11 @@ import {
   resolveSmtpSettings,
   SmtpSettings,
 } from "../../config/smtp.config";
+import {
+  OutboundMail,
+  sendViaGmailApi,
+  sendViaResend,
+} from "./email-http.transport";
 
 export interface SendEmailOptions {
   tenantId: string;
@@ -38,37 +43,39 @@ export class EmailService implements OnModuleInit {
   private transporter: nodemailer.Transporter | null = null;
   private settings: SmtpSettings | null = null;
   private lastVerifyError: string | null = null;
+  private smtpReachable = false;
 
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    this.initTransporter();
+    this.bootstrap();
   }
 
-  private initTransporter() {
-    // Prefer live process.env normalization (handles SMTP_pass casing, spaces, bad host)
-    const settings = resolveSmtpSettings();
-    this.settings = settings;
+  private bootstrap() {
+    this.settings = resolveSmtpSettings();
+    this.transporter = null;
+    this.smtpReachable = false;
 
-    const host = settings.host;
-    const user = settings.user;
-    const pass = settings.pass;
-
-    if (!host || host === "localhost") {
-      if (user && pass) {
-        this.transporter = this.createTransport(settings);
-      } else {
-        this.transporter = null;
+    if (this.settings.provider === "smtp") {
+      if (
+        this.settings.host &&
+        this.settings.host !== "localhost" &&
+        this.settings.user &&
+        this.settings.pass
+      ) {
+        this.transporter = this.createSmtpTransport(this.settings);
+      } else if (
+        this.settings.host === "localhost" &&
+        this.settings.user &&
+        this.settings.pass
+      ) {
+        this.transporter = this.createSmtpTransport(this.settings);
       }
-      return;
     }
-
-    this.transporter = this.createTransport(settings);
   }
 
-  private createTransport(settings: SmtpSettings): nodemailer.Transporter {
-    // Cast: @types/nodemailer TransportOptions union is awkward for SMTP fields.
+  private createSmtpTransport(settings: SmtpSettings): nodemailer.Transporter {
     return nodemailer.createTransport({
       host: settings.host,
       port: settings.port,
@@ -91,41 +98,96 @@ export class EmailService implements OnModuleInit {
   }
 
   async onModuleInit() {
+    const s = this.settings;
+    if (!s) return;
+
+    if (s.provider === "gmail_api") {
+      if (s.gmailClientId && s.gmailClientSecret && s.gmailRefreshToken && s.gmailUser) {
+        this.lastVerifyError = null;
+        this.logger.log(
+          `Email provider=gmail_api (HTTPS) → ${s.from} — works on Render free tier`,
+        );
+      } else {
+        this.lastVerifyError =
+          "gmail_api selected but GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN / GMAIL_USER incomplete";
+        this.logger.warn(this.lastVerifyError);
+      }
+      return;
+    }
+
+    if (s.provider === "resend") {
+      if (s.resendApiKey) {
+        this.lastVerifyError = null;
+        this.logger.log(
+          `Email provider=resend (HTTPS) → ${s.resendFrom} — works on Render free tier`,
+        );
+      } else {
+        this.lastVerifyError = "resend selected but RESEND_API_KEY missing";
+        this.logger.warn(this.lastVerifyError);
+      }
+      return;
+    }
+
+    // SMTP path
     if (!this.transporter) {
       this.logger.warn(
-        "SMTP transporter not configured — document share endpoints will return 503 until SMTP_* is set.",
+        "SMTP not configured. On Render free tier SMTP is blocked — set EMAIL_PROVIDER=gmail_api (or resend) with HTTPS credentials. See docs/EMAIL_SETUP_GMAIL.md.",
       );
       return;
     }
+
     try {
       await this.transporter.verify();
+      this.smtpReachable = true;
       this.lastVerifyError = null;
       this.logger.log(
-        `SMTP ready (${this.settings?.host}:${this.settings?.port} → ${this.settings?.from})`,
+        `Email provider=smtp ready (${s.host}:${s.port} → ${s.from})`,
       );
     } catch (err) {
+      this.smtpReachable = false;
       const msg = err instanceof Error ? err.message : String(err);
-      this.lastVerifyError = msg;
-      this.logger.warn(`SMTP verify failed: ${this.formatSmtpError(msg)}`);
+      this.lastVerifyError = this.formatDeliveryError(msg);
+      this.logger.warn(
+        `SMTP verify failed (common on Render free tier — ports 587/465 blocked): ${this.lastVerifyError}. ` +
+          `Fix: set EMAIL_PROVIDER=gmail_api with OAuth refresh token, or EMAIL_PROVIDER=resend with RESEND_API_KEY, or upgrade Render to a paid instance.`,
+      );
     }
   }
 
   isConfigured(): boolean {
-    return this.transporter != null && !!this.settings?.user && !!this.settings?.pass;
+    const s = this.settings;
+    if (!s) return false;
+    if (s.provider === "gmail_api") {
+      return !!(
+        s.gmailClientId &&
+        s.gmailClientSecret &&
+        s.gmailRefreshToken &&
+        s.gmailUser
+      );
+    }
+    if (s.provider === "resend") {
+      return !!s.resendApiKey;
+    }
+    return this.transporter != null && !!s.user && !!s.pass;
   }
 
   getSmtpStatus() {
+    const s = this.settings;
     return {
       configured: this.isConfigured(),
-      host: this.settings?.host ?? null,
-      port: this.settings?.port ?? null,
-      secure: this.settings?.secure ?? null,
-      from: this.settings?.from ?? null,
+      provider: s?.provider ?? null,
+      host: s?.host ?? null,
+      port: s?.port ?? null,
+      secure: s?.secure ?? null,
+      from: s?.from ?? null,
+      smtp_reachable: s?.provider === "smtp" ? this.smtpReachable : null,
       last_verify_error: this.lastVerifyError,
+      render_note:
+        "Render free web services block outbound SMTP (25/465/587). Use EMAIL_PROVIDER=gmail_api or resend (HTTPS), or upgrade the instance.",
     };
   }
 
-  private formatSmtpError(raw: string): string {
+  private formatDeliveryError(raw: string): string {
     const lower = raw.toLowerCase();
     if (
       lower.includes("connection timeout") ||
@@ -136,14 +198,14 @@ export class EmailService implements OnModuleInit {
     ) {
       return (
         `${raw} — Backend cannot reach the SMTP server. ` +
-        `Use smtp.gmail.com:587 (STARTTLS, SMTP_SECURE=false) or :465 (SSL, SMTP_SECURE=true), ` +
-        `a Gmail App Password in SMTP_PASS, and avoid port 25 on Render.`
+        `On Render free tier outbound SMTP is blocked. ` +
+        `Set EMAIL_PROVIDER=gmail_api (Gmail HTTPS API) or EMAIL_PROVIDER=resend, ` +
+        `or upgrade Render to paid. Local SMTP: smtp.gmail.com:587 + App Password.`
       );
     }
     if (lower.includes("ebadname") || lower.includes("enotfound")) {
       return (
-        `${raw} — SMTP_HOST must be smtp.gmail.com (not your mailbox email). ` +
-        `Check SMTP_HOST / DNS.`
+        `${raw} — SMTP_HOST must be smtp.gmail.com (not your mailbox email).`
       );
     }
     if (
@@ -153,11 +215,74 @@ export class EmailService implements OnModuleInit {
       lower.includes("535")
     ) {
       return (
-        `${raw} — Gmail rejected credentials. Use an App Password (not the normal login), ` +
-        `set SMTP_USER to the full Gmail address, strip spaces in SMTP_PASS, enable 2FA.`
+        `${raw} — Gmail rejected credentials. Use App Password for SMTP, or Gmail OAuth for gmail_api.`
       );
     }
     return raw;
+  }
+
+  private buildOutbound(options: SendEmailOptions): OutboundMail {
+    const s = this.settings!;
+    const from =
+      s.provider === "resend" ? s.resendFrom : s.from;
+    const attachments =
+      options.attachmentBuffer && options.attachmentName
+        ? [
+            {
+              filename: options.attachmentName,
+              content: options.attachmentBuffer,
+              contentType: options.attachmentName
+                .toLowerCase()
+                .endsWith(".pdf")
+                ? "application/pdf"
+                : undefined,
+            },
+          ]
+        : undefined;
+
+    return {
+      from,
+      to: options.to,
+      cc: options.cc,
+      replyTo: options.replyTo,
+      subject: options.subject,
+      html: options.body,
+      attachments,
+    };
+  }
+
+  private async deliver(mail: OutboundMail): Promise<void> {
+    const s = this.settings!;
+    if (s.provider === "gmail_api") {
+      await sendViaGmailApi({
+        clientId: s.gmailClientId!,
+        clientSecret: s.gmailClientSecret!,
+        refreshToken: s.gmailRefreshToken!,
+        user: s.gmailUser!,
+        mail,
+      });
+      return;
+    }
+    if (s.provider === "resend") {
+      await sendViaResend({ apiKey: s.resendApiKey!, mail });
+      return;
+    }
+    if (!this.transporter) {
+      throw new Error("SMTP transporter not initialized");
+    }
+    await this.transporter.sendMail({
+      from: mail.from,
+      to: mail.to,
+      cc: mail.cc,
+      replyTo: mail.replyTo,
+      subject: mail.subject,
+      html: mail.html,
+      attachments: mail.attachments?.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+      })),
+    });
   }
 
   async send(options: SendEmailOptions) {
@@ -181,13 +306,13 @@ export class EmailService implements OnModuleInit {
       }),
     );
 
-    if (!this.transporter || !this.isConfigured()) {
-      // Retry init in case env was fixed after boot
-      this.initTransporter();
+    if (!this.isConfigured()) {
+      this.bootstrap();
     }
 
-    if (!this.transporter || !this.isConfigured()) {
-      const msg = "SMTP not configured — email not delivered.";
+    if (!this.isConfigured()) {
+      const msg =
+        "Email not configured. On Render free tier use EMAIL_PROVIDER=gmail_api or resend (HTTPS). See docs/EMAIL_SETUP_GMAIL.md.";
       this.logger.warn(`${msg} (id=${log.id})`);
       await this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.update({
@@ -197,14 +322,12 @@ export class EmailService implements OnModuleInit {
             sent_at: options.requireDelivery ? undefined : new Date(),
             error_message: options.requireDelivery
               ? msg
-              : "SMTP not configured — logged only.",
+              : "Email not configured — logged only.",
           },
         }),
       );
       if (options.requireDelivery) {
-        throw new ServiceUnavailableException(
-          "Email delivery is unavailable. Configure SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER, SMTP_PASS (App Password). See docs/EMAIL_SETUP_GMAIL.md.",
-        );
+        throw new ServiceUnavailableException(msg);
       }
       return this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.findUniqueOrThrow({ where: { id: log.id } }),
@@ -212,28 +335,9 @@ export class EmailService implements OnModuleInit {
     }
 
     try {
-      const from =
-        this.settings?.from ?? this.config.get<string>("smtp.from");
-      const attachments: nodemailer.SendMailOptions["attachments"] = [];
-
-      if (options.attachmentBuffer && options.attachmentName) {
-        attachments.push({
-          filename: options.attachmentName,
-          content: options.attachmentBuffer,
-        });
-      }
-
-      await this.transporter.sendMail({
-        from,
-        to: options.to,
-        cc: options.cc,
-        replyTo: options.replyTo,
-        subject: options.subject,
-        html: options.body,
-        attachments,
-      });
-
+      await this.deliver(this.buildOutbound(options));
       this.lastVerifyError = null;
+      if (this.settings?.provider === "smtp") this.smtpReachable = true;
       return this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.update({
           where: { id: log.id },
@@ -243,7 +347,7 @@ export class EmailService implements OnModuleInit {
     } catch (error: unknown) {
       const raw =
         error instanceof Error ? error.message : "Unknown email error";
-      const message = this.formatSmtpError(raw);
+      const message = this.formatDeliveryError(raw);
       this.lastVerifyError = message;
       this.logger.error(`Email failed: ${message}`);
 

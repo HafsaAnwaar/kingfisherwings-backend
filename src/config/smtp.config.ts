@@ -16,7 +16,6 @@ function normalizeSmtpPass(raw: string | undefined): string | undefined {
 function buildFromAddress(fromEmail: string, fromName: string): string {
   const explicit = trimEnv("SMTP_FROM");
   if (explicit) {
-    // Strip wrapping quotes if dotenv left them
     return explicit.replace(/^["']|["']$/g, "");
   }
   return `${fromName} <${fromEmail}>`;
@@ -26,6 +25,29 @@ function resolvePort(raw: string | undefined, secure: boolean): number {
   const n = parseInt(raw ?? "", 10);
   if (Number.isFinite(n) && n > 0) return n;
   return secure ? 465 : 587;
+}
+
+export type EmailProvider = "smtp" | "gmail_api" | "resend";
+
+/**
+ * Resolve delivery provider.
+ * Render free tier blocks SMTP ports 25/465/587 — use gmail_api or resend (HTTPS).
+ */
+export function resolveEmailProvider(): EmailProvider {
+  const forced = (trimEnv("EMAIL_PROVIDER") ?? "auto").toLowerCase();
+  if (forced === "smtp" || forced === "gmail_api" || forced === "resend") {
+    return forced;
+  }
+
+  const hasGmailOauth =
+    !!trimEnv("GMAIL_CLIENT_ID") &&
+    !!trimEnv("GMAIL_CLIENT_SECRET") &&
+    !!trimEnv("GMAIL_REFRESH_TOKEN");
+  if (hasGmailOauth) return "gmail_api";
+
+  if (trimEnv("RESEND_API_KEY")) return "resend";
+
+  return "smtp";
 }
 
 /**
@@ -40,7 +62,6 @@ export function resolveSmtpSettings() {
   const fromEmail =
     trimEnv("SMTP_FROM_EMAIL") ?? user ?? "kingfisherwings@gmail.com";
 
-  // Common mistake: putting the Gmail address in SMTP_HOST
   if (host.includes("@")) {
     console.warn(
       `[smtp] SMTP_HOST looks like an email (${host}). Using smtp.gmail.com instead.`,
@@ -57,7 +78,6 @@ export function resolveSmtpSettings() {
     host = "smtp.gmail.com";
   }
 
-  // Port 25 is blocked on most cloud hosts (Render). Prefer submission ports.
   let port = resolvePort(trimEnv("SMTP_PORT"), false);
   let secure = trimEnv("SMTP_SECURE") === "true";
 
@@ -70,7 +90,6 @@ export function resolveSmtpSettings() {
   }
 
   if (isGmail) {
-    // Gmail: 587 + STARTTLS (secure=false) or 465 + SSL (secure=true)
     if (secure && port === 587) {
       port = 465;
     }
@@ -96,7 +115,10 @@ export function resolveSmtpSettings() {
     10,
   );
 
+  const provider = resolveEmailProvider();
+
   return {
+    provider,
     host,
     port,
     secure,
@@ -112,8 +134,18 @@ export function resolveSmtpSettings() {
       : 20000,
     greetingTimeout: Number.isFinite(greetingTimeout) ? greetingTimeout : 20000,
     socketTimeout: Number.isFinite(socketTimeout) ? socketTimeout : 60000,
-    /** Prefer IPv4 — avoids flaky IPv6 paths on some networks / hosts. */
     family: 4 as const,
+    gmailClientId: trimEnv("GMAIL_CLIENT_ID"),
+    gmailClientSecret: trimEnv("GMAIL_CLIENT_SECRET"),
+    gmailRefreshToken: trimEnv("GMAIL_REFRESH_TOKEN"),
+    /** Mailbox used with Gmail API (defaults to SMTP_USER / FROM). */
+    gmailUser:
+      trimEnv("GMAIL_USER") ??
+      trimEnv("SMTP_USER") ??
+      trimEnv("SMTP_FROM_EMAIL"),
+    resendApiKey: trimEnv("RESEND_API_KEY"),
+    /** Resend From; defaults to SMTP_FROM. Must be on a verified Resend domain (or onboarding@resend.dev). */
+    resendFrom: trimEnv("RESEND_FROM") ?? buildFromAddress(fromEmail, fromName),
   };
 }
 
