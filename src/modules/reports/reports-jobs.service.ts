@@ -82,7 +82,7 @@ export class ReportsJobsService {
       const code = (err as NodeJS.ErrnoException)?.code;
       if (code === "ENOENT") {
         throw new GoneException(
-          "Report file is no longer on the server disk (common after Render redeploy). Generate the report again. For durable files set STORAGE_USE_S3=true.",
+          "Report file is no longer on the server disk (common after Render redeploy). Generate again, or set STORAGE_PROVIDER=r2 (see docs/STORAGE_SETUP.md).",
         );
       }
       throw err;
