@@ -4,16 +4,24 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { DocumentNumberType, Prisma } from "@prisma/client";
+import type { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PdfService } from "../../shared/pdf/pdf.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import { CurrentUser } from "../users/interfaces/current-user.interface";
 import { CreateGdoDto } from "./dto/wms.dto";
+import {
+  buildWmsDocumentPdfHtml,
+  formatPdfDate,
+} from "./wms-document-pdf";
+import { resolveWmsPdfContext } from "./wms-pdf-context";
 
 @Injectable()
 export class WmsGdoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
+    private readonly pdf: PdfService,
   ) {}
 
   async create(user: CurrentUser, dto: CreateGdoDto) {
@@ -110,6 +118,66 @@ export class WmsGdoService {
     if (!result.count)
       throw new BadRequestException("Only a draft GDO can be cancelled.");
     return { id, status: "CANCELLED" };
+  }
+
+  async downloadPdf(user: CurrentUser, id: string, res: Response) {
+    const payload = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
+      const gdo = await tx.wmsGdo.findFirst({
+        where: { id, tenant_id: user.tenantId, deleted_at: null },
+        include: {
+          warehouse: true,
+          lines: {
+            include: { item: true },
+            orderBy: { sort_order: "asc" },
+          },
+        },
+      });
+      if (!gdo) throw new NotFoundException("GDO not found.");
+
+      const ctx = await resolveWmsPdfContext(tx, user.tenantId, {
+        partyId: gdo.party_id,
+        jobId: gdo.job_id,
+      });
+
+      const html = buildWmsDocumentPdfHtml({
+        title: "Goods Dispatch Order (GDO) / GDN",
+        docNumber: gdo.gdo_number,
+        status: gdo.status,
+        directionLabel: "Outbound / dispatch",
+        stockNote: "Issue from warehouse (FIFO/LIFO)",
+        warehouseCode: gdo.warehouse.code,
+        warehouseName: gdo.warehouse.name,
+        partyName: ctx.partyName,
+        jobRef: ctx.jobRef,
+        asnNumber: null,
+        primaryDateLabel: "Dispatched / delivered at",
+        primaryDate: formatPdfDate(gdo.delivered_at),
+        createdAt: formatPdfDate(gdo.created_at),
+        postedAt: formatPdfDate(gdo.posted_at),
+        remarks: gdo.remarks,
+        lines: gdo.lines.map((line) => ({
+          itemCode: line.item.code,
+          itemName: line.item.name,
+          quantity: Number(line.quantity),
+          uom: line.item.uom_code ?? "—",
+          batch: null,
+        })),
+        companyName: ctx.companyName,
+        logoUrl: ctx.logoUrl,
+        generatedAt: formatPdfDate(new Date())!,
+        documentId: gdo.id,
+      });
+
+      return { html, filename: `GDO-${gdo.gdo_number}.pdf` };
+    });
+
+    const buffer = await this.pdf.renderHtmlToPdf(payload.html);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${payload.filename}"`,
+    );
+    res.send(buffer);
   }
 
   private async consumeLots(
