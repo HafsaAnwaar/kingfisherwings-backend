@@ -6449,3 +6449,381 @@ model ReportJob {
   @@index([bull_job_id])
   @@map("report_jobs")
 }
+
+// ─── Remaining Masters tiles (Wave 1–3) ───────────────────────
+
+enum MasterCategoryType {
+  PARTY
+  CARGO
+  OTHER
+}
+
+enum OutboundMessageChannel {
+  WHATSAPP
+  SMS
+}
+
+model Region {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  code         String    @db.VarChar(30)
+  name         String    @db.VarChar(200)
+  country_code String?   @db.Char(2)
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  cities City[]
+  zones  Zone[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("regions")
+}
+
+model City {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id    String    @db.Uuid
+  code         String    @db.VarChar(30)
+  name         String    @db.VarChar(200)
+  country_code String?   @db.Char(2)
+  region_id    String?   @db.Uuid
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+  created_by   String?   @db.Uuid
+  updated_by   String?   @db.Uuid
+  deleted_at   DateTime? @db.Timestamptz
+
+  region Region? @relation(fields: [region_id], references: [id])
+  zones  Zone[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("cities")
+}
+
+model Zone {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(30)
+  name       String    @db.VarChar(200)
+  region_id  String?   @db.Uuid
+  city_id    String?   @db.Uuid
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  region Region? @relation(fields: [region_id], references: [id])
+  city   City?   @relation(fields: [city_id], references: [id])
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("zones")
+}
+
+model Division {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(30)
+  name       String    @db.VarChar(200)
+  company_id String?   @db.Uuid
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("divisions")
+}
+
+model MasterCategory {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String              @db.Uuid
+  code          String              @db.VarChar(30)
+  name          String              @db.VarChar(200)
+  category_type MasterCategoryType
+  is_active     Boolean             @default(true)
+  created_at    DateTime            @default(now()) @db.Timestamptz
+  updated_at    DateTime            @updatedAt @db.Timestamptz
+  created_by    String?             @db.Uuid
+  updated_by    String?             @db.Uuid
+  deleted_at    DateTime?           @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("master_categories")
+}
+
+model Commodity {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(30)
+  name       String    @db.VarChar(200)
+  hs_code    String?   @db.VarChar(20)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("commodities")
+}
+
+model PackType {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(30)
+  name       String    @db.VarChar(200)
+  length_cm  Decimal?  @db.Decimal(10, 2)
+  width_cm   Decimal?  @db.Decimal(10, 2)
+  height_cm  Decimal?  @db.Decimal(10, 2)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("pack_types")
+}
+
+model Clause {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  code        String    @db.VarChar(30)
+  title       String    @db.VarChar(200)
+  body        String    @db.Text
+  clause_type String?   @db.VarChar(50)
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @updatedAt @db.Timestamptz
+  created_by  String?   @db.Uuid
+  updated_by  String?   @db.Uuid
+  deleted_at  DateTime? @db.Timestamptz
+
+  port_maps PortClauseMap[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("clauses")
+}
+
+model PortClauseMap {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  port_id    String    @db.Uuid
+  clause_id  String    @db.Uuid
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  clause Clause @relation(fields: [clause_id], references: [id])
+
+  @@unique([tenant_id, port_id, clause_id])
+  @@index([tenant_id, deleted_at])
+  @@map("port_clause_maps")
+}
+
+model RateBasis {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(30)
+  name       String    @db.VarChar(200)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  storage_slabs StorageSlab[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("rate_bases")
+}
+
+model VoyageMaster {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String    @db.Uuid
+  voyage_code      String    @db.VarChar(50)
+  vessel_id        String?   @db.Uuid
+  shipping_line_id String?   @db.Uuid
+  etd              DateTime? @db.Timestamptz
+  eta              DateTime? @db.Timestamptz
+  is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  updated_at       DateTime  @updatedAt @db.Timestamptz
+  created_by       String?   @db.Uuid
+  updated_by       String?   @db.Uuid
+  deleted_at       DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, voyage_code])
+  @@index([tenant_id, deleted_at])
+  @@map("voyage_masters")
+}
+
+model StorageSlab {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  code           String    @db.VarChar(30)
+  name           String    @db.VarChar(200)
+  from_days      Int
+  to_days        Int
+  rate           Decimal   @db.Decimal(18, 4)
+  rate_basis_id  String?   @db.Uuid
+  currency_code  String?   @db.Char(3)
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  rate_basis RateBasis? @relation(fields: [rate_basis_id], references: [id])
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("storage_slabs")
+}
+
+model ActivityType {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(30)
+  name       String    @db.VarChar(200)
+  module     String?   @db.VarChar(50)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("activity_types")
+}
+
+model SalesCallActivityType {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(30)
+  name       String    @db.VarChar(200)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("sales_call_activity_types")
+}
+
+model UserFavorite {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  user_id     String    @db.Uuid
+  entity_type String    @db.VarChar(50)
+  entity_id   String    @db.Uuid
+  label       String?   @db.VarChar(200)
+  created_at  DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @updatedAt @db.Timestamptz
+  created_by  String?   @db.Uuid
+  updated_by  String?   @db.Uuid
+  deleted_at  DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, user_id, entity_type, entity_id])
+  @@index([tenant_id, user_id, deleted_at])
+  @@map("user_favorites")
+}
+
+model OutboundMessageLog {
+  id         String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String                 @db.Uuid
+  channel    OutboundMessageChannel
+  to_address String                 @db.VarChar(100)
+  body_snippet String               @db.VarChar(500)
+  status     String                 @db.VarChar(30)
+  sent_at    DateTime               @default(now()) @db.Timestamptz
+  created_at DateTime               @default(now()) @db.Timestamptz
+  updated_at DateTime               @updatedAt @db.Timestamptz
+  created_by String?                @db.Uuid
+  updated_by String?                @db.Uuid
+  deleted_at DateTime?              @db.Timestamptz
+
+  @@index([tenant_id, sent_at(sort: Desc)])
+  @@index([tenant_id, channel])
+  @@map("outbound_message_logs")
+}
+
+model OrganizationGroup {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(30)
+  name       String    @db.VarChar(200)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  members OrganizationGroupMember[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("organization_groups")
+}
+
+model OrganizationGroupMember {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String   @db.Uuid
+  group_id   String   @db.Uuid
+  company_id String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  group OrganizationGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, group_id, company_id])
+  @@index([tenant_id, group_id])
+  @@map("organization_group_members")
+}
+
+model CustomReportMaster {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String    @db.Uuid
+  code                  String    @db.VarChar(50)
+  name                  String    @db.VarChar(200)
+  report_template_code  String    @db.VarChar(100)
+  is_active             Boolean   @default(true)
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("custom_report_masters")
+}

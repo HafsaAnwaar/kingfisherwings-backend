@@ -766,7 +766,108 @@ POST /masters/units-of-measure
 }
 ```
 
-For any other Masters route (GET/PATCH/DELETE), copy the exact params/body from [`swagger-live-catalog.md`](generated/swagger-live-catalog.md) under the matching **Masters — *** tag.
+### C2b. Remaining Masters tiles (Wave 1–3)
+
+Classic CRUD uses `masters.view|create|update|delete`. Soft-delete via `DELETE`. After create, empty-list Redis cache is invalidated for registered prefixes.
+
+**Wave 1 — reference CRUD**
+
+| Route | Sample POST body |
+|-------|------------------|
+| `POST /masters/regions` | `{"code":"GCC","name":"Gulf","country_code":"AE","is_active":true}` |
+| `POST /masters/cities` | `{"code":"DXB","name":"Dubai","country_code":"AE","region_id":"{{REGION_ID}}","is_active":true}` |
+| `POST /masters/zones` | `{"code":"JAFZA","name":"Jebel Ali FZ","city_id":"{{CITY_ID}}","is_active":true}` |
+| `POST /masters/divisions` | `{"code":"SEA","name":"Sea Freight","company_id":"{{COMPANY_ID}}","is_active":true}` |
+| `POST /masters/categories` | `{"code":"SHIPPER","name":"Shipper","category_type":"PARTY","is_active":true}` |
+| `POST /masters/commodities` | `{"code":"ELEC","name":"Electronics","hs_code":"8517.12","is_active":true}` |
+| `POST /masters/packs` | `{"code":"CTN","name":"Carton","length_cm":40,"width_cm":30,"height_cm":25,"is_active":true}` |
+| `POST /masters/clauses` | `{"code":"DEM-DET","title":"Demurrage","body":"Free time per carrier tariff.","clause_type":"BL","is_active":true}` |
+| `POST /masters/port-clause-maps` | `{"port_id":"{{PORT_ID}}","clause_id":"{{CLAUSE_ID}}","is_active":true}` |
+| `POST /masters/rate-bases` | `{"code":"PER_KG","name":"Per Kilogram","is_active":true}` |
+| `POST /masters/voyages` | `{"voyage_code":"VSL-2026-001","etd":"2026-04-01T00:00:00.000Z","eta":"2026-04-15T00:00:00.000Z","is_active":true}` |
+| `POST /masters/storage-slabs` | `{"code":"SLAB-1-7","name":"Days 1-7","from_days":1,"to_days":7,"rate":25.5,"currency_code":"AED","is_active":true}` |
+| `POST /masters/activities` | `{"code":"FOLLOW_UP","name":"Follow Up","module":"CRM","is_active":true}` |
+| `POST /masters/sales-call-activities` | `{"code":"COLD_CALL","name":"Cold Call","is_active":true}` |
+
+Smoke: create → `GET` list for each route (confirm new row appears).
+
+**Wave 2 — search / inventory / history**
+
+| Route | Notes |
+|-------|--------|
+| `GET /masters/address-search?q=dubai` | Party addresses |
+| `GET /masters/contacts-search?q=ahmed` | Party contacts |
+| `GET /masters/attachments-search?q=.pdf` | Job document metadata |
+| `GET /masters/container-inventory` | Job containers + free days (`status`, `container_type_id`, `q`) |
+| `GET/POST/DELETE /masters/favorites` | Own favorites; **auth only** (no `masters.create`) |
+| `GET /masters/tracking-users` | Active staff with ops/CS/sales flags |
+| `GET/POST /masters/whatsapp-sms-history` | Message log; POST append for providers |
+
+Favorites example:
+
+```http
+POST /masters/favorites
+```
+
+```json
+{
+  "entity_type": "party",
+  "entity_id": "{{PARTY_ID}}",
+  "label": "Acme Logistics"
+}
+```
+
+WhatsApp/SMS append:
+
+```http
+POST /masters/whatsapp-sms-history
+```
+
+```json
+{
+  "channel": "WHATSAPP",
+  "to_address": "+971501234567",
+  "body_snippet": "Shipment AE123 departed",
+  "status": "SENT"
+}
+```
+
+**Wave 3 — aliases / light CRUD**
+
+| Route | Behavior |
+|-------|----------|
+| `GET /masters/organization` | Proxy to organization profile (writes stay on `/organization`) |
+| `GET/POST/PATCH/DELETE /masters/organization-groups` | CRUD + optional `company_ids[]` |
+| `GET /masters/notifications` | Proxy list for current user (same payload shape as `/notifications`) |
+| `GET/POST/PATCH/DELETE /masters/custom-reports` | Links `report_template_code` without Jasper coupling |
+
+```http
+POST /masters/organization-groups
+```
+
+```json
+{
+  "code": "GULF",
+  "name": "Gulf Companies",
+  "company_ids": ["{{COMPANY_ID}}"],
+  "is_active": true
+}
+```
+
+```http
+POST /masters/custom-reports
+```
+
+```json
+{
+  "code": "AR_AGING_CUST",
+  "name": "Customer AR Aging",
+  "report_template_code": "ar_aging",
+  "is_active": true
+}
+```
+
+For any other Masters route (GET/PATCH/DELETE), copy the exact params/body from [`swagger-live-catalog.md`](generated/swagger-live-catalog.md) under the matching **Masters — *** tag. Until redeploy, use the local supplement [`remaining-masters-catalog.md`](generated/remaining-masters-catalog.md), then regenerate live catalogs from `/docs-json`.
 
 ### C3. Customer party (full fields)
 

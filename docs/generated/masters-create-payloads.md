@@ -326,3 +326,237 @@ _Create a record_
 }
 ```
 
+
+#### POST `/masters/regions`
+
+_Create a region_
+
+```json
+{
+  "code": "GCC",
+  "name": "Gulf Cooperation Council",
+  "country_code": "AE",
+  "is_active": true
+}
+```
+
+#### POST `/masters/cities`
+
+_Create a city_
+
+```json
+{
+  "code": "DXB",
+  "name": "Dubai",
+  "country_code": "AE",
+  "is_active": true
+}
+```
+
+#### POST `/masters/zones`
+
+_Create a zone_
+
+```json
+{
+  "code": "JAFZA",
+  "name": "Jebel Ali Free Zone",
+  "is_active": true
+}
+```
+
+#### POST `/masters/divisions`
+
+_Create a division_
+
+```json
+{
+  "code": "SEA",
+  "name": "Sea Freight Division",
+  "is_active": true
+}
+```
+
+#### POST `/masters/categories`
+
+_Create a master category_
+
+```json
+{
+  "code": "SHIPPER",
+  "name": "Shipper",
+  "category_type": "PARTY",
+  "is_active": true
+}
+```
+
+#### POST `/masters/commodities`
+
+_Create a commodity_
+
+```json
+{
+  "code": "ELEC",
+  "name": "Electronics",
+  "hs_code": "8517.12",
+  "is_active": true
+}
+```
+
+#### POST `/masters/packs`
+
+_Create a pack type_
+
+```json
+{
+  "code": "CTN",
+  "name": "Carton",
+  "length_cm": 40,
+  "width_cm": 30,
+  "height_cm": 25,
+  "is_active": true
+}
+```
+
+#### POST `/masters/clauses`
+
+_Create a clause_
+
+```json
+{
+  "code": "DEM-DET",
+  "title": "Demurrage / Detention",
+  "body": "Free time and detention terms apply as per carrier tariff.",
+  "clause_type": "BL",
+  "is_active": true
+}
+```
+
+#### POST `/masters/port-clause-maps`
+
+_Create a port-clause map_
+
+```json
+{
+  "port_id": "00000000-0000-4000-8000-000000000001",
+  "clause_id": "00000000-0000-4000-8000-000000000001",
+  "is_active": true
+}
+```
+
+#### POST `/masters/rate-bases`
+
+_Create a rate basis_
+
+```json
+{
+  "code": "PER_KG",
+  "name": "Per Kilogram",
+  "is_active": true
+}
+```
+
+#### POST `/masters/voyages`
+
+_Create a voyage master (not NVOCC operational voyage)_
+
+```json
+{
+  "voyage_code": "VSL-2026-001",
+  "etd": "2026-04-01T00:00:00.000Z",
+  "eta": "2026-04-15T00:00:00.000Z",
+  "is_active": true
+}
+```
+
+#### POST `/masters/storage-slabs`
+
+_Create a storage slab_
+
+```json
+{
+  "code": "SLAB-1-7",
+  "name": "Days 1-7",
+  "from_days": 1,
+  "to_days": 7,
+  "rate": 25.5,
+  "currency_code": "AED",
+  "is_active": true
+}
+```
+
+#### POST `/masters/activities`
+
+_Create an activity type_
+
+```json
+{
+  "code": "FOLLOW_UP",
+  "name": "Follow Up",
+  "module": "CRM",
+  "is_active": true
+}
+```
+
+#### POST `/masters/sales-call-activities`
+
+_Create a sales call activity type_
+
+```json
+{
+  "code": "COLD_CALL",
+  "name": "Cold Call",
+  "is_active": true
+}
+```
+
+#### POST `/masters/organization-groups`
+
+_Create an organization group_
+
+```json
+{
+  "code": "GULF",
+  "name": "Gulf Companies",
+  "company_ids": ["00000000-0000-4000-8000-000000000001"],
+  "is_active": true
+}
+```
+
+#### POST `/masters/custom-reports`
+
+_Create a custom report master_
+
+```json
+{
+  "code": "AR_AGING_CUST",
+  "name": "Customer AR Aging",
+  "report_template_code": "ar_aging",
+  "is_active": true
+}
+```
+
+#### POST `/masters/favorites`
+
+_Add own favorite (auth only)_
+
+```json
+{
+  "entity_type": "party",
+  "entity_id": "00000000-0000-4000-8000-000000000001",
+  "label": "Acme Logistics"
+}
+```
+
+#### POST `/masters/whatsapp-sms-history`
+
+_Append outbound message log_
+
+```json
+{
+  "channel": "WHATSAPP",
+  "to_address": "+971501234567",
+  "body_snippet": "Shipment AE123 departed",
+  "status": "SENT"
+}
+```
