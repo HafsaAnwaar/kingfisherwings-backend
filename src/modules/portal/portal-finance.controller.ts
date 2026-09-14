@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -12,8 +13,16 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { Response } from "express";
+import { memoryStorage } from "multer";
+import "multer";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
 import { DashboardPeriodQueryDto } from "../../common/dto/dashboard-period-query.dto";
 import { CurrentPortal } from "./decorators/portal.decorators";
@@ -21,10 +30,38 @@ import {
   PortalCreditAgingQueryDto,
   PortalInvoiceQueryDto,
   PortalPaymentQueryDto,
+  UploadPortalPaymentProofDto,
 } from "./dto/portal-finance.dto";
 import { PortalAuthGuard } from "./guards/portal-auth.guard";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalFinanceService } from "./portal-finance.service";
+
+const PROOF_MAX_BYTES = 8 * 1024 * 1024;
+const PROOF_MIME = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
+
+function portalPaymentProofInterceptor() {
+  return FileInterceptor("file", {
+    storage: memoryStorage(),
+    limits: { fileSize: PROOF_MAX_BYTES },
+    fileFilter: (_req, file, callback) => {
+      if (!PROOF_MIME.has(file.mimetype)) {
+        return callback(
+          new BadRequestException(
+            "Only PDF, JPEG, PNG, or WebP payment proof files are accepted.",
+          ),
+          false,
+        );
+      }
+      callback(null, true);
+    },
+  });
+}
 
 @ApiTags("Portal Invoices")
 @ApiBearerAuth()
@@ -105,24 +142,36 @@ export class PortalInvoicesController {
   @Post(":id/payment-proofs")
   @ApiConsumes("multipart/form-data")
   @ApiOperation({ summary: "Upload payment proof for an invoice" })
-  @UseInterceptors(FileInterceptor("file"))
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file", "amount_claimed", "payment_date"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        amount_claimed: { type: "string", example: "100.00" },
+        payment_date: { type: "string", example: "2026-09-14" },
+        reference_number: { type: "string" },
+        notes: { type: "string" },
+      },
+    },
+  })
+  @UseInterceptors(portalPaymentProofInterceptor())
   uploadPaymentProof(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body()
-    body: {
-      amount_claimed: string;
-      payment_date: string;
-      reference_number?: string;
-      notes?: string;
-    },
-    @UploadedFile() file: Express.Multer.File,
+    @Body() body: UploadPortalPaymentProofDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException(
+        "Payment proof file is required (multipart field name: file).",
+      );
+    }
     return this.finance.uploadPaymentProof(
       user,
       id,
       {
-        amount_claimed: Number(body.amount_claimed),
+        amount_claimed: body.amount_claimed,
         payment_date: body.payment_date,
         reference_number: body.reference_number,
         notes: body.notes,
