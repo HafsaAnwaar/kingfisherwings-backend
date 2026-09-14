@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
+import { OrganizationModule } from "../organization/organization.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 import { CountriesController } from "./countries/countries.controller";
 import { CountriesService } from "./countries/countries.service";
@@ -69,6 +71,53 @@ import { DesignationsController } from "./designations/designations.controller";
 import { DesignationsService } from "./designations/designations.service";
 import { MasterLabelService } from "./master-label.service";
 
+import { RegionsController } from "./regions/regions.controller";
+import { RegionsService } from "./regions/regions.service";
+import { CitiesController } from "./cities/cities.controller";
+import { CitiesService } from "./cities/cities.service";
+import { ZonesController } from "./zones/zones.controller";
+import { ZonesService } from "./zones/zones.service";
+import { DivisionsController } from "./divisions/divisions.controller";
+import { DivisionsService } from "./divisions/divisions.service";
+import { MasterCategoriesController } from "./categories/categories.controller";
+import { MasterCategoriesService } from "./categories/categories.service";
+import { CommoditiesController } from "./commodities/commodities.controller";
+import { CommoditiesService } from "./commodities/commodities.service";
+import { PackTypesController } from "./packs/packs.controller";
+import { PackTypesService } from "./packs/packs.service";
+import { ClausesController } from "./clauses/clauses.controller";
+import { ClausesService } from "./clauses/clauses.service";
+import { PortClauseMapsController } from "./port-clause-maps/port-clause-maps.controller";
+import { PortClauseMapsService } from "./port-clause-maps/port-clause-maps.service";
+import { RateBasesController } from "./rate-bases/rate-bases.controller";
+import { RateBasesService } from "./rate-bases/rate-bases.service";
+import { VoyageMastersController } from "./voyages/voyages.controller";
+import { VoyageMastersService } from "./voyages/voyages.service";
+import { StorageSlabsController } from "./storage-slabs/storage-slabs.controller";
+import { StorageSlabsService } from "./storage-slabs/storage-slabs.service";
+import { ActivityTypesController } from "./activities/activities.controller";
+import { ActivityTypesService } from "./activities/activities.service";
+import { SalesCallActivityTypesController } from "./sales-call-activities/sales-call-activities.controller";
+import { SalesCallActivityTypesService } from "./sales-call-activities/sales-call-activities.service";
+
+import { MastersSearchController } from "./search/masters-search.controller";
+import { MastersSearchService } from "./search/masters-search.service";
+import { ContainerInventoryController } from "./container-inventory/container-inventory.controller";
+import { ContainerInventoryService } from "./container-inventory/container-inventory.service";
+import { FavoritesController } from "./favorites/favorites.controller";
+import { FavoritesService } from "./favorites/favorites.service";
+import { TrackingUsersController } from "./tracking-users/tracking-users.controller";
+import { TrackingUsersService } from "./tracking-users/tracking-users.service";
+import { WhatsappSmsHistoryController } from "./whatsapp-sms-history/whatsapp-sms-history.controller";
+import { WhatsappSmsHistoryService } from "./whatsapp-sms-history/whatsapp-sms-history.service";
+
+import { MastersOrganizationController } from "./organization/masters-organization.controller";
+import { MastersNotificationsController } from "./notifications/masters-notifications.controller";
+import { OrganizationGroupsController } from "./organization-groups/organization-groups.controller";
+import { OrganizationGroupsService } from "./organization-groups/organization-groups.service";
+import { CustomReportMastersController } from "./custom-reports/custom-reports.controller";
+import { CustomReportMastersService } from "./custom-reports/custom-reports.service";
+
 const CONTROLLERS = [
   CountriesController,
   CurrenciesController,
@@ -92,6 +141,29 @@ const CONTROLLERS = [
   BranchesController,
   DepartmentsController,
   DesignationsController,
+  RegionsController,
+  CitiesController,
+  ZonesController,
+  DivisionsController,
+  MasterCategoriesController,
+  CommoditiesController,
+  PackTypesController,
+  ClausesController,
+  PortClauseMapsController,
+  RateBasesController,
+  VoyageMastersController,
+  StorageSlabsController,
+  ActivityTypesController,
+  SalesCallActivityTypesController,
+  MastersSearchController,
+  ContainerInventoryController,
+  FavoritesController,
+  TrackingUsersController,
+  WhatsappSmsHistoryController,
+  MastersOrganizationController,
+  MastersNotificationsController,
+  OrganizationGroupsController,
+  CustomReportMastersController,
 ];
 
 const SERVICES = [
@@ -119,10 +191,31 @@ const SERVICES = [
   DesignationsService,
   WorldPortsSeedService,
   MasterLabelService,
+  RegionsService,
+  CitiesService,
+  ZonesService,
+  DivisionsService,
+  MasterCategoriesService,
+  CommoditiesService,
+  PackTypesService,
+  ClausesService,
+  PortClauseMapsService,
+  RateBasesService,
+  VoyageMastersService,
+  StorageSlabsService,
+  ActivityTypesService,
+  SalesCallActivityTypesService,
+  MastersSearchService,
+  ContainerInventoryService,
+  FavoritesService,
+  TrackingUsersService,
+  WhatsappSmsHistoryService,
+  OrganizationGroupsService,
+  CustomReportMastersService,
 ];
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, OrganizationModule, NotificationsModule],
   controllers: CONTROLLERS,
   providers: SERVICES,
   exports: SERVICES,

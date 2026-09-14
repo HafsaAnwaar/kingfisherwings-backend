@@ -24,6 +24,22 @@ const CACHEABLE_PREFIXES = [
   "/masters/vessels",
   "/masters/tax-rates",
   "/masters/hs-codes",
+  "/masters/regions",
+  "/masters/cities",
+  "/masters/zones",
+  "/masters/divisions",
+  "/masters/categories",
+  "/masters/commodities",
+  "/masters/packs",
+  "/masters/clauses",
+  "/masters/port-clause-maps",
+  "/masters/rate-bases",
+  "/masters/voyages",
+  "/masters/storage-slabs",
+  "/masters/activities",
+  "/masters/sales-call-activities",
+  "/masters/organization-groups",
+  "/masters/custom-reports",
 ];
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
