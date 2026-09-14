@@ -68,13 +68,24 @@ export class ReportsJobsService {
       throw new NotFoundException("Report file missing");
     }
 
-    const file = await this.storage.readByStoredFile(tenantId, {
-      file_name: job.file_name,
-      file_url: job.file_url,
-      s3_key: job.s3_key,
-      mime_type: job.mime_type,
-    });
-
-    return file;
+    try {
+      return await this.storage.readByStoredFile(tenantId, {
+        file_name: job.file_name,
+        file_url: job.file_url,
+        s3_key: job.s3_key,
+        mime_type: job.mime_type,
+      });
+    } catch (err) {
+      if (err instanceof NotFoundException || err instanceof GoneException) {
+        throw err;
+      }
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === "ENOENT") {
+        throw new GoneException(
+          "Report file is no longer on the server disk (common after Render redeploy). Generate the report again. For durable files set STORAGE_USE_S3=true.",
+        );
+      }
+      throw err;
+    }
   }
 }

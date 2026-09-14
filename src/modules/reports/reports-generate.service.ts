@@ -201,13 +201,14 @@ export class ReportsGenerateService {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + REPORT_TTL_HOURS);
 
-      let downloadUrl: string | null = stored.fileUrl;
+      // Prefer API download route (survives URL churn). S3 can use presigned when enabled.
+      let downloadUrl = `/reports/jobs/${jobId}/download`;
       try {
         if (stored.s3Key && process.env.STORAGE_USE_S3 === "true") {
           downloadUrl = await this.storage.presignedGetUrl(stored.s3Key);
         }
       } catch {
-        downloadUrl = stored.fileUrl;
+        downloadUrl = `/reports/jobs/${jobId}/download`;
       }
 
       await this.prisma.runWithTenant(tenantId, (tx) =>
