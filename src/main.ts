@@ -52,6 +52,33 @@ function isSwaggerEnabled(config: ConfigService): boolean {
   return true;
 }
 
+function isPlaceholderPublicUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return (
+    lower.includes("your_new_service") ||
+    lower.includes("your-service") ||
+    lower.includes("placeholder")
+  );
+}
+
+function resolvePublicApiUrl(opts: {
+  configuredPublicUrl?: string;
+  renderExternalUrl?: string;
+  port: number;
+}): string {
+  const { configuredPublicUrl, renderExternalUrl, port } = opts;
+  if (configuredPublicUrl && !isPlaceholderPublicUrl(configuredPublicUrl)) {
+    return configuredPublicUrl.replace(/\/$/, "");
+  }
+  if (renderExternalUrl) {
+    return renderExternalUrl.replace(/\/$/, "");
+  }
+  if (configuredPublicUrl) {
+    return configuredPublicUrl.replace(/\/$/, "");
+  }
+  return `http://localhost:${port}`;
+}
+
 async function bootstrap() {
   initSentry();
   const app = await NestFactory.create(AppModule);
@@ -66,10 +93,24 @@ async function bootstrap() {
   }
 
   const port = config.get<number>("PORT") || 3000;
-  const publicUrl =
-    config.get<string>("PUBLIC_API_URL") || `http://localhost:${port}`;
+  const configuredPublicUrl = config.get<string>("PUBLIC_API_URL")?.trim();
+  const renderExternalUrl = process.env.RENDER_EXTERNAL_URL?.trim();
+  const publicUrl = resolvePublicApiUrl({
+    configuredPublicUrl,
+    renderExternalUrl,
+    port,
+  });
   const nodeEnv = config.get<string>("NODE_ENV") ?? "development";
 
+  if (
+    configuredPublicUrl &&
+    isPlaceholderPublicUrl(configuredPublicUrl) &&
+    renderExternalUrl
+  ) {
+    console.warn(
+      `PUBLIC_API_URL looks like a placeholder (${configuredPublicUrl}). Using RENDER_EXTERNAL_URL for Swagger: ${renderExternalUrl}`,
+    );
+  }
   app.use(helmet());
   app.use(compression());
 
