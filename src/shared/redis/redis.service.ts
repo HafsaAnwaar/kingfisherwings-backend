@@ -93,6 +93,32 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  /** Delete all keys matching a pattern (SCAN). Pattern is unprefixed; keyPrefix is applied. */
+  async delByPattern(pattern: string): Promise<number> {
+    if (!this.client) return 0;
+    try {
+      const fullPattern = this.prefixKey(pattern);
+      let cursor = "0";
+      let removed = 0;
+      do {
+        const [next, keys] = await this.client.scan(
+          cursor,
+          "MATCH",
+          fullPattern,
+          "COUNT",
+          100,
+        );
+        cursor = next;
+        if (keys.length > 0) {
+          removed += await this.client.del(...keys);
+        }
+      } while (cursor !== "0");
+      return removed;
+    } catch {
+      return 0;
+    }
+  }
+
   async incr(
     key: string,
     ttlMs: number,
