@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { PrismaModule } from "../../prisma/prisma.module";
+import { PdfModule } from "../../shared/pdf/pdf.module";
 import { InvoicesModule } from "../invoices/invoices.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { OrganizationModule } from "../organization/organization.module";
@@ -24,6 +25,7 @@ import { WmsStorageService } from "./wms-storage.service";
   imports: [
     ScheduleModule,
     PrismaModule,
+    PdfModule,
     OrganizationModule,
     InvoicesModule,
     NotificationsModule,

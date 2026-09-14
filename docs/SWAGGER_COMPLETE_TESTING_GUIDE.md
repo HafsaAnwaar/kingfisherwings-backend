@@ -9,22 +9,27 @@ This guide is a **runbook in order**. You create IDs once, paste them into later
 
 ---
 
-## Companion files (every field of every API)
+## Companion files (complete dummy data for every API)
 
 | File | What it is |
 |------|------------|
-| [`docs/generated/swagger-live-catalog.md`](generated/swagger-live-catalog.md) | **441** live OpenAPI operations with **every query/path param + full JSON body** derived from schemas |
-| [`docs/generated/swagger-live-catalog.json`](generated/swagger-live-catalog.json) | Same data (machine-readable) |
-| [`docs/generated/api-permission-map.md`](generated/api-permission-map.md) | Source-of-truth **method → path → required permission codes** (~997 routes, includes Portal/Vendor/Reports not always on live Swagger) |
-| [`docs/api-complete-testing-guide.md`](api-complete-testing-guide.md) | Longer ERP happy-path narrative (quotations → jobs → invoices → GL) |
+| [`docs/generated/swagger-live-catalog.md`](generated/swagger-live-catalog.md) | **Every live API** (441) — **every param + every body field** with realistic dummy values |
+| [`docs/generated/all-mutating-api-payloads.md`](generated/all-mutating-api-payloads.md) | **Every POST/PUT/PATCH** only — copy-paste bodies |
+| [`docs/generated/number-formats-all-payloads.md`](generated/number-formats-all-payloads.md) | All 6 number-format document types (full JSON each) |
+| [`docs/generated/masters-create-payloads.md`](generated/masters-create-payloads.md) | Every Masters `POST` create body |
+| [`docs/generated/core-create-payloads.md`](generated/core-create-payloads.md) | Auth, tenants, users, parties, quotations, jobs, invoices |
+| [`docs/generated/api-permission-map.md`](generated/api-permission-map.md) | Route → required permissions |
 
-Regenerate catalogs after deploy:
+Regenerate after deploy:
 
 ```bash
 curl -o openapi-live.json https://kingfisherwings-backend.onrender.com/docs-json
 node scripts/generate-swagger-catalog.cjs
+node scripts/generate-payload-packs.cjs
 node scripts/generate-api-permission-map.cjs
 ```
+
+**Rule:** Never use shorthand like “also create X”. If an API needs a body, paste the **full JSON** from this guide or from the generated files above.
 
 ### Live Swagger gap (important)
 
@@ -187,7 +192,7 @@ GET /auth/me
 
 You should see tenant admin with a large `permissions` list.
 
-### A8. Company + number formats
+### A8. Company + number formats (complete body for each document type)
 
 ```http
 GET /companies
@@ -195,19 +200,23 @@ GET /companies
 
 Save first company `id` → `{{COMPANY_ID}}`.
 
-Create number formats (repeat body, change `document_type`):
+Call **six times** — one full body per document type:
 
 ```http
 POST /organization/number-formats
+Authorization: Bearer {{ADMIN_TOKEN}}
 ```
+
+**1 QUOTATION**
 
 ```json
 {
   "document_type": "QUOTATION",
   "prefix": "KFWD",
+  "include_branch_code": false,
   "include_year": true,
-  "include_month": true,
   "year_digits": 2,
+  "include_month": true,
   "sequence_length": 5,
   "separator": "/",
   "reset_frequency": "YEARLY",
@@ -215,7 +224,98 @@ POST /organization/number-formats
 }
 ```
 
-Also create: `JOB_NUMBER`, `INVOICE`, `CREDIT_NOTE`, `PURCHASE_INVOICE`, `VOUCHER`.
+**2 JOB_NUMBER**
+
+```json
+{
+  "document_type": "JOB_NUMBER",
+  "prefix": "KFWD",
+  "include_branch_code": false,
+  "include_year": true,
+  "year_digits": 2,
+  "include_month": true,
+  "sequence_length": 5,
+  "separator": "/",
+  "reset_frequency": "YEARLY",
+  "is_active": true
+}
+```
+
+**3) INVOICE**
+
+```json
+{
+  "document_type": "INVOICE",
+  "prefix": "KFWD",
+  "include_branch_code": false,
+  "include_year": true,
+  "year_digits": 2,
+  "include_month": true,
+  "sequence_length": 5,
+  "separator": "/",
+  "reset_frequency": "YEARLY",
+  "is_active": true
+}
+```
+
+**4) CREDIT_NOTE**
+
+```json
+{
+  "document_type": "CREDIT_NOTE",
+  "prefix": "KFWD",
+  "include_branch_code": false,
+  "include_year": true,
+  "year_digits": 2,
+  "include_month": true,
+  "sequence_length": 5,
+  "separator": "/",
+  "reset_frequency": "YEARLY",
+  "is_active": true
+}
+```
+
+**5) PURCHASE_INVOICE**
+
+```json
+{
+  "document_type": "PURCHASE_INVOICE",
+  "prefix": "KFWD",
+  "include_branch_code": false,
+  "include_year": true,
+  "year_digits": 2,
+  "include_month": true,
+  "sequence_length": 5,
+  "separator": "/",
+  "reset_frequency": "YEARLY",
+  "is_active": true
+}
+```
+
+**6) VOUCHER**
+
+```json
+{
+  "document_type": "VOUCHER",
+  "prefix": "KFWD",
+  "include_branch_code": false,
+  "include_year": true,
+  "year_digits": 2,
+  "include_month": true,
+  "sequence_length": 5,
+  "separator": "/",
+  "reset_frequency": "YEARLY",
+  "is_active": true
+}
+```
+
+Preview examples:
+
+```http
+GET /organization/number-formats/QUOTATION/preview
+GET /organization/number-formats/JOB_NUMBER/preview
+GET /organization/number-formats/INVOICE/preview
+```
 
 ---
 
@@ -540,7 +640,133 @@ POST /masters/tax-rates
 }
 ```
 
-Repeat for other masters (`airports`, `banks`, `shipping-lines`, `vessels`, `warehouses`, …) using catalog bodies — replace `"string"` with real codes unique per tenant.
+Same payloads (and every other Masters POST) are also in [`docs/generated/masters-create-payloads.md`](generated/masters-create-payloads.md).
+
+#### Remaining masters — complete bodies (execute each)
+
+```http
+POST /masters/airports
+```
+
+```json
+{
+  "iata_code": "DXB",
+  "icao_code": "OMDB",
+  "name": "Dubai International Airport",
+  "city": "Dubai",
+  "country_code": "AE",
+  "latitude": 25.2532,
+  "longitude": 55.3657,
+  "timezone": "Asia/Dubai",
+  "is_active": true
+}
+```
+
+```http
+POST /masters/banks
+```
+
+```json
+{
+  "name": "Emirates NBD",
+  "short_name": "ENBD",
+  "swift_code": "EBILAEAD",
+  "iban_prefix": "AE07",
+  "country_code": "AE",
+  "is_active": true
+}
+```
+
+```http
+POST /masters/shipping-lines
+```
+
+```json
+{
+  "name": "Maersk Line",
+  "scac_code": "MAEU",
+  "country_code": "DK",
+  "is_active": true
+}
+```
+
+```http
+POST /masters/vessels
+```
+
+```json
+{
+  "name": "MSC GULSUN",
+  "imo_number": "9839430",
+  "flag_country": "LR",
+  "is_active": true
+}
+```
+
+```http
+POST /masters/warehouses
+```
+
+```json
+{
+  "code": "DXB-WH1",
+  "name": "Dubai Freezone Warehouse",
+  "city": "Dubai",
+  "country_code": "AE",
+  "is_active": true
+}
+```
+
+```http
+POST /masters/container-types
+```
+
+```json
+{
+  "code": "40HC",
+  "name": "40ft High Cube",
+  "teu": 2,
+  "is_active": true
+}
+```
+
+```http
+POST /masters/departments
+```
+
+```json
+{
+  "code": "OPS",
+  "name": "Operations",
+  "is_active": true
+}
+```
+
+```http
+POST /masters/designations
+```
+
+```json
+{
+  "code": "EXE",
+  "name": "Executive",
+  "is_active": true
+}
+```
+
+```http
+POST /masters/units-of-measure
+```
+
+```json
+{
+  "code": "KGS",
+  "name": "Kilogram",
+  "is_active": true
+}
+```
+
+For any other Masters route (GET/PATCH/DELETE), copy the exact params/body from [`swagger-live-catalog.md`](generated/swagger-live-catalog.md) under the matching **Masters — *** tag.
 
 ### C3. Customer party (full fields)
 
@@ -617,13 +843,11 @@ POST /parties/{{CUSTOMER_ID}}/contacts
 
 ---
 
-## Part D — ERP core sequence (Admin / staff)
+## Part D — ERP core sequence (Admin / staff) — full bodies
 
-Use `{{ADMIN_TOKEN}}` first. For permission tests, switch to Part B users.
+Use `{{ADMIN_TOKEN}}`. Replace every `{{…}}` UUID with IDs from Part C.
 
-Detailed charge lines, milestones, AWB stock, credit notes, GL vouchers: see **`api-complete-testing-guide.md`** + full bodies in **`swagger-live-catalog.md`** (tags Quotations, Jobs, Invoices, GL — *).
-
-### D1. Create quotation (body skeleton — expand from catalog)
+### D1. Create quotation (every field)
 
 ```http
 POST /quotations
@@ -634,29 +858,81 @@ POST /quotations
   "company_id": "{{COMPANY_ID}}",
   "job_type": "AIR_EXPORT",
   "customer_id": "{{CUSTOMER_ID}}",
+  "salesperson_id": "{{USER_ID_SALES}}",
   "branch_id": "{{BRANCH_ID}}",
+  "department_id": "{{DEPARTMENT_ID}}",
+  "carrier_id": "{{AIRLINE_ID}}",
   "origin_port_id": "{{ORIGIN_PORT_ID}}",
   "dest_port_id": "{{DEST_PORT_ID}}",
   "incoterm": "FOB",
-  "currency_code": "AED"
+  "commodity": "General cargo electronics",
+  "hs_code": "8517.12",
+  "gross_weight": 250.5,
+  "chargeable_weight": 280,
+  "volume_cbm": 1.8,
+  "pieces": 12,
+  "container_type_id": null,
+  "container_count": null,
+  "is_dg": false,
+  "dg_class": null,
+  "special_requirements": "Keep upright",
+  "carrier_preference": "Emirates",
+  "transit_time_days": 3,
+  "routing_notes": "DXB-LHR direct",
+  "remarks": "Customer wants Friday cut-off",
+  "internal_notes": "Priority account",
+  "valid_until": "2026-10-31",
+  "currency_code": "AED",
+  "exchange_rate": 1,
+  "discount_percent": 0,
+  "discount_amount": 0
 }
 ```
 
-Then typical lifecycle (exact paths in catalog):
+Save → `{{QUOTATION_ID}}`. Then walk every Quotations lifecycle route in [`swagger-live-catalog.md`](generated/swagger-live-catalog.md) (charges, submit, approve, send, convert-to-job) with full bodies from that file.
 
-1. Add charges / packages  
-2. Submit → Approve → Send  
-3. Win / convert-to-job → `{{JOB_ID}}`
-
-### D2. Create job (or convert)
+### D2. Create job (every field)
 
 ```http
 POST /jobs
 ```
 
-Fill **all** fields from catalog `POST /jobs` — replace every UUID with real IDs from Part C. Jobs has **100+** nested routes (milestones, documents, charges, pre-alert, …): walk tag **Jobs** in the catalog top-to-bottom after you have `{{JOB_ID}}`.
+```json
+{
+  "job_type": "AIR_EXPORT",
+  "company_id": "{{COMPANY_ID}}",
+  "branch_id": "{{BRANCH_ID}}",
+  "department_id": "{{DEPARTMENT_ID}}",
+  "parent_job_id": null,
+  "shipper_id": "{{CUSTOMER_ID}}",
+  "consignee_id": "{{CONSIGNEE_ID}}",
+  "agent_id": null,
+  "salesperson_id": "{{USER_ID_SALES}}",
+  "ops_user_id": "{{USER_ID_OPS}}",
+  "origin_port_id": "{{ORIGIN_PORT_ID}}",
+  "dest_port_id": "{{DEST_PORT_ID}}",
+  "commodity": "General cargo electronics",
+  "hs_code": "8517.12",
+  "gross_weight": 250.5,
+  "chargeable_weight": 280,
+  "volume_cbm": 1.8,
+  "pieces": 12,
+  "container_type_id": null,
+  "container_count": null,
+  "incoterms": "FOB",
+  "is_dg": false,
+  "dg_class": null,
+  "notes": "Ops note — handle with care",
+  "customer_remarks": "Deliver before noon",
+  "tags": ["air", "priority"],
+  "etd": "2026-09-20",
+  "eta": "2026-09-21"
+}
+```
 
-### D3. Invoice
+Save → `{{JOB_ID}}`. For every nested Jobs route (100+), use full params/bodies from the catalog tag **Jobs**.
+
+### D3. Create invoice (every field)
 
 ```http
 POST /invoices
@@ -668,16 +944,34 @@ POST /invoices
   "company_id": "{{COMPANY_ID}}",
   "job_id": "{{JOB_ID}}",
   "branch_id": "{{BRANCH_ID}}",
-  "currency_code": "AED"
+  "department_id": "{{DEPARTMENT_ID}}",
+  "currency_code": "AED",
+  "exchange_rate": 1,
+  "vat_rate": 5,
+  "invoice_date": "2026-09-14",
+  "due_date": "2026-10-14",
+  "lpo_number": "LPO-7788",
+  "remarks": "Net 30",
+  "internal_notes": "Auto-created from job charges",
+  "lines": [
+    {
+      "description": "Air Freight",
+      "quantity": 280,
+      "unit_price": 12.5,
+      "charge_code_id": "{{CHARGE_CODE_ID}}",
+      "tax_rate_id": "{{TAX_RATE_ID}}",
+      "is_taxable": true,
+      "sort_order": 0
+    }
+  ]
 }
 ```
 
-Then post / send / PDF endpoints under tag **Invoices**.
+Save → `{{INVOICE_ID}}`. Continue with post / send / PDF using catalog bodies under tag **Invoices**.
 
-### D4. GL (finance user)
+### D4. GL (finance)
 
-With `gl.*` permissions: Chart of Accounts → Vouchers → Payments → Aging → Bank reconciliation.  
-Use catalog sections `GL — *` for full bodies.
+Use full bodies from catalog sections `GL — *` in [`swagger-live-catalog.md`](generated/swagger-live-catalog.md) or [`all-mutating-api-payloads.md`](generated/all-mutating-api-payloads.md) — every voucher/payment/cheque field is listed there (no shorthand).
 
 ---
 
@@ -826,19 +1120,44 @@ Staff vendor-admin: `/vendor-admin/disputes`.
 
 ---
 
-## Part G — Sweep every remaining live API
+## Part Fb — WMS GRN / GDO (GDN) PDF download
 
-After Parts A–F work:
+Requires JWT with `wms.view` (warehouse staff or admin). **GDN = same outbound document as GDO** (`/wms/gdos`).
 
-1. Open [`swagger-live-catalog.md`](generated/swagger-live-catalog.md).
-2. Go tag by tag (Auth → … → Users). There are **52 tags / 441 ops**.
-3. For each operation:
-   - Paste **Params** + **Body** from the catalog.
-   - Replace UUIDs/`string` placeholders with your variables.
-   - Use the correct token (SA / Admin / Staff / Portal / Vendor).
-4. Skip destructive deletes on shared demo data until the end.
+Statuses: **DRAFT**, **POSTED**, and **CANCELLED** are all downloadable. CANCELLED PDFs include a **CANCELLED** watermark.
 
-### Suggested tag order (live)
+```http
+GET /wms/grns/{{GRN_ID}}/pdf
+Authorization: Bearer {{TOKEN}}
+```
+
+Response: `application/pdf` attachment `GRN-{grn_number}.pdf`
+
+```http
+GET /wms/gdos/{{GDO_ID}}/pdf
+Authorization: Bearer {{TOKEN}}
+```
+
+Response: `application/pdf` attachment `GDO-{gdo_number}.pdf`
+
+PDF includes: title, number, status, warehouse, party/job/(ASN for GRN), dates, remarks, line table (item code/name/qty/UOM/batch), company header, footer with generated time + document id.
+
+Expect **404** for wrong id/tenant; **403** without `wms.view`.
+
+---
+
+## Part G — Sweep every remaining API (complete dummy data)
+
+Do **not** invent shorthand. For each remaining operation:
+
+1. Open [`docs/generated/swagger-live-catalog.md`](generated/swagger-live-catalog.md) (all **441** APIs)  
+   **or** [`docs/generated/all-mutating-api-payloads.md`](generated/all-mutating-api-payloads.md) (all **243** POST/PUT/PATCH).
+2. Find the exact `METHOD /path`.
+3. Copy **Params (every field)** and **Body (every field)** into Swagger.
+4. Replace UUID placeholders with your `{{…}}` variables.
+5. Execute; record status code.
+
+### Suggested tag order
 
 1. Auth  
 2. Tenants (Super Admin)  
@@ -848,7 +1167,7 @@ After Parts A–F work:
 6. Masters — * (all)  
 7. Parties  
 8. Quotations (+ Online Tariff / Zip Distance)  
-9. Jobs (large — do after one job exists)  
+9. Jobs  
 10. AWB Stock  
 11. Invoices / Credit Notes / Debit Notes / Purchase Invoices / Payment Requests  
 12. GL — *  

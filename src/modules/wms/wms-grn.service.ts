@@ -4,16 +4,24 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { DocumentNumberType } from "@prisma/client";
+import type { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PdfService } from "../../shared/pdf/pdf.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import { CurrentUser } from "../users/interfaces/current-user.interface";
 import { CreateGrnDto } from "./dto/wms.dto";
+import {
+  buildWmsDocumentPdfHtml,
+  formatPdfDate,
+} from "./wms-document-pdf";
+import { resolveWmsPdfContext } from "./wms-pdf-context";
 
 @Injectable()
 export class WmsGrnService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
+    private readonly pdf: PdfService,
   ) {}
 
   async create(user: CurrentUser, dto: CreateGrnDto) {
@@ -144,6 +152,67 @@ export class WmsGrnService {
     if (!result.count)
       throw new BadRequestException("Only a draft GRN can be cancelled.");
     return { id, status: "CANCELLED" };
+  }
+
+  async downloadPdf(user: CurrentUser, id: string, res: Response) {
+    const payload = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
+      const grn = await tx.wmsGrn.findFirst({
+        where: { id, tenant_id: user.tenantId, deleted_at: null },
+        include: {
+          warehouse: true,
+          asn: { select: { asn_number: true } },
+          lines: {
+            include: { item: true },
+            orderBy: { sort_order: "asc" },
+          },
+        },
+      });
+      if (!grn) throw new NotFoundException("GRN not found.");
+
+      const ctx = await resolveWmsPdfContext(tx, user.tenantId, {
+        partyId: grn.party_id,
+        jobId: grn.job_id,
+      });
+
+      const html = buildWmsDocumentPdfHtml({
+        title: "Goods Received Note (GRN)",
+        docNumber: grn.grn_number,
+        status: grn.status,
+        directionLabel: "Inbound / receive",
+        stockNote: "Receipt into warehouse",
+        warehouseCode: grn.warehouse.code,
+        warehouseName: grn.warehouse.name,
+        partyName: ctx.partyName,
+        jobRef: ctx.jobRef,
+        asnNumber: grn.asn?.asn_number ?? null,
+        primaryDateLabel: "Received at",
+        primaryDate: formatPdfDate(grn.received_at),
+        createdAt: formatPdfDate(grn.created_at),
+        postedAt: formatPdfDate(grn.posted_at),
+        remarks: grn.remarks,
+        lines: grn.lines.map((line) => ({
+          itemCode: line.item.code,
+          itemName: line.item.name,
+          quantity: Number(line.quantity),
+          uom: line.item.uom_code ?? "—",
+          batch: line.batch_code,
+        })),
+        companyName: ctx.companyName,
+        logoUrl: ctx.logoUrl,
+        generatedAt: formatPdfDate(new Date())!,
+        documentId: grn.id,
+      });
+
+      return { html, filename: `GRN-${grn.grn_number}.pdf` };
+    });
+
+    const buffer = await this.pdf.renderHtmlToPdf(payload.html);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${payload.filename}"`,
+    );
+    res.send(buffer);
   }
 
   private async require(tenantId: string, id: string) {

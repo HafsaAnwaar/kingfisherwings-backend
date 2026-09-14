@@ -5,9 +5,16 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Res,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProduces,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Response } from "express";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
@@ -36,6 +43,22 @@ export class WmsGrnController {
   @ApiOperation({ summary: "Create draft GRN" })
   create(@CurrentUser() user: CurrentUserType, @Body() dto: CreateGrnDto) {
     return this.service.create(user, dto);
+  }
+
+  @Get(":id/pdf")
+  @RequirePermissions(WMS_PERMISSIONS.VIEW)
+  @ApiProduces("application/pdf")
+  @ApiOperation({
+    summary: "Download GRN PDF (Goods Received Note)",
+    description:
+      "On-demand PDF for DRAFT, POSTED, or CANCELLED (CANCELLED includes watermark). Requires wms.view.",
+  })
+  downloadPdf(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    return this.service.downloadPdf(user, id, res);
   }
 
   @Get(":id")
