@@ -1,9 +1,12 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { PaymentProofDirection, PaymentProofStatus } from "@prisma/client";
+import * as fs from "fs/promises";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { StorageService } from "../../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../../notifications/notification-emitter.service";
@@ -25,6 +28,8 @@ export interface CreatePaymentProofInput {
 
 @Injectable()
 export class PaymentProofsService {
+  private readonly logger = new Logger(PaymentProofsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -42,6 +47,13 @@ export class PaymentProofsService {
   }
 
   async create(input: CreatePaymentProofInput) {
+    const amount = Number(input.amountClaimed);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException("amount_claimed must be a positive number.");
+    }
+
+    const paymentDate = this.parsePaymentDate(input.paymentDate);
+
     const invoice = await this.prisma.runWithTenant(input.tenantId, (tx) =>
       tx.invoice.findFirst({
         where: {
@@ -55,22 +67,25 @@ export class PaymentProofsService {
     if (Number(invoice.balance_due) <= 0.0001) {
       throw new BadRequestException("Invoice has no outstanding balance.");
     }
-    if (input.amountClaimed <= 0) {
-      throw new BadRequestException("amount_claimed must be positive.");
-    }
+
+    const buffer = await this.resolveUploadBuffer(input.file);
+    const originalName =
+      input.file?.originalname?.trim() || `payment-proof-${Date.now()}.bin`;
+    const mimeType =
+      input.file?.mimetype?.trim() || "application/octet-stream";
 
     let fileMeta: {
       file_url?: string;
       s3_key?: string;
       mime_type?: string;
       file_size?: number;
-    } = {};
-    if (input.file) {
+    };
+    try {
       const saved = await this.storage.saveBuffer(
         input.tenantId,
-        input.file.buffer,
-        input.file.originalname,
-        input.file.mimetype,
+        buffer,
+        originalName,
+        mimeType,
       );
       fileMeta = {
         file_url: saved.fileUrl,
@@ -78,29 +93,44 @@ export class PaymentProofsService {
         mime_type: saved.mimeType,
         file_size: saved.fileSize,
       };
-    } else {
-      throw new BadRequestException("Payment proof file is required.");
+    } catch (err) {
+      this.logger.error(
+        `Payment proof storage failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw new ServiceUnavailableException(
+        "Could not store payment proof file. Check STORAGE_PATH / S3 configuration.",
+      );
     }
 
-    const proof = await this.prisma.runWithTenant(input.tenantId, (tx) =>
-      tx.paymentProof.create({
-        data: {
-          tenant_id: input.tenantId,
-          direction: input.direction,
-          invoice_id: input.invoiceId,
-          submitted_by_party_id: input.submittedByPartyId,
-          submitted_by_user_id: input.submittedByUserId,
-          submitted_by_staff_id: input.submittedByStaffId,
-          amount_claimed: input.amountClaimed,
-          payment_date: new Date(input.paymentDate),
-          reference_number: input.referenceNumber,
-          notes: input.notes,
-          ...fileMeta,
-          created_by: input.actorId,
-          updated_by: input.actorId,
-        },
-      }),
-    );
+    let proof;
+    try {
+      proof = await this.prisma.runWithTenant(input.tenantId, (tx) =>
+        tx.paymentProof.create({
+          data: {
+            tenant_id: input.tenantId,
+            direction: input.direction,
+            invoice_id: input.invoiceId,
+            submitted_by_party_id: input.submittedByPartyId,
+            submitted_by_user_id: input.submittedByUserId,
+            submitted_by_staff_id: input.submittedByStaffId,
+            amount_claimed: amount,
+            payment_date: paymentDate,
+            reference_number: input.referenceNumber,
+            notes: input.notes,
+            ...fileMeta,
+            created_by: input.actorId,
+            updated_by: input.actorId,
+          },
+        }),
+      );
+    } catch (err) {
+      this.logger.error(
+        `Payment proof DB create failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw new BadRequestException(
+        "Could not save payment proof. Verify amount_claimed and payment_date.",
+      );
+    }
 
     await this.notifications.notifyFinanceStaff(input.tenantId, {
       type: "PAYMENT_PROOF_SUBMITTED",
@@ -163,5 +193,45 @@ export class PaymentProofsService {
     }
 
     return { success: true, data: updated };
+  }
+
+  private parsePaymentDate(raw: string): Date {
+    if (!raw || typeof raw !== "string") {
+      throw new BadRequestException(
+        "payment_date is required (YYYY-MM-DD).",
+      );
+    }
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) {
+      throw new BadRequestException(
+        "payment_date must be a valid date (YYYY-MM-DD).",
+      );
+    }
+    return d;
+  }
+
+  private async resolveUploadBuffer(
+    file?: Express.Multer.File,
+  ): Promise<Buffer> {
+    if (!file) {
+      throw new BadRequestException("Payment proof file is required.");
+    }
+    if (file.buffer && Buffer.isBuffer(file.buffer) && file.buffer.length > 0) {
+      return file.buffer;
+    }
+    // Disk-storage fallback (some hosts configure multer to disk)
+    if (file.path) {
+      try {
+        const buf = await fs.readFile(file.path);
+        if (buf.length > 0) return buf;
+      } catch (err) {
+        this.logger.warn(
+          `Failed reading multer disk file: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    throw new BadRequestException(
+      "Payment proof file is empty or could not be read. Send multipart field 'file' with memory upload.",
+    );
   }
 }

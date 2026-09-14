@@ -1,13 +1,15 @@
-import { ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
 } from "class-validator";
 import { InvoiceStatus, InvoiceType } from "@prisma/client";
@@ -91,6 +93,41 @@ export class PortalCreditAgingQueryDto {
   @IsOptional()
   @IsDateString()
   as_of?: string;
+}
+
+/** Multipart body for POST /portal/invoices/:id/payment-proofs */
+export class UploadPortalPaymentProofDto {
+  @ApiProperty({
+    description: "Claimed payment amount (multipart fields arrive as strings)",
+    example: "100.00",
+  })
+  @Transform(({ value }) => {
+    if (value == null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : value;
+  })
+  @IsNumber(
+    { maxDecimalPlaces: 4 },
+    { message: "amount_claimed must be a valid number" },
+  )
+  @Min(0.0001, { message: "amount_claimed must be positive" })
+  amount_claimed!: number;
+
+  @ApiProperty({ description: "Payment date YYYY-MM-DD", example: "2026-09-14" })
+  @IsDateString({}, { message: "payment_date must be a valid ISO date" })
+  payment_date!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  reference_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
 }
 
 /** Re-export for internal filtering — portal never exposes PURCHASE_INVOICE. */
