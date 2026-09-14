@@ -78,15 +78,29 @@ export class UsersController {
   @Get("permission-matrix")
   @RequirePermissions(USERS_PERMISSIONS.VIEW)
   @ApiOperation({
-    summary: "Permission tree for the admin panel (modules → submodules → see/read/write).",
+    summary:
+      "Permission tree for the admin panel (modules → submodules → none/read/write).",
   })
   permissionTree() {
     return this.usersService.getPermissionTree();
   }
 
+  @Get("role-presets")
+  @RequirePermissions(USERS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Role cards with default permission_grants for the create-user wizard (Step 1 → Step 3).",
+  })
+  rolePresets() {
+    return this.usersService.getRolePresets();
+  }
+
   @Get(":id/permission-matrix")
   @RequirePermissions(USERS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Get a user's module/submodule permission matrix." })
+  @ApiOperation({
+    summary:
+      "Get a user's module/submodule permission matrix (includes access: none|read|write).",
+  })
   getUserMatrix(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
@@ -98,7 +112,7 @@ export class UsersController {
   @RequirePermissions(USERS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Set a user's module/submodule see/read/write grants. User must log in again to refresh JWT.",
+      "Set module/submodule grants via access (none|read|write) or see/read/write. Bridges to classic API permissions. User must re-login to refresh JWT.",
   })
   putUserMatrix(
     @CurrentUser("tenantId") tenantId: string,
@@ -129,7 +143,8 @@ export class UsersController {
   @AllowSuperAdmin()
   @RequirePermissions(USERS_PERMISSIONS.CREATE)
   @ApiOperation({
-    summary: "Create a user. Returns a system-generated temporary password.",
+    summary:
+      "Create a user. Returns a temporary password. Accepts permission_grants (none|read|write) merged with role presets; bridges to classic API permissions.",
   })
   @ApiResponse({ status: HttpStatus.CREATED, type: UserResponse })
   async create(

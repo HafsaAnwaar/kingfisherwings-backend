@@ -4,9 +4,15 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsEnum,
+  IsOptional,
   IsString,
   ValidateNested,
 } from "class-validator";
+import {
+  MATRIX_ACCESS_VALUES,
+  type MatrixAccess,
+} from "../../../common/constants/matrix-access";
 
 export class PermissionMatrixGrantDto {
   @ApiProperty({ example: "operations" })
@@ -17,17 +23,36 @@ export class PermissionMatrixGrantDto {
   @IsString()
   submodule!: string;
 
-  @ApiProperty()
-  @IsBoolean()
-  see!: boolean;
+  @ApiPropertyOptional({
+    enum: MATRIX_ACCESS_VALUES,
+    description:
+      "Preferred: none | read | write (write = Read & Write). When set, overrides see/read/write booleans.",
+    example: "write",
+  })
+  @IsOptional()
+  @IsEnum(MATRIX_ACCESS_VALUES)
+  access?: MatrixAccess;
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description: "Legacy. Ignored when `access` is set. Cascades with read/write.",
+  })
+  @IsOptional()
   @IsBoolean()
-  read!: boolean;
+  see?: boolean;
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description: "Legacy. Ignored when `access` is set.",
+  })
+  @IsOptional()
   @IsBoolean()
-  write!: boolean;
+  read?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Legacy. Ignored when `access` is set. Implies read+see.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  write?: boolean;
 }
 
 export class UpdatePermissionMatrixDto {
@@ -37,4 +62,23 @@ export class UpdatePermissionMatrixDto {
   @ValidateNested({ each: true })
   @Type(() => PermissionMatrixGrantDto)
   grants!: PermissionMatrixGrantDto[];
+}
+
+/** Compact grant used on create/update user. */
+export class PermissionGrantAccessDto {
+  @ApiProperty({ example: "wms" })
+  @IsString()
+  module!: string;
+
+  @ApiProperty({ example: "module" })
+  @IsString()
+  submodule!: string;
+
+  @ApiProperty({
+    enum: MATRIX_ACCESS_VALUES,
+    example: "read",
+    description: "none | read | write (write = Read & Write)",
+  })
+  @IsEnum(MATRIX_ACCESS_VALUES)
+  access!: MatrixAccess;
 }

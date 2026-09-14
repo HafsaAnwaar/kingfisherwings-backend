@@ -56,4 +56,22 @@ export class UserResponse {
   @ApiPropertyOptional() created_by_tenant_id?: string;
   @ApiPropertyOptional() created_by_super_admin_id?: string;
   @ApiProperty() updated_at!: Date;
+
+  @ApiPropertyOptional({
+    description:
+      "Effective module/submodule access (none|read|write). Present on GET /users/:id and GET /auth/me.",
+  })
+  permission_matrix?: Array<{
+    key: string;
+    label: string;
+    submodules: Array<{
+      key: string;
+      label: string;
+      job_type: string | null;
+      see: boolean;
+      read: boolean;
+      write: boolean;
+      access: "none" | "read" | "write";
+    }>;
+  }>;
 }

@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
@@ -14,6 +15,8 @@ import {
   ArrayUnique,
   Matches,
   ValidateIf,
+  ValidateNested,
+  IsIn,
 } from "class-validator";
 import { UserRole, UserStatus } from "@prisma/client";
 import { USERS_CONSTANTS } from "../constants/users.constants";
@@ -22,6 +25,7 @@ import {
   CountryCodeField,
   IsPhoneForCountry,
 } from "../../../common/validators/country-aware.validators";
+import { PermissionGrantAccessDto } from "./permission-matrix.dto";
 
 const OFFICE_HOURS_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -264,4 +268,25 @@ export class CreateUserDto {
   @ArrayUnique()
   @IsUUID("4", { each: true })
   permission_ids?: string[];
+
+  @ApiPropertyOptional({
+    type: [PermissionGrantAccessDto],
+    description:
+      "Module/submodule access grants (none|read|write). Merged with role preset by default. Bridged into classic API permissions.",
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermissionGrantAccessDto)
+  permission_grants?: PermissionGrantAccessDto[];
+
+  @ApiPropertyOptional({
+    enum: ["merge_with_preset", "replace"],
+    default: "merge_with_preset",
+    description:
+      "merge_with_preset: role defaults + overrides. replace: only listed grants (others none).",
+  })
+  @IsOptional()
+  @IsIn(["merge_with_preset", "replace"])
+  permission_grants_mode?: "merge_with_preset" | "replace";
 }

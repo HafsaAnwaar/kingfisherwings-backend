@@ -116,6 +116,20 @@ export const MODULE_PERMISSION_TREE: PermissionModuleNode[] = [
     label: "Documentation",
     submodules: [{ key: "module", label: "Documentation" }],
   },
+  {
+    key: "support",
+    label: "Support",
+    submodules: [
+      { key: "customer_support", label: "Customer Support" },
+      { key: "agent", label: "Agent" },
+      { key: "customer", label: "Customer (external)" },
+    ],
+  },
+  {
+    key: "logistics",
+    label: "Logistics",
+    submodules: [{ key: "driver", label: "Driver" }],
+  },
 ];
 
 export function matrixPermissionModule(

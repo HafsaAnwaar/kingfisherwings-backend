@@ -1,7 +1,11 @@
 # Kingfisher Logistics ERP — Complete API Flow & Testing Guide
 
-> **Base URL:** `http://localhost:3000`  
-> **Swagger:** `http://localhost:3000/docs`  
+> **Live Swagger runbook (all perspectives + permission lab + full catalogs):** [`SWAGGER_COMPLETE_TESTING_GUIDE.md`](SWAGGER_COMPLETE_TESTING_GUIDE.md)  
+> **Every live OpenAPI body:** [`generated/swagger-live-catalog.md`](generated/swagger-live-catalog.md)  
+> **Permission → route map:** [`generated/api-permission-map.md`](generated/api-permission-map.md)
+
+> **Base URL:** `http://localhost:3000` (or `https://kingfisherwings-backend.onrender.com`)  
+> **Swagger:** `http://localhost:3000/docs` / live `/docs`  
 > **Auth:** `Authorization: Bearer <access_token>` on every non-`@Public` route  
 > **Password policy:** min 8 chars, 1 upper, 1 lower, 1 digit, 1 special (`Welcome@123`)
 

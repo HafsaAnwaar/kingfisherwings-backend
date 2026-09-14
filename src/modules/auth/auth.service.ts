@@ -17,6 +17,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { PasswordUtil } from "../../common/utils/password.util";
 import { TwoFactorCrypto } from "../../common/utils/two-factor-crypto.util";
 import { EmailService } from "../../shared/email/email.service";
+import { collectEffectivePermissionCodes } from "../../common/constants/effective-permissions";
 
 import { UsersService } from "../users/users.service";
 import { UserMapper } from "../users/mappers/user.mapper";
@@ -908,15 +909,8 @@ export class AuthService {
         where: { tenant_id: tenantId, user_id: userId },
         orderBy: { assigned_at: "asc" },
         include: {
-          role: {
-            include: { role_permissions: { include: { permission: true } } },
-          },
+          role: true,
         },
-      });
-
-      const directGrants = await tx.userPermission.findMany({
-        where: { tenant_id: tenantId, user_id: userId, granted: true },
-        include: { permission: true },
       });
 
       const activeAssignments = roleAssignments.filter(
@@ -924,19 +918,7 @@ export class AuthService {
           assignment.role.is_active && !assignment.role.deleted_at,
       );
 
-      const codes = new Set<string>();
-
-      for (const assignment of activeAssignments) {
-        for (const rolePermission of assignment.role.role_permissions) {
-          codes.add(
-            `${rolePermission.permission.module}.${rolePermission.permission.action}`,
-          );
-        }
-      }
-
-      for (const grant of directGrants) {
-        codes.add(`${grant.permission.module}.${grant.permission.action}`);
-      }
+      const codes = await collectEffectivePermissionCodes(tx, tenantId, userId);
 
       return {
         roleId: activeAssignments[0]?.role_id ?? null,

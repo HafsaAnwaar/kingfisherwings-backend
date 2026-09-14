@@ -201,10 +201,11 @@ export class ReportsGenerateService {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + REPORT_TTL_HOURS);
 
-      // Prefer API download route (survives URL churn). S3 can use presigned when enabled.
+      // Prefer API download route. When durable object storage is on, optionally
+      // expose a short-lived presigned URL for direct browser download.
       let downloadUrl = `/reports/jobs/${jobId}/download`;
       try {
-        if (stored.s3Key && process.env.STORAGE_USE_S3 === "true") {
+        if (stored.s3Key && this.storage.isDurable()) {
           downloadUrl = await this.storage.presignedGetUrl(stored.s3Key);
         }
       } catch {
