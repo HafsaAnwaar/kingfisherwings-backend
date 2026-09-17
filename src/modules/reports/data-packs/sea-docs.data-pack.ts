@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { REPORT_ROW_LIMIT } from "../constants/reports.constants";
+import { loadReportBranding } from "../helpers/report-branding.helper";
 import { ReportDataset, ReportListRow } from "../types/report.types";
 
 type Params = Record<string, unknown>;
@@ -109,24 +110,7 @@ export class SeaDocsDataPackService {
   }
 
   private async loadBranding(tenantId: string) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: {
-        display_name: true,
-        name: true,
-        logo_url: true,
-        address: true,
-        vat_number: true,
-        cr_number: true,
-      },
-    });
-    return {
-      company_name: tenant?.display_name || tenant?.name || "FreightSaas",
-      logo_url: tenant?.logo_url ?? null,
-      address: tenant?.address ?? null,
-      vat_number: tenant?.vat_number ?? null,
-      cr_number: tenant?.cr_number ?? null,
-    };
+    return loadReportBranding(this.prisma, tenantId);
   }
 
   private dateRange(params: Params) {

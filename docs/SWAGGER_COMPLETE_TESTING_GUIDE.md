@@ -1290,6 +1290,305 @@ Do **not** invent shorthand. For each remaining operation:
 
 ---
 
+## Part G2 — NVOCC Sea Export workflow smoke
+
+Canonical department handoff for **NVOCC_EXPORT** only (not Sea FCL Export). Stage owners: CS → Sales → Ops → Docs → Accounts → MGMT. Wrong department gets **403** unless Tenant Admin uses `admin_override` + `stage_override_reason`.
+
+### G2.0 Seed specs (once per tenant)
+
+```http
+POST /masters/container-types/seed-defaults
+POST /masters/air-pallet-types/seed-defaults
+GET  /masters/container-types
+GET  /masters/air-pallet-types
+```
+
+### G2.1 Quote → CS triage → Sales send (negotiation unchanged)
+
+1. Portal: `POST /portal/quotations/request` → CS notified  
+2. Staff CS: `POST /nvocc/bookings/{{NVOCC_BOOKING_ID}}/cs-triage` (grants `Party.portal_access`)  
+3. Sales/Admin: send quote via existing quotations APIs, then `POST /nvocc/bookings/{{NVOCC_BOOKING_ID}}/mark-quote-sent`  
+4. Portal negotiate / accept (unchanged) → unlocks Ops booking form  
+
+### G2.2 Ops booking form (Kingfisher Excel fields)
+
+```http
+PUT /nvocc/bookings/{{NVOCC_BOOKING_ID}}/booking-form
+```
+
+```json
+{
+  "date_of_request": "2026-09-16",
+  "voyage_ref": "KF-V01",
+  "gross_weight_kg": 18500,
+  "pol": "Jebel Ali",
+  "pod": "Karachi",
+  "shipper_owned_container": false,
+  "is_dg": false,
+  "teu_count": 2,
+  "commodity": "General cargo",
+  "hs_code": "8471",
+  "final_use": "Retail",
+  "activity_sector": "Electronics",
+  "parties": [
+    {
+      "party_kind": "SHIPPER",
+      "full_name": "Al Noor Trading LLC",
+      "address": "Dubai",
+      "city": "Dubai",
+      "country": "AE",
+      "entity_kind": "COMPANY"
+    },
+    {
+      "party_kind": "CONSIGNEE",
+      "full_name": "Karachi Importers",
+      "address": "Karachi",
+      "city": "Karachi",
+      "country": "PK",
+      "entity_kind": "COMPANY"
+    },
+    {
+      "party_kind": "NOTIFY",
+      "full_name": "Karachi Importers",
+      "address": "Karachi",
+      "city": "Karachi",
+      "country": "PK",
+      "entity_kind": "COMPANY"
+    }
+  ]
+}
+```
+
+→ stage `BOOKING_FORM_COMPLETE`.
+
+### G2.3 Sales/Admin invoice
+
+Create/send invoice via **Invoices** (Sales Manager now has `invoices.create` + `invoices.send`; Admin unchanged), then:
+
+```http
+POST /nvocc/bookings/{{NVOCC_BOOKING_ID}}/send-invoice
+```
+
+```json
+{ "invoice_id": "{{INVOICE_ID}}" }
+```
+
+### G2.4 CRO + auto container numbers
+
+```http
+POST /nvocc/jobs/{{NVOCC_JOB_ID}}/container-requests
+POST /nvocc/jobs/{{NVOCC_JOB_ID}}/container-requests/{{CRO_ID}}/issue
+POST /nvocc/jobs/{{NVOCC_JOB_ID}}/container-requests/{{CRO_ID}}/allocate
+```
+
+Ops allocate auto-generates container numbers (tenant sequence). Customer sees:
+
+```http
+GET /portal/shipments/{{JOB_ID}}/container-requests
+```
+
+### G2.5 Portal pick → Ops loading → port token → draft BL request
+
+```http
+POST /portal/shipments/{{JOB_ID}}/containers/{{LINE_ID}}/confirm-pick
+POST /nvocc/jobs/{{NVOCC_JOB_ID}}/stage/loading
+POST /portal/shipments/{{JOB_ID}}/port-token/confirm
+POST /portal/shipments/{{JOB_ID}}/request-draft-bl
+```
+
+### G2.6 Docs + Accounts payment gate
+
+```http
+POST /nvocc/jobs/{{NVOCC_JOB_ID}}/documents/hbl-draft-gated
+POST /nvocc/jobs/{{NVOCC_JOB_ID}}/accounts/confirm-payment
+POST /nvocc/jobs/{{NVOCC_JOB_ID}}/documents/hbl-original-gated
+```
+
+Original HBL **fails with 400** if `payment_confirmed_at` is null.
+
+### G2.7 MGMT close report
+
+```http
+POST /nvocc/jobs/{{NVOCC_JOB_ID}}/close-report
+```
+
+Returns closure pack (job, HBL, payment, CRO lines, booking form).
+
+### G2.8 Air booking form (same initiative; not CRO)
+
+```http
+GET  /masters/air-pallet-types
+PUT  /jobs/{{AIR_JOB_ID}}/air-booking-form
+GET  /jobs/{{AIR_JOB_ID}}/air-booking-form
+```
+
+```json
+{
+  "air_pallet_type_id": "{{AIR_PALLET_TYPE_ID}}",
+  "pieces": 2,
+  "gross_weight_kg": 420,
+  "chargeable_weight_kg": 450,
+  "commodity": "Garments"
+}
+```
+
+Response always includes `air_pallet_type` specs.
+
+### G2.9 Negative check
+
+Call `POST /nvocc/jobs/{{NVOCC_JOB_ID}}/stage/loading` as a Sales user → expect **403**.
+
+---
+
+## Part G3 — Air Freight department workflow smoke
+
+**Export (`AIR_EXPORT`)** and **import (`AIR_IMPORT`)** share CS → Sales → Ops → Docs → Accounts → Management stage guards on `AirJobDetail`.
+
+### G3.1 Commercial prefix
+
+Same as G2.1–G2.3 but on **job** (after quote convert to `AIR_EXPORT` / `AIR_IMPORT`):
+
+```http
+POST /jobs/{{AIR_JOB_ID}}/air/cs-triage
+POST /jobs/{{AIR_JOB_ID}}/air/mark-quote-sent
+PUT  /jobs/{{AIR_JOB_ID}}/air-booking-form
+POST /jobs/{{AIR_JOB_ID}}/air/send-invoice
+```
+
+Booking form must include `origin_airport_code`, `dest_airport_code`, `commodity`, shipper/consignee parties; export also needs `air_pallet_type_id` + `flight_number`; import needs `mawb_from_origin` + arrival flight.
+
+### G3.2 Air export — Unit Load Device through House Air Waybill
+
+```http
+POST /jobs/{{AIR_JOB_ID}}/air/uld-requests
+POST /jobs/{{AIR_JOB_ID}}/air/uld-requests/{{ULD_REQ_ID}}/issue
+POST /jobs/{{AIR_JOB_ID}}/air/uld-requests/{{ULD_REQ_ID}}/allocate
+```
+
+Portal:
+
+```http
+GET  /portal/shipments/{{AIR_JOB_ID}}/uld-requests
+POST /portal/shipments/{{AIR_JOB_ID}}/uld-lines/{{LINE_ID}}/confirm-dropoff
+POST /portal/shipments/{{AIR_JOB_ID}}/request-draft-hawb
+```
+
+Staff:
+
+```http
+POST /jobs/{{AIR_JOB_ID}}/air/stage/build-up
+POST /jobs/{{AIR_JOB_ID}}/documents/hawb-draft-gated
+POST /jobs/{{AIR_JOB_ID}}/air/accounts/confirm-payment
+POST /jobs/{{AIR_JOB_ID}}/documents/hawb-final-gated
+POST /jobs/{{AIR_JOB_ID}}/air/stage/mawb-issued
+POST /jobs/{{AIR_JOB_ID}}/air/close-report
+```
+
+Final House Air Waybill **400** without `payment_confirmed_at`.
+
+### G3.3 Air import — Cargo Arrival Notice through Delivery Order
+
+```http
+POST /jobs/{{AIR_IMPORT_JOB_ID}}/air/stage/mawb-received
+POST /jobs/{{AIR_IMPORT_JOB_ID}}/documents/pre-can-gated
+POST /jobs/{{AIR_IMPORT_JOB_ID}}/documents/can-gated
+POST /jobs/{{AIR_IMPORT_JOB_ID}}/air/accounts/confirm-payment
+POST /jobs/{{AIR_IMPORT_JOB_ID}}/documents/delivery-order-gated
+POST /portal/shipments/{{AIR_IMPORT_JOB_ID}}/request-delivery-order
+POST /jobs/{{AIR_IMPORT_JOB_ID}}/air/stage/pod
+POST /jobs/{{AIR_IMPORT_JOB_ID}}/air/close-report
+```
+
+Delivery Order **400** before payment confirm.
+
+### G3.4 Negative check
+
+`POST /jobs/{{AIR_JOB_ID}}/air/stage/build-up` as Sales → **403**.
+
+---
+
+## Part G4 — Fresa unit converter smoke
+
+Staff JWT + `tools.use` (sync permissions on existing tenants if missing). Portal/vendor: respective JWT only.
+
+```http
+POST /tools/converter/cbm
+{ "length": 100, "width": 50, "height": 40, "quantity": 2, "unit": "C" }
+→ cubic_meter 0.4, volume_weight 66.667
+
+POST /tools/converter/length
+{ "meter": 1 }
+→ mm 1000, mile 0.001, nautical_mile 0.001
+
+POST /tools/converter/weight
+{ "kilogram": 1 }
+
+POST /tools/converter/liquid
+{ "litre": 1 }
+
+POST /tools/converter/volume
+{ "input_unit": "MT", "value": 1, "output_unit": "CM" }
+→ result 1000000, display "1,000,000.000"
+
+POST /portal/tools/converter/cbm
+POST /vendor/tools/converter/cbm
+(same body as staff CBM — expect identical numbers)
+```
+
+Empty length body → **400** `Require value to calculate Length`.
+
+---
+
+## Part G5 — FRESA report catalog / Format-1 smoke
+
+Staff JWT + `reports.read` / `reports.generate` / `reports.manage`.
+
+### G5.1 Preserve default invoice PDF
+
+```http
+POST /invoices/{{INVOICE_ID}}/pdf
+→ still returns default UAE-VAT style PDF (unchanged)
+```
+
+### G5.2 Format-1 catalog pack
+
+```http
+GET  /reports/templates/renderers
+→ includes commercial.invoice_tax_india_1
+
+POST /reports/templates/INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA/bind-renderer
+{ "renderer_key": "commercial.invoice_tax_india_1", "activate": true }
+
+POST /reports/generate
+{
+  "code": "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA",
+  "format": "PDF",
+  "parameters": { "invoice_id": "{{INVOICE_ID}}" }
+}
+→ 201 job; poll GET /reports/jobs/{{JOB_ID}}; download PDF
+
+GET /invoices/{{INVOICE_ID}}/format-payload?format=INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA
+→ { success, data } InvoiceFormatPayload
+```
+
+### G5.3 Negative checks
+
+```http
+POST /reports/templates/SOME_UNBOUND_CODE/activate
+(no body, still pending.*) → 400
+
+POST /reports/generate with inactive template → 404
+```
+
+### G5.4 Regression list packs
+
+```http
+POST /reports/generate
+{ "code": "JOBS_LIST", "format": "PDF", "parameters": { "date_from": "2026-01-01", "date_to": "2026-12-31" } }
+```
+
+---
+
 ## Hierarchy reminder (who uses which login)
 
 ```

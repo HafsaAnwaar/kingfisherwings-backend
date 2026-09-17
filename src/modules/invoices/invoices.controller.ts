@@ -1,18 +1,5 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 
 import { InvoicesService } from "./invoices.service";
 import {
@@ -29,13 +16,17 @@ import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { INVOICES_PERMISSIONS } from "./constants/invoices-permission.constants";
+import { InvoiceFormatPayloadService } from "../reports/data-packs/commercial/invoice-format-payload.service";
 
 @ApiTags("Invoices")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("invoices")
 export class InvoicesController {
-  constructor(private readonly service: InvoicesService) {}
+  constructor(
+    private readonly service: InvoicesService,
+    private readonly invoiceFormatPayload: InvoiceFormatPayloadService,
+  ) {}
 
   @Get()
   @RequirePermissions(INVOICES_PERMISSIONS.VIEW)
@@ -173,6 +164,38 @@ export class InvoicesController {
     @Body() dto: SendInvoiceEmailDto,
   ) {
     return this.service.send(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/format-payload")
+  @RequirePermissions(INVOICES_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Debug: InvoiceFormatPayload for catalog commercial packs",
+    description:
+      "Does not change default POST /invoices/:id/pdf. Used to inspect FRESA Format-N payload.",
+  })
+  @ApiQuery({
+    name: "format",
+    required: false,
+    example: "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA",
+  })
+  async formatPayload(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("format") format?: string,
+  ) {
+    const template_code =
+      format?.trim() || "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA";
+    const format_key =
+      template_code.includes("FORMAT_2") || template_code.includes("_2_")
+        ? "commercial.invoice_tax_india_2"
+        : template_code.includes("SUMMARY")
+          ? "commercial.invoice_summary_india"
+          : "commercial.invoice_tax_india_1";
+    const data = await this.invoiceFormatPayload.build(tenantId, id, {
+      format_key,
+      template_code,
+    });
+    return { success: true, data };
   }
 
   @Post(":id/pdf")

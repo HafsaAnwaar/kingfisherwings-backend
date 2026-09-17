@@ -4,6 +4,7 @@ import { stringify } from "csv-stringify/sync";
 import { ReportFormat } from "@prisma/client";
 import { PdfService } from "../../../shared/pdf/pdf.service";
 import { ReportDataset } from "../types/report.types";
+import { DOCUMENT_HTML_TEMPLATES } from "./document-templates";
 
 const LIST_PDF_TEMPLATE = `
 <!DOCTYPE html>
@@ -23,7 +24,7 @@ const LIST_PDF_TEMPLATE = `
 <body>
   <div class="brand">
     <h1>{{branding.company_name}}</h1>
-    {{#if branding.vat_number}}<div>VAT: {{branding.vat_number}}</div>{{/if}}
+    {{#if branding.vat_number}}<div>VAT/GSTIN: {{branding.vat_number}}</div>{{/if}}
     {{#if branding.address}}<div>{{branding.address}}</div>{{/if}}
   </div>
   <h1>{{title}}</h1>
@@ -54,15 +55,56 @@ export class ReportRendererService {
     format: ReportFormat,
     dataset: ReportDataset,
   ): Promise<{ buffer: Buffer; mimeType: string; extension: string }> {
-    if (format === ReportFormat.PDF) {
-      const html = Handlebars.compile(LIST_PDF_TEMPLATE)({
+    if (dataset.kind === "document") {
+      if (format !== ReportFormat.PDF) {
+        // Document shells are PDF-first; export a one-row summary for CSV/XLSX
+        const flat = this.flattenPayload(dataset.payload);
+        if (format === ReportFormat.CSV) {
+          const csv = stringify([flat], { header: true });
+          return {
+            buffer: Buffer.from(csv, "utf8"),
+            mimeType: "text/csv",
+            extension: "csv",
+          };
+        }
+        const ExcelJS = require("exceljs") as typeof import("exceljs");
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet(
+          dataset.title.slice(0, 31) || "Report",
+        );
+        sheet.addRow(Object.keys(flat));
+        sheet.addRow(Object.values(flat));
+        return {
+          buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
+          mimeType:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          extension: "xlsx",
+        };
+      }
+      const source =
+        DOCUMENT_HTML_TEMPLATES[dataset.template_key] ??
+        DOCUMENT_HTML_TEMPLATES["document.generic"];
+      const html = Handlebars.compile(source)({
         title: dataset.title,
         branding: dataset.branding,
         generated_at: dataset.generated_at,
-        rowCount: dataset.rows.length,
-        headers: dataset.columns.map((c) => c.label),
-        tableRows: dataset.rows.map((row) =>
-          dataset.columns.map((c) => String(row[c.key] ?? "")),
+        ...dataset.payload,
+      });
+      const buffer = await this.pdf.renderHtmlToPdf(html);
+      return { buffer, mimeType: "application/pdf", extension: "pdf" };
+    }
+
+    // List datasets (default / legacy without kind)
+    const list = dataset;
+    if (format === ReportFormat.PDF) {
+      const html = Handlebars.compile(LIST_PDF_TEMPLATE)({
+        title: list.title,
+        branding: list.branding,
+        generated_at: list.generated_at,
+        rowCount: list.rows.length,
+        headers: list.columns.map((c) => c.label),
+        tableRows: list.rows.map((row) =>
+          list.columns.map((c) => String(row[c.key] ?? "")),
         ),
       });
       const buffer = await this.pdf.renderHtmlToPdf(html);
@@ -70,9 +112,9 @@ export class ReportRendererService {
     }
 
     if (format === ReportFormat.CSV) {
-      const records = dataset.rows.map((row) => {
+      const records = list.rows.map((row) => {
         const out: Record<string, string> = {};
-        for (const col of dataset.columns) {
+        for (const col of list.columns) {
           out[col.label] = String(row[col.key] ?? "");
         }
         return out;
@@ -85,13 +127,12 @@ export class ReportRendererService {
       };
     }
 
-    // XLSX
     const ExcelJS = require("exceljs") as typeof import("exceljs");
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet(dataset.title.slice(0, 31) || "Report");
-    sheet.addRow(dataset.columns.map((c) => c.label));
-    for (const row of dataset.rows) {
-      sheet.addRow(dataset.columns.map((c) => row[c.key] ?? ""));
+    const sheet = workbook.addWorksheet(list.title.slice(0, 31) || "Report");
+    sheet.addRow(list.columns.map((c) => c.label));
+    for (const row of list.rows) {
+      sheet.addRow(list.columns.map((c) => row[c.key] ?? ""));
     }
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
     return {
@@ -100,5 +141,17 @@ export class ReportRendererService {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       extension: "xlsx",
     };
+  }
+
+  private flattenPayload(
+    payload: Record<string, unknown>,
+  ): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(payload)) {
+      if (v == null) out[k] = "";
+      else if (typeof v === "object") out[k] = JSON.stringify(v);
+      else out[k] = String(v);
+    }
+    return out;
   }
 }

@@ -15,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { ContainerTypesService } from "./container-types.service";
+import { FreightSpecsSeedService } from "../freight-specs-seed.service";
 import {
   CreateContainerTypeDto,
   UpdateContainerTypeDto,
@@ -32,11 +33,28 @@ import { MASTERS_PERMISSIONS } from "../constants/masters-permission.constants";
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("masters/container-types")
 export class ContainerTypesController {
-  constructor(private readonly service: ContainerTypesService) {}
+  constructor(
+    private readonly service: ContainerTypesService,
+    private readonly freightSpecs: FreightSpecsSeedService,
+  ) {}
+
+  @Post("seed-defaults")
+  @RequirePermissions(MASTERS_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary: "Seed container types with ISO specs for this tenant",
+    description:
+      "Upserts Standard/HC/Reefer/OT/FR/Platform/Chassis types with dimensions from Container Specification.",
+  })
+  seedDefaults(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+  ) {
+    return this.freightSpecs.seedContainerTypes(tenantId, actorId);
+  }
 
   @Get()
   @RequirePermissions(MASTERS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List container types" })
+  @ApiOperation({ summary: "List container types (includes full specs)" })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
     @Query() query: MasterQueryDto,

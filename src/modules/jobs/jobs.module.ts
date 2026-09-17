@@ -23,6 +23,11 @@ import { TransportModule } from "../transport/transport.module";
 import { VendorModule } from "../vendor/vendor.module";
 import { MastersModule } from "../masters/masters.module";
 import { JobsDashboardService } from "./jobs-dashboard.service";
+import { AirBookingFormService } from "./air-booking-form.service";
+import { AirWorkflowService } from "./air-workflow.service";
+import { AirWorkflowActionsService } from "./air-workflow-actions.service";
+import { AirUldRequestService } from "./air-uld-request.service";
+import { AirWorkflowController } from "./air-workflow.controller";
 
 @Module({
   imports: [
@@ -38,12 +43,21 @@ import { JobsDashboardService } from "./jobs-dashboard.service";
     VendorModule,
     MastersModule,
   ],
-  controllers: [JobsController, JobsSeaScansController, SeaKpiReportController],
+  controllers: [
+    JobsController,
+    JobsSeaScansController,
+    SeaKpiReportController,
+    AirWorkflowController,
+  ],
   providers: [
     JobsService,
     JobsDashboardService,
     SeaFclImportService,
     AirImportService,
+    AirBookingFormService,
+    AirWorkflowService,
+    AirWorkflowActionsService,
+    AirUldRequestService,
     SeaLclService,
     SeaLclImportService,
     LandService,
@@ -54,6 +68,8 @@ import { JobsDashboardService } from "./jobs-dashboard.service";
     JobsDashboardService,
     SeaFclImportService,
     AirImportService,
+    AirBookingFormService,
+    AirWorkflowService,
     SeaLclService,
     SeaLclImportService,
     LandService,

@@ -45,6 +45,7 @@ import { WarehousesController } from "./warehouses/warehouses.controller";
 import { WarehousesService } from "./warehouses/warehouses.service";
 
 import { WorldPortsSeedService } from "./world-ports-seed.service";
+import { FreightSpecsSeedService } from "./freight-specs-seed.service";
 
 import { ChargeCodesController } from "./charge-codes/charge-codes.controller";
 import { ChargeCodesService } from "./charge-codes/charge-codes.service";
@@ -117,6 +118,8 @@ import { OrganizationGroupsController } from "./organization-groups/organization
 import { OrganizationGroupsService } from "./organization-groups/organization-groups.service";
 import { CustomReportMastersController } from "./custom-reports/custom-reports.controller";
 import { CustomReportMastersService } from "./custom-reports/custom-reports.service";
+import { AirPalletTypesController } from "./air-pallet-types/air-pallet-types.controller";
+import { AirPalletTypesService } from "./air-pallet-types/air-pallet-types.service";
 
 const CONTROLLERS = [
   CountriesController,
@@ -164,6 +167,7 @@ const CONTROLLERS = [
   MastersNotificationsController,
   OrganizationGroupsController,
   CustomReportMastersController,
+  AirPalletTypesController,
 ];
 
 const SERVICES = [
@@ -190,6 +194,7 @@ const SERVICES = [
   DepartmentsService,
   DesignationsService,
   WorldPortsSeedService,
+  FreightSpecsSeedService,
   MasterLabelService,
   RegionsService,
   CitiesService,
@@ -212,6 +217,7 @@ const SERVICES = [
   WhatsappSmsHistoryService,
   OrganizationGroupsService,
   CustomReportMastersService,
+  AirPalletTypesService,
 ];
 
 @Module({

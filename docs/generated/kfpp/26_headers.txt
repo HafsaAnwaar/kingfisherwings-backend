@@ -1,0 +1,22 @@
+HTTP/1.1 200 OK
+Date: Tue, 15 Sep 2026 05:11:03 GMT
+Content-Type: application/json; charset=UTF-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Vary: Accept-Encoding
+x-powered-by: PHP/8.3.33
+x-robots-tag: noindex
+link: <https://kingfisherwingsgroup.com/wp-json/>; rel="https://api.w.org/"
+x-content-type-options: nosniff
+access-control-expose-headers: X-WP-Total, X-WP-TotalPages, Link
+access-control-allow-headers: Authorization, X-WP-Nonce, Content-Disposition, Content-MD5, Content-Type
+allow: GET
+platform: hostinger
+panel: hpanel
+content-security-policy: upgrade-insecure-requests
+Server: hcdn
+alt-svc: h3=":443"; ma=86400
+x-hcdn-request-id: 37634a282369e2ac6034d2c139c53f8c-nme-edge7
+x-hcdn-cache-status: DYNAMIC
+x-hcdn-upstream-rt: 0.467
+

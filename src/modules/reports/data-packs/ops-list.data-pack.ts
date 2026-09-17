@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { REPORT_ROW_LIMIT } from "../constants/reports.constants";
+import { loadReportBranding } from "../helpers/report-branding.helper";
 import { ReportDataset, ReportListRow } from "../types/report.types";
 
 type Params = Record<string, unknown>;
@@ -64,6 +65,14 @@ export class OpsListDataPackService {
           title: "Jobs List",
           columns: JOB_COLUMNS,
           rows: await this.jobsList(tenantId, parameters),
+          branding,
+          generated_at,
+        };
+      case "ops.list_generic":
+        return {
+          title: String(parameters.title ?? parameters.template_code ?? "Operations List"),
+          columns: JOB_COLUMNS,
+          rows: await this.jobsListOptionalDates(tenantId, parameters),
           branding,
           generated_at,
         };
@@ -156,24 +165,36 @@ export class OpsListDataPackService {
   }
 
   private async loadBranding(tenantId: string) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: {
-        display_name: true,
-        name: true,
-        logo_url: true,
-        address: true,
-        vat_number: true,
-        cr_number: true,
-      },
+    return loadReportBranding(this.prisma, tenantId);
+  }
+
+  private async jobsListOptionalDates(tenantId: string, params: Params) {
+    const from = params.date_from ? new Date(String(params.date_from)) : undefined;
+    const to = params.date_to ? new Date(String(params.date_to)) : undefined;
+    const jobs = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const where: Prisma.JobWhereInput = {
+        tenant_id: tenantId,
+        deleted_at: null,
+        ...(from || to
+          ? {
+              created_at: {
+                ...(from ? { gte: from } : {}),
+                ...(to ? { lte: to } : {}),
+              },
+            }
+          : {}),
+        ...(params.branch_id ? { branch_id: String(params.branch_id) } : {}),
+        ...(params.status ? { status: params.status as JobStatus } : {}),
+        ...(params.job_type ? { job_type: params.job_type as JobType } : {}),
+      };
+      return tx.job.findMany({
+        where,
+        take: REPORT_ROW_LIMIT,
+        orderBy: { created_at: "desc" },
+        select: this.jobSelect,
+      });
     });
-    return {
-      company_name: tenant?.display_name || tenant?.name || "FreightSaas",
-      logo_url: tenant?.logo_url ?? null,
-      address: tenant?.address ?? null,
-      vat_number: tenant?.vat_number ?? null,
-      cr_number: tenant?.cr_number ?? null,
-    };
+    return this.enrichJobs(tenantId, jobs);
   }
 
   private requireDates(params: Params, required: boolean) {

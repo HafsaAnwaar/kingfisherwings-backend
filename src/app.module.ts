@@ -21,6 +21,7 @@ import { QuotationsModule } from "./modules/quotations/quotations.module";
 import { JobsModule } from "./modules/jobs/jobs.module";
 import { AwbStockModule } from "./modules/awb-stock/awb-stock.module";
 import { SearchModule } from "./modules/search/search.module";
+import { ToolsModule } from "./modules/tools/tools.module";
 import { SchedulerModule } from "./modules/scheduler/scheduler.module";
 import { FilesModule } from "./files/files.module";
 import { InvoicesModule } from "./modules/invoices/invoices.module";
@@ -75,6 +76,7 @@ import { LocaleModule } from "./common/locale/locale.module";
     JobsModule,
     AwbStockModule,
     SearchModule,
+    ToolsModule,
     SchedulerModule,
     FilesModule,
     InvoicesModule,

@@ -2,7 +2,7 @@
 
 > **Living document.** Record *why* we chose a library, pattern, or product rule — not just *what* shipped.  
 > Update this file whenever a decision is locked, reversed, or deferred. Do **not** duplicate API catalogs here; see [flow.md](./flow.md) for execution paths.  
-> **Current implementation horizon:** Weeks 0–28 **backend complete**. Frontend UAT and mobile (Ch.26) remain separate programs.
+> **Current implementation horizon:** Weeks 0–28 **backend complete**, plus **NVOCC Sea Export workflow + booking/specs alignment** (see § Week 20 / workflow alignment). Frontend UAT and mobile (Ch.26) remain separate programs.
 
 **Product:** KingFisher Wings ERP (package `fresa-gold-backend`)  
 **Spec sources:** Fresa Gold Complete Feature Specification · 28-Week Plan · Ch.1–28  
@@ -332,6 +332,18 @@ Use Nest `HttpException` subclasses. Prisma `P2002` → `ConflictException`. Do 
 
 `NotificationsModule` / `NotificationEmitterService` must not import Portal, Vendor, Jobs, or Invoices modules (avoids Nest circular graphs). Domain modules call the emitter. New types are added to `NotificationType` enum.
 
+### 2.10 Fresa-parity unit converter (tools)
+
+**SHIPPED**
+
+Freight calculator panels from Fresa Online Tracking live in `src/common/utils/fresa-converter.util.ts` and are exposed via `ToolsModule` (`POST /tools/converter/*`) plus identical routes under `/portal/tools/converter` and `/vendor/tools/converter`. **Volume Weight in the converter** uses **CBM × 166.667** (Fresa display). **Booking / quotation chargeable weight** in `cargo-dimensions.util.ts` keeps default factor **167** until product explicitly changes commercial rounding.
+
+### 2.10a FRESA report catalog packs
+
+**SHIPPED (additive)**
+
+Staff catalog under `/reports/*` uses Puppeteer packs (`ops.*`, `sea.*`, `air.*`, `commercial.*`, `finance.*`, `wms.*`, `quotation.*`). Import auto-maps template codes when a pack exists; activate rejects `pending.*`. **Default** `POST /invoices/:id/pdf` and `POST /quotations/:id/pdf` stay unchanged — Format-N invoices (e.g. `commercial.invoice_tax_india_1`) are catalog-only. GST line splits may map single VAT into IGST until schema supports SGST/CGST/IGST. See [REPORT_CATALOG.md](./REPORT_CATALOG.md).
+
 ### 2.10 Repository pattern only where the aggregate is huge
 
 **LOCKED**
@@ -568,6 +580,42 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 | Voyage P&L | **SHIPPED** | `GET /nvocc/voyages/:id/pnl` aggregates booking charges, job charges, and `voyage.carrier_cost`. |
 | NVOCC reporting | **SHIPPED** | `GET /nvocc/voyages/utilization` + `GET /nvocc/reports/trade-lane-profitability` (operational, distinct from CRM trade_lane). |
 
+### NVOCC Sea Export department workflow + booking/specs (post–Week 28 alignment) — SHIPPED
+
+Product chart is **NVOCC Sea Export** only. Sea FCL Export stays a parallel carrier path.
+
+| Topic | Status | Decision |
+|-------|--------|----------|
+| NVOCC owns CS→Sales→Ops→Docs→Accounts→MGMT handoff | **LOCKED · SHIPPED** | `NvoccWorkflowStage` on `NvoccBooking` / `NvoccJobDetail`. Stage ownership via **role→department map** (`nvocc-workflow.constants.ts`). Wrong dept → **403**. Tenant Admin / Branch Manager may `admin_override` + `stage_override_reason` (audit). |
+| Sea FCL Export does **not** get this stage machine | **LOCKED** | FCL keeps carrier booking refs / milestones. Shares **container type specs** and BL draft/original *patterns* only — no CRO, no NVOCC stage gates. |
+| Negotiation / quote send | **LOCKED · unchanged** | Portal accept-reject / staff revise-and-send stay as today. Admin keeps send quote + send invoice. |
+| Sales invoice create/send | **SHIPPED** | `SALES_MANAGER` and `SALES_EXECUTIVE` get `invoices.view` / `create` / `send`. Admin + Finance rights **not** removed. Existing tenants: `POST /tenants/:id/sync-permissions`. |
+| Kingfisher booking form | **SHIPPED** | `NvoccBookingForm` + parties (Shipper/Consignee/Notify). Ops `PUT /nvocc/bookings/:id/booking-form` after customer accept; mandatory Excel fields validated. |
+| CRO / container request | **SHIPPED** | Manual staff form (`NvoccContainerRequest` + lines) — **not** DP World API. Only auto field: container numbers (Ops allocate via tenant sequence). Issue → portal visible + `DocumentType.CRO` / `CONTAINER_REQUEST`. |
+| Portal customer actions | **SHIPPED** | View CRO/containers; confirm pick → `PICKED`; confirm port gate token; request draft BL. |
+| Original HBL payment gate | **LOCKED · SHIPPED** | Accounts `confirm-payment` sets `payment_confirmed_at`. Gated `hbl-original` / `hbl-original-gated` blocked until payment + draft issued. |
+| Air pallet + air booking form | **LOCKED · SHIPPED** (same initiative) | `AirPalletType` master + `AirBookingForm` on air jobs. Air does **not** use CRO/pick. Specs always returned with pallet type. Seed: `POST /masters/air-pallet-types/seed-defaults` (+ container specs seed). |
+| Container type dimensions | **SHIPPED** | `ContainerType` inside L/W/H, door, CBM/Cft, tare, max cargo. Seed from Container Specification PDF catalog. |
+| Finer `nvocc.cs` / `nvocc.ops` permission codes | **DEFERRED** | Role→stage map first; add matrix codes only if FE needs them. |
+
+Stages (order):  
+`QUOTE_REQUESTED` → … → `CLOSED` (see [flow.md](./flow.md) § Air Freight department workflow).
+
+---
+
+### Air Freight department workflow (`AIR_EXPORT` + `AIR_IMPORT`) — SHIPPED
+
+| Topic | Status | Decision |
+|-------|--------|----------|
+| Scope | **LOCKED · SHIPPED** | Both air export and air import; **not** Sea FCL or NVOCC CRO. |
+| Stage engine | **SHIPPED** | Shared role→department guard in `src/common/workflow/`; **`AirWorkflowStage`** on `AirJobDetail`. |
+| Export ops | **SHIPPED** | Unit Load Device / pallet request + allocate; warehouse drop-off; build-up; draft/final **House Air Waybill**; **Master Air Waybill** not payment-gated. |
+| Import ops | **SHIPPED** | Master Air Waybill received → Pre–Cargo Arrival Notice / Cargo Arrival Notice → payment → **Delivery Order** → Proof of Delivery. |
+| Portal | **SHIPPED** | ULD list, confirm drop-off, request draft House Air Waybill, request Delivery Order. No port gate token. |
+| Negotiation / Sales invoice | **LOCKED · unchanged** | Same as NVOCC alignment. |
+
+---
+
 ### Week 21 — Documentation console + EDI/customs (SHIPPED)
 
 | Topic | Status | Decision |
@@ -637,6 +685,10 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 | Staff vs customer vs vendor | Three JWT principals | Locked rules |
 | Quotes | One pipeline | Week 3, 14 |
 | Jobs | One `Job` + mode details | Weeks 4–9, 15, 18–19 |
+| NVOCC vs Sea FCL | NVOCC = dept stage machine + CRO; FCL = carrier path (shared container specs only) | NVOCC workflow alignment |
+| NVOCC stages | Role→dept ownership; Admin override audit; payment gates original HBL | NVOCC workflow alignment |
+| Air freight stages | Export HAWB + import Delivery Order payment gates; ULD request on export | Air workflow alignment |
+| Sales invoices | Sales Manager/Executive create+send; Admin retained | NVOCC workflow alignment |
 | Money | Invoice post + GL auto-post; portals never post; WMS storage = DRAFT only | Weeks 10–14, 17 |
 | PDF | Puppeteer + queue | §1.10–1.11 |
 | Email | Nodemailer + EmailLog | §1.12 |
@@ -672,6 +724,7 @@ Pen test: run OWASP ZAP against staging before production sign-off; remediate P1
 ## Related docs
 
 - [flow.md](./flow.md) — entry points and execution
+- [SWAGGER_COMPLETE_TESTING_GUIDE.md](./SWAGGER_COMPLETE_TESTING_GUIDE.md) — Part G2 NVOCC workflow smoke
 - [backend-overview.md](./backend-overview.md) — older overview (modules list may lag)
 - [authentication-flow.md](./authentication-flow.md) · [authorization-flow.md](./authorization-flow.md)
 - [backend-patterns.md](./backend-patterns.md) · [module-template.md](./module-template.md)

@@ -39,6 +39,11 @@ export function toPortalDocumentType(
       return "POD";
     case "PRE_ALERT":
       return "PRE_ALERT";
+    case "CRO":
+    case "CONTAINER_REQUEST":
+      return "CRO";
+    case "ULD_REQUEST":
+      return "ULD_REQUEST";
     default:
       return "OTHER";
   }

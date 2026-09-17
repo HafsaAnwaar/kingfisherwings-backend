@@ -22,6 +22,7 @@ import { UpdateTenantDto } from "./dto/update-tenant.dto";
 import { TenantQueryDto } from "./dto/tenant-query.dto";
 import { CountryLocaleService } from "../../common/locale/country-locale.service";
 import { WorldPortsSeedService } from "../masters/world-ports-seed.service";
+import { FreightSpecsSeedService } from "../masters/freight-specs-seed.service";
 
 const OWNER_ROLE_CODE = "TENANT_ADMIN";
 
@@ -31,6 +32,7 @@ export class TenantsService {
     private readonly prisma: PrismaService,
     private readonly locale: CountryLocaleService,
     private readonly worldPorts: WorldPortsSeedService,
+    private readonly freightSpecs: FreightSpecsSeedService,
   ) {}
 
   // =====================================================
@@ -225,6 +227,16 @@ export class TenantsService {
         // eslint-disable-next-line no-console
         console.error(
           `World ports seed failed for tenant ${result.tenant.id}:`,
+          err,
+        );
+      });
+
+    void this.freightSpecs
+      .seedAllForTenant(result.tenant.id, createdBySuperAdminId)
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(
+          `Freight specs seed failed for tenant ${result.tenant.id}:`,
           err,
         );
       });

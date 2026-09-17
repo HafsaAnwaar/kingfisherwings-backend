@@ -1,0 +1,228 @@
+[
+  {
+    "name": "01_no_auth",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 6011,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "02_bad_key_header",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 2,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "03_bad_key_query",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes?api_key=invalid-key-000",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "04_list_header",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "05_list_query",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes?api_key=***REDACTED***",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "06_list_page_per_page",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes?page=1&per_page=5",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "07_list_status_new",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes?status=new",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "08_list_status_pending",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes?status=pending",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "09_get_missing_id",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes/99999999",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "10_get_invalid_id",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes/not-an-id",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "11_post_collection",
+    "method": "POST",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "12_put_collection",
+    "method": "PUT",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "13_delete_collection",
+    "method": "DELETE",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 1,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "14_options_cors",
+    "method": "OPTIONS",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 1,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "15_wp_json_root",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "16_kfpp_namespace",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "17_discover_sample_id",
+    "method": "META",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 204,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": {
+      "sampleId": null,
+      "sampleStatus": null,
+      "list_shape": {
+        "type": "null"
+      }
+    },
+    "error": null
+  },
+  {
+    "name": "18_patch_missing_id",
+    "method": "PATCH",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes/99999999",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "23_alt_bearer",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  },
+  {
+    "name": "24_alt_header_lower",
+    "method": "GET",
+    "url": "https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes",
+    "status": 0,
+    "elapsed_ms": 0,
+    "headers": {},
+    "body_raw": "",
+    "body_json": null,
+    "error": "<urlopen error [Errno 11001] getaddrinfo failed>"
+  }
+]
