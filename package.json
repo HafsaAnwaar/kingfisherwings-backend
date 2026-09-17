@@ -33,6 +33,7 @@
     "prisma:validate": "prisma validate",
     "seed:world-ports:build": "node scripts/build-world-ports-seed.cjs",
     "seed:world-ports": "node scripts/seed-world-ports-all-tenants.cjs",
+    "seed:freight-specs": "node scripts/seed-freight-specs-all-tenants.cjs",
     "email:gmail-oauth": "node scripts/gmail-oauth-setup.cjs"
   },
   "dependencies": {

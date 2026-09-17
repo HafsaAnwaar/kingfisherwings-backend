@@ -5,6 +5,7 @@ import { QUOTATIONS_PERMISSION_CONSTANTS } from "../../modules/quotations/consta
 import { JOBS_PERMISSION_CONSTANTS } from "../../modules/jobs/constants/jobs-permission.constants";
 import { AWB_STOCK_PERMISSION_CONSTANTS } from "../../modules/awb-stock/constants/awb-stock-permission.constants";
 import { SEARCH_PERMISSION_CONSTANTS } from "../../modules/search/constants/search-permission.constants";
+import { TOOLS_PERMISSION_CONSTANTS } from "../../modules/tools/constants/tools-permission.constants";
 import { INVOICES_PERMISSION_CONSTANTS } from "../../modules/invoices/constants/invoices-permission.constants";
 import { GL_PERMISSION_CONSTANTS } from "../../modules/gl/constants/gl-permission.constants";
 import { PORTAL_PERMISSION_CONSTANTS } from "../../modules/portal/constants/portal-permission.constants";
@@ -70,6 +71,11 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: SEARCH_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${SEARCH_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(TOOLS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: TOOLS_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${TOOLS_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
   ...Object.values(INVOICES_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
     module: INVOICES_PERMISSION_CONSTANTS.MODULE,

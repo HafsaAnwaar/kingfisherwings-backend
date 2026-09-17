@@ -11,6 +11,8 @@ import { ReportTemplatesQueryDto } from "./dto/report-templates-query.dto";
 import { ReportParamDef } from "./types/report.types";
 import { OPS_LIST_PHASE1_SEED } from "./seed/ops-list-phase1.seed";
 import { SEA_DOCS_PHASE2_SEED } from "./seed/sea-docs-phase2.seed";
+import { PRIORITY_PACKS_SEED } from "./seed/priority-packs.seed";
+import { resolveRendererKeyForCode } from "./constants/renderer-bind-map";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -18,7 +20,11 @@ const UUID_RE =
 /** Donor pack seed used to copy parameters_schema when binding an empty stub. */
 const RENDERER_DONOR_SCHEMA: Record<string, ReportParamDef[]> = (() => {
   const map: Record<string, ReportParamDef[]> = {};
-  for (const row of [...OPS_LIST_PHASE1_SEED, ...SEA_DOCS_PHASE2_SEED]) {
+  for (const row of [
+    ...OPS_LIST_PHASE1_SEED,
+    ...SEA_DOCS_PHASE2_SEED,
+    ...PRIORITY_PACKS_SEED,
+  ]) {
     map[row.renderer_key] = row.parameters_schema;
   }
   return map;
@@ -143,8 +149,15 @@ export class ReportsTemplatesService {
     }
 
     if (template.renderer_key.startsWith("pending.")) {
+      const mapped = resolveRendererKeyForCode(code);
+      if (mapped && this.dataPacks.isImplemented(mapped)) {
+        return this.bindRenderer(code, {
+          renderer_key: mapped,
+          activate: true,
+        });
+      }
       throw new BadRequestException(
-        `Renderer not implemented for "${code}" (renderer_key=${template.renderer_key}). Bind an implemented pack first: POST /reports/templates/${code}/bind-renderer with { "renderer_key": "ops.…" } (see GET /reports/templates/renderers), or pass renderer_key on this activate body.`,
+        `Renderer not implemented for "${code}" (renderer_key=${template.renderer_key}). Bind an implemented pack first: POST /reports/templates/${code}/bind-renderer with { "renderer_key": "…" } (see GET /reports/templates/renderers), or pass renderer_key on this activate body.`,
       );
     }
 

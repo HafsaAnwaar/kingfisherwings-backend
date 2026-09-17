@@ -1,6 +1,6 @@
 # KingFisher Wings / Fresa Gold — System Flows
 
-> **Living document.** Entry points, request pipeline, and domain execution paths as of **Weeks 0–14**.  
+> **Living document.** Entry points, request pipeline, and domain execution paths as of **Weeks 0–28 + NVOCC Sea Export workflow alignment**.  
 > Product *why* lives in [decision.md](./decision.md). This file answers *how a request runs*.
 
 ---
@@ -63,8 +63,11 @@ There is no separate worker dyno required for crons (they run in the API). Docum
 | Organization | `/organization/profile`, `/organization/bank-accounts`, `/organization/number-formats` |
 | Quotations | `/quotations`, `/quotations/tariffs`, `/quotations/zip-distances` |
 | Jobs | `/jobs` |
+| NVOCC | `/nvocc/*` (voyages, enquiries, bookings, tariffs, workflow, docs, reports) |
 | AWB stock | `/awb-stock` |
 | Search | `/search` |
+| Tools (converter) | `/tools/converter/*` (staff); `/portal/tools/converter/*`; `/vendor/tools/converter/*` |
+| Reports catalog | `/reports/templates*`, `/reports/generate`, `/reports/jobs/*` (see [REPORT_CATALOG.md](./REPORT_CATALOG.md)) |
 | Files | `/files` (stored PDF/upload download) |
 | Invoices | `/invoices`, `/credit-notes`, `/debit-notes`, `/purchase-invoices`, `/payment-requests` |
 | GL | `/gl`, `/gl/accounts`, `/gl/vouchers`, `/gl/payments`, `/gl/cheques`, `/gl/reports`, `/gl/mis`, `/gl/saved-reports` |
@@ -269,6 +272,32 @@ GET /search?q=
 ```
 
 Public track is **not** search — see §5.8.
+
+### 5.4a Tools — Fresa unit converter
+
+Stateless calculators (no DB). Staff needs `tools.use`; customer and vendor portals need only portal/vendor JWT.
+
+```
+POST /tools/converter/length | cbm | weight | liquid | volume
+POST /portal/tools/converter/{same five}
+POST /vendor/tools/converter/{same five}
+  → { success, data } — CBM panel uses Volume Weight = CBM × 166.667 (Fresa display; booking chargeable weight still uses factor 167 elsewhere)
+```
+
+Existing tenants: `POST /tenants/:id/sync-permissions` after deploy to seed `tools.use`.
+
+### 5.4b Reports catalog (FRESA packs)
+
+Additive Puppeteer catalog — does **not** replace `POST /invoices/:id/pdf` or `POST /quotations/:id/pdf`.
+
+```
+GET  /reports/templates/renderers
+POST /reports/templates/:code/bind-renderer | activate
+POST /reports/generate  → poll GET /reports/jobs/:id → download
+GET  /invoices/:id/format-payload?format=INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA  (debug)
+```
+
+Format-1 pack: `commercial.invoice_tax_india_1`. Full detail: [REPORT_CATALOG.md](./REPORT_CATALOG.md).
 
 ### 5.5 Invoicing & AP/AR
 
@@ -650,6 +679,99 @@ Carrier-role HBL PDFs use `NvoccJobDetail` + booking + voyage (not `sea_fcl_deta
 
 Load-list cargo status transitions mark job milestones; `mark-sailed` marks `VESSEL_SAILED` on voyage jobs.
 
+### NVOCC Sea Export — department workflow (SHIPPED)
+
+Canonical handoff for **`NVOCC_EXPORT`** only. Sea FCL Export does **not** use this stage machine (see [decision.md](./decision.md)).
+
+```
+Portal quote request
+  → CS: POST /nvocc/bookings/:id/cs-triage          (grant portal_access → CS_TRIAGED)
+  → Sales/Admin: send quote (existing /quotations/*) + POST .../mark-quote-sent
+  → Portal negotiate / accept (unchanged §11)
+  → Ops: PUT /nvocc/bookings/:id/booking-form       → BOOKING_FORM_COMPLETE
+  → Sales/Admin: create/send invoice + POST .../send-invoice → INVOICE_SENT
+  → CS: POST /nvocc/jobs/:id/container-requests
+       POST .../container-requests/:id/issue        → CRO_ISSUED (portal visible)
+  → Ops: POST .../container-requests/:id/allocate   → CONTAINER_ALLOCATED (auto #s)
+  → Portal: confirm-pick → PICKED
+  → Ops: POST /nvocc/jobs/:id/stage/loading         → LOADING
+  → Portal: port-token/confirm → PORT_TOKEN
+  → Portal: request-draft-bl
+  → Docs: POST .../documents/hbl-draft-gated        → DRAFT_BL_ISSUED
+  → Accounts: POST .../accounts/confirm-payment     → PAYMENT_RECEIVED
+  → Docs: POST .../documents/hbl-original-gated     → ORIGINAL_BL_ISSUED
+       (400 if payment_confirmed_at null)
+  → MGMT: POST .../close-report                     → CLOSED + closure pack
+```
+
+Wrong department advancing a stage → **403**. Tenant Admin override: body `{ "admin_override": true, "stage_override_reason": "…" }`.
+
+#### Endpoints built in this alignment
+
+**Staff — NVOCC workflow (`nvocc.view` / `nvocc.manage`)**
+
+| Method | Path | Owner |
+|--------|------|-------|
+| `POST` | `/nvocc/bookings/:id/cs-triage` | CS |
+| `POST` | `/nvocc/bookings/:id/mark-quote-sent` | Sales / Admin |
+| `GET` | `/nvocc/bookings/:id/booking-form` | any with view |
+| `PUT` | `/nvocc/bookings/:id/booking-form` | Ops |
+| `POST` | `/nvocc/bookings/:id/send-invoice` | Sales / Admin |
+| `GET` | `/nvocc/jobs/:id/container-requests` | any with view |
+| `POST` | `/nvocc/jobs/:id/container-requests` | CS |
+| `POST` | `/nvocc/jobs/:jobId/container-requests/:requestId/issue` | CS |
+| `POST` | `/nvocc/jobs/:jobId/container-requests/:requestId/allocate` | Ops |
+| `POST` | `/nvocc/jobs/:id/stage/loading` | Ops |
+| `POST` | `/nvocc/jobs/:id/accounts/confirm-payment` | Accounts |
+| `POST` | `/nvocc/jobs/:id/documents/hbl-draft-gated` | Docs |
+| `POST` | `/nvocc/jobs/:id/documents/hbl-original-gated` | Docs (+ payment gate) |
+| `POST` | `/nvocc/jobs/:id/close-report` | MGMT |
+
+Existing NVOCC document routes (`/nvocc/jobs/:id/documents/hbl-draft`, `hbl-original`, …) remain; original HBL also enforces `payment_confirmed_at` in the documents service.
+
+**Portal — customer (`/portal/shipments`)**
+
+| Method | Path |
+|--------|------|
+| `GET` | `/portal/shipments/:id/container-requests` |
+| `POST` | `/portal/shipments/:id/containers/:lineId/confirm-pick` |
+| `POST` | `/portal/shipments/:id/port-token/confirm` |
+| `POST` | `/portal/shipments/:id/request-draft-bl` |
+
+**Masters — container + air pallet specs**
+
+| Method | Path |
+|--------|------|
+| `POST` | `/masters/container-types/seed-defaults` |
+| `GET` | `/masters/container-types` (includes dimension specs) |
+| `POST` | `/masters/air-pallet-types/seed-defaults` |
+| `GET` | `/masters/air-pallet-types` |
+| `GET` | `/masters/air-pallet-types/:id` |
+| `POST` | `/masters/air-pallet-types` |
+| `PATCH` | `/masters/air-pallet-types/:id` |
+| `DELETE` | `/masters/air-pallet-types/:id` |
+
+**Air booking form (not CRO; air jobs only)**
+
+| Method | Path |
+|--------|------|
+| `GET` | `/jobs/:id/air-booking-form` |
+| `PUT` | `/jobs/:id/air-booking-form` |
+
+CLI backfill: `npm run seed:freight-specs` (or `TENANT_ID=<uuid> npm run seed:freight-specs`). New tenants auto-seed container + air pallet catalogs after create.
+
+Smoke runbook: [SWAGGER_COMPLETE_TESTING_GUIDE.md](./SWAGGER_COMPLETE_TESTING_GUIDE.md) § Part G2 (NVOCC) and G3 (Air).
+
+### Air Freight department workflow (SHIPPED)
+
+Canonical handoff for **`AIR_EXPORT`** and **`AIR_IMPORT`**. See [AIR_FREIGHT_WORKFLOW_PLAN.md](./AIR_FREIGHT_WORKFLOW_PLAN.md).
+
+**Export:** quote → CS triage → Sales quote → accept → Ops air booking form → invoice → Unit Load Device request/allocate → portal drop-off → build-up → draft House Air Waybill → payment → final House Air Waybill → Management close (Master Air Waybill parallel via `/jobs/:id/air/stage/mawb-issued`).
+
+**Import:** same commercial prefix → Master Air Waybill received → Pre–Cargo Arrival Notice / Cargo Arrival Notice → payment → Delivery Order → Proof of Delivery → Management close.
+
+Staff routes under **`/jobs/:id/air/*`** and gated document posts (`hawb-draft-gated`, `hawb-final-gated`, `pre-can-gated`, `can-gated`, `delivery-order-gated`). Portal: `GET .../uld-requests`, `POST .../uld-lines/:lineId/confirm-dropoff`, `POST .../request-draft-hawb`, `POST .../request-delivery-order`.
+
 ### Week 21 — Documentation console + EDI/customs
 
 ```
@@ -727,7 +849,8 @@ Migration: `20260831120000_week23_28_closure` (party EDI, webhook deliveries, se
 | Masters | `masters.*` | Most staff view |
 | Parties | `parties.*`, `parties.manage_credit` | Sales create; Finance credit |
 | Quotes / jobs | `quotations.*`, `jobs.*`, `jobs.view_gp` | Sales vs Ops; GP hidden from many |
-| Invoices / GL | `invoices.*`, `gl.*`, `gl.view_reports` | Finance, Tenant Admin |
+| Invoices / GL | `invoices.*`, `gl.*`, `gl.view_reports` | Finance, Tenant Admin; **Sales Manager/Executive** also `invoices.view/create/send` |
+| NVOCC | `nvocc.view`, `nvocc.manage` | Ops + Sales + Docs + CS as cataloged; **stage owners** enforced in workflow service beyond RBAC |
 | Portal admin | `portal.manage_users`, `portal.manage_disputes`, … | Tenant Admin, CS, Branch, Sales (subset) |
 | Vendor admin | `vendor.manage_users`, `vendor.manage_permissions`, `vendor.manage_disputes` | Tenant Admin, Finance Manager |
 | CRM | `crm.view/create/update/delete` | Tenant Admin, Sales Manager, Sales Executive |
@@ -796,6 +919,7 @@ PATCH /payment-proofs/:id/acknowledge|reject
 ## Related
 
 - [decision.md](./decision.md)
+- [SWAGGER_COMPLETE_TESTING_GUIDE.md](./SWAGGER_COMPLETE_TESTING_GUIDE.md) (Part G2 NVOCC smoke)
 - [authentication-flow.md](./authentication-flow.md) (staff-era detail; portal/vendor added here)
 - [authorization-flow.md](./authorization-flow.md)
 - [WEEK13_CUSTOMER_PORTAL_PLAN.md](./WEEK13_CUSTOMER_PORTAL_PLAN.md)

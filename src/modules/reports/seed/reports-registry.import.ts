@@ -10,8 +10,18 @@ import {
   normalizeFormats,
   RegistryEntry,
 } from "./fresa-registry.util";
+import { resolveRendererKeyForCode } from "../constants/renderer-bind-map";
+import { IMPLEMENTED_RENDERER_KEYS } from "../data-packs/report-data-pack.registry";
 
 const logger = new Logger("ReportsRegistryImport");
+
+const IMPLEMENTED = new Set<string>(IMPLEMENTED_RENDERER_KEYS);
+
+function resolvedRendererKey(code: string): string {
+  const mapped = resolveRendererKeyForCode(code);
+  if (mapped && IMPLEMENTED.has(mapped)) return mapped;
+  return `pending.${code}`;
+}
 
 /**
  * Codes owned by Phase packs — registry import must not downgrade
@@ -102,7 +112,7 @@ export async function importFresaRegistry(
           description,
           is_active: false,
           parameters_schema,
-          renderer_key: `pending.${code}`,
+          renderer_key: resolvedRendererKey(code),
           sort_order,
         },
       });
@@ -124,6 +134,11 @@ export async function importFresaRegistry(
     }
 
     // Inactive registry rows: refresh metadata but never auto-activate
+    // and never overwrite an already-bound real pack key with pending.*
+    const nextKey = existing.renderer_key.startsWith("pending.")
+      ? resolvedRendererKey(code)
+      : existing.renderer_key;
+
     await prisma.reportTemplate.update({
       where: { code },
       data: {
@@ -136,7 +151,7 @@ export async function importFresaRegistry(
         ...(existing.renderer_key.startsWith("pending.")
           ? {
               parameters_schema,
-              renderer_key: `pending.${code}`,
+              renderer_key: nextKey,
               sort_order,
             }
           : {}),

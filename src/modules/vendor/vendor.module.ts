@@ -34,9 +34,12 @@ import { JobOffersController } from "./job-offers.controller";
 import { VendorDashboardService } from "./vendor-dashboard.service";
 import { VendorDashboardController } from "./vendor-dashboard.controller";
 import { VendorDocumentShareService } from "./vendor-document-share.service";
+import { VendorConverterController } from "./vendor-converter.controller";
+import { ToolsModule } from "../tools/tools.module";
 
 @Module({
   imports: [
+    ToolsModule,
     PrismaModule,
     MastersModule,
     EmailModule,
@@ -60,6 +63,7 @@ import { VendorDocumentShareService } from "./vendor-document-share.service";
     VendorLookupsController,
     JobOffersController,
     VendorDashboardController,
+    VendorConverterController,
   ],
   providers: [
     VendorService,

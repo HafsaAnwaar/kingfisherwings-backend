@@ -101,6 +101,20 @@ export class NvoccDocumentsService {
     dto: GenerateJobDocumentDto,
     actorId?: string,
   ) {
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await tx.nvoccJobDetail.findFirst({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+      if (detail && !detail.payment_confirmed_at) {
+        throw new BadRequestException(
+          "Accounts must confirm payment before original BL can be issued.",
+        );
+      }
+      if (detail && !detail.draft_bl_issued_at && !detail.draft_bl_requested_at) {
+        // Soft: prefer draft issued; allow if legacy job without workflow fields
+      }
+    });
+
     const result = await this.generateDocument(
       tenantId,
       jobId,

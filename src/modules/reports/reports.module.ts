@@ -13,6 +13,13 @@ import { REPORT_GENERATION_QUEUE } from "../../shared/queue/queue.constants";
 import { createNoopQueue } from "../../shared/queue/noop-queue";
 import { OpsListDataPackService } from "./data-packs/ops-list.data-pack";
 import { SeaDocsDataPackService } from "./data-packs/sea-docs.data-pack";
+import { SeaDocumentDataPackService } from "./data-packs/sea-document.data-pack";
+import { CommercialDataPackService } from "./data-packs/commercial/commercial.data-pack";
+import { InvoiceFormatPayloadService } from "./data-packs/commercial/invoice-format-payload.service";
+import { AirDocsDataPackService } from "./data-packs/air-docs.data-pack";
+import { QuotationDataPackService } from "./data-packs/quotation.data-pack";
+import { FinanceDataPackService } from "./data-packs/finance.data-pack";
+import { WmsDataPackService } from "./data-packs/wms.data-pack";
 import { ReportDataPackRegistry } from "./data-packs/report-data-pack.registry";
 import { ReportRendererService } from "./renderers/report-renderer.service";
 import { ReportGenerationProcessor } from "./report-generation.processor";
@@ -67,10 +74,18 @@ const queueProviders = redisEnabled
     ReportsJobsService,
     OpsListDataPackService,
     SeaDocsDataPackService,
+    SeaDocumentDataPackService,
+    InvoiceFormatPayloadService,
+    CommercialDataPackService,
+    AirDocsDataPackService,
+    QuotationDataPackService,
+    FinanceDataPackService,
+    WmsDataPackService,
     ReportDataPackRegistry,
     ReportRendererService,
     ReportsSeedService,
     ...queueProviders,
   ],
+  exports: [InvoiceFormatPayloadService, ReportDataPackRegistry],
 })
 export class ReportsModule {}

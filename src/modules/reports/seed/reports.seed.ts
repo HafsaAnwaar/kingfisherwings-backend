@@ -8,6 +8,7 @@ import {
 import { PrismaService } from "../../../prisma/prisma.service";
 import { OPS_LIST_PHASE1_SEED } from "./ops-list-phase1.seed";
 import { SEA_DOCS_PHASE2_SEED } from "./sea-docs-phase2.seed";
+import { PRIORITY_PACKS_SEED } from "./priority-packs.seed";
 import {
   collectProtectedCodes,
   importFresaRegistry,
@@ -25,10 +26,12 @@ export class ReportsSeedService implements OnModuleInit {
       await this.upsertPackSeeds([
         ...OPS_LIST_PHASE1_SEED,
         ...SEA_DOCS_PHASE2_SEED,
+        ...PRIORITY_PACKS_SEED,
       ]);
       const protectedCodes = collectProtectedCodes([
         ...OPS_LIST_PHASE1_SEED.map((r) => r.code),
         ...SEA_DOCS_PHASE2_SEED.map((r) => r.code),
+        ...PRIORITY_PACKS_SEED.map((r) => r.code),
       ]);
       await importFresaRegistry(this.prisma, { protectedCodes });
     } catch (err) {
@@ -74,7 +77,9 @@ export class ReportsSeedService implements OnModuleInit {
           contexts: row.contexts as ReportContext[],
           formats: row.formats as ReportFormat[],
           description: row.description ?? null,
-          is_active: row.is_active,
+          // Prefer seed active flag only for phase packs that are meant active;
+          // priority packs stay inactive unless already activated.
+          ...(row.is_active ? { is_active: true } : {}),
           parameters_schema:
             row.parameters_schema as unknown as Prisma.InputJsonValue,
           renderer_key: row.renderer_key,
@@ -89,6 +94,7 @@ export class ReportsSeedService implements OnModuleInit {
     const protectedCodes = collectProtectedCodes([
       ...OPS_LIST_PHASE1_SEED.map((r) => r.code),
       ...SEA_DOCS_PHASE2_SEED.map((r) => r.code),
+      ...PRIORITY_PACKS_SEED.map((r) => r.code),
     ]);
     return importFresaRegistry(this.prisma, { protectedCodes, entries });
   }

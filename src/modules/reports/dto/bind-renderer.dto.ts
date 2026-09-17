@@ -15,8 +15,9 @@ export class BindRendererDto {
     example: "ops.delivered_jobs_period",
   })
   @IsString()
-  @Matches(/^(ops|sea)\.[a-z0-9_]+$/, {
-    message: "renderer_key must be an implemented ops.* or sea.* pack key",
+  @Matches(/^(ops|sea|air|commercial|finance|wms|quotation)\.[a-z0-9_]+$/, {
+    message:
+      "renderer_key must be an implemented pack key (ops|sea|air|commercial|finance|wms|quotation).*",
   })
   renderer_key!: string;
 
@@ -47,8 +48,9 @@ export class ActivateTemplateDto {
   })
   @IsOptional()
   @IsString()
-  @Matches(/^(ops|sea)\.[a-z0-9_]+$/, {
-    message: "renderer_key must be an implemented ops.* or sea.* pack key",
+  @Matches(/^(ops|sea|air|commercial|finance|wms|quotation)\.[a-z0-9_]+$/, {
+    message:
+      "renderer_key must be an implemented pack key (ops|sea|air|commercial|finance|wms|quotation).*",
   })
   renderer_key?: string;
 }

@@ -5,6 +5,7 @@ import { QUOTATIONS_PERMISSIONS } from "../../modules/quotations/constants/quota
 import { JOBS_PERMISSIONS } from "../../modules/jobs/constants/jobs-permission.constants";
 import { AWB_STOCK_PERMISSIONS } from "../../modules/awb-stock/constants/awb-stock-permission.constants";
 import { SEARCH_PERMISSIONS } from "../../modules/search/constants/search-permission.constants";
+import { TOOLS_PERMISSIONS } from "../../modules/tools/constants/tools-permission.constants";
 import { INVOICES_PERMISSIONS } from "../../modules/invoices/constants/invoices-permission.constants";
 import { GL_PERMISSIONS } from "../../modules/gl/constants/gl-permission.constants";
 import { PORTAL_PERMISSIONS } from "../../modules/portal/constants/portal-permission.constants";
@@ -51,6 +52,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(JOBS_PERMISSIONS),
       ...Object.values(AWB_STOCK_PERMISSIONS),
       ...Object.values(SEARCH_PERMISSIONS),
+      ...Object.values(TOOLS_PERMISSIONS),
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),
       ...Object.values(PORTAL_PERMISSIONS),
@@ -98,6 +100,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       AWB_STOCK_PERMISSIONS.VIEW,
       AWB_STOCK_PERMISSIONS.ALLOCATE,
       SEARCH_PERMISSIONS.VIEW,
+      TOOLS_PERMISSIONS.USE,
       NOTIFICATIONS_PERMISSIONS.VIEW,
       HR_PERMISSIONS.VIEW,
       HR_PERMISSIONS.APPROVE_LEAVE,
@@ -142,6 +145,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       AWB_STOCK_PERMISSIONS.ALLOCATE,
       AWB_STOCK_PERMISSIONS.VOID,
       SEARCH_PERMISSIONS.VIEW,
+      TOOLS_PERMISSIONS.USE,
       NOTIFICATIONS_PERMISSIONS.VIEW,
       WMS_PERMISSIONS.VIEW,
       WMS_PERMISSIONS.VIEW_REPORTS,
@@ -183,9 +187,13 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       QUOTATIONS_PERMISSIONS.CLOSE,
       JOBS_PERMISSIONS.VIEW,
       SEARCH_PERMISSIONS.VIEW,
+      TOOLS_PERMISSIONS.USE,
       NOTIFICATIONS_PERMISSIONS.VIEW,
       NVOCC_PERMISSIONS.VIEW,
       NVOCC_PERMISSIONS.MANAGE,
+      INVOICES_PERMISSIONS.VIEW,
+      INVOICES_PERMISSIONS.CREATE,
+      INVOICES_PERMISSIONS.SEND,
       REPORTS_PERMISSIONS.READ,
       REPORTS_PERMISSIONS.GENERATE,
     ],
@@ -207,7 +215,11 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       QUOTATIONS_PERMISSIONS.SEND,
       JOBS_PERMISSIONS.VIEW,
       SEARCH_PERMISSIONS.VIEW,
+      TOOLS_PERMISSIONS.USE,
       NOTIFICATIONS_PERMISSIONS.VIEW,
+      INVOICES_PERMISSIONS.VIEW,
+      INVOICES_PERMISSIONS.CREATE,
+      INVOICES_PERMISSIONS.SEND,
       REPORTS_PERMISSIONS.READ,
       REPORTS_PERMISSIONS.GENERATE,
     ],
@@ -239,6 +251,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       JOBS_PERMISSIONS.VIEW,
       JOBS_PERMISSIONS.VIEW_GP,
       SEARCH_PERMISSIONS.VIEW,
+      TOOLS_PERMISSIONS.USE,
       NOTIFICATIONS_PERMISSIONS.VIEW,
       REPORTS_PERMISSIONS.READ,
       REPORTS_PERMISSIONS.GENERATE,
@@ -259,6 +272,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       AWB_STOCK_PERMISSIONS.VIEW,
       AWB_STOCK_PERMISSIONS.ALLOCATE,
       SEARCH_PERMISSIONS.VIEW,
+      TOOLS_PERMISSIONS.USE,
       NOTIFICATIONS_PERMISSIONS.VIEW,
       TRANSPORT_PERMISSIONS.VIEW,
       TRANSPORT_PERMISSIONS.MANAGE,
@@ -295,6 +309,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       JOBS_PERMISSIONS.UPDATE,
       JOBS_PERMISSIONS.CLOSE,
       SEARCH_PERMISSIONS.VIEW,
+      TOOLS_PERMISSIONS.USE,
       NOTIFICATIONS_PERMISSIONS.VIEW,
       REPORTS_PERMISSIONS.READ,
       REPORTS_PERMISSIONS.GENERATE,

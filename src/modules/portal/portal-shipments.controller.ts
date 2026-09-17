@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Post,
   Query,
   Res,
   UseGuards,
@@ -18,6 +19,8 @@ import { PortalAuthGuard } from "./guards/portal-auth.guard";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalDocumentsService } from "./portal-documents.service";
 import { PortalShipmentsService } from "./portal-shipments.service";
+import { PortalNvoccWorkflowService } from "./portal-nvocc-workflow.service";
+import { PortalAirWorkflowService } from "./portal-air-workflow.service";
 /**
  * Customer Portal — Shipments submodule.
  * All routes require portal JWT. Data is scoped to the caller's Party
@@ -32,6 +35,8 @@ export class PortalShipmentsController {
   constructor(
     private readonly shipments: PortalShipmentsService,
     private readonly portalDocuments: PortalDocumentsService,
+    private readonly nvoccWorkflow: PortalNvoccWorkflowService,
+    private readonly airWorkflow: PortalAirWorkflowService,
   ) {}
 
   @Get("summary")
@@ -97,6 +102,86 @@ export class PortalShipmentsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.portalDocuments.listForShipment(user, id);
+  }
+
+  @Get(":id/container-requests")
+  @ApiOperation({
+    summary: "List portal-visible CRO / container requests",
+  })
+  containerRequests(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.nvoccWorkflow.listContainerRequests(user, id);
+  }
+
+  @Post(":id/containers/:lineId/confirm-pick")
+  @ApiOperation({ summary: "Customer confirms yard pickup (Picked)" })
+  confirmPick(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("lineId", ParseUUIDPipe) lineId: string,
+  ) {
+    return this.nvoccWorkflow.confirmPick(user, id, lineId);
+  }
+
+  @Post(":id/port-token/confirm")
+  @ApiOperation({ summary: "Customer confirms port gate token obtained" })
+  confirmPortToken(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.nvoccWorkflow.confirmPortToken(user, id);
+  }
+
+  @Post(":id/request-draft-bl")
+  @ApiOperation({ summary: "Customer requests draft BL from Docs" })
+  requestDraftBl(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.nvoccWorkflow.requestDraftBl(user, id);
+  }
+
+  @Get(":id/uld-requests")
+  @ApiOperation({
+    summary: "List portal-visible Unit Load Device / pallet requests",
+  })
+  uldRequests(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.airWorkflow.listUldRequests(user, id);
+  }
+
+  @Post(":id/uld-lines/:lineId/confirm-dropoff")
+  @ApiOperation({
+    summary: "Customer confirms warehouse cargo drop-off for a ULD line",
+  })
+  confirmDropoff(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("lineId", ParseUUIDPipe) lineId: string,
+  ) {
+    return this.airWorkflow.confirmDropoff(user, id, lineId);
+  }
+
+  @Post(":id/request-draft-hawb")
+  @ApiOperation({ summary: "Customer requests draft House Air Waybill" })
+  requestDraftHawb(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.airWorkflow.requestDraftHawb(user, id);
+  }
+
+  @Post(":id/request-delivery-order")
+  @ApiOperation({ summary: "Customer requests Delivery Order (air import)" })
+  requestDeliveryOrder(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.airWorkflow.requestDeliveryOrder(user, id);
   }
 
   @Get(":id/documents/:docId/download")

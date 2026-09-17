@@ -47,9 +47,14 @@ import { PortalFinanceService } from "./portal-finance.service";
 import { PortalCcpService } from "./portal-ccp.service";
 import { PortalTasksService } from "./portal-tasks.service";
 import { PortalTasksController } from "./portal-tasks.controller";
+import { PortalNvoccWorkflowService } from "./portal-nvocc-workflow.service";
+import { PortalAirWorkflowService } from "./portal-air-workflow.service";
+import { PortalConverterController } from "./portal-converter.controller";
+import { ToolsModule } from "../tools/tools.module";
 
 @Module({
   imports: [
+    ToolsModule,
     PrismaModule,
     EmailModule,
     StorageModule,
@@ -83,6 +88,7 @@ import { PortalTasksController } from "./portal-tasks.controller";
     PortalPreferencesController,
     PortalDashboardController,
     PortalTasksController,
+    PortalConverterController,
   ],
   providers: [
     PortalService,
@@ -95,6 +101,8 @@ import { PortalTasksController } from "./portal-tasks.controller";
     PortalCcpService,
     PortalPreferencesService,
     PortalTasksService,
+    PortalNvoccWorkflowService,
+    PortalAirWorkflowService,
     PortalAuthGuard,
   ],
   exports: [

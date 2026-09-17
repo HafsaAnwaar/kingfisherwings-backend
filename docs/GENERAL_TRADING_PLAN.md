@@ -293,4 +293,21 @@ Estimated effort is **highly dependent on their API quality**. Rough ballpark af
 
 ---
 
+---
+
+## 15. Discovery note — KingFisher Wings WordPress Quote Requests API (2026-09-15)
+
+A live WordPress REST surface was probed:
+
+- Base: `https://kingfisherwingsgroup.com/wp-json/kfpp/v1/quotes`
+- Auth: `X-KFPP-Api-Key` (or `api_key` query)
+- Operations: `GET` list, `GET`/`PATCH` by numeric id
+- List shape today: `{ "total": 0, "items": [] }` (no sample fields yet)
+
+Full matrix, security notes, and fit vs this plan: [`docs/GENERAL_TRADING_KFPP_API_TEST_RESULTS.md`](GENERAL_TRADING_KFPP_API_TEST_RESULTS.md).
+
+**Interpretation:** This is a **website quote-request / inquiry** API, not a merchandise trading invoice system. It is a valid Option A/B candidate for *inquiry display + status update*, but **does not** by itself cover trading invoices.
+
+---
+
 *Document created for research. Implementation starts only after discovery answers (§9) and explicit scheduling — this file is not a Week commitment.*

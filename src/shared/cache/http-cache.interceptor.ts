@@ -24,6 +24,7 @@ const CACHEABLE_PREFIXES = [
   "/masters/vessels",
   "/masters/tax-rates",
   "/masters/hs-codes",
+  "/masters/air-pallet-types",
   "/masters/regions",
   "/masters/cities",
   "/masters/zones",
