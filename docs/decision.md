@@ -595,7 +595,7 @@ Product chart is **NVOCC Sea Export** only. Sea FCL Export stays a parallel carr
 | Portal customer actions | **SHIPPED** | Accept quote; compliance form; view CRO/containers; confirm pick → `PICKED`; confirm port gate token; request draft BL. |
 | Original HBL payment gate | **LOCKED · SHIPPED** | Accounts `confirm-payment` sets `payment_confirmed_at`. Gated `hbl-original` / `hbl-original-gated` blocked until payment + draft issued. |
 | Air pallet + ULD | **REMOVED** | `AirPalletType` master and ULD request/allocate/drop-off removed from air freight. Air booking form keeps flight / airports / commodity / parties only. |
-| Air booking form | **SHIPPED** | `AirBookingForm` on air jobs without pallet FK. Seed: `POST /masters/container-types/seed-defaults` only. |
+| Air booking form | **SHIPPED** | Customer fills same 8-step **compliance** form via portal (`/portal/shipments/:id/compliance-form`). Ops `PUT /jobs/:id/air-booking-form` is flight/airport operational data only (does not gate `BOOKING_FORM_COMPLETE`). |
 | Container type dimensions | **SHIPPED** | `ContainerType` inside L/W/H, door, CBM/Cft, tare, max cargo. Seed from Container Specification PDF catalog. |
 | Finer `nvocc.cs` / `nvocc.ops` permission codes | **DEFERRED** | Role→stage map first; add matrix codes only if FE needs them. |
 

@@ -2591,6 +2591,7 @@ model AirJobDetail {
   job             Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
   storage_invoice Invoice? @relation("AirImportStorageInvoice", fields: [storage_invoice_id], references: [id], onDelete: SetNull)
   air_booking_form AirBookingForm?
+  compliance_booking_form AirComplianceBookingForm?
 
   @@index([tenant_id])
   @@index([tenant_id, mawb_number_from_origin])
@@ -7138,6 +7139,78 @@ model AirBookingFormParty {
   @@unique([tenant_id, form_id, party_kind])
   @@index([tenant_id, form_id])
   @@map("air_booking_form_parties")
+}
+
+/// Same 8-step Kingfisher compliance booking form as NVOCC — filled by customer on portal.
+model AirComplianceBookingForm {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String    @db.Uuid
+  job_id                String    @unique @db.Uuid
+  air_job_detail_id     String    @unique @db.Uuid
+  date_of_request       DateTime? @db.Date
+  voyage_ref            String?   @db.VarChar(50)
+  client_booking_no     String?   @db.VarChar(50)
+  gross_weight_kg       Decimal?  @db.Decimal(12, 3)
+  net_weight_kg         Decimal?  @db.Decimal(12, 3)
+  pol                   String?   @db.VarChar(100)
+  pod                   String?   @db.VarChar(100)
+  shipper_owned_container Boolean @default(false)
+  is_dg                 Boolean   @default(false)
+  teu_count             Decimal?  @db.Decimal(8, 2)
+  commodity             String?   @db.VarChar(500)
+  hs_code               String?   @db.VarChar(20)
+  final_use             String?   @db.VarChar(200)
+  activity_sector       NvoccActivitySector?
+  insurance_details     String?   @db.Text
+  lc_bank_details       String?   @db.Text
+  attach_commercial_invoice Boolean @default(false)
+  attach_correspondence Boolean   @default(false)
+  attach_cod_form       Boolean   @default(false)
+  attach_licence        Boolean   @default(false)
+  doc_commercial_invoice_key String? @db.VarChar(500)
+  doc_correspondence_key String?  @db.VarChar(500)
+  doc_cod_form_key      String?   @db.VarChar(500)
+  doc_licence_key       String?   @db.VarChar(500)
+  booking_agent_line    String?   @db.VarChar(100)
+  agent_requester_name  String?   @db.VarChar(200)
+  sq_bl_booking_reference String? @db.VarChar(200)
+  request_details       String?   @db.Text
+  consent_accepted_at   DateTime? @db.Timestamptz
+  is_complete           Boolean   @default(false)
+  completed_at          DateTime? @db.Timestamptz
+  completed_by          String?   @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  air_job_detail AirJobDetail @relation(fields: [air_job_detail_id], references: [id], onDelete: Cascade)
+  parties        AirComplianceBookingFormParty[]
+
+  @@index([tenant_id])
+  @@map("air_compliance_booking_forms")
+}
+
+model AirComplianceBookingFormParty {
+  id            String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String             @db.Uuid
+  form_id       String             @db.Uuid
+  party_kind    NvoccBookingPartyKind
+  full_name     String?            @db.VarChar(300)
+  address       String?            @db.Text
+  city          String?            @db.VarChar(100)
+  country       String?            @db.VarChar(100)
+  entity_kind   PartyEntityKind?
+  other_details String?            @db.Text
+  created_at    DateTime           @default(now()) @db.Timestamptz
+  updated_at    DateTime           @updatedAt @db.Timestamptz
+
+  form AirComplianceBookingForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, form_id, party_kind])
+  @@index([tenant_id, form_id])
+  @@map("air_compliance_booking_form_parties")
 }
 
 enum AirWorkflowStage {

@@ -5,50 +5,44 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  JobType,
   NvoccActivitySector,
+  NvoccBookingPartyKind,
   UserRole,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { NvoccWorkflowService } from "./nvocc-workflow.service";
-import { UpsertNvoccBookingFormDto } from "./dto/nvocc-booking-form.dto";
+import { AirWorkflowService } from "./air-workflow.service";
+import { UpsertNvoccBookingFormDto } from "../nvocc/dto/nvocc-booking-form.dto";
+import { NvoccBookingFormService } from "../nvocc/nvocc-booking-form.service";
 import { departmentsForRole } from "../../common/workflow/workflow-dept";
-import { validateComplianceFormSubmit } from "../../common/workflow/compliance-form-validate";
 
 @Injectable()
-export class NvoccBookingFormService {
+export class AirComplianceBookingFormService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly workflow: NvoccWorkflowService,
+    private readonly workflow: AirWorkflowService,
+    private readonly nvoccForms: NvoccBookingFormService,
   ) {}
 
-  async get(tenantId: string, bookingId: string) {
+  async getOrEmpty(tenantId: string, jobId: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const form = await tx.nvoccBookingForm.findFirst({
-        where: { booking_id: bookingId, tenant_id: tenantId, deleted_at: null },
+      return tx.airComplianceBookingForm.findFirst({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
         include: { parties: true },
       });
-      if (!form) throw new NotFoundException("Booking form not found.");
-      return form;
     });
   }
 
-  async getOrEmpty(tenantId: string, bookingId: string) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const form = await tx.nvoccBookingForm.findFirst({
-        where: { booking_id: bookingId, tenant_id: tenantId, deleted_at: null },
-        include: { parties: true },
-      });
-      return form;
-    });
+  async get(tenantId: string, jobId: string) {
+    const form = await this.getOrEmpty(tenantId, jobId);
+    if (!form) throw new NotFoundException("Air compliance booking form not found.");
+    return form;
   }
 
-  /**
-   * Staff correction / save. Completing the form requires Admin override —
-   * customers complete via portal submit.
-   */
-  async upsert(
+  /** Staff correction — complete only with Admin override. */
+  async upsertStaff(
     tenantId: string,
-    bookingId: string,
+    jobId: string,
     dto: UpsertNvoccBookingFormDto,
     actor: { id: string; role: UserRole },
   ) {
@@ -64,29 +58,22 @@ export class NvoccBookingFormService {
         override: true,
         overrideReason: dto.stage_override_reason,
       });
+      this.nvoccForms.validateSubmit(dto);
     }
-
-    if (markComplete) {
-      this.validateSubmit(dto);
-    }
-
-    return this.persist(tenantId, bookingId, dto, {
+    return this.persist(tenantId, jobId, dto, {
       actorId: actor.id,
       markComplete,
       consentAccepted: markComplete && dto.consent_accepted === true,
     });
   }
 
-  /**
-   * Portal draft save — partial fields allowed; does not complete stage.
-   */
   async upsertDraft(
     tenantId: string,
-    bookingId: string,
+    jobId: string,
     dto: UpsertNvoccBookingFormDto,
     actorId: string,
   ) {
-    return this.persist(tenantId, bookingId, dto, {
+    return this.persist(tenantId, jobId, dto, {
       actorId,
       markComplete: false,
       consentAccepted: false,
@@ -94,12 +81,9 @@ export class NvoccBookingFormService {
     });
   }
 
-  /**
-   * Portal submit — full validation + consent → BOOKING_FORM_COMPLETE.
-   */
   async submitAsCustomer(
     tenantId: string,
-    bookingId: string,
+    jobId: string,
     dto: UpsertNvoccBookingFormDto & { consent_accepted: boolean },
     actorId: string,
   ) {
@@ -108,8 +92,8 @@ export class NvoccBookingFormService {
         "Consent confirmation is required to submit the compliance booking form.",
       );
     }
-    this.validateSubmit(dto);
-    return this.persist(tenantId, bookingId, dto, {
+    this.nvoccForms.validateSubmit(dto);
+    return this.persist(tenantId, jobId, dto, {
       actorId,
       markComplete: true,
       consentAccepted: true,
@@ -119,7 +103,7 @@ export class NvoccBookingFormService {
 
   async attachDocument(
     tenantId: string,
-    bookingId: string,
+    jobId: string,
     kind:
       | "commercial_invoice"
       | "correspondence"
@@ -129,19 +113,26 @@ export class NvoccBookingFormService {
     actorId: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const booking = await tx.nvoccBooking.findFirst({
-        where: { id: bookingId, tenant_id: tenantId, deleted_at: null },
+      const job = await tx.job.findFirst({
+        where: {
+          id: jobId,
+          tenant_id: tenantId,
+          deleted_at: null,
+          job_type: { in: [JobType.AIR_EXPORT, JobType.AIR_IMPORT] },
+        },
+        include: { air_details: true },
       });
-      if (!booking) throw new NotFoundException("Booking not found.");
+      if (!job?.air_details) throw new NotFoundException("Air job not found.");
 
-      let form = await tx.nvoccBookingForm.findFirst({
-        where: { booking_id: bookingId, tenant_id: tenantId, deleted_at: null },
+      let form = await tx.airComplianceBookingForm.findFirst({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
       });
       if (!form) {
-        form = await tx.nvoccBookingForm.create({
+        form = await tx.airComplianceBookingForm.create({
           data: {
             tenant_id: tenantId,
-            booking_id: bookingId,
+            job_id: jobId,
+            air_job_detail_id: job.air_details.id,
             booking_agent_line: "KINGFISHER",
             created_by: actorId,
             updated_by: actorId,
@@ -164,7 +155,7 @@ export class NvoccBookingFormService {
         patch.attach_licence = true;
       }
 
-      return tx.nvoccBookingForm.update({
+      return tx.airComplianceBookingForm.update({
         where: { id: form.id },
         data: patch,
         include: { parties: true },
@@ -174,7 +165,7 @@ export class NvoccBookingFormService {
 
   private async persist(
     tenantId: string,
-    bookingId: string,
+    jobId: string,
     dto: UpsertNvoccBookingFormDto,
     opts: {
       actorId: string;
@@ -184,10 +175,18 @@ export class NvoccBookingFormService {
     },
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const booking = await tx.nvoccBooking.findFirst({
-        where: { id: bookingId, tenant_id: tenantId, deleted_at: null },
+      const job = await tx.job.findFirst({
+        where: {
+          id: jobId,
+          tenant_id: tenantId,
+          deleted_at: null,
+          job_type: { in: [JobType.AIR_EXPORT, JobType.AIR_IMPORT] },
+        },
+        include: { air_details: true },
       });
-      if (!booking) throw new NotFoundException("Booking not found.");
+      if (!job?.air_details) throw new NotFoundException("Air job not found.");
+
+      let stage = job.air_details.workflow_stage;
 
       if (opts.ensureCustomerAccepted) {
         const allowed = new Set([
@@ -195,14 +194,14 @@ export class NvoccBookingFormService {
           "CUSTOMER_ACCEPTED",
           "BOOKING_FORM_COMPLETE",
         ]);
-        if (!allowed.has(booking.workflow_stage)) {
+        if (!allowed.has(stage)) {
           throw new BadRequestException(
-            `Compliance form is available after quote is sent. Current stage: ${booking.workflow_stage}.`,
+            `Compliance form is available after quote is sent. Current stage: ${stage}.`,
           );
         }
-        if (booking.workflow_stage === "QUOTE_SENT") {
-          await tx.nvoccBooking.update({
-            where: { id: bookingId },
+        if (stage === "QUOTE_SENT") {
+          await tx.airJobDetail.update({
+            where: { id: job.air_details.id },
             data: {
               workflow_stage: "CUSTOMER_ACCEPTED",
               stage_changed_at: new Date(),
@@ -210,23 +209,21 @@ export class NvoccBookingFormService {
               updated_by: opts.actorId,
             },
           });
+          stage = "CUSTOMER_ACCEPTED";
         }
       }
 
-      if (opts.markComplete && booking.workflow_stage !== "BOOKING_FORM_COMPLETE") {
-        const fromStage =
-          booking.workflow_stage === "QUOTE_SENT"
-            ? "CUSTOMER_ACCEPTED"
-            : booking.workflow_stage;
+      if (opts.markComplete && stage !== "BOOKING_FORM_COMPLETE") {
         this.workflow.assertForwardTransition(
-          fromStage,
+          job.job_type,
+          stage,
           "BOOKING_FORM_COMPLETE",
           { allowSkip: false },
         );
       }
 
-      const existing = await tx.nvoccBookingForm.findFirst({
-        where: { booking_id: bookingId, tenant_id: tenantId, deleted_at: null },
+      const existing = await tx.airComplianceBookingForm.findFirst({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
       });
 
       const data = {
@@ -293,20 +290,21 @@ export class NvoccBookingFormService {
       let formId: string;
       if (existing) {
         if (dto.parties) {
-          await tx.nvoccBookingFormParty.deleteMany({
+          await tx.airComplianceBookingFormParty.deleteMany({
             where: { form_id: existing.id, tenant_id: tenantId },
           });
         }
-        await tx.nvoccBookingForm.update({
+        await tx.airComplianceBookingForm.update({
           where: { id: existing.id },
           data,
         });
         formId = existing.id;
       } else {
-        const created = await tx.nvoccBookingForm.create({
+        const created = await tx.airComplianceBookingForm.create({
           data: {
             tenant_id: tenantId,
-            booking_id: bookingId,
+            job_id: jobId,
+            air_job_detail_id: job.air_details.id,
             ...data,
             created_by: opts.actorId,
           },
@@ -315,11 +313,11 @@ export class NvoccBookingFormService {
       }
 
       if (dto.parties?.length) {
-        await tx.nvoccBookingFormParty.createMany({
+        await tx.airComplianceBookingFormParty.createMany({
           data: dto.parties.map((p) => ({
             tenant_id: tenantId,
             form_id: formId,
-            party_kind: p.party_kind,
+            party_kind: p.party_kind as NvoccBookingPartyKind,
             full_name: p.full_name,
             address: p.address,
             city: p.city,
@@ -330,9 +328,9 @@ export class NvoccBookingFormService {
         });
       }
 
-      if (opts.markComplete && booking.workflow_stage !== "BOOKING_FORM_COMPLETE") {
-        await tx.nvoccBooking.update({
-          where: { id: bookingId },
+      if (opts.markComplete && stage !== "BOOKING_FORM_COMPLETE") {
+        await tx.airJobDetail.update({
+          where: { id: job.air_details.id },
           data: {
             workflow_stage: "BOOKING_FORM_COMPLETE",
             stage_changed_at: new Date(),
@@ -345,14 +343,10 @@ export class NvoccBookingFormService {
         });
       }
 
-      return tx.nvoccBookingForm.findFirst({
+      return tx.airComplianceBookingForm.findFirst({
         where: { id: formId },
         include: { parties: true },
       });
     });
-  }
-
-  validateSubmit(dto: UpsertNvoccBookingFormDto) {
-    validateComplianceFormSubmit(dto);
   }
 }

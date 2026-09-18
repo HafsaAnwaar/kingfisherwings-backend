@@ -24,6 +24,7 @@ import { VendorModule } from "../vendor/vendor.module";
 import { MastersModule } from "../masters/masters.module";
 import { JobsDashboardService } from "./jobs-dashboard.service";
 import { AirBookingFormService } from "./air-booking-form.service";
+import { AirComplianceBookingFormService } from "./air-compliance-booking-form.service";
 import { AirWorkflowService } from "./air-workflow.service";
 import { AirWorkflowActionsService } from "./air-workflow-actions.service";
 import { AirWorkflowController } from "./air-workflow.controller";
@@ -54,6 +55,7 @@ import { AirWorkflowController } from "./air-workflow.controller";
     SeaFclImportService,
     AirImportService,
     AirBookingFormService,
+    AirComplianceBookingFormService,
     AirWorkflowService,
     AirWorkflowActionsService,
     SeaLclService,
@@ -67,6 +69,7 @@ import { AirWorkflowController } from "./air-workflow.controller";
     SeaFclImportService,
     AirImportService,
     AirBookingFormService,
+    AirComplianceBookingFormService,
     AirWorkflowService,
     SeaLclService,
     SeaLclImportService,

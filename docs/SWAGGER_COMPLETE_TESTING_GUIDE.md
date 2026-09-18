@@ -1453,18 +1453,18 @@ Call `POST /nvocc/jobs/{{NVOCC_JOB_ID}}/stage/loading` as a Sales user → expec
 
 **Export (`AIR_EXPORT`)** and **import (`AIR_IMPORT`)** share CS → Sales → Ops → Docs → Accounts → Management stage guards on `AirJobDetail`.
 
-### G3.1 Commercial prefix
-
-Same as G2.1–G2.3 but on **job** (after quote convert to `AIR_EXPORT` / `AIR_IMPORT`):
+### G3.1 Commercial prefix + customer compliance form
 
 ```http
 POST /jobs/{{AIR_JOB_ID}}/air/cs-triage
 POST /jobs/{{AIR_JOB_ID}}/air/mark-quote-sent
-PUT  /jobs/{{AIR_JOB_ID}}/air-booking-form
+POST /portal/shipments/{{AIR_JOB_ID}}/accept
+PUT  /portal/shipments/{{AIR_JOB_ID}}/compliance-form
+POST /portal/shipments/{{AIR_JOB_ID}}/compliance-form/submit
 POST /jobs/{{AIR_JOB_ID}}/air/send-invoice
 ```
 
-Booking form must include `origin_airport_code`, `dest_airport_code`, `commodity`, shipper/consignee parties; export also needs `flight_number`; import needs `mawb_from_origin` + arrival flight. **No air pallet / ULD.**
+Compliance form body/fields identical to G2.2 (NVOCC). Ops flight form (`PUT /jobs/:id/air-booking-form`) is separate and does **not** advance `BOOKING_FORM_COMPLETE`.
 
 ### G3.2 Air export — build-up through House Air Waybill
 

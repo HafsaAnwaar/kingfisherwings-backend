@@ -770,11 +770,11 @@ Smoke runbook: [SWAGGER_COMPLETE_TESTING_GUIDE.md](./SWAGGER_COMPLETE_TESTING_GU
 
 Canonical handoff for **`AIR_EXPORT`** and **`AIR_IMPORT`**. See [AIR_FREIGHT_WORKFLOW_PLAN.md](./AIR_FREIGHT_WORKFLOW_PLAN.md).
 
-**Export:** quote → CS triage → Sales quote → accept → Ops air booking form → invoice → build-up → draft House Air Waybill → payment → final House Air Waybill → Management close (Master Air Waybill parallel via `/jobs/:id/air/stage/mawb-issued`). Air pallet types and ULD request/allocate/drop-off were **removed**.
+**Export:** quote → CS triage → Sales quote → portal accept → **customer compliance booking form** (same 8-step as NVOCC) → invoice → Ops flight form (optional operational) → build-up → draft House Air Waybill → payment → final House Air Waybill → Management close. Air pallet / ULD removed.
 
-**Import:** same commercial prefix → Master Air Waybill received → Pre–Cargo Arrival Notice / Cargo Arrival Notice → payment → Delivery Order → Proof of Delivery → Management close.
+**Import:** same commercial prefix + customer compliance form → Master Air Waybill received → Pre–Cargo Arrival Notice / Cargo Arrival Notice → payment → Delivery Order → Proof of Delivery → Management close.
 
-Staff routes under **`/jobs/:id/air/*`** and gated document posts (`hawb-draft-gated`, `hawb-final-gated`, `pre-can-gated`, `can-gated`, `delivery-order-gated`). Portal: `POST .../request-draft-hawb`, `POST .../request-delivery-order`.
+Staff routes under **`/jobs/:id/air/*`** and gated document posts. Portal: `POST .../accept`, `GET/PUT/POST .../compliance-form`, `POST .../request-draft-hawb`, `POST .../request-delivery-order`.
 
 ### Week 21 — Documentation console + EDI/customs
 
