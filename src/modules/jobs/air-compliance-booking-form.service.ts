@@ -13,15 +13,14 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { AirWorkflowService } from "./air-workflow.service";
 import { UpsertNvoccBookingFormDto } from "../nvocc/dto/nvocc-booking-form.dto";
-import { NvoccBookingFormService } from "../nvocc/nvocc-booking-form.service";
 import { departmentsForRole } from "../../common/workflow/workflow-dept";
+import { validateComplianceFormSubmit } from "../../common/workflow/compliance-form-validate";
 
 @Injectable()
 export class AirComplianceBookingFormService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly workflow: AirWorkflowService,
-    private readonly nvoccForms: NvoccBookingFormService,
   ) {}
 
   async getOrEmpty(tenantId: string, jobId: string) {
@@ -58,7 +57,7 @@ export class AirComplianceBookingFormService {
         override: true,
         overrideReason: dto.stage_override_reason,
       });
-      this.nvoccForms.validateSubmit(dto);
+      validateComplianceFormSubmit(dto);
     }
     return this.persist(tenantId, jobId, dto, {
       actorId: actor.id,
@@ -92,7 +91,7 @@ export class AirComplianceBookingFormService {
         "Consent confirmation is required to submit the compliance booking form.",
       );
     }
-    this.nvoccForms.validateSubmit(dto);
+    validateComplianceFormSubmit(dto);
     return this.persist(tenantId, jobId, dto, {
       actorId,
       markComplete: true,
