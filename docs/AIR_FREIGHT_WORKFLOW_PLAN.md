@@ -1,5 +1,7 @@
 # Air Freight department workflow — implementation plan
 
+> **Update (2026-09):** Air pallet types (`AirPalletType`) and the ULD request / allocate / portal drop-off path were **removed**. Export path is now: commercial prefix → air booking form → invoice → `BUILD_UP` → HAWB draft/final → close. Historical ULD sections below are obsolete.
+
 > Product scope locked by user: **both** `AIR_EXPORT` and `AIR_IMPORT`.  
 > Remaining design choices below are **recommended defaults** with rationale.  
 > Mirror of [NVOCC Sea Export workflow](./decision.md) (CS → Sales → Ops → Docs → Accounts → Management), adapted to air documents and import delivery cycle.  
@@ -30,7 +32,7 @@
 | Commercial front | Same as Non-Vessel Operating Common Carrier: quote request → CS triage / portal grant → Sales or Admin send quote → **existing negotiation unchanged** → customer accept |
 | Sales invoices | Keep Admin; Sales Manager / Executive already have invoice create/send — reuse |
 | Sea Full Container Load / Non-Vessel Operating Common Carrier | Out of scope for this stage machine |
-| Air pallet master + booking form | Already shipped — extend; do not reinvent |
+| Air pallet master + booking form | **REMOVED** — booking form remains without pallet FK; no ULD flow |
 
 ---
 

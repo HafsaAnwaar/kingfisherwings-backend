@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { PartyEntityKind, NvoccBookingPartyKind } from "@prisma/client";
+import {
+  PartyEntityKind,
+  NvoccBookingPartyKind,
+  NvoccActivitySector,
+} from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,
@@ -65,20 +69,33 @@ export class UpsertNvoccBookingFormDto {
   @MaxLength(50)
   voyage_ref?: string;
 
+  @ApiPropertyOptional({ description: "Booking No (if known) from client" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  client_booking_no?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   gross_weight_kg?: number;
 
-  @ApiProperty({ example: "Jebel Ali" })
-  @IsString()
-  @Length(1, 100)
-  pol!: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  net_weight_kg?: number;
 
-  @ApiProperty({ example: "Karachi" })
+  @ApiPropertyOptional({ example: "Jebel Ali" })
+  @IsOptional()
   @IsString()
-  @Length(1, 100)
-  pod!: string;
+  @MaxLength(100)
+  pol?: string;
+
+  @ApiPropertyOptional({ example: "Karachi" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  pod?: string;
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()
@@ -95,10 +112,11 @@ export class UpsertNvoccBookingFormDto {
   @IsNumber()
   teu_count?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  @Length(1, 500)
-  commodity!: string;
+  @MaxLength(500)
+  commodity?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -112,11 +130,10 @@ export class UpsertNvoccBookingFormDto {
   @MaxLength(200)
   final_use?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ enum: NvoccActivitySector })
   @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  activity_sector?: string;
+  @IsEnum(NvoccActivitySector)
+  activity_sector?: NvoccActivitySector;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -171,19 +188,26 @@ export class UpsertNvoccBookingFormDto {
   @IsString()
   request_details?: string;
 
-  @ApiProperty({ type: [NvoccBookingFormPartyDto] })
+  @ApiPropertyOptional({ type: [NvoccBookingFormPartyDto] })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => NvoccBookingFormPartyDto)
-  parties!: NvoccBookingFormPartyDto[];
+  parties?: NvoccBookingFormPartyDto[];
 
   @ApiPropertyOptional({
-    description: "When true, marks form complete and advances workflow",
-    default: true,
+    description:
+      "When true, marks form complete. Staff require admin_override (customer portal uses /submit).",
+    default: false,
   })
   @IsOptional()
   @IsBoolean()
   mark_complete?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  consent_accepted?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -194,6 +218,14 @@ export class UpsertNvoccBookingFormDto {
   @IsOptional()
   @IsString()
   stage_override_reason?: string;
+}
+
+export class SubmitNvoccComplianceFormDto extends UpsertNvoccBookingFormDto {
+  @ApiProperty({
+    description: "Customer must confirm accuracy before submit",
+  })
+  @IsBoolean()
+  consent_accepted!: boolean;
 }
 
 export class WorkflowStageOverrideDto {
@@ -207,3 +239,12 @@ export class WorkflowStageOverrideDto {
   @IsString()
   stage_override_reason?: string;
 }
+
+export const COMPLIANCE_DOC_KINDS = [
+  "commercial_invoice",
+  "correspondence",
+  "cod_form",
+  "licence",
+] as const;
+
+export type ComplianceDocKind = (typeof COMPLIANCE_DOC_KINDS)[number];

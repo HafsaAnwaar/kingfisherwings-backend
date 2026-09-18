@@ -82,7 +82,8 @@ export class NvoccWorkflowController {
   @Put("bookings/:id/booking-form")
   @RequirePermissions(NVOCC_PERMISSIONS.MANAGE)
   @ApiOperation({
-    summary: "Ops: upsert Kingfisher booking form (Excel field parity)",
+    summary:
+      "Staff: view/correct compliance booking form (customer completes via portal; Admin override to mark complete)",
   })
   upsertForm(
     @CurrentUser() user: CurrentUserType,

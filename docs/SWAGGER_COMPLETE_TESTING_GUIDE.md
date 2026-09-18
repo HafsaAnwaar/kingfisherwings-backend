@@ -1298,29 +1298,32 @@ Canonical department handoff for **NVOCC_EXPORT** only (not Sea FCL Export). Sta
 
 ```http
 POST /masters/container-types/seed-defaults
-POST /masters/air-pallet-types/seed-defaults
 GET  /masters/container-types
-GET  /masters/air-pallet-types
 ```
 
-### G2.1 Quote → CS triage → Sales send (negotiation unchanged)
+### G2.1 Quote → CS triage → Sales send → Customer accept
 
 1. Portal: `POST /portal/quotations/request` → CS notified  
 2. Staff CS: `POST /nvocc/bookings/{{NVOCC_BOOKING_ID}}/cs-triage` (grants `Party.portal_access`)  
 3. Sales/Admin: send quote via existing quotations APIs, then `POST /nvocc/bookings/{{NVOCC_BOOKING_ID}}/mark-quote-sent`  
-4. Portal negotiate / accept (unchanged) → unlocks Ops booking form  
+4. Portal: `POST /portal/bookings/{{NVOCC_BOOKING_ID}}/accept` → `CUSTOMER_ACCEPTED`  
 
-### G2.2 Ops booking form (Kingfisher Excel fields)
+### G2.2 Customer compliance booking form (8-step site parity)
 
 ```http
-PUT /nvocc/bookings/{{NVOCC_BOOKING_ID}}/booking-form
+GET  /portal/bookings/{{NVOCC_BOOKING_ID}}/compliance-form
+PUT  /portal/bookings/{{NVOCC_BOOKING_ID}}/compliance-form
+POST /portal/bookings/{{NVOCC_BOOKING_ID}}/compliance-form/documents/commercial_invoice
+POST /portal/bookings/{{NVOCC_BOOKING_ID}}/compliance-form/submit
 ```
 
 ```json
 {
   "date_of_request": "2026-09-16",
+  "client_booking_no": "KF-REQ-01",
   "voyage_ref": "KF-V01",
   "gross_weight_kg": 18500,
+  "net_weight_kg": 17000,
   "pol": "Jebel Ali",
   "pod": "Karachi",
   "shipper_owned_container": false,
@@ -1329,7 +1332,10 @@ PUT /nvocc/bookings/{{NVOCC_BOOKING_ID}}/booking-form
   "commodity": "General cargo",
   "hs_code": "8471",
   "final_use": "Retail",
-  "activity_sector": "Electronics",
+  "activity_sector": "CIVILIAN",
+  "booking_agent_line": "KINGFISHER",
+  "agent_requester_name": "Portal User",
+  "consent_accepted": true,
   "parties": [
     {
       "party_kind": "SHIPPER",
@@ -1359,7 +1365,7 @@ PUT /nvocc/bookings/{{NVOCC_BOOKING_ID}}/booking-form
 }
 ```
 
-→ stage `BOOKING_FORM_COMPLETE`.
+→ stage `BOOKING_FORM_COMPLETE`. Staff may `GET/PUT /nvocc/bookings/:id/booking-form` to review/correct (Admin override required to force-complete).
 
 ### G2.3 Sales/Admin invoice
 
@@ -1414,25 +1420,28 @@ POST /nvocc/jobs/{{NVOCC_JOB_ID}}/close-report
 
 Returns closure pack (job, HBL, payment, CRO lines, booking form).
 
-### G2.8 Air booking form (same initiative; not CRO)
+### G2.8 Air booking form (no pallet / ULD)
 
 ```http
-GET  /masters/air-pallet-types
 PUT  /jobs/{{AIR_JOB_ID}}/air-booking-form
 GET  /jobs/{{AIR_JOB_ID}}/air-booking-form
 ```
 
 ```json
 {
-  "air_pallet_type_id": "{{AIR_PALLET_TYPE_ID}}",
   "pieces": 2,
   "gross_weight_kg": 420,
   "chargeable_weight_kg": 450,
-  "commodity": "Garments"
+  "commodity": "Garments",
+  "origin_airport_code": "DXB",
+  "dest_airport_code": "KHI",
+  "flight_number": "EK601",
+  "parties": [
+    { "party_kind": "SHIPPER", "full_name": "Shipper Co", "address": "Dubai" },
+    { "party_kind": "CONSIGNEE", "full_name": "Consignee Co", "address": "Karachi" }
+  ]
 }
 ```
-
-Response always includes `air_pallet_type` specs.
 
 ### G2.9 Negative check
 
@@ -1455,28 +1464,13 @@ PUT  /jobs/{{AIR_JOB_ID}}/air-booking-form
 POST /jobs/{{AIR_JOB_ID}}/air/send-invoice
 ```
 
-Booking form must include `origin_airport_code`, `dest_airport_code`, `commodity`, shipper/consignee parties; export also needs `air_pallet_type_id` + `flight_number`; import needs `mawb_from_origin` + arrival flight.
+Booking form must include `origin_airport_code`, `dest_airport_code`, `commodity`, shipper/consignee parties; export also needs `flight_number`; import needs `mawb_from_origin` + arrival flight. **No air pallet / ULD.**
 
-### G3.2 Air export — Unit Load Device through House Air Waybill
-
-```http
-POST /jobs/{{AIR_JOB_ID}}/air/uld-requests
-POST /jobs/{{AIR_JOB_ID}}/air/uld-requests/{{ULD_REQ_ID}}/issue
-POST /jobs/{{AIR_JOB_ID}}/air/uld-requests/{{ULD_REQ_ID}}/allocate
-```
-
-Portal:
-
-```http
-GET  /portal/shipments/{{AIR_JOB_ID}}/uld-requests
-POST /portal/shipments/{{AIR_JOB_ID}}/uld-lines/{{LINE_ID}}/confirm-dropoff
-POST /portal/shipments/{{AIR_JOB_ID}}/request-draft-hawb
-```
-
-Staff:
+### G3.2 Air export — build-up through House Air Waybill
 
 ```http
 POST /jobs/{{AIR_JOB_ID}}/air/stage/build-up
+POST /portal/shipments/{{AIR_JOB_ID}}/request-draft-hawb
 POST /jobs/{{AIR_JOB_ID}}/documents/hawb-draft-gated
 POST /jobs/{{AIR_JOB_ID}}/air/accounts/confirm-payment
 POST /jobs/{{AIR_JOB_ID}}/documents/hawb-final-gated

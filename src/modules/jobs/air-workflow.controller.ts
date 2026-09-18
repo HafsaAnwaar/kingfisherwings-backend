@@ -16,13 +16,10 @@ import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { CurrentUser as CurrentUserType } from "../users/interfaces/current-user.interface";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
 import { AirBookingFormService } from "./air-booking-form.service";
-import { AirUldRequestService } from "./air-uld-request.service";
 import { AirWorkflowActionsService } from "./air-workflow-actions.service";
 import { AirWorkflowService } from "./air-workflow.service";
 import {
   AirWorkflowOverrideDto,
-  AllocateUldDto,
-  CreateAirUldRequestDto,
   MarkAirInvoiceSentDto,
   UpsertAirBookingFormDto,
 } from "./dto/air-workflow.dto";
@@ -35,7 +32,6 @@ import { GenerateJobDocumentDto } from "./dto/generate-job-document.dto";
 export class AirWorkflowController {
   constructor(
     private readonly bookingForms: AirBookingFormService,
-    private readonly uldRequests: AirUldRequestService,
     private readonly actions: AirWorkflowActionsService,
     private readonly workflow: AirWorkflowService,
   ) {}
@@ -64,7 +60,7 @@ export class AirWorkflowController {
 
   @Get(":id/air-booking-form")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Get air booking form with pallet specs" })
+  @ApiOperation({ summary: "Get air booking form" })
   getForm(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
@@ -96,52 +92,9 @@ export class AirWorkflowController {
     return this.actions.markInvoiceSent(user.tenantId, id, dto, user);
   }
 
-  @Get(":id/air/uld-requests")
-  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  listUld(
-    @CurrentUser("tenantId") tenantId: string,
-    @Param("id", ParseUUIDPipe) id: string,
-  ) {
-    return this.uldRequests.listForJob(tenantId, id);
-  }
-
-  @Post(":id/air/uld-requests")
-  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "CS: create Unit Load Device / pallet request" })
-  createUld(
-    @CurrentUser() user: CurrentUserType,
-    @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: CreateAirUldRequestDto,
-  ) {
-    return this.uldRequests.create(user.tenantId, id, dto, user);
-  }
-
-  @Post(":id/air/uld-requests/:requestId/issue")
-  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "CS: issue ULD request to portal" })
-  issueUld(
-    @CurrentUser() user: CurrentUserType,
-    @Param("id", ParseUUIDPipe) id: string,
-    @Param("requestId", ParseUUIDPipe) requestId: string,
-    @Body() dto: AirWorkflowOverrideDto,
-  ) {
-    return this.uldRequests.issue(user.tenantId, id, requestId, user, dto);
-  }
-
-  @Post(":id/air/uld-requests/:requestId/allocate")
-  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Ops: auto-allocate Unit Load Device numbers" })
-  allocateUld(
-    @CurrentUser() user: CurrentUserType,
-    @Param("id", ParseUUIDPipe) id: string,
-    @Param("requestId", ParseUUIDPipe) requestId: string,
-    @Body() dto: AllocateUldDto,
-  ) {
-    return this.uldRequests.allocate(user.tenantId, id, requestId, dto, user);
-  }
-
   @Post(":id/air/stage/build-up")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Ops: mark BUILD_UP (after invoice; no ULD path)" })
   buildUp(
     @CurrentUser() user: CurrentUserType,
     @Param("id", ParseUUIDPipe) id: string,

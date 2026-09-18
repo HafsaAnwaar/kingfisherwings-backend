@@ -687,8 +687,8 @@ Canonical handoff for **`NVOCC_EXPORT`** only. Sea FCL Export does **not** use t
 Portal quote request
   → CS: POST /nvocc/bookings/:id/cs-triage          (grant portal_access → CS_TRIAGED)
   → Sales/Admin: send quote (existing /quotations/*) + POST .../mark-quote-sent
-  → Portal negotiate / accept (unchanged §11)
-  → Ops: PUT /nvocc/bookings/:id/booking-form       → BOOKING_FORM_COMPLETE
+  → Portal: POST /portal/bookings/:id/accept         → CUSTOMER_ACCEPTED
+  → Portal: compliance-form draft/submit             → BOOKING_FORM_COMPLETE
   → Sales/Admin: create/send invoice + POST .../send-invoice → INVOICE_SENT
   → CS: POST /nvocc/jobs/:id/container-requests
        POST .../container-requests/:id/issue        → CRO_ISSUED (portal visible)
@@ -715,7 +715,7 @@ Wrong department advancing a stage → **403**. Tenant Admin override: body `{ "
 | `POST` | `/nvocc/bookings/:id/cs-triage` | CS |
 | `POST` | `/nvocc/bookings/:id/mark-quote-sent` | Sales / Admin |
 | `GET` | `/nvocc/bookings/:id/booking-form` | any with view |
-| `PUT` | `/nvocc/bookings/:id/booking-form` | Ops |
+| `PUT` | `/nvocc/bookings/:id/booking-form` | Staff correct / Admin override complete |
 | `POST` | `/nvocc/bookings/:id/send-invoice` | Sales / Admin |
 | `GET` | `/nvocc/jobs/:id/container-requests` | any with view |
 | `POST` | `/nvocc/jobs/:id/container-requests` | CS |
@@ -729,6 +729,16 @@ Wrong department advancing a stage → **403**. Tenant Admin override: body `{ "
 
 Existing NVOCC document routes (`/nvocc/jobs/:id/documents/hbl-draft`, `hbl-original`, …) remain; original HBL also enforces `payment_confirmed_at` in the documents service.
 
+**Portal — compliance booking form (customer)**
+
+| Method | Path |
+|--------|------|
+| `POST` | `/portal/bookings/:id/accept` |
+| `GET` | `/portal/bookings/:id/compliance-form` |
+| `PUT` | `/portal/bookings/:id/compliance-form` |
+| `POST` | `/portal/bookings/:id/compliance-form/submit` |
+| `POST` | `/portal/bookings/:id/compliance-form/documents/:kind` |
+
 **Portal — customer (`/portal/shipments`)**
 
 | Method | Path |
@@ -738,27 +748,21 @@ Existing NVOCC document routes (`/nvocc/jobs/:id/documents/hbl-draft`, `hbl-orig
 | `POST` | `/portal/shipments/:id/port-token/confirm` |
 | `POST` | `/portal/shipments/:id/request-draft-bl` |
 
-**Masters — container + air pallet specs**
+**Masters — container specs**
 
 | Method | Path |
 |--------|------|
 | `POST` | `/masters/container-types/seed-defaults` |
 | `GET` | `/masters/container-types` (includes dimension specs) |
-| `POST` | `/masters/air-pallet-types/seed-defaults` |
-| `GET` | `/masters/air-pallet-types` |
-| `GET` | `/masters/air-pallet-types/:id` |
-| `POST` | `/masters/air-pallet-types` |
-| `PATCH` | `/masters/air-pallet-types/:id` |
-| `DELETE` | `/masters/air-pallet-types/:id` |
 
-**Air booking form (not CRO; air jobs only)**
+**Air booking form (air jobs only; no pallet / ULD)**
 
 | Method | Path |
 |--------|------|
 | `GET` | `/jobs/:id/air-booking-form` |
 | `PUT` | `/jobs/:id/air-booking-form` |
 
-CLI backfill: `npm run seed:freight-specs` (or `TENANT_ID=<uuid> npm run seed:freight-specs`). New tenants auto-seed container + air pallet catalogs after create.
+CLI backfill: `npm run seed:freight-specs` (container types only). New tenants auto-seed container catalogs after create.
 
 Smoke runbook: [SWAGGER_COMPLETE_TESTING_GUIDE.md](./SWAGGER_COMPLETE_TESTING_GUIDE.md) § Part G2 (NVOCC) and G3 (Air).
 
@@ -766,11 +770,11 @@ Smoke runbook: [SWAGGER_COMPLETE_TESTING_GUIDE.md](./SWAGGER_COMPLETE_TESTING_GU
 
 Canonical handoff for **`AIR_EXPORT`** and **`AIR_IMPORT`**. See [AIR_FREIGHT_WORKFLOW_PLAN.md](./AIR_FREIGHT_WORKFLOW_PLAN.md).
 
-**Export:** quote → CS triage → Sales quote → accept → Ops air booking form → invoice → Unit Load Device request/allocate → portal drop-off → build-up → draft House Air Waybill → payment → final House Air Waybill → Management close (Master Air Waybill parallel via `/jobs/:id/air/stage/mawb-issued`).
+**Export:** quote → CS triage → Sales quote → accept → Ops air booking form → invoice → build-up → draft House Air Waybill → payment → final House Air Waybill → Management close (Master Air Waybill parallel via `/jobs/:id/air/stage/mawb-issued`). Air pallet types and ULD request/allocate/drop-off were **removed**.
 
 **Import:** same commercial prefix → Master Air Waybill received → Pre–Cargo Arrival Notice / Cargo Arrival Notice → payment → Delivery Order → Proof of Delivery → Management close.
 
-Staff routes under **`/jobs/:id/air/*`** and gated document posts (`hawb-draft-gated`, `hawb-final-gated`, `pre-can-gated`, `can-gated`, `delivery-order-gated`). Portal: `GET .../uld-requests`, `POST .../uld-lines/:lineId/confirm-dropoff`, `POST .../request-draft-hawb`, `POST .../request-delivery-order`.
+Staff routes under **`/jobs/:id/air/*`** and gated document posts (`hawb-draft-gated`, `hawb-final-gated`, `pre-can-gated`, `can-gated`, `delivery-order-gated`). Portal: `POST .../request-draft-hawb`, `POST .../request-delivery-order`.
 
 ### Week 21 — Documentation console + EDI/customs
 

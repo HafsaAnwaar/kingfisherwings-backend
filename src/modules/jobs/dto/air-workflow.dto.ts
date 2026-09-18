@@ -68,11 +68,6 @@ export class AirBookingFormPartyDto {
 }
 
 export class UpsertAirBookingFormDto extends AirWorkflowOverrideDto {
-  @ApiPropertyOptional({ format: "uuid" })
-  @IsOptional()
-  @IsUUID()
-  air_pallet_type_id?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsInt()
@@ -181,60 +176,4 @@ export class MarkAirInvoiceSentDto extends AirWorkflowOverrideDto {
   @IsOptional()
   @IsUUID()
   invoice_id?: string;
-}
-
-export class CreateAirUldRequestDto extends AirWorkflowOverrideDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  airline_name?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  flight_number?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDateString()
-  flight_date?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  warehouse_cfs?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDateString()
-  cutoff_at?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  remarks?: string;
-
-  @ApiPropertyOptional({ default: 1 })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  uld_count?: number;
-
-  @ApiPropertyOptional({ format: "uuid" })
-  @IsOptional()
-  @IsUUID()
-  air_pallet_type_id?: string;
-}
-
-export class AllocateUldDto extends AirWorkflowOverrideDto {
-  @ApiPropertyOptional({
-    description: "Override count; defaults to request uld_count",
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  count?: number;
 }

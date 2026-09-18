@@ -26,7 +26,6 @@ import { JobsDashboardService } from "./jobs-dashboard.service";
 import { AirBookingFormService } from "./air-booking-form.service";
 import { AirWorkflowService } from "./air-workflow.service";
 import { AirWorkflowActionsService } from "./air-workflow-actions.service";
-import { AirUldRequestService } from "./air-uld-request.service";
 import { AirWorkflowController } from "./air-workflow.controller";
 
 @Module({
@@ -57,7 +56,6 @@ import { AirWorkflowController } from "./air-workflow.controller";
     AirBookingFormService,
     AirWorkflowService,
     AirWorkflowActionsService,
-    AirUldRequestService,
     SeaLclService,
     SeaLclImportService,
     LandService,

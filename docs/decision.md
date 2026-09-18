@@ -590,11 +590,12 @@ Product chart is **NVOCC Sea Export** only. Sea FCL Export stays a parallel carr
 | Sea FCL Export does **not** get this stage machine | **LOCKED** | FCL keeps carrier booking refs / milestones. Shares **container type specs** and BL draft/original *patterns* only — no CRO, no NVOCC stage gates. |
 | Negotiation / quote send | **LOCKED · unchanged** | Portal accept-reject / staff revise-and-send stay as today. Admin keeps send quote + send invoice. |
 | Sales invoice create/send | **SHIPPED** | `SALES_MANAGER` and `SALES_EXECUTIVE` get `invoices.view` / `create` / `send`. Admin + Finance rights **not** removed. Existing tenants: `POST /tenants/:id/sync-permissions`. |
-| Kingfisher booking form | **SHIPPED** | `NvoccBookingForm` + parties (Shipper/Consignee/Notify). Ops `PUT /nvocc/bookings/:id/booking-form` after customer accept; mandatory Excel fields validated. |
+| Kingfisher booking form | **SHIPPED** | `NvoccBookingForm` + parties (Shipper/Consignee/Notify). **Customer** completes via portal `/portal/bookings/:id/compliance-form` after accept (8-step site parity). Staff may view/correct; Admin override to mark complete. |
 | CRO / container request | **SHIPPED** | Manual staff form (`NvoccContainerRequest` + lines) — **not** DP World API. Only auto field: container numbers (Ops allocate via tenant sequence). Issue → portal visible + `DocumentType.CRO` / `CONTAINER_REQUEST`. |
-| Portal customer actions | **SHIPPED** | View CRO/containers; confirm pick → `PICKED`; confirm port gate token; request draft BL. |
+| Portal customer actions | **SHIPPED** | Accept quote; compliance form; view CRO/containers; confirm pick → `PICKED`; confirm port gate token; request draft BL. |
 | Original HBL payment gate | **LOCKED · SHIPPED** | Accounts `confirm-payment` sets `payment_confirmed_at`. Gated `hbl-original` / `hbl-original-gated` blocked until payment + draft issued. |
-| Air pallet + air booking form | **LOCKED · SHIPPED** (same initiative) | `AirPalletType` master + `AirBookingForm` on air jobs. Air does **not** use CRO/pick. Specs always returned with pallet type. Seed: `POST /masters/air-pallet-types/seed-defaults` (+ container specs seed). |
+| Air pallet + ULD | **REMOVED** | `AirPalletType` master and ULD request/allocate/drop-off removed from air freight. Air booking form keeps flight / airports / commodity / parties only. |
+| Air booking form | **SHIPPED** | `AirBookingForm` on air jobs without pallet FK. Seed: `POST /masters/container-types/seed-defaults` only. |
 | Container type dimensions | **SHIPPED** | `ContainerType` inside L/W/H, door, CBM/Cft, tare, max cargo. Seed from Container Specification PDF catalog. |
 | Finer `nvocc.cs` / `nvocc.ops` permission codes | **DEFERRED** | Role→stage map first; add matrix codes only if FE needs them. |
 
@@ -609,9 +610,9 @@ Stages (order):
 |-------|--------|----------|
 | Scope | **LOCKED · SHIPPED** | Both air export and air import; **not** Sea FCL or NVOCC CRO. |
 | Stage engine | **SHIPPED** | Shared role→department guard in `src/common/workflow/`; **`AirWorkflowStage`** on `AirJobDetail`. |
-| Export ops | **SHIPPED** | Unit Load Device / pallet request + allocate; warehouse drop-off; build-up; draft/final **House Air Waybill**; **Master Air Waybill** not payment-gated. |
+| Export ops | **SHIPPED** | Ops air booking form → invoice → build-up → draft/final **House Air Waybill**; **Master Air Waybill** not payment-gated. (ULD / air pallet path removed.) |
 | Import ops | **SHIPPED** | Master Air Waybill received → Pre–Cargo Arrival Notice / Cargo Arrival Notice → payment → **Delivery Order** → Proof of Delivery. |
-| Portal | **SHIPPED** | ULD list, confirm drop-off, request draft House Air Waybill, request Delivery Order. No port gate token. |
+| Portal | **SHIPPED** | Request draft House Air Waybill, request Delivery Order. No ULD list / drop-off. |
 | Negotiation / Sales invoice | **LOCKED · unchanged** | Same as NVOCC alignment. |
 
 ---

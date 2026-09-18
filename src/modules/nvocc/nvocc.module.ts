@@ -53,6 +53,7 @@ import { NvoccContainerRequestService } from "./nvocc-container-request.service"
     NvoccBookingsService,
     NvoccTariffsService,
     NvoccWorkflowService,
+    NvoccBookingFormService,
   ],
 })
 export class NvoccModule {}
