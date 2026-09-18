@@ -430,8 +430,7 @@ export class AirWorkflowActionsService {
         include: {
           air_details: {
             include: {
-              air_booking_form: { include: { parties: true, air_pallet_type: true } },
-              uld_requests: { include: { lines: true } },
+              air_booking_form: { include: { parties: true } },
             },
           },
         },
@@ -472,7 +471,6 @@ export class AirWorkflowActionsService {
         final_hawb_issued_at: detail.final_hawb_issued_at,
         delivery_order_issued_at: detail.delivery_order_issued_at,
         booking_form: detail.air_booking_form,
-        uld_requests: detail.uld_requests,
         closed_at: new Date().toISOString(),
         closed_by: actor.id,
       },

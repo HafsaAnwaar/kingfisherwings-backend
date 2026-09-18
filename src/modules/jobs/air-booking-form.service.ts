@@ -19,10 +19,7 @@ export class AirBookingFormService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const form = await tx.airBookingForm.findFirst({
         where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
-        include: {
-          air_pallet_type: true,
-          parties: true,
-        },
+        include: { parties: true },
       });
       if (!form) throw new NotFoundException("Air booking form not found.");
       return form;
@@ -75,28 +72,11 @@ export class AirBookingFormService {
         }
       }
 
-      if (dto.air_pallet_type_id) {
-        const pallet = await tx.airPalletType.findFirst({
-          where: {
-            id: dto.air_pallet_type_id,
-            tenant_id: tenantId,
-            deleted_at: null,
-            is_active: true,
-          },
-        });
-        if (!pallet) {
-          throw new BadRequestException(
-            "Air pallet type not found or inactive.",
-          );
-        }
-      }
-
       const existing = await tx.airBookingForm.findFirst({
         where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
       });
 
       const data = {
-        air_pallet_type_id: dto.air_pallet_type_id ?? null,
         pieces: dto.pieces,
         gross_weight_kg: dto.gross_weight_kg,
         chargeable_weight_kg: dto.chargeable_weight_kg,
@@ -124,7 +104,7 @@ export class AirBookingFormService {
         form = await tx.airBookingForm.update({
           where: { id: existing.id },
           data,
-          include: { air_pallet_type: true, parties: true },
+          include: { parties: true },
         });
       } else {
         form = await tx.airBookingForm.create({
@@ -135,7 +115,7 @@ export class AirBookingFormService {
             ...data,
             created_by: actor.id,
           },
-          include: { air_pallet_type: true, parties: true },
+          include: { parties: true },
         });
       }
 
@@ -198,7 +178,7 @@ export class AirBookingFormService {
 
       return tx.airBookingForm.findFirst({
         where: { id: form.id },
-        include: { air_pallet_type: true, parties: true },
+        include: { parties: true },
       });
     });
   }
@@ -210,7 +190,6 @@ export class AirBookingFormService {
     if (!dto.dest_airport_code?.trim()) missing.push("dest_airport_code");
 
     if (jobType === "AIR_EXPORT") {
-      if (!dto.air_pallet_type_id) missing.push("air_pallet_type_id");
       if (!dto.flight_number?.trim()) missing.push("flight_number");
     }
     if (jobType === "AIR_IMPORT") {

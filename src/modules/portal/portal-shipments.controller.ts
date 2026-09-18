@@ -143,29 +143,6 @@ export class PortalShipmentsController {
     return this.nvoccWorkflow.requestDraftBl(user, id);
   }
 
-  @Get(":id/uld-requests")
-  @ApiOperation({
-    summary: "List portal-visible Unit Load Device / pallet requests",
-  })
-  uldRequests(
-    @CurrentPortal() user: CurrentPortalUser,
-    @Param("id", ParseUUIDPipe) id: string,
-  ) {
-    return this.airWorkflow.listUldRequests(user, id);
-  }
-
-  @Post(":id/uld-lines/:lineId/confirm-dropoff")
-  @ApiOperation({
-    summary: "Customer confirms warehouse cargo drop-off for a ULD line",
-  })
-  confirmDropoff(
-    @CurrentPortal() user: CurrentPortalUser,
-    @Param("id", ParseUUIDPipe) id: string,
-    @Param("lineId", ParseUUIDPipe) lineId: string,
-  ) {
-    return this.airWorkflow.confirmDropoff(user, id, lineId);
-  }
-
   @Post(":id/request-draft-hawb")
   @ApiOperation({ summary: "Customer requests draft House Air Waybill" })
   requestDraftHawb(

@@ -12,9 +12,6 @@ export const AIR_COMMERCIAL_STAGES = [
 
 export const AIR_EXPORT_STAGE_ORDER = [
   ...AIR_COMMERCIAL_STAGES,
-  "ULD_REQUEST_ISSUED",
-  "ULD_ALLOCATED",
-  "CARGO_DROPPED_OFF",
   "BUILD_UP",
   "DRAFT_HAWB_ISSUED",
   "PAYMENT_RECEIVED",
@@ -45,9 +42,6 @@ export const AIR_STAGE_OWNER: Record<AirWorkflowStageCode, WorkflowDept> = {
   CUSTOMER_ACCEPTED: "CUSTOMER",
   BOOKING_FORM_COMPLETE: "OPS",
   INVOICE_SENT: "SALES",
-  ULD_REQUEST_ISSUED: "CS",
-  ULD_ALLOCATED: "OPS",
-  CARGO_DROPPED_OFF: "CUSTOMER",
   BUILD_UP: "OPS",
   DRAFT_HAWB_ISSUED: "DOCS",
   PAYMENT_RECEIVED: "ACCOUNTS",
@@ -73,14 +67,6 @@ export function isAirExportParallel(
   current: string,
   target: string,
 ): boolean {
-  const parallelAfterInvoice =
-    current === "INVOICE_SENT" &&
-    (target === "ULD_REQUEST_ISSUED" || target === "ULD_ALLOCATED");
-  const afterUld =
-    (current === "ULD_REQUEST_ISSUED" || current === "ULD_ALLOCATED") &&
-    (target === "ULD_REQUEST_ISSUED" ||
-      target === "ULD_ALLOCATED" ||
-      target === "CARGO_DROPPED_OFF");
   const mawbParallel =
     (current === "BUILD_UP" ||
       current === "DRAFT_HAWB_ISSUED" ||
@@ -89,7 +75,5 @@ export function isAirExportParallel(
     target === "MAWB_ISSUED";
   const closeNeedsFinal =
     current === "FINAL_HAWB_ISSUED" && target === "CLOSED";
-  return (
-    parallelAfterInvoice || afterUld || mawbParallel || closeNeedsFinal
-  );
+  return mawbParallel || closeNeedsFinal;
 }

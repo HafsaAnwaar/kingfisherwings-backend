@@ -118,8 +118,6 @@ import { OrganizationGroupsController } from "./organization-groups/organization
 import { OrganizationGroupsService } from "./organization-groups/organization-groups.service";
 import { CustomReportMastersController } from "./custom-reports/custom-reports.controller";
 import { CustomReportMastersService } from "./custom-reports/custom-reports.service";
-import { AirPalletTypesController } from "./air-pallet-types/air-pallet-types.controller";
-import { AirPalletTypesService } from "./air-pallet-types/air-pallet-types.service";
 
 const CONTROLLERS = [
   CountriesController,
@@ -167,7 +165,6 @@ const CONTROLLERS = [
   MastersNotificationsController,
   OrganizationGroupsController,
   CustomReportMastersController,
-  AirPalletTypesController,
 ];
 
 const SERVICES = [
@@ -217,7 +214,6 @@ const SERVICES = [
   WhatsappSmsHistoryService,
   OrganizationGroupsService,
   CustomReportMastersService,
-  AirPalletTypesService,
 ];
 
 @Module({

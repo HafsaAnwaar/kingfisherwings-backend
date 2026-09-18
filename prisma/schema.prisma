@@ -2591,7 +2591,6 @@ model AirJobDetail {
   job             Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
   storage_invoice Invoice? @relation("AirImportStorageInvoice", fields: [storage_invoice_id], references: [id], onDelete: SetNull)
   air_booking_form AirBookingForm?
-  uld_requests     AirUldRequest[]
 
   @@index([tenant_id])
   @@index([tenant_id, mawb_number_from_origin])
@@ -6920,7 +6919,11 @@ enum PartyEntityKind {
   INDIVIDUAL
 }
 
-
+enum NvoccActivitySector {
+  CIVILIAN
+  MILITARY
+  NUCLEAR
+}
 
 model NvoccBookingForm {
   id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
@@ -6928,7 +6931,9 @@ model NvoccBookingForm {
   booking_id            String    @unique @db.Uuid
   date_of_request       DateTime? @db.Date
   voyage_ref            String?   @db.VarChar(50)
+  client_booking_no     String?   @db.VarChar(50)
   gross_weight_kg       Decimal?  @db.Decimal(12, 3)
+  net_weight_kg         Decimal?  @db.Decimal(12, 3)
   pol                   String?   @db.VarChar(100)
   pod                   String?   @db.VarChar(100)
   shipper_owned_container Boolean @default(false)
@@ -6937,17 +6942,22 @@ model NvoccBookingForm {
   commodity             String?   @db.VarChar(500)
   hs_code               String?   @db.VarChar(20)
   final_use             String?   @db.VarChar(200)
-  activity_sector       String?   @db.VarChar(200)
+  activity_sector       NvoccActivitySector?
   insurance_details     String?   @db.Text
   lc_bank_details       String?   @db.Text
   attach_commercial_invoice Boolean @default(false)
   attach_correspondence Boolean   @default(false)
   attach_cod_form       Boolean   @default(false)
   attach_licence        Boolean   @default(false)
+  doc_commercial_invoice_key String? @db.VarChar(500)
+  doc_correspondence_key String?  @db.VarChar(500)
+  doc_cod_form_key      String?   @db.VarChar(500)
+  doc_licence_key       String?   @db.VarChar(500)
   booking_agent_line    String?   @db.VarChar(100)
   agent_requester_name  String?   @db.VarChar(200)
   sq_bl_booking_reference String? @db.VarChar(200)
   request_details       String?   @db.Text
+  consent_accepted_at   DateTime? @db.Timestamptz
   is_complete           Boolean   @default(false)
   completed_at          DateTime? @db.Timestamptz
   completed_by          String?   @db.Uuid
@@ -7072,41 +7082,11 @@ model TenantContainerNumberSequence {
   @@map("tenant_container_number_sequences")
 }
 
-model AirPalletType {
-  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id          String    @db.Uuid
-  code               String    @db.VarChar(30)
-  name               String    @db.VarChar(100)
-  iata_codes         String[]  @db.Text
-  base_length_m      Decimal?  @db.Decimal(10, 3)
-  base_width_m       Decimal?  @db.Decimal(10, 3)
-  height_m           Decimal?  @db.Decimal(10, 3)
-  usable_volume_m3   Decimal?  @db.Decimal(10, 3)
-  inside_length_m    Decimal?  @db.Decimal(10, 3)
-  inside_width_m     Decimal?  @db.Decimal(10, 3)
-  inside_height_m    Decimal?  @db.Decimal(10, 3)
-  aircraft_types     String[]  @db.Text
-  is_active          Boolean   @default(true)
-  created_at         DateTime  @default(now()) @db.Timestamptz
-  updated_at         DateTime  @updatedAt @db.Timestamptz
-  created_by         String?   @db.Uuid
-  updated_by         String?   @db.Uuid
-  deleted_at         DateTime? @db.Timestamptz
-
-  air_booking_forms AirBookingForm[]
-  uld_request_lines AirUldRequestLine[]
-
-  @@unique([tenant_id, code])
-  @@index([tenant_id, deleted_at])
-  @@map("air_pallet_types")
-}
-
 model AirBookingForm {
   id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id          String    @db.Uuid
   job_id             String    @unique @db.Uuid
   air_job_detail_id  String    @unique @db.Uuid
-  air_pallet_type_id String?   @db.Uuid
   pieces             Int?
   gross_weight_kg    Decimal?  @db.Decimal(12, 3)
   chargeable_weight_kg Decimal? @db.Decimal(12, 3)
@@ -7133,7 +7113,6 @@ model AirBookingForm {
   deleted_at         DateTime? @db.Timestamptz
 
   air_job_detail  AirJobDetail  @relation(fields: [air_job_detail_id], references: [id], onDelete: Cascade)
-  air_pallet_type AirPalletType? @relation(fields: [air_pallet_type_id], references: [id])
   parties         AirBookingFormParty[]
 
   @@index([tenant_id])
@@ -7168,8 +7147,11 @@ enum AirWorkflowStage {
   CUSTOMER_ACCEPTED
   BOOKING_FORM_COMPLETE
   INVOICE_SENT
+  /// @deprecated Removed from air export path; kept for DB enum compatibility
   ULD_REQUEST_ISSUED
+  /// @deprecated Removed from air export path; kept for DB enum compatibility
   ULD_ALLOCATED
+  /// @deprecated Removed from air export path; kept for DB enum compatibility
   CARGO_DROPPED_OFF
   BUILD_UP
   DRAFT_HAWB_ISSUED
@@ -7182,75 +7164,5 @@ enum AirWorkflowStage {
   DELIVERY_ORDER_ISSUED
   POD_RECEIVED
   CLOSED
-}
-
-enum AirUldRequestStatus {
-  DRAFT
-  ISSUED
-  ALLOCATED
-  CANCELLED
-}
-
-model AirUldRequest {
-  id                  String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id           String              @db.Uuid
-  job_id              String              @db.Uuid
-  air_job_detail_id   String              @db.Uuid
-  request_number      String              @db.VarChar(40)
-  status              AirUldRequestStatus @default(DRAFT)
-  airline_name        String?             @db.VarChar(200)
-  flight_number       String?             @db.VarChar(20)
-  flight_date         DateTime?           @db.Date
-  warehouse_cfs       String?             @db.VarChar(200)
-  cutoff_at           DateTime?           @db.Timestamptz
-  remarks             String?             @db.Text
-  uld_count           Int                 @default(1)
-  portal_visible_at   DateTime?           @db.Timestamptz
-  issued_at           DateTime?           @db.Timestamptz
-  issued_by           String?             @db.Uuid
-  allocated_at        DateTime?           @db.Timestamptz
-  allocated_by        String?             @db.Uuid
-  created_at          DateTime            @default(now()) @db.Timestamptz
-  updated_at          DateTime            @updatedAt @db.Timestamptz
-  created_by          String?             @db.Uuid
-  updated_by          String?             @db.Uuid
-  deleted_at          DateTime?           @db.Timestamptz
-
-  air_job_detail AirJobDetail       @relation(fields: [air_job_detail_id], references: [id], onDelete: Cascade)
-  lines          AirUldRequestLine[]
-
-  @@unique([tenant_id, request_number])
-  @@index([tenant_id, job_id])
-  @@index([tenant_id, status])
-  @@map("air_uld_requests")
-}
-
-model AirUldRequestLine {
-  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id         String    @db.Uuid
-  uld_request_id    String    @db.Uuid
-  line_no           Int       @default(1)
-  uld_number        String?   @db.VarChar(30)
-  air_pallet_type_id String?  @db.Uuid
-  dropped_off_at    DateTime? @db.Timestamptz
-  created_at        DateTime  @default(now()) @db.Timestamptz
-  updated_at        DateTime  @updatedAt @db.Timestamptz
-
-  uld_request     AirUldRequest  @relation(fields: [uld_request_id], references: [id], onDelete: Cascade)
-  air_pallet_type AirPalletType? @relation(fields: [air_pallet_type_id], references: [id])
-
-  @@unique([tenant_id, uld_number])
-  @@index([tenant_id, uld_request_id])
-  @@map("air_uld_request_lines")
-}
-
-model TenantUldNumberSequence {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id  String   @unique @db.Uuid
-  prefix     String   @default("ULD") @db.VarChar(10)
-  next_value Int      @default(1)
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  @@map("tenant_uld_number_sequences")
 }
 
