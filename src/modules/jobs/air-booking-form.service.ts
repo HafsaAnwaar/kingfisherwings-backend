@@ -5,15 +5,11 @@ import {
 } from "@nestjs/common";
 import { JobType, UserRole } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { AirWorkflowService } from "./air-workflow.service";
 import { UpsertAirBookingFormDto } from "./dto/air-workflow.dto";
 
 @Injectable()
 export class AirBookingFormService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly workflow: AirWorkflowService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async get(tenantId: string, jobId: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -51,25 +47,7 @@ export class AirBookingFormService {
       const markComplete = dto.mark_complete !== false;
       if (markComplete) {
         this.validateMandatory(job.job_type, dto);
-        this.workflow.assertCanEnterStage(actor.role, "BOOKING_FORM_COMPLETE", {
-          override: dto.admin_override,
-          overrideReason: dto.stage_override_reason,
-        });
-        const allowed = [
-          "CUSTOMER_ACCEPTED",
-          "BOOKING_FORM_COMPLETE",
-          "QUOTE_REQUESTED",
-          "CS_TRIAGED",
-          "QUOTE_SENT",
-        ];
-        if (
-          !allowed.includes(job.air_details.workflow_stage) &&
-          !dto.admin_override
-        ) {
-          throw new BadRequestException(
-            `Cannot complete booking form from stage ${job.air_details.workflow_stage}.`,
-          );
-        }
+        // Operational flight form only — customer compliance form advances BOOKING_FORM_COMPLETE
       }
 
       const existing = await tx.airBookingForm.findFirst({
@@ -150,30 +128,6 @@ export class AirBookingFormService {
             },
           });
         }
-      }
-
-      if (
-        markComplete &&
-        job.air_details.workflow_stage !== "BOOKING_FORM_COMPLETE"
-      ) {
-        this.workflow.assertForwardTransition(
-          job.job_type,
-          job.air_details.workflow_stage,
-          "BOOKING_FORM_COMPLETE",
-          { allowSkip: dto.admin_override },
-        );
-        await tx.airJobDetail.update({
-          where: { id: job.air_details.id },
-          data: {
-            workflow_stage: "BOOKING_FORM_COMPLETE",
-            stage_changed_at: new Date(),
-            stage_changed_by: actor.id,
-            stage_override_reason: dto.admin_override
-              ? dto.stage_override_reason
-              : undefined,
-            updated_by: actor.id,
-          },
-        });
       }
 
       return tx.airBookingForm.findFirst({

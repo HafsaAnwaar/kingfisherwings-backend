@@ -16,6 +16,7 @@ import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { CurrentUser as CurrentUserType } from "../users/interfaces/current-user.interface";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
 import { AirBookingFormService } from "./air-booking-form.service";
+import { AirComplianceBookingFormService } from "./air-compliance-booking-form.service";
 import { AirWorkflowActionsService } from "./air-workflow-actions.service";
 import { AirWorkflowService } from "./air-workflow.service";
 import {
@@ -23,6 +24,7 @@ import {
   MarkAirInvoiceSentDto,
   UpsertAirBookingFormDto,
 } from "./dto/air-workflow.dto";
+import { UpsertNvoccBookingFormDto } from "../nvocc/dto/nvocc-booking-form.dto";
 import { GenerateJobDocumentDto } from "./dto/generate-job-document.dto";
 
 @ApiTags("Jobs — Air Workflow")
@@ -32,6 +34,7 @@ import { GenerateJobDocumentDto } from "./dto/generate-job-document.dto";
 export class AirWorkflowController {
   constructor(
     private readonly bookingForms: AirBookingFormService,
+    private readonly complianceForms: AirComplianceBookingFormService,
     private readonly actions: AirWorkflowActionsService,
     private readonly workflow: AirWorkflowService,
   ) {}
@@ -60,7 +63,9 @@ export class AirWorkflowController {
 
   @Get(":id/air-booking-form")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Get air booking form" })
+  @ApiOperation({
+    summary: "Get Ops air flight booking form (operational; not the customer compliance form)",
+  })
   getForm(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
@@ -71,7 +76,8 @@ export class AirWorkflowController {
   @Put(":id/air-booking-form")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Ops: upsert air booking form (export/import mandatory fields)",
+    summary:
+      "Ops: upsert flight/airport air booking form (does not advance BOOKING_FORM_COMPLETE — customer compliance form does)",
   })
   upsertForm(
     @CurrentUser() user: CurrentUserType,
@@ -79,6 +85,30 @@ export class AirWorkflowController {
     @Body() dto: UpsertAirBookingFormDto,
   ) {
     return this.bookingForms.upsert(user.tenantId, id, dto, user);
+  }
+
+  @Get(":id/air/compliance-form")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Get customer compliance booking form for air job" })
+  getComplianceForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.complianceForms.get(tenantId, id);
+  }
+
+  @Put(":id/air/compliance-form")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Staff: correct air compliance form (Admin override to mark complete)",
+  })
+  upsertComplianceForm(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertNvoccBookingFormDto,
+  ) {
+    return this.complianceForms.upsertStaff(user.tenantId, id, dto, user);
   }
 
   @Post(":id/air/send-invoice")

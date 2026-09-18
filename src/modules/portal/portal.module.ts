@@ -52,8 +52,11 @@ import { PortalAirWorkflowService } from "./portal-air-workflow.service";
 import { PortalConverterController } from "./portal-converter.controller";
 import { PortalComplianceBookingController } from "./portal-compliance-booking.controller";
 import { PortalComplianceBookingService } from "./portal-compliance-booking.service";
+import { PortalAirComplianceBookingController } from "./portal-air-compliance-booking.controller";
+import { PortalAirComplianceBookingService } from "./portal-air-compliance-booking.service";
 import { ToolsModule } from "../tools/tools.module";
 import { NvoccModule } from "../nvocc/nvocc.module";
+import { JobsModule } from "../jobs/jobs.module";
 
 @Module({
   imports: [
@@ -68,6 +71,7 @@ import { NvoccModule } from "../nvocc/nvocc.module";
     GlModule,
     NotificationsModule,
     NvoccModule,
+    JobsModule,
     JwtModule.register({}),
   ],
   controllers: [
@@ -94,6 +98,7 @@ import { NvoccModule } from "../nvocc/nvocc.module";
     PortalTasksController,
     PortalConverterController,
     PortalComplianceBookingController,
+    PortalAirComplianceBookingController,
   ],
   providers: [
     PortalService,
@@ -109,6 +114,7 @@ import { NvoccModule } from "../nvocc/nvocc.module";
     PortalNvoccWorkflowService,
     PortalAirWorkflowService,
     PortalComplianceBookingService,
+    PortalAirComplianceBookingService,
     PortalAuthGuard,
   ],
   exports: [
