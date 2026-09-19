@@ -176,7 +176,10 @@ export class ReportsGenerateService {
     );
 
     try {
-      const parameters = (job.parameters ?? {}) as Record<string, unknown>;
+      const parameters = {
+        ...((job.parameters ?? {}) as Record<string, unknown>),
+        template_code: job.template_code,
+      };
       const context = (job.context ?? {}) as {
         job_id?: string;
         quotation_id?: string;

@@ -65,6 +65,16 @@ export class InvoiceFormatPayloadService {
           lines: {
             where: { deleted_at: null },
             orderBy: { sort_order: "asc" },
+            select: {
+              description: true,
+              quantity: true,
+              unit_price: true,
+              amount: true,
+              tax_rate: true,
+              tax_amount: true,
+              is_taxable: true,
+              charge_code_id: true,
+            },
           },
           job: {
             select: {
@@ -157,7 +167,11 @@ export class InvoiceFormatPayloadService {
       job?.sea_fcl_details?.containers ?? []
     ).map((c) => c.container_type_id);
 
-    const [parties, ports, vessels, airports, containerTypes] =
+    const chargeCodeIds = invoice.lines
+      .map((l) => l.charge_code_id)
+      .filter(Boolean) as string[];
+
+    const [parties, ports, vessels, airports, containerTypes, chargeCodes] =
       await this.prisma.runWithTenant(tenantId, async (tx) =>
         Promise.all([
           partyIds.length
@@ -193,6 +207,12 @@ export class InvoiceFormatPayloadService {
                 select: { id: true, code: true },
               })
             : [],
+          chargeCodeIds.length
+            ? tx.chargeCode.findMany({
+                where: { tenant_id: tenantId, id: { in: chargeCodeIds } },
+                select: { id: true, code: true },
+              })
+            : [],
         ]),
       );
 
@@ -201,6 +221,7 @@ export class InvoiceFormatPayloadService {
     const vesselMap = new Map(vessels.map((v) => [v.id, v.name]));
     const airportMap = new Map(airports.map((a) => [a.id, a.iata_code]));
     const ctypeMap = new Map(containerTypes.map((c) => [c.id, c.code]));
+    const chargeMap = new Map(chargeCodes.map((c) => [c.id, c.code]));
 
     const companyName =
       invoice.company?.legal_name ||
@@ -226,6 +247,8 @@ export class InvoiceFormatPayloadService {
     const fx = num(invoice.exchange_rate) || 1;
     const currency = invoice.currency_code;
 
+    // Without party/company state codes we cannot split CGST/SGST reliably.
+    // Map single line tax_amount → IGST until line-level GST components exist.
     const lines: InvoiceFormatPayload["lines"] = invoice.lines.map((l) => {
       const qty = num(l.quantity) || 1;
       const unit = num(l.unit_price);
@@ -233,9 +256,13 @@ export class InvoiceFormatPayloadService {
       const tax = num(l.tax_amount);
       const taxable = l.is_taxable ? amount : 0;
       const nonTax = l.is_taxable ? 0 : amount;
+      const rate = num(l.tax_rate);
+      const sac =
+        (l.charge_code_id ? chargeMap.get(l.charge_code_id) : undefined) ||
+        "";
       return {
         description: l.description,
-        sac_hsn: "",
+        sac_hsn: sac,
         qty,
         amount_per_qty: round2(unit),
         currency,
@@ -247,7 +274,7 @@ export class InvoiceFormatPayloadService {
         sgst_amount: 0,
         cgst_rate: 0,
         cgst_amount: 0,
-        igst_rate: num(l.tax_rate),
+        igst_rate: rate,
         igst_amount: round2(tax),
         total_inr: round2(amount + tax),
       };
@@ -257,6 +284,8 @@ export class InvoiceFormatPayloadService {
     const non_taxable = round2(
       lines.reduce((s, l) => s + l.non_taxable_amount, 0),
     );
+    const sgst = 0;
+    const cgst = 0;
     const igst = round2(lines.reduce((s, l) => s + (l.igst_amount ?? 0), 0));
     const grand = round2(num(invoice.total_amount));
 
@@ -327,6 +356,8 @@ export class InvoiceFormatPayloadService {
         name: companyName,
         address_lines: companyAddress,
         logo_url: branding.logo_url ?? undefined,
+        website: undefined,
+        // FRESA: company GSTIN mapped from vat_number
         gstin:
           invoice.company?.vat_number || branding.vat_number || undefined,
       },
@@ -334,6 +365,7 @@ export class InvoiceFormatPayloadService {
         name: invoice.party?.name ?? "",
         address_lines: billAddress,
         phone: invoice.party?.phone ?? undefined,
+        // FRESA: party GSTIN mapped from vat_number
         gstin:
           invoice.party_vat_number ||
           invoice.party?.vat_number ||
@@ -355,8 +387,8 @@ export class InvoiceFormatPayloadService {
       totals: {
         taxable,
         non_taxable,
-        sgst: 0,
-        cgst: 0,
+        sgst,
+        cgst,
         igst,
         grand_total: grand,
         amount_in_words: amountInWords(
@@ -364,14 +396,15 @@ export class InvoiceFormatPayloadService {
           currency === "INR" ? "Rupees" : currency,
         ),
         tax_buckets: [
-          { label: "IGST (mapped from VAT)", amount: igst },
-          { label: "SGST", amount: 0 },
-          { label: "CGST", amount: 0 },
+          { label: "SGST", amount: sgst },
+          { label: "CGST", amount: cgst },
+          { label: "IGST (mapped from line tax_amount)", amount: igst },
         ],
       },
       terms: [
         "Payment due as per invoice due date.",
-        "This is a computer-generated invoice.",
+        "Subject to jurisdiction of company registered office.",
+        "This is a computer-generated tax invoice.",
       ],
       bank,
       footer: {
@@ -379,7 +412,7 @@ export class InvoiceFormatPayloadService {
         timezone: "UTC",
       },
       gst_note:
-        "SGST/CGST/IGST shown from single tax_amount mapped to IGST until line-level GST components are stored.",
+        "GSTIN mapped from vat_number. Line SAC/HSN uses charge_code when present. SGST/CGST/IGST: single tax_amount is mapped to IGST until line-level GST components are stored.",
     };
   }
 }

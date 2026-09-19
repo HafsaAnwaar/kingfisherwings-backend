@@ -27,7 +27,10 @@ export class ReportTemplatesQueryDto {
   @Max(200)
   limit?: number = 50;
 
-  @ApiPropertyOptional({ description: "Search name or code" })
+  @ApiPropertyOptional({
+    description:
+      "Whitespace-split tokens AND-matched across name, code, and description (case-insensitive contains)",
+  })
   @IsOptional()
   @IsString()
   search?: string;

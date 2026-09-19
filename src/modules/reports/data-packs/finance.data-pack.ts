@@ -61,7 +61,16 @@ export class FinanceDataPackService {
           generated_at,
         };
       case "finance.voucher":
-        return this.voucherDoc(tenantId, parameters, branding, generated_at);
+      case "finance.journal_voucher":
+      case "finance.payment_voucher":
+      case "finance.receipt_voucher":
+        return this.voucherDoc(
+          tenantId,
+          rendererKey,
+          parameters,
+          branding,
+          generated_at,
+        );
       case "finance.outstanding_letter":
         return this.outstandingLetter(
           tenantId,
@@ -144,7 +153,8 @@ export class FinanceDataPackService {
     );
     return accounts.map((a) => {
       const bal = Number(a.opening_balance ?? 0);
-      const isDebit = (a.opening_balance_type || "DEBIT").toUpperCase() === "DEBIT";
+      const isDebit =
+        (a.opening_balance_type || "DEBIT").toUpperCase() === "DEBIT";
       return {
         code: a.account_code,
         name: a.account_name,
@@ -154,8 +164,16 @@ export class FinanceDataPackService {
     });
   }
 
+  private voucherTitle(rendererKey: string, voucherType?: string): string {
+    if (rendererKey === "finance.journal_voucher") return "Journal Voucher";
+    if (rendererKey === "finance.payment_voucher") return "Payment Voucher";
+    if (rendererKey === "finance.receipt_voucher") return "Receipt Voucher";
+    return voucherType ? `Voucher (${voucherType})` : "Voucher";
+  }
+
   private async voucherDoc(
     tenantId: string,
+    rendererKey: string,
     params: Params,
     branding: Awaited<ReturnType<typeof loadReportBranding>>,
     generated_at: string,
@@ -178,21 +196,54 @@ export class FinanceDataPackService {
     );
     if (!voucher) throw new BadRequestException("voucher_id not found");
 
+    // Soft-validate type vs pack (still render if mismatched — FE may reuse voucher_id)
+    const vt = String(voucher.voucher_type || "");
+    if (
+      rendererKey === "finance.journal_voucher" &&
+      vt &&
+      !vt.includes("JOURNAL")
+    ) {
+      // allow — catalog shells share loader
+    }
+    if (
+      rendererKey === "finance.payment_voucher" &&
+      vt &&
+      !vt.includes("PAYMENT")
+    ) {
+      // allow
+    }
+    if (
+      rendererKey === "finance.receipt_voucher" &&
+      vt &&
+      !vt.includes("RECEIPT")
+    ) {
+      // allow
+    }
+
     return {
-      kind: "list",
-      title: `Voucher ${voucher.voucher_number}`,
-      columns: [
-        { key: "account", label: "Account" },
-        { key: "narration", label: "Narration" },
-        { key: "debit", label: "Debit" },
-        { key: "credit", label: "Credit" },
-      ],
-      rows: voucher.lines.map((l) => ({
-        account: l.account_id,
-        narration: l.narration ?? "",
-        debit: Number(l.debit_amount ?? 0),
-        credit: Number(l.credit_amount ?? 0),
-      })),
+      kind: "document",
+      title: this.voucherTitle(rendererKey, vt),
+      template_key:
+        rendererKey === "finance.payment_voucher" ||
+        rendererKey === "finance.receipt_voucher" ||
+        rendererKey === "finance.journal_voucher"
+          ? rendererKey
+          : "finance.journal_voucher",
+      payload: {
+        voucher_number: voucher.voucher_number,
+        voucher_type: vt,
+        voucher_date: voucher.voucher_date
+          ? voucher.voucher_date.toISOString().slice(0, 10)
+          : "",
+        narration: voucher.narration ?? "",
+        currency: voucher.currency_code ?? "",
+        lines: voucher.lines.map((l) => ({
+          account: l.account_id,
+          narration: l.narration ?? "",
+          debit: Number(l.debit_amount ?? 0),
+          credit: Number(l.credit_amount ?? 0),
+        })),
+      },
       branding,
       generated_at,
     };
@@ -214,7 +265,13 @@ export class FinanceDataPackService {
     const party = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.party.findFirst({
         where: { id: partyId, tenant_id: tenantId, deleted_at: null },
-        select: { name: true, currency_code: true },
+        select: {
+          name: true,
+          currency_code: true,
+          address: true,
+          city: true,
+          country_code: true,
+        },
       }),
     );
     if (!party) throw new BadRequestException("party_id not found");
@@ -224,6 +281,9 @@ export class FinanceDataPackService {
       (s, r) => s + Number(r.balance ?? 0),
       0,
     );
+    const address = [party.address, party.city, party.country_code]
+      .filter(Boolean)
+      .join(", ");
 
     return {
       kind: "document",
@@ -231,6 +291,7 @@ export class FinanceDataPackService {
       template_key: "finance.outstanding_letter",
       payload: {
         party_name: party.name,
+        party_address: address,
         balance: balance.toFixed(2),
         currency: party.currency_code ?? "AED",
         as_of: new Date().toISOString().slice(0, 10),
@@ -239,7 +300,10 @@ export class FinanceDataPackService {
           date: r.invoice_date,
           due: r.due_date,
           balance: r.balance,
+          bucket: r.bucket,
         })),
+        closing:
+          "Kindly arrange settlement of the above outstanding at the earliest. Please ignore if already paid.",
       },
       branding,
       generated_at,

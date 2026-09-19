@@ -11,7 +11,41 @@ const COMMERCIAL_KEYS = [
   "commercial.invoice_tax_india_1",
   "commercial.invoice_tax_india_2",
   "commercial.invoice_summary_india",
+  "commercial.invoice_standard",
+  "commercial.invoice_simple_india",
+  "commercial.invoice_arabic",
+  "commercial.invoice_usa",
+  "commercial.invoice_warehouse",
 ] as const;
+
+const TEMPLATE_CODES: Record<string, string> = {
+  "commercial.invoice_tax_india_1":
+    "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA",
+  "commercial.invoice_tax_india_2":
+    "INVOICE_REPORT_FORMAT_2_TAX_INVOICE_INDIA",
+  "commercial.invoice_summary_india": "INVOICE_REPORT_FORMAT_SUMMARY_INDIA",
+  "commercial.invoice_standard":
+    "INVOICE_REPORT_FORMAT_10_STANDARD_INVOICE",
+  "commercial.invoice_simple_india":
+    "INVOICE_REPORT_FORMAT_6_SIMPLE_INVOICE_INDIA",
+  "commercial.invoice_arabic":
+    "INVOICE_REPORT_FORMAT_8_STANDARD_INVOICE_ARABIC",
+  "commercial.invoice_usa":
+    "INVOICE_REPORT_FORMAT_9_STANDARD_INVOICE_USA",
+  "commercial.invoice_warehouse":
+    "INVOICE_REPORT_FORMAT_21_WAREHOUSE_INVOICE",
+};
+
+const TITLES: Record<string, string> = {
+  "commercial.invoice_tax_india_1": "Tax Invoice India — Format 1",
+  "commercial.invoice_tax_india_2": "Tax Invoice India — Format 2",
+  "commercial.invoice_summary_india": "Tax Invoice Summary — India",
+  "commercial.invoice_standard": "Standard Invoice",
+  "commercial.invoice_simple_india": "Simple Invoice — India",
+  "commercial.invoice_arabic": "Standard Invoice — Arabic",
+  "commercial.invoice_usa": "Standard Invoice — USA",
+  "commercial.invoice_warehouse": "Warehouse Invoice",
+};
 
 @Injectable()
 export class CommercialDataPackService {
@@ -49,22 +83,13 @@ export class CommercialDataPackService {
     const data = await this.payload.build(tenantId, invoiceId, {
       format_key: rendererKey,
       template_code:
-        rendererKey === "commercial.invoice_tax_india_2"
-          ? "INVOICE_REPORT_FORMAT_2_TAX_INVOICE_INDIA"
-          : rendererKey === "commercial.invoice_summary_india"
-            ? "INVOICE_REPORT_FORMAT_SUMMARY_INDIA"
-            : "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA",
+        TEMPLATE_CODES[rendererKey] ??
+        "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA",
     });
-
-    const titles: Record<string, string> = {
-      "commercial.invoice_tax_india_1": "Tax Invoice India — Format 1",
-      "commercial.invoice_tax_india_2": "Tax Invoice India — Format 2",
-      "commercial.invoice_summary_india": "Tax Invoice Summary — India",
-    };
 
     return {
       kind: "document",
-      title: titles[rendererKey] ?? "Commercial Invoice",
+      title: TITLES[rendererKey] ?? "Commercial Invoice",
       template_key: rendererKey,
       payload: data as unknown as Record<string, unknown>,
       branding,

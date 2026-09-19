@@ -7,6 +7,7 @@ import { AirDocsDataPackService } from "./air-docs.data-pack";
 import { QuotationDataPackService } from "./quotation.data-pack";
 import { FinanceDataPackService } from "./finance.data-pack";
 import { WmsDataPackService } from "./wms.data-pack";
+import { OtherDataPackService } from "./other.data-pack";
 import { ReportDataset } from "../types/report.types";
 
 /** Implemented Puppeteer/Excel packs (Jasper equivalent). Not JRXML upload. */
@@ -34,6 +35,9 @@ export const IMPLEMENTED_RENDERER_KEYS = [
   "sea.hbl_original",
   "sea.arrival_notice",
   "sea.delivery_order",
+  "sea.cargo_manifest",
+  "sea.stuffing_report",
+  "sea.letter_shell",
   "air.hawb_draft",
   "air.hawb_final",
   "air.mawb",
@@ -43,13 +47,25 @@ export const IMPLEMENTED_RENDERER_KEYS = [
   "commercial.invoice_tax_india_1",
   "commercial.invoice_tax_india_2",
   "commercial.invoice_summary_india",
+  "commercial.invoice_standard",
+  "commercial.invoice_simple_india",
+  "commercial.invoice_arabic",
+  "commercial.invoice_usa",
+  "commercial.invoice_warehouse",
   "finance.aging",
   "finance.soa",
   "finance.trial_balance",
   "finance.voucher",
+  "finance.journal_voucher",
+  "finance.payment_voucher",
+  "finance.receipt_voucher",
   "finance.outstanding_letter",
   "wms.asn",
+  "wms.grn",
+  "wms.gdo",
   "wms.warehouse_note",
+  "other.booking_confirmation",
+  "other.pre_alert",
 ] as const;
 
 export type ImplementedRendererKey = (typeof IMPLEMENTED_RENDERER_KEYS)[number];
@@ -86,6 +102,7 @@ export class ReportDataPackRegistry {
     private readonly quotation: QuotationDataPackService,
     private readonly finance: FinanceDataPackService,
     private readonly wms: WmsDataPackService,
+    private readonly other: OtherDataPackService,
   ) {}
 
   listImplemented(): Array<{
@@ -146,6 +163,9 @@ export class ReportDataPackRegistry {
     }
     if (this.wms.supports(rendererKey)) {
       return this.wms.load(tenantId, rendererKey, parameters);
+    }
+    if (this.other.supports(rendererKey)) {
+      return this.other.load(tenantId, rendererKey, parameters, context);
     }
     if (this.sea.supports(rendererKey)) {
       return this.sea.load(tenantId, rendererKey, parameters, context);

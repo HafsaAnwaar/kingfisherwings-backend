@@ -20,6 +20,7 @@ import { AirDocsDataPackService } from "./data-packs/air-docs.data-pack";
 import { QuotationDataPackService } from "./data-packs/quotation.data-pack";
 import { FinanceDataPackService } from "./data-packs/finance.data-pack";
 import { WmsDataPackService } from "./data-packs/wms.data-pack";
+import { OtherDataPackService } from "./data-packs/other.data-pack";
 import { ReportDataPackRegistry } from "./data-packs/report-data-pack.registry";
 import { ReportRendererService } from "./renderers/report-renderer.service";
 import { ReportGenerationProcessor } from "./report-generation.processor";
@@ -81,6 +82,7 @@ const queueProviders = redisEnabled
     QuotationDataPackService,
     FinanceDataPackService,
     WmsDataPackService,
+    OtherDataPackService,
     ReportDataPackRegistry,
     ReportRendererService,
     ReportsSeedService,

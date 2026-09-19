@@ -30,7 +30,10 @@ export class WmsDataPackService {
             where: { id: asnId, tenant_id: tenantId, deleted_at: null },
             include: {
               warehouse: { select: { name: true, code: true } },
-              lines: { take: 200, include: { item: { select: { code: true, name: true } } } },
+              lines: {
+                take: 200,
+                include: { item: { select: { code: true, name: true } } },
+              },
             },
           }),
         );
@@ -81,6 +84,13 @@ export class WmsDataPackService {
       };
     }
 
+    if (rendererKey === "wms.grn") {
+      return this.grnOrGdo(tenantId, "grn", parameters, branding, generated_at);
+    }
+    if (rendererKey === "wms.gdo") {
+      return this.grnOrGdo(tenantId, "gdo", parameters, branding, generated_at);
+    }
+
     if (rendererKey === "wms.warehouse_note") {
       return {
         kind: "document",
@@ -97,5 +107,142 @@ export class WmsDataPackService {
     }
 
     throw new BadRequestException(`Unsupported wms renderer: ${rendererKey}`);
+  }
+
+  private async grnOrGdo(
+    tenantId: string,
+    kind: "grn" | "gdo",
+    parameters: Params,
+    branding: Awaited<ReturnType<typeof loadReportBranding>>,
+    generated_at: string,
+  ): Promise<ReportDataset> {
+    const idParam = kind === "grn" ? "grn_id" : "gdo_id";
+    const id = parameters[idParam] ? String(parameters[idParam]) : null;
+
+    if (id) {
+      if (kind === "grn") {
+        const grn = await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.wmsGrn.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            include: {
+              warehouse: { select: { code: true, name: true } },
+              lines: {
+                take: 200,
+                include: { item: { select: { code: true, name: true } } },
+              },
+            },
+          }),
+        );
+        if (!grn) throw new BadRequestException("grn_id not found");
+        return {
+          kind: "document",
+          title: `GRN ${grn.grn_number}`,
+          template_key: "wms.grn",
+          payload: {
+            doc_number: grn.grn_number,
+            warehouse: grn.warehouse
+              ? `${grn.warehouse.code} — ${grn.warehouse.name}`
+              : "",
+            status: grn.status,
+            received_at: grn.received_at?.toISOString().slice(0, 10) ?? "",
+            lines: grn.lines.map((l) => ({
+              item: `${l.item?.code ?? ""} ${l.item?.name ?? ""}`.trim(),
+              qty: Number(l.quantity),
+            })),
+          },
+          branding,
+          generated_at,
+        };
+      }
+      const gdo = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.wmsGdo.findFirst({
+          where: { id, tenant_id: tenantId, deleted_at: null },
+          include: {
+            warehouse: { select: { code: true, name: true } },
+            lines: {
+              take: 200,
+              include: { item: { select: { code: true, name: true } } },
+            },
+          },
+        }),
+      );
+      if (!gdo) throw new BadRequestException("gdo_id not found");
+      return {
+        kind: "document",
+        title: `GDO ${gdo.gdo_number}`,
+        template_key: "wms.gdo",
+        payload: {
+          doc_number: gdo.gdo_number,
+          warehouse: gdo.warehouse
+            ? `${gdo.warehouse.code} — ${gdo.warehouse.name}`
+            : "",
+          status: gdo.status,
+          dispatched_at: gdo.delivered_at?.toISOString().slice(0, 10) ?? "",
+          lines: gdo.lines.map((l) => ({
+            item: `${l.item?.code ?? ""} ${l.item?.name ?? ""}`.trim(),
+            qty: Number(l.quantity),
+          })),
+        },
+        branding,
+        generated_at,
+      };
+    }
+
+    // List mode
+    if (kind === "grn") {
+      const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.wmsGrn.findMany({
+          where: { tenant_id: tenantId, deleted_at: null },
+          take: REPORT_ROW_LIMIT,
+          orderBy: { created_at: "desc" },
+          include: { warehouse: { select: { code: true } } },
+        }),
+      );
+      return {
+        kind: "list",
+        title: "GRN List",
+        columns: [
+          { key: "grn_number", label: "GRN #" },
+          { key: "warehouse", label: "Warehouse" },
+          { key: "status", label: "Status" },
+          { key: "received_at", label: "Received" },
+        ],
+        rows: rows.map((r) => ({
+          grn_number: r.grn_number,
+          warehouse: r.warehouse?.code ?? "",
+          status: r.status,
+          received_at: r.received_at?.toISOString().slice(0, 10) ?? "",
+        })),
+        branding,
+        generated_at,
+      };
+    }
+
+    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.wmsGdo.findMany({
+        where: { tenant_id: tenantId, deleted_at: null },
+        take: REPORT_ROW_LIMIT,
+        orderBy: { created_at: "desc" },
+        include: { warehouse: { select: { code: true } } },
+      }),
+    );
+    return {
+      kind: "list",
+      title: "GDO List",
+      columns: [
+        { key: "gdo_number", label: "GDO #" },
+        { key: "warehouse", label: "Warehouse" },
+        { key: "status", label: "Status" },
+        { key: "dispatched_at", label: "Delivered" },
+      ],
+      rows: rows.map((r) => ({
+        gdo_number: r.gdo_number,
+        warehouse: r.warehouse?.code ?? "",
+        status: r.status,
+        dispatched_at: r.delivered_at?.toISOString().slice(0, 10) ?? "",
+      })),
+      branding,
+      generated_at,
+    };
   }
 }
