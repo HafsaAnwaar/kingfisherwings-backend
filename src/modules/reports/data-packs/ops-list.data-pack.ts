@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { REPORT_ROW_LIMIT } from "../constants/reports.constants";
+import { resolveOpsListColumnConfig } from "../constants/ops-list-column-config";
 import { loadReportBranding } from "../helpers/report-branding.helper";
 import { ReportDataset, ReportListRow } from "../types/report.types";
 
@@ -68,14 +69,22 @@ export class OpsListDataPackService {
           branding,
           generated_at,
         };
-      case "ops.list_generic":
+      case "ops.list_generic": {
+        const templateCode = parameters.template_code
+          ? String(parameters.template_code)
+          : undefined;
+        const cfg = resolveOpsListColumnConfig(
+          templateCode,
+          parameters.title ? String(parameters.title) : undefined,
+        );
         return {
-          title: String(parameters.title ?? parameters.template_code ?? "Operations List"),
-          columns: JOB_COLUMNS,
+          title: cfg.title,
+          columns: cfg.columns,
           rows: await this.jobsListOptionalDates(tenantId, parameters),
           branding,
           generated_at,
         };
+      }
       case "ops.eta_followup":
         return {
           title: "ETA Follow-up",

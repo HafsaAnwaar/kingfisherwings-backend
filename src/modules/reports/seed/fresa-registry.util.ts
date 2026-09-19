@@ -17,14 +17,14 @@ export type RegistryEntry = {
 };
 
 const FAMILY_COUNTS: Array<{ family: ReportFamily; count: number; prefix: string }> = [
-  { family: "ops_list", count: 110, prefix: "OPS" },
-  { family: "sea_docs", count: 134, prefix: "SEA" },
+  { family: "ops_list", count: 113, prefix: "OPS" },
+  { family: "sea_docs", count: 256, prefix: "SEA" },
   { family: "air_docs", count: 75, prefix: "AIR" },
   { family: "quotation", count: 18, prefix: "QUO" },
-  { family: "commercial", count: 99, prefix: "COM" },
-  { family: "finance", count: 91, prefix: "FIN" },
-  { family: "wms", count: 58, prefix: "WMS" },
-  { family: "other", count: 22, prefix: "OTH" },
+  { family: "commercial", count: 205, prefix: "COM" },
+  { family: "finance", count: 44, prefix: "FIN" },
+  { family: "wms", count: 46, prefix: "WMS" },
+  { family: "other", count: 95, prefix: "OTH" },
 ];
 
 const DEFAULT_CONTEXTS: Record<string, ReportContext[]> = {
@@ -39,8 +39,8 @@ const DEFAULT_CONTEXTS: Record<string, ReportContext[]> = {
 };
 
 /**
- * Generates ~607 FRESA-style inactive stubs when fresaReportRegistry.json is absent.
- * Replace/augment via JSON file or POST /reports/templates/import for real FE codes.
+ * Fallback stubs when fresaReportRegistry.json is absent (~852 target).
+ * Prefer the FE taxonomy JSON or POST /reports/templates/import.
  */
 export function buildGeneratedFresaRegistry(): RegistryEntry[] {
   const rows: RegistryEntry[] = [];

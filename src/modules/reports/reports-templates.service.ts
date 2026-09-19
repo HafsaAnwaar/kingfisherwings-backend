@@ -40,18 +40,36 @@ export class ReportsTemplatesService {
   async list(query: ReportTemplatesQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
+    const tokens = String(query.search ?? "")
+      .trim()
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    // Each whitespace token must match name OR code OR description (AND across tokens).
+    const searchWhere: Prisma.ReportTemplateWhereInput | undefined =
+      tokens.length === 0
+        ? undefined
+        : {
+            AND: tokens.map((token) => ({
+              OR: [
+                { name: { contains: token, mode: "insensitive" as const } },
+                { code: { contains: token, mode: "insensitive" as const } },
+                {
+                  description: {
+                    contains: token,
+                    mode: "insensitive" as const,
+                  },
+                },
+              ],
+            })),
+          };
+
     const where: Prisma.ReportTemplateWhereInput = {
       ...(query.include_inactive ? {} : { is_active: true }),
       ...(query.family ? { family: query.family } : {}),
       ...(query.context ? { contexts: { has: query.context } } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { name: { contains: query.search, mode: "insensitive" } },
-              { code: { contains: query.search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      ...(searchWhere ?? {}),
     };
 
     const [rows, total] = await Promise.all([
@@ -70,7 +88,7 @@ export class ReportsTemplatesService {
         page,
         limit,
         total,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
+        totalPages: total === 0 ? 0 : Math.max(1, Math.ceil(total / limit)),
       },
     };
   }

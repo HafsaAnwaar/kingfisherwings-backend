@@ -11,6 +11,9 @@ const DOC_KEYS = new Set([
   "sea.hbl_original",
   "sea.arrival_notice",
   "sea.delivery_order",
+  "sea.cargo_manifest",
+  "sea.stuffing_report",
+  "sea.letter_shell",
 ]);
 
 @Injectable()
@@ -57,9 +60,16 @@ export class SeaDocumentDataPackService {
               vessel_id: true,
               port_of_loading_id: true,
               port_of_discharge_id: true,
+              place_of_receipt: true,
+              place_of_delivery: true,
               containers: {
                 where: { deleted_at: null },
-                select: { container_number: true },
+                select: {
+                  container_number: true,
+                  seal_number: true,
+                  gross_weight: true,
+                  cbm: true,
+                },
               },
             },
           },
@@ -71,6 +81,8 @@ export class SeaDocumentDataPackService {
               vessel_id: true,
               port_of_loading_id: true,
               port_of_discharge_id: true,
+              place_of_receipt: true,
+              place_of_delivery: true,
             },
           },
           nvocc_details: {
@@ -123,41 +135,61 @@ export class SeaDocumentDataPackService {
     const portMap = new Map(ports.map((p) => [p.id, p.un_locode]));
 
     const hbl =
-      sea?.hbl_number ||
-      job.nvocc_details?.hbl_number ||
-      "";
-    const containers = (
-      job.sea_fcl_details?.containers ?? []
-    )
+      sea?.hbl_number || job.nvocc_details?.hbl_number || "";
+    const mbl =
+      sea?.mbl_number || job.nvocc_details?.mbl_number || "";
+    const containers = (job.sea_fcl_details?.containers ?? [])
       .map((c) => c.container_number)
       .filter(Boolean)
       .join(", ");
+    const containerRows = (job.sea_fcl_details?.containers ?? []).map((c) => ({
+      container_no: c.container_number ?? "",
+      seal: c.seal_number ?? "",
+      gross_weight: c.gross_weight != null ? String(c.gross_weight) : "",
+      cbm: c.cbm != null ? String(c.cbm) : "",
+    }));
+
+    const pol =
+      (sea?.port_of_loading_id
+        ? portMap.get(sea.port_of_loading_id)
+        : undefined) ||
+      (job.origin_port_id ? portMap.get(job.origin_port_id) : "") ||
+      "";
+    const pod =
+      (sea?.port_of_discharge_id
+        ? portMap.get(sea.port_of_discharge_id)
+        : undefined) ||
+      (job.dest_port_id ? portMap.get(job.dest_port_id) : "") ||
+      "";
+
+    const letterKind = String(parameters.letter_kind ?? parameters.template_code ?? "LETTER")
+      .replace(/_/g, " ")
+      .toUpperCase();
 
     const payload = {
       job_number: job.job_number,
       hbl_number: hbl,
+      mbl_number: mbl,
       doc_ref: hbl || job.job_number,
       shipper: job.shipper_id ? partyMap.get(job.shipper_id) : "",
       consignee: job.consignee_id ? partyMap.get(job.consignee_id) : "",
-      pol:
-        (sea?.port_of_loading_id
-          ? portMap.get(sea.port_of_loading_id)
-          : undefined) ||
-        (job.origin_port_id ? portMap.get(job.origin_port_id) : "") ||
-        "",
-      pod:
-        (sea?.port_of_discharge_id
-          ? portMap.get(sea.port_of_discharge_id)
-          : undefined) ||
-        (job.dest_port_id ? portMap.get(job.dest_port_id) : "") ||
-        "",
+      pol,
+      pod,
+      place_of_receipt: sea?.place_of_receipt ?? pol,
+      place_of_delivery: sea?.place_of_delivery ?? pod,
       vessel_voyage: [vessel?.name, sea?.voyage_number]
         .filter(Boolean)
         .join(" / "),
       etd: job.etd?.toISOString().slice(0, 10) ?? "",
       eta: job.eta?.toISOString().slice(0, 10) ?? "",
       containers: containers || "—",
+      container_rows: containerRows,
       commodity: job.commodity ?? "",
+      letter_kind: letterKind,
+      letter_body: String(
+        parameters.letter_body ??
+          "Please find attached the referenced shipping document for your action.",
+      ),
     };
 
     const titles: Record<string, string> = {
@@ -165,6 +197,9 @@ export class SeaDocumentDataPackService {
       "sea.hbl_original": "HBL Original",
       "sea.arrival_notice": "Arrival Notice",
       "sea.delivery_order": "Delivery Order",
+      "sea.cargo_manifest": "Cargo Manifest",
+      "sea.stuffing_report": "Stuffing Report",
+      "sea.letter_shell": letterKind,
     };
 
     return {
