@@ -8,13 +8,14 @@ import {
   JobType,
   NvoccActivitySector,
   NvoccBookingPartyKind,
+  Prisma,
   UserRole,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AirWorkflowService } from "./air-workflow.service";
-import { UpsertNvoccBookingFormDto } from "../nvocc/dto/nvocc-booking-form.dto";
+import { UpsertAirComplianceBookingFormDto } from "./booking-forms/dto/air-compliance-booking-form.dto";
 import { departmentsForRole } from "../../common/workflow/workflow-dept";
-import { validateComplianceFormSubmit } from "../../common/workflow/compliance-form-validate";
+import { validateAirComplianceFormSubmit } from "./booking-forms/air-compliance-validate";
 
 @Injectable()
 export class AirComplianceBookingFormService {
@@ -42,7 +43,7 @@ export class AirComplianceBookingFormService {
   async upsertStaff(
     tenantId: string,
     jobId: string,
-    dto: UpsertNvoccBookingFormDto,
+    dto: UpsertAirComplianceBookingFormDto,
     actor: { id: string; role: UserRole },
   ) {
     const markComplete = dto.mark_complete === true;
@@ -57,7 +58,7 @@ export class AirComplianceBookingFormService {
         override: true,
         overrideReason: dto.stage_override_reason,
       });
-      validateComplianceFormSubmit(dto);
+      validateAirComplianceFormSubmit(dto);
     }
     return this.persist(tenantId, jobId, dto, {
       actorId: actor.id,
@@ -69,7 +70,7 @@ export class AirComplianceBookingFormService {
   async upsertDraft(
     tenantId: string,
     jobId: string,
-    dto: UpsertNvoccBookingFormDto,
+    dto: UpsertAirComplianceBookingFormDto,
     actorId: string,
   ) {
     return this.persist(tenantId, jobId, dto, {
@@ -83,7 +84,7 @@ export class AirComplianceBookingFormService {
   async submitAsCustomer(
     tenantId: string,
     jobId: string,
-    dto: UpsertNvoccBookingFormDto & { consent_accepted: boolean },
+    dto: UpsertAirComplianceBookingFormDto & { consent_accepted: boolean },
     actorId: string,
   ) {
     if (!dto.consent_accepted) {
@@ -91,7 +92,7 @@ export class AirComplianceBookingFormService {
         "Consent confirmation is required to submit the compliance booking form.",
       );
     }
-    validateComplianceFormSubmit(dto);
+    validateAirComplianceFormSubmit(dto);
     return this.persist(tenantId, jobId, dto, {
       actorId,
       markComplete: true,
@@ -165,7 +166,7 @@ export class AirComplianceBookingFormService {
   private async persist(
     tenantId: string,
     jobId: string,
-    dto: UpsertNvoccBookingFormDto,
+    dto: UpsertAirComplianceBookingFormDto,
     opts: {
       actorId: string;
       markComplete: boolean;
@@ -239,15 +240,41 @@ export class AirComplianceBookingFormService {
           dto.net_weight_kg !== undefined
             ? dto.net_weight_kg
             : existing?.net_weight_kg,
-        pol: dto.pol ?? existing?.pol,
-        pod: dto.pod ?? existing?.pod,
-        shipper_owned_container:
-          dto.shipper_owned_container ??
-          existing?.shipper_owned_container ??
-          false,
+        origin_airport_code:
+          dto.origin_airport_code ?? existing?.origin_airport_code,
+        dest_airport_code:
+          dto.dest_airport_code ?? existing?.dest_airport_code,
+        pieces: dto.pieces !== undefined ? dto.pieces : existing?.pieces,
+        chargeable_weight_kg:
+          dto.chargeable_weight_kg !== undefined
+            ? dto.chargeable_weight_kg
+            : existing?.chargeable_weight_kg,
+        volume_cbm:
+          dto.volume_cbm !== undefined ? dto.volume_cbm : existing?.volume_cbm,
+        pallet_count:
+          dto.pallet_count !== undefined
+            ? dto.pallet_count
+            : existing?.pallet_count,
+        pallets_json:
+          dto.pallets !== undefined
+            ? (JSON.parse(JSON.stringify(dto.pallets)) as Prisma.InputJsonValue)
+            : existing?.pallets_json === null
+              ? Prisma.JsonNull
+              : ((existing?.pallets_json as Prisma.InputJsonValue | undefined) ??
+                undefined),
+        service_scope:
+          dto.service_scope !== undefined
+            ? dto.service_scope
+            : existing?.service_scope,
+        origin_door_address:
+          dto.origin_door_address !== undefined
+            ? dto.origin_door_address
+            : existing?.origin_door_address,
+        dest_door_address:
+          dto.dest_door_address !== undefined
+            ? dto.dest_door_address
+            : existing?.dest_door_address,
         is_dg: dto.is_dg ?? existing?.is_dg ?? false,
-        teu_count:
-          dto.teu_count !== undefined ? dto.teu_count : existing?.teu_count,
         commodity: dto.commodity ?? existing?.commodity,
         hs_code: dto.hs_code ?? existing?.hs_code,
         final_use: dto.final_use ?? existing?.final_use,
@@ -337,6 +364,22 @@ export class AirComplianceBookingFormService {
             stage_override_reason: dto.admin_override
               ? dto.stage_override_reason
               : undefined,
+            updated_by: opts.actorId,
+          },
+        });
+      }
+
+      if (dto.service_scope || dto.origin_door_address || dto.dest_door_address) {
+        await tx.job.update({
+          where: { id: jobId },
+          data: {
+            ...(dto.service_scope ? { service_scope: dto.service_scope } : {}),
+            ...(dto.origin_door_address !== undefined
+              ? { origin_door_address: dto.origin_door_address }
+              : {}),
+            ...(dto.dest_door_address !== undefined
+              ? { dest_door_address: dto.dest_door_address }
+              : {}),
             updated_by: opts.actorId,
           },
         });

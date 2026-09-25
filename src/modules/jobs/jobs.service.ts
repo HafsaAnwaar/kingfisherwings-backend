@@ -12,6 +12,8 @@ import {
   Job,
   JobType,
   Prisma,
+  ServiceScope,
+  CargoCategory,
   StorageRateBasis,
   StuffingLocationType,
   VgmMethod,
@@ -27,6 +29,7 @@ import { AIR_IMPORT_MAWB_RECEIVED_MILESTONE } from "./constants/air-import-miles
 import { SEA_LCL_IMPORT_MBL_RECEIVED_MILESTONE } from "./constants/sea-lcl-import-milestones";
 import { seedJobTypeExtras } from "./utils/job-type-seed.util";
 import { mintTrackingToken } from "./utils/tracking-token.util";
+import { barcodeFromJobNumber } from "./utils/job-barcode.util";
 import { markJobMilestoneIfPresent } from "./utils/mark-milestone.util";
 import {
   canSeeJobType,
@@ -93,6 +96,7 @@ const JOB_TYPE_CODE: Record<JobType, string> = {
   SEA_LCL_EXPORT: "LE",
   SEA_LCL_IMPORT: "LI",
   LAND: "LD",
+  ROAD_FREIGHT: "RF",
   COURIER: "CR",
   CUSTOMS_CLEARANCE: "CC",
   NVOCC_EXPORT: "NE",
@@ -100,6 +104,26 @@ const JOB_TYPE_CODE: Record<JobType, string> = {
   SERVICE_JOB: "SJ",
   WAREHOUSE: "WH",
 };
+
+function defaultServiceScopeForJobType(
+  jobType: JobType,
+): ServiceScope | undefined {
+  if (
+    jobType === "LAND" ||
+    jobType === "ROAD_FREIGHT" ||
+    jobType === "COURIER"
+  ) {
+    return "DOOR_TO_DOOR";
+  }
+  if (
+    jobType === "CUSTOMS_CLEARANCE" ||
+    jobType === "WAREHOUSE" ||
+    jobType === "SERVICE_JOB"
+  ) {
+    return undefined;
+  }
+  return "PORT_TO_PORT";
+}
 
 @Injectable()
 export class JobsService {
@@ -210,12 +234,16 @@ export class JobsService {
         }
       }
 
+      const barcodeValue = barcodeFromJobNumber(jobNumber);
+      const defaultScope = defaultServiceScopeForJobType(dto.job_type);
+
       const job = await tx.job.create({
         data: {
           tenant_id: tenantId,
           company_id: dto.company_id,
           job_number: jobNumber,
           tracking_token: mintTrackingToken(),
+          barcode_value: barcodeValue,
           job_type: dto.job_type,
           status: "BOOKING_CONFIRMED",
           branch_id: dto.branch_id,
@@ -245,6 +273,10 @@ export class JobsService {
           tags: dto.tags ?? [],
           etd: dto.etd ? new Date(dto.etd) : undefined,
           eta: dto.eta ? new Date(dto.eta) : undefined,
+          service_scope: dto.service_scope ?? defaultScope,
+          origin_door_address: dto.origin_door_address,
+          dest_door_address: dto.dest_door_address,
+          cargo_category: dto.cargo_category,
           created_by: actorId,
           updated_by: actorId,
         },
@@ -254,6 +286,147 @@ export class JobsService {
 
       return job;
     });
+  }
+
+  async findByBarcode(tenantId: string, code: string, permissions?: string[]) {
+    const barcode = code.trim();
+    if (!barcode) throw new NotFoundException("Job not found for barcode.");
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await tx.job.findFirst({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          OR: [
+            { barcode_value: { equals: barcode, mode: "insensitive" } },
+            {
+              courier_details: {
+                barcode_value: { equals: barcode, mode: "insensitive" },
+              },
+            },
+            { job_number: { equals: barcode, mode: "insensitive" } },
+          ],
+        },
+        include: {
+          air_details: true,
+          sea_fcl_details: true,
+          sea_lcl_details: true,
+          land_details: true,
+          road_freight_details: true,
+          courier_details: true,
+          nvocc_details: true,
+        },
+      });
+      if (!job) throw new NotFoundException("Job not found for barcode.");
+      if (permissions && !canSeeJobType(permissions, job.job_type)) {
+        throw new ForbiddenException(
+          `You do not have access to ${job.job_type} jobs.`,
+        );
+      }
+
+      const [shipper, consignee, originPort, destPort] = await Promise.all([
+        job.shipper_id
+          ? tx.party.findFirst({
+              where: { id: job.shipper_id, tenant_id: tenantId },
+              select: { id: true, name: true, code: true },
+            })
+          : null,
+        job.consignee_id
+          ? tx.party.findFirst({
+              where: { id: job.consignee_id, tenant_id: tenantId },
+              select: { id: true, name: true, code: true },
+            })
+          : null,
+        job.origin_port_id
+          ? tx.port.findFirst({
+              where: { id: job.origin_port_id, tenant_id: tenantId },
+              select: { id: true, name: true },
+            })
+          : null,
+        job.dest_port_id
+          ? tx.port.findFirst({
+              where: { id: job.dest_port_id, tenant_id: tenantId },
+              select: { id: true, name: true },
+            })
+          : null,
+      ]);
+
+      const origin =
+        originPort?.name ??
+        job.land_details?.origin_city_country ??
+        job.road_freight_details?.origin_city_country ??
+        job.courier_details?.pickup_address ??
+        null;
+      const destination =
+        destPort?.name ??
+        job.land_details?.destination_city_country ??
+        job.road_freight_details?.destination_city_country ??
+        job.courier_details?.delivery_address ??
+        null;
+
+      return {
+        id: job.id,
+        job_number: job.job_number,
+        barcode_value: job.barcode_value,
+        job_type: job.job_type,
+        status: job.status,
+        service_scope: job.service_scope,
+        pieces: job.pieces,
+        gross_weight: job.gross_weight,
+        chargeable_weight: job.chargeable_weight,
+        volume_cbm: job.volume_cbm,
+        commodity: job.commodity,
+        origin,
+        destination,
+        origin_port: originPort,
+        dest_port: destPort,
+        shipper,
+        consignee,
+        references: {
+          hawb: job.air_details?.hawb_number ?? null,
+          mawb: job.air_details?.mawb_number ?? null,
+          hbl:
+            job.sea_fcl_details?.hbl_number ??
+            job.sea_lcl_details?.hbl_number ??
+            null,
+          mbl:
+            job.sea_fcl_details?.mbl_number ??
+            job.sea_lcl_details?.mbl_number ??
+            null,
+          tracking_number: job.courier_details?.tracking_number ?? null,
+          vehicle_number:
+            job.land_details?.vehicle_number ??
+            job.road_freight_details?.vehicle_number ??
+            null,
+        },
+      };
+    });
+  }
+
+  async scanBarcode(
+    tenantId: string,
+    dto: { barcode: string; location?: string; notes?: string },
+    actorId?: string,
+    permissions?: string[],
+  ) {
+    const summary = await this.findByBarcode(
+      tenantId,
+      dto.barcode,
+      permissions,
+    );
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobScanEvent.create({
+        data: {
+          tenant_id: tenantId,
+          job_id: summary.id,
+          barcode_value: summary.barcode_value ?? dto.barcode.trim(),
+          location: dto.location,
+          notes: dto.notes,
+          scanned_by: actorId,
+        },
+      }),
+    );
+    return summary;
   }
 
   async findAll(
@@ -402,6 +575,12 @@ export class JobsService {
               },
             },
             {
+              barcode_value: {
+                contains: query.search,
+                mode: "insensitive",
+              },
+            },
+            {
               nvocc_details: {
                 hbl_number: { contains: query.search, mode: "insensitive" },
               },
@@ -538,7 +717,25 @@ export class JobsService {
           },
           sea_lcl_details: true,
           land_details: true,
+          road_freight_details: true,
           courier_details: true,
+          sea_fcl_booking_form: { include: { parties: true } },
+          sea_lcl_booking_form: { include: { parties: true } },
+          land_booking_form: { include: { parties: true } },
+          road_freight_booking_form: { include: { parties: true } },
+          courier_booking_form: { include: { parties: true } },
+          customs_clearance_details: {
+            include: {
+              cargo_lines: {
+                where: { deleted_at: null },
+                orderBy: { line_no: "asc" },
+              },
+              checklist: {
+                where: { deleted_at: null },
+                orderBy: { sort_order: "asc" },
+              },
+            },
+          },
           nvocc_details: {
             include: {
               voyage: true,

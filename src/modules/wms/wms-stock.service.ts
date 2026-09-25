@@ -43,6 +43,15 @@ export class WmsStockService {
           qty_remaining: { gt: 0 },
           ...(query.warehouse_id ? { warehouse_id: query.warehouse_id } : {}),
           ...(query.item_id ? { item_id: query.item_id } : {}),
+          ...(query.storage_status
+            ? {
+                storage_status: query.storage_status as
+                  | "IN_STORAGE"
+                  | "NOT_COLLECTED"
+                  | "COLLECTED"
+                  | "WAIVED",
+              }
+            : {}),
         },
         include: { item: true, warehouse: true },
         orderBy: [
@@ -151,6 +160,15 @@ export class WmsStockService {
           qty_remaining: { gt: 0 },
           ...(query.warehouse_id ? { warehouse_id: query.warehouse_id } : {}),
           ...(query.item_id ? { item_id: query.item_id } : {}),
+          ...(query.storage_status
+            ? {
+                storage_status: query.storage_status as
+                  | "IN_STORAGE"
+                  | "NOT_COLLECTED"
+                  | "COLLECTED"
+                  | "WAIVED",
+              }
+            : {}),
         },
         include: { item: true, warehouse: true },
         orderBy: { received_at: "asc" },
@@ -158,6 +176,13 @@ export class WmsStockService {
       return lots.map((lot) => ({
         ...lot,
         age_days: Math.floor((now - lot.received_at.getTime()) / 86_400_000),
+        extra_days: Math.max(
+          0,
+          Math.floor((now - (lot.storage_starts_at ?? lot.received_at).getTime()) /
+            86_400_000) +
+            1 -
+            lot.paid_storage_days,
+        ),
       }));
     });
   }

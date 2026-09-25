@@ -8,6 +8,7 @@ import helmet from "helmet";
 
 import { AppModule } from "./app.module";
 import { validatePortalVendorJwtSecrets } from "./common/utils/jwt-secrets.util";
+import { PrismaService } from "./prisma/prisma.service";
 
 function initSentry() {
   const dsn = process.env.SENTRY_DSN;
@@ -115,13 +116,48 @@ async function bootstrap() {
   app.use(compression());
 
   const corsOrigins = parseCorsOrigins(config.get<string>("CORS_ORIGINS"));
-  if (corsOrigins) {
-    app.enableCors({ origin: corsOrigins, credentials: true });
-  } else if (nodeEnv !== "production") {
-    app.enableCors();
-  } else {
-    app.enableCors({ origin: false });
-  }
+  const prisma = app.get(PrismaService);
+
+  app.enableCors({
+    credentials: true,
+    origin: async (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // Non-browser / same-origin tools (curl, server-to-server)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (corsOrigins?.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      // Dev: open CORS when CORS_ORIGINS unset
+      if (nodeEnv !== "production" && !corsOrigins) {
+        callback(null, true);
+        return;
+      }
+      try {
+        const host = new URL(origin).hostname;
+        const hit = await prisma.tenant.findFirst({
+          where: {
+            deleted_at: null,
+            is_active: true,
+            OR: [
+              { domain: { equals: host, mode: "insensitive" } },
+              { website: { contains: origin, mode: "insensitive" } },
+              { website: { contains: host, mode: "insensitive" } },
+            ],
+          },
+          select: { id: true },
+        });
+        callback(null, Boolean(hit));
+      } catch {
+        callback(null, false);
+      }
+    },
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

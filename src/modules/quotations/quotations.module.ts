@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { QueueModule } from "../../shared/queue/queue.module";
@@ -7,6 +7,7 @@ import { StorageModule } from "../../shared/storage/storage.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { VendorModule } from "../vendor/vendor.module";
 import { MastersModule } from "../masters/masters.module";
+import { PortalModule } from "../portal/portal.module";
 import { CronSecretGuard } from "../../common/guards/cron-secret.guard";
 import { QuotationsController } from "./quotations.controller";
 import { QuotationsService } from "./quotations.service";
@@ -28,6 +29,7 @@ import { ZipDistancesService } from "./zip-distances/zip-distances.service";
     NotificationsModule,
     VendorModule,
     MastersModule,
+    forwardRef(() => PortalModule),
   ],
   // Tariffs + zip-distances MUST register before QuotationsController so
   // Nest does not let GET /quotations/:id swallow /quotations/tariffs.

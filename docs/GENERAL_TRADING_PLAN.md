@@ -308,6 +308,19 @@ Full matrix, security notes, and fit vs this plan: [`docs/GENERAL_TRADING_KFPP_A
 
 **Interpretation:** This is a **website quote-request / inquiry** API, not a merchandise trading invoice system. It is a valid Option A/B candidate for *inquiry display + status update*, but **does not** by itself cover trading invoices.
 
+### Implementation status (2026-09-21) — Quote Requests bridge (1A + CRM)
+
+**Shipped (backend):** Multi-tenant outbound bridge for website Quote Requests APIs (KFPP-compatible).
+
+- SuperAdmin: `PATCH /tenants/:id/features` `{ "quote_requests_bridge": true }`
+- Tenant Admin: `/admin/integrations/quote-requests/*` (connection, test, sync, list, status, link-crm, convert-to-quote)
+- Sync upserts mirror rows + CRM Lead (`WEBSITE`) + Enquiry; no auto freight Quotation
+- Cron every 10 minutes for enabled + active connections
+- Secrets encrypted at rest (`INTEGRATION_SECRETS_KEY` or JWT secret fallback)
+- Permissions: `quote_requests.view|manage_connection|sync|update_status`
+
+Merchandise **invoices** remain out of scope until a separate trading-system API is discovered.
+
 ---
 
-*Document created for research. Implementation starts only after discovery answers (§9) and explicit scheduling — this file is not a Week commitment.*
+*Document created for research. Quote-requests bridge implemented as above; trading invoices still not a Week commitment.*

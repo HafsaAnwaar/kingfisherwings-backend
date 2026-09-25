@@ -76,6 +76,7 @@ There is no separate worker dyno required for crons (they run in the API). Docum
 | CRM | `/crm/*` |
 | Track | `/track` |
 | Notifications | `/notifications` (staff) · `/portal/notifications` |
+| Quote Requests bridge | `/admin/integrations/quote-requests/*` (feature-flagged) |
 
 ---
 
@@ -244,7 +245,7 @@ POST /quotations/:id/convert   (or equivalent convert-to-job)
   → CRM must NOT do this; CRM stops at quotation
 ```
 
-Public: `POST /quotations/online-quote` (throttled) creates a prospect quote for staff follow-up.
+Public: `POST /quotations/online-quote` (throttled) creates a prospect quote for the tenant identified by `tenant_slug`, binds default (or validated) `company_id`, and — when the contact email has no portal login yet — provisions a `PortalUser` and returns `email` + `temporary_password` once for `POST /portal/auth/login`. Existing portal accounts are not password-reset. Response never includes GP/cost. Website embeds must use that tenant's slug; CORS allows `CORS_ORIGINS` plus matching `Tenant.domain` / `Tenant.website`.
 
 Portal: `GET /portal/quotations`, accept/reject when status allows (`markWon` / `markLost` on existing service).
 
@@ -748,21 +749,27 @@ Existing NVOCC document routes (`/nvocc/jobs/:id/documents/hbl-draft`, `hbl-orig
 | `POST` | `/portal/shipments/:id/port-token/confirm` |
 | `POST` | `/portal/shipments/:id/request-draft-bl` |
 
-**Masters — container specs**
+**Masters / specs (shared)**
 
 | Method | Path |
 |--------|------|
 | `POST` | `/masters/container-types/seed-defaults` |
-| `GET` | `/masters/container-types` (includes dimension specs) |
+| `GET` | `/masters/container-types` (+ CRUD on same controller) |
+| `POST` | `/masters/air-pallet-types/seed-defaults` |
+| `GET` | `/masters/air-pallet-types` |
+| `GET` | `/masters/air-pallet-types/:id` |
+| `POST` | `/masters/air-pallet-types` |
+| `PATCH` | `/masters/air-pallet-types/:id` |
+| `DELETE` | `/masters/air-pallet-types/:id` |
 
-**Air booking form (air jobs only; no pallet / ULD)**
+**Air booking form (air jobs; pallet lines + CBM on form; no ULD lifecycle)**
 
 | Method | Path |
 |--------|------|
 | `GET` | `/jobs/:id/air-booking-form` |
 | `PUT` | `/jobs/:id/air-booking-form` |
 
-CLI backfill: `npm run seed:freight-specs` (container types only). New tenants auto-seed container catalogs after create.
+CLI backfill: `npm run seed:freight-specs` (container types + air pallet types). New tenants auto-seed both catalogs after create.
 
 Smoke runbook: [SWAGGER_COMPLETE_TESTING_GUIDE.md](./SWAGGER_COMPLETE_TESTING_GUIDE.md) § Part G2 (NVOCC) and G3 (Air).
 
@@ -804,6 +811,35 @@ PATCH /gl/vouchers/batch-status — voucher batch posting
 ```
 
 Permissions: `documentation.read`, `documentation.manage`, `documentation.edi.read`, `documentation.edi.submit`, `documentation.upload`, `documentation.mpci` (DOCUMENTATION role + Tenant Admin).
+
+### Integrations — Quote Requests bridge (website KFPP-style)
+
+Outbound pull (not `TenantApiKey` / `/api/v1`). SuperAdmin enables per tenant; Tenant Admin configures credentials.
+
+```
+PATCH /tenants/:id/features              — SuperAdmin: { quote_requests_bridge: true|false }
+GET|PUT /admin/integrations/quote-requests/connection
+POST    /admin/integrations/quote-requests/connection/test
+POST    /admin/integrations/quote-requests/sync
+GET     /admin/integrations/quote-requests/sync-runs
+GET     /admin/integrations/quote-requests
+GET     /admin/integrations/quote-requests/:id
+PATCH   /admin/integrations/quote-requests/:id/status
+POST    /admin/integrations/quote-requests/:id/link-crm
+POST    /admin/integrations/quote-requests/:id/convert-to-quote
+```
+
+Flow:
+
+```
+Website KFPP API ──GET──► Sync (manual or cron every 10m)
+                           ├─ ExternalQuoteRequest mirror
+                           └─ Lead(WEBSITE) + Enquiry (no auto Quotation)
+Staff PATCH status ──► local + remote PATCH
+Staff convert ──► existing CRM convert-to-quote
+```
+
+Permissions: `quote_requests.view`, `quote_requests.manage_connection`, `quote_requests.sync`, `quote_requests.update_status`. Env: `INTEGRATION_SECRETS_KEY`. Feature off → routes 404; cron skips.
 
 ### Weeks 23–28 — closure (shipped)
 

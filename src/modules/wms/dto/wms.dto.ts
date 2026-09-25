@@ -24,7 +24,10 @@ export class UpsertWmsSettingsDto {
   @IsEnum(WmsValuationMethod)
   valuation_method!: WmsValuationMethod;
 
-  @ApiProperty({ minimum: 0 })
+  @ApiProperty({
+    minimum: 0,
+    description: "Paid / included storage days (default free days)",
+  })
   @Type(() => Number)
   @IsInt()
   @Min(0)
@@ -35,6 +38,17 @@ export class UpsertWmsSettingsDto {
   @IsNumber()
   @Min(0)
   default_storage_rate!: number;
+
+  @ApiProperty({
+    minimum: 0,
+    description: "Per-day rate charged after paid/included days expire",
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  default_overdue_rate_per_day?: number;
 
   @ApiProperty({ example: "AED" })
   @IsString()
@@ -256,7 +270,10 @@ export class CalculateStorageDto {
   @ApiProperty() @IsUUID() party_id!: string;
   @ApiProperty() @IsDateString() period_from!: string;
   @ApiProperty() @IsDateString() period_to!: string;
-  @ApiPropertyOptional({ minimum: 0 })
+  @ApiPropertyOptional({
+    minimum: 0,
+    description: "Paid / included storage days",
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -268,6 +285,15 @@ export class CalculateStorageDto {
   @IsNumber()
   @Min(0)
   rate_per_day?: number;
+  @ApiPropertyOptional({
+    minimum: 0,
+    description: "Extra per-day rate after paid days (overdue)",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  overdue_rate_per_day?: number;
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -286,6 +312,12 @@ export class InvoiceStorageDto {
 export class StockQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() warehouse_id?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() item_id?: string;
+  @ApiPropertyOptional({
+    enum: ["IN_STORAGE", "NOT_COLLECTED", "COLLECTED", "WAIVED"],
+  })
+  @IsOptional()
+  @IsString()
+  storage_status?: string;
 }
 
 export class MovementQueryDto extends StockQueryDto {

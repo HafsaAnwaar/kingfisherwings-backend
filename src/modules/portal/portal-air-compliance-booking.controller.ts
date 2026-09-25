@@ -27,9 +27,9 @@ import { PortalAuthGuard } from "./guards/portal-auth.guard";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalAirComplianceBookingService } from "./portal-air-compliance-booking.service";
 import {
-  SubmitNvoccComplianceFormDto,
-  UpsertNvoccBookingFormDto,
-} from "../nvocc/dto/nvocc-booking-form.dto";
+  SubmitAirComplianceFormDto,
+  UpsertAirComplianceBookingFormDto,
+} from "../jobs/booking-forms/dto/air-compliance-booking-form.dto";
 
 const DOC_MAX_BYTES = 10 * 1024 * 1024;
 const DOC_MIME = new Set([
@@ -96,7 +96,7 @@ export class PortalAirComplianceBookingController {
   saveDraft(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: UpsertNvoccBookingFormDto,
+    @Body() dto: UpsertAirComplianceBookingFormDto,
   ) {
     return this.compliance.saveDraft(user, id, dto);
   }
@@ -109,7 +109,7 @@ export class PortalAirComplianceBookingController {
   submit(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: SubmitNvoccComplianceFormDto,
+    @Body() dto: SubmitAirComplianceFormDto,
   ) {
     return this.compliance.submit(user, id, dto);
   }

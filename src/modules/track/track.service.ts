@@ -78,6 +78,12 @@ export class TrackService {
                 barcode_value: { equals: q, mode: "insensitive" },
               },
             },
+            { barcode_value: { equals: q, mode: "insensitive" } },
+            {
+              road_freight_details: {
+                vehicle_number: { equals: q, mode: "insensitive" },
+              },
+            },
           ],
         },
         include: {

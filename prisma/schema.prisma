@@ -47,6 +47,7 @@ enum JobType {
   SEA_LCL_EXPORT
   SEA_LCL_IMPORT
   LAND
+  ROAD_FREIGHT
   COURIER
   CUSTOMS_CLEARANCE
   NVOCC_EXPORT
@@ -72,7 +73,47 @@ enum ShipmentMode {
   AIR
   SEA
   LAND
+  ROAD
   COURIER
+}
+
+enum ServiceScope {
+  DOOR_TO_DOOR
+  DOOR_TO_PORT
+  PORT_TO_DOOR
+  PORT_TO_PORT
+}
+
+enum CargoCategory {
+  GENERAL
+  VEHICLES
+  FOOD_PERISHABLE
+  PHARMA
+  CHEMICALS_DG
+  PERSONAL_EFFECTS
+  PROJECT_OOG
+  LIVESTOCK
+  OTHER
+}
+
+enum WmsLotStorageStatus {
+  IN_STORAGE
+  NOT_COLLECTED
+  COLLECTED
+  WAIVED
+}
+
+enum WmsStorageChargeKind {
+  INCLUDED_OVERAGE
+  OVERDUE_EXTRA
+}
+
+enum JobBookingPartyKind {
+  SHIPPER
+  CONSIGNEE
+  NOTIFY
+  BILLING
+  AGENT
 }
 
 enum TaxType {
@@ -256,6 +297,36 @@ enum CustomsClearanceStatus {
   QUERY
   CLEARED
   RELEASED
+}
+
+/// Standalone Customs Clearance job workflow (separate from freight import customs_status).
+enum CcWorkflowStatus {
+  PENDING
+  QUOTED
+  ACCEPTED
+  OPS_OPEN
+  DOCS
+  CLASSIFIED
+  FILED
+  QUERY
+  ASSESSED
+  DUTY_PAID
+  CLEARED
+  RELEASED
+  INVOICE_READY
+  CLOSED
+}
+
+enum CcDirection {
+  IMPORT
+  EXPORT
+  TRANSIT
+}
+
+enum CcQueryStatus {
+  OPEN
+  RESPONDED
+  CLOSED
 }
 
 enum DepositType {
@@ -685,6 +756,9 @@ model Tenant {
   // Status
   is_active Boolean @default(true)
 
+  /// SuperAdmin-gated: website Quote Requests bridge (KFPP-style pull).
+  quote_requests_bridge_enabled Boolean @default(false)
+
   // Audit
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
@@ -705,6 +779,9 @@ model Tenant {
   companies        Company[]
   portal_users     PortalUser[]
   vendor_users     VendorUser[]
+  quote_request_connection ExternalQuoteRequestConnection?
+  external_quote_requests  ExternalQuoteRequest[]
+  quote_request_sync_runs  ExternalQuoteRequestSyncRun[]
 
   @@index([created_by_super_admin_id])
   @@map("tenants")
@@ -1583,6 +1660,33 @@ model ContainerType {
   @@map("container_types")
 }
 
+/// Air freight pallet / ULD type master (shared specs catalog).
+model AirPalletType {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String    @db.Uuid
+  code               String    @db.VarChar(30)
+  name               String    @db.VarChar(100)
+  iata_codes         String[]  @db.Text
+  base_length_m      Decimal?  @db.Decimal(10, 3)
+  base_width_m       Decimal?  @db.Decimal(10, 3)
+  height_m           Decimal?  @db.Decimal(10, 3)
+  usable_volume_m3   Decimal?  @db.Decimal(10, 3)
+  inside_length_m    Decimal?  @db.Decimal(10, 3)
+  inside_width_m     Decimal?  @db.Decimal(10, 3)
+  inside_height_m    Decimal?  @db.Decimal(10, 3)
+  aircraft_types     String[]  @db.Text
+  is_active          Boolean   @default(true)
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @updatedAt @db.Timestamptz
+  created_by         String?   @db.Uuid
+  updated_by         String?   @db.Uuid
+  deleted_at         DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, deleted_at])
+  @@map("air_pallet_types")
+}
+
 model ChargeCode {
   id               String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id        String      @db.Uuid
@@ -1782,6 +1886,7 @@ model Trucker {
   deleted_at     DateTime? @db.Timestamptz
 
   land_details         LandJobDetail[]
+  road_freight_details RoadFreightJobDetail[]
   transport_requests   TransportRequest[]
 
   @@unique([tenant_id, code])
@@ -1879,15 +1984,17 @@ enum WmsStorageChargeStatus {
 }
 
 model WmsSettings {
-  id                 String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id          String             @unique @db.Uuid
-  valuation_method   WmsValuationMethod @default(FIFO)
-  default_free_days  Int                @default(7)
-  default_storage_rate Decimal          @default(0) @db.Decimal(18, 4)
-  default_currency   String             @default("AED") @db.Char(3)
-  created_at         DateTime           @default(now()) @db.Timestamptz
-  updated_at         DateTime           @updatedAt @db.Timestamptz
-  updated_by         String?            @db.Uuid
+  id                          String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id                   String             @unique @db.Uuid
+  valuation_method            WmsValuationMethod @default(FIFO)
+  /// Paid / included storage days (API docs: paid_storage_days).
+  default_free_days           Int                @default(7)
+  default_storage_rate        Decimal            @default(0) @db.Decimal(18, 4)
+  default_overdue_rate_per_day Decimal           @default(0) @db.Decimal(18, 4)
+  default_currency            String             @default("AED") @db.Char(3)
+  created_at                  DateTime           @default(now()) @db.Timestamptz
+  updated_at                  DateTime           @updatedAt @db.Timestamptz
+  updated_by                  String?            @db.Uuid
 
   @@map("wms_settings")
 }
@@ -2053,22 +2160,29 @@ model WmsGdoLine {
 }
 
 model WmsStockLot {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id       String    @db.Uuid
-  warehouse_id    String    @db.Uuid
-  item_id         String    @db.Uuid
-  grn_line_id     String?   @unique @db.Uuid
-  party_id        String?   @db.Uuid
-  job_id          String?   @db.Uuid
-  batch_code      String?   @db.VarChar(60)
-  qty_received    Decimal   @db.Decimal(18, 4)
-  qty_remaining   Decimal   @db.Decimal(18, 4)
-  unit_cost       Decimal   @default(0) @db.Decimal(18, 4)
-  cbm_per_unit    Decimal?  @db.Decimal(18, 6)
-  received_at     DateTime  @db.Timestamptz
-  created_at      DateTime  @default(now()) @db.Timestamptz
-  updated_at      DateTime  @updatedAt @db.Timestamptz
-  deleted_at      DateTime? @db.Timestamptz
+  id                   String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String              @db.Uuid
+  warehouse_id         String              @db.Uuid
+  item_id              String              @db.Uuid
+  grn_line_id          String?             @unique @db.Uuid
+  party_id             String?             @db.Uuid
+  job_id               String?             @db.Uuid
+  batch_code           String?             @db.VarChar(60)
+  qty_received         Decimal             @db.Decimal(18, 4)
+  qty_remaining        Decimal             @db.Decimal(18, 4)
+  unit_cost            Decimal             @default(0) @db.Decimal(18, 4)
+  cbm_per_unit         Decimal?            @db.Decimal(18, 6)
+  received_at          DateTime            @db.Timestamptz
+  paid_storage_days    Int                 @default(7)
+  storage_rate_per_day Decimal?            @db.Decimal(18, 4)
+  overdue_rate_per_day Decimal?            @db.Decimal(18, 4)
+  storage_starts_at    DateTime?           @db.Timestamptz
+  paid_until_date      DateTime?           @db.Date
+  storage_status       WmsLotStorageStatus @default(IN_STORAGE)
+  collected_at         DateTime?           @db.Timestamptz
+  created_at           DateTime            @default(now()) @db.Timestamptz
+  updated_at           DateTime            @updatedAt @db.Timestamptz
+  deleted_at           DateTime?           @db.Timestamptz
 
   warehouse Warehouse  @relation(fields: [warehouse_id], references: [id])
   item      WmsItem    @relation(fields: [item_id], references: [id])
@@ -2079,6 +2193,7 @@ model WmsStockLot {
   @@index([tenant_id, warehouse_id, item_id])
   @@index([tenant_id, item_id, received_at])
   @@index([tenant_id, party_id])
+  @@index([tenant_id, storage_status])
   @@map("wms_stock_lots")
 }
 
@@ -2148,29 +2263,32 @@ model WmsStockTransferLine {
 }
 
 model WmsStorageCharge {
-  id              String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id       String                 @db.Uuid
-  warehouse_id    String                 @db.Uuid
-  party_id        String                 @db.Uuid
-  lot_id          String?                @db.Uuid
-  item_id         String?                @db.Uuid
-  period_from     DateTime               @db.Date
-  period_to       DateTime               @db.Date
-  free_days       Int                    @default(0)
-  chargeable_days Int                    @default(0)
-  quantity        Decimal                @db.Decimal(18, 4)
-  cbm             Decimal?               @db.Decimal(18, 4)
-  rate_per_day    Decimal                @db.Decimal(18, 4)
-  amount          Decimal                @db.Decimal(18, 4)
-  currency_code   String                 @db.Char(3)
-  status          WmsStorageChargeStatus @default(OPEN)
-  invoice_id      String?                @db.Uuid
-  remarks         String?                @db.Text
-  created_at      DateTime               @default(now()) @db.Timestamptz
-  updated_at      DateTime               @updatedAt @db.Timestamptz
-  created_by      String?                @db.Uuid
-  updated_by      String?                @db.Uuid
-  deleted_at      DateTime?              @db.Timestamptz
+  id                   String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String                 @db.Uuid
+  warehouse_id         String                 @db.Uuid
+  party_id             String                 @db.Uuid
+  lot_id               String?                @db.Uuid
+  item_id              String?                @db.Uuid
+  period_from          DateTime               @db.Date
+  period_to            DateTime               @db.Date
+  free_days            Int                    @default(0)
+  chargeable_days      Int                    @default(0)
+  extra_days           Int                    @default(0)
+  quantity             Decimal                @db.Decimal(18, 4)
+  cbm                  Decimal?               @db.Decimal(18, 4)
+  rate_per_day         Decimal                @db.Decimal(18, 4)
+  overdue_rate_per_day Decimal?               @db.Decimal(18, 4)
+  amount               Decimal                @db.Decimal(18, 4)
+  currency_code        String                 @db.Char(3)
+  charge_kind          WmsStorageChargeKind   @default(INCLUDED_OVERAGE)
+  status               WmsStorageChargeStatus @default(OPEN)
+  invoice_id           String?                @db.Uuid
+  remarks              String?                @db.Text
+  created_at           DateTime               @default(now()) @db.Timestamptz
+  updated_at           DateTime               @updatedAt @db.Timestamptz
+  created_by           String?                @db.Uuid
+  updated_by           String?                @db.Uuid
+  deleted_at           DateTime?              @db.Timestamptz
 
   warehouse Warehouse    @relation(fields: [warehouse_id], references: [id])
   lot       WmsStockLot? @relation(fields: [lot_id], references: [id])
@@ -2179,6 +2297,7 @@ model WmsStorageCharge {
 
   @@index([tenant_id, party_id, status])
   @@index([tenant_id, warehouse_id])
+  @@index([tenant_id, charge_kind, status])
   @@map("wms_storage_charges")
 }
 
@@ -2360,6 +2479,13 @@ model Job {
   etd               DateTime? @db.Date
   eta               DateTime? @db.Date
 
+  /// Universal scannable barcode (CODE128-safe). Auto-set on create.
+  barcode_value         String?       @db.VarChar(80)
+  service_scope         ServiceScope?
+  origin_door_address   String?       @db.Text
+  dest_door_address     String?       @db.Text
+  cargo_category        CargoCategory?
+
   // Job P&L (Ch.8.2) — recalculated live on every charge line change, same convention as Quotation.
   revenue_total Decimal @default(0) @db.Decimal(18, 4)
   cost_total    Decimal @default(0) @db.Decimal(18, 4)
@@ -2379,7 +2505,14 @@ model Job {
   sea_fcl_details  SeaFclJobDetail?
   sea_lcl_details  SeaLclJobDetail?
   land_details     LandJobDetail?
+  road_freight_details RoadFreightJobDetail?
   courier_details  CourierJobDetail?
+  customs_clearance_details JobCustomsClearanceDetail?
+  sea_fcl_booking_form      SeaFclBookingForm?
+  sea_lcl_booking_form      SeaLclBookingForm?
+  land_booking_form         LandBookingForm?
+  road_freight_booking_form RoadFreightBookingForm?
+  courier_booking_form      CourierBookingForm?
   charges          JobCharge[]
   milestones       JobMilestone[]
   documents        JobDocument[]
@@ -2405,8 +2538,10 @@ model Job {
   courier_checkpoints  CourierDeliveryCheckpoint[]
   nvocc_details        NvoccJobDetail?
   vendor_quotes        VendorQuote[]
+  job_scan_events      JobScanEvent[]
 
   @@unique([tenant_id, job_number])
+  @@unique([tenant_id, barcode_value])
   @@index([tenant_id])
   @@index([tenant_id, job_type])
   @@index([tenant_id, status])
@@ -2761,6 +2896,63 @@ model LandJobDetail {
   @@map("land_job_details")
 }
 
+/// Road freight (JobType.ROAD_FREIGHT) — LAND-parity trucking lifecycle.
+model RoadFreightJobDetail {
+  id                            String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id                     String           @db.Uuid
+  job_id                        String           @unique @db.Uuid
+  trucker_id                    String?          @db.Uuid
+  vehicle_type                  LandVehicleType?
+  vehicle_number                String?          @db.VarChar(40)
+  trailer_number                String?          @db.VarChar(40)
+  driver_name                   String?          @db.VarChar(200)
+  driver_license                String?          @db.VarChar(50)
+  origin_city_country           String?          @db.VarChar(200)
+  destination_city_country      String?          @db.VarChar(200)
+  route_notes                   String?          @db.Text
+  etd                           DateTime?        @db.Timestamptz
+  eta                           DateTime?        @db.Timestamptz
+  incoterms                     String?          @db.VarChar(10)
+  freight_terms                 String?          @db.VarChar(30)
+  cross_border_docs_required    Boolean          @default(false)
+  border_origin_country         String?          @db.Char(2)
+  border_destination_country    String?          @db.Char(2)
+  border_declaration_number     String?          @db.VarChar(100)
+  border_commodity              String?          @db.VarChar(500)
+  border_hs_code                String?          @db.VarChar(12)
+  border_declared_value         Decimal?         @db.Decimal(18, 4)
+  created_at                    DateTime         @default(now()) @db.Timestamptz
+  updated_at                    DateTime         @updatedAt @db.Timestamptz
+  created_by                    String?          @db.Uuid
+  updated_by                    String?          @db.Uuid
+  deleted_at                    DateTime?        @db.Timestamptz
+
+  job     Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  trucker Trucker? @relation(fields: [trucker_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([tenant_id, vehicle_number])
+  @@map("road_freight_job_details")
+}
+
+/// Staff scan event when resolving a job by barcode (any job type).
+model JobScanEvent {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String   @db.Uuid
+  job_id        String   @db.Uuid
+  barcode_value String   @db.VarChar(80)
+  location      String?  @db.VarChar(200)
+  notes         String?  @db.Text
+  scanned_at    DateTime @default(now()) @db.Timestamptz
+  scanned_by    String?  @db.Uuid
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, barcode_value])
+  @@map("job_scan_events")
+}
+
 /// Week 19 — Courier (Ch.15). One row per COURIER job.
 model CourierJobDetail {
   id                   String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
@@ -2791,6 +2983,123 @@ model CourierJobDetail {
   @@index([tenant_id, tracking_number])
   @@index([tenant_id, barcode_value])
   @@map("courier_job_details")
+}
+
+/// Standalone Customs Clearance job detail (JobType.CUSTOMS_CLEARANCE).
+model JobCustomsClearanceDetail {
+  id                    String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String           @db.Uuid
+  job_id                String           @unique @db.Uuid
+  direction             CcDirection      @default(IMPORT)
+  cc_status             CcWorkflowStatus @default(ACCEPTED)
+  cha_party_id          String?          @db.Uuid
+  border_or_port        String?          @db.VarChar(200)
+  entry_type            String?          @db.VarChar(20)
+  entry_number          String?          @db.VarChar(100)
+  shipping_bill_number  String?          @db.VarChar(100)
+  filing_date           DateTime?        @db.Date
+  assessed_duty         Decimal?         @db.Decimal(18, 4)
+  assessed_tax          Decimal?         @db.Decimal(18, 4)
+  duty_currency         String?          @db.Char(3)
+  duty_paid_at          DateTime?        @db.Timestamptz
+  duty_paid_by_client   Boolean          @default(false)
+  duty_payment_notes    String?          @db.Text
+  cleared_at            DateTime?        @db.Timestamptz
+  released_at           DateTime?        @db.Timestamptz
+  freight_job_id        String?          @db.Uuid
+  declaration_json      Json?
+  declaration_boe_id    String?          @db.Uuid
+  invoice_id            String?          @db.Uuid
+  remarks               String?          @db.Text
+  created_at            DateTime         @default(now()) @db.Timestamptz
+  updated_at            DateTime         @updatedAt @db.Timestamptz
+  created_by            String?          @db.Uuid
+  updated_by            String?          @db.Uuid
+  deleted_at            DateTime?        @db.Timestamptz
+
+  job          Job                    @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  cargo_lines  CcCargoLine[]
+  checklist    CcDocumentChecklistItem[]
+  queries      CcCustomsQuery[]
+
+  @@index([tenant_id])
+  @@index([tenant_id, cc_status])
+  @@index([tenant_id, freight_job_id])
+  @@map("job_customs_clearance_details")
+}
+
+model CcCargoLine {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  detail_id         String    @db.Uuid
+  line_no           Int       @default(1)
+  description       String    @db.VarChar(500)
+  hs_code           String?   @db.VarChar(12)
+  country_of_origin String?   @db.Char(2)
+  quantity          Decimal?  @db.Decimal(18, 4)
+  unit              String?   @db.VarChar(20)
+  value_amount      Decimal?  @db.Decimal(18, 4)
+  currency_code     String?   @db.Char(3)
+  is_classified     Boolean   @default(false)
+  is_prohibited     Boolean   @default(false)
+  is_restricted     Boolean   @default(false)
+  permit_notes      String?   @db.Text
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+  created_by        String?   @db.Uuid
+  updated_by        String?   @db.Uuid
+  deleted_at        DateTime? @db.Timestamptz
+
+  detail JobCustomsClearanceDetail @relation(fields: [detail_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, detail_id])
+  @@map("cc_cargo_lines")
+}
+
+model CcDocumentChecklistItem {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String    @db.Uuid
+  detail_id        String    @db.Uuid
+  doc_code         String    @db.VarChar(40)
+  label            String    @db.VarChar(200)
+  required         Boolean   @default(true)
+  received         Boolean   @default(false)
+  verified         Boolean   @default(false)
+  job_document_id  String?   @db.Uuid
+  sort_order       Int       @default(0)
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  updated_at       DateTime  @updatedAt @db.Timestamptz
+  created_by       String?   @db.Uuid
+  updated_by       String?   @db.Uuid
+  deleted_at       DateTime? @db.Timestamptz
+
+  detail JobCustomsClearanceDetail @relation(fields: [detail_id], references: [id], onDelete: Cascade)
+
+  @@unique([detail_id, doc_code])
+  @@index([tenant_id, detail_id])
+  @@map("cc_document_checklist_items")
+}
+
+model CcCustomsQuery {
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String        @db.Uuid
+  detail_id       String        @db.Uuid
+  status          CcQueryStatus @default(OPEN)
+  query_text      String        @db.Text
+  response_text   String?       @db.Text
+  raised_at       DateTime      @default(now()) @db.Timestamptz
+  closed_at       DateTime?     @db.Timestamptz
+  created_at      DateTime      @default(now()) @db.Timestamptz
+  updated_at      DateTime      @updatedAt @db.Timestamptz
+  created_by      String?       @db.Uuid
+  updated_by      String?       @db.Uuid
+  deleted_at      DateTime?     @db.Timestamptz
+
+  detail JobCustomsClearanceDetail @relation(fields: [detail_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, detail_id])
+  @@index([tenant_id, status])
+  @@map("cc_customs_queries")
 }
 
 /// Week 19 — Transport request shared across all job types (Ch.14.3).
@@ -4638,6 +4947,8 @@ model PortalUser {
   full_name     String           @db.VarChar(200)
   phone         String?          @db.VarChar(30)
   status        PortalUserStatus @default(ACTIVE)
+  /// When true, portal client should force a password change before normal use.
+  must_change_password Boolean   @default(false)
   invite_token  String?          @unique @db.VarChar(128)
   invite_expires_at DateTime?    @db.Timestamptz
   invited_at    DateTime?        @db.Timestamptz
@@ -6940,10 +7251,15 @@ model NvoccBookingForm {
   shipper_owned_container Boolean @default(false)
   is_dg                 Boolean   @default(false)
   teu_count             Decimal?  @db.Decimal(8, 2)
+  /// Array of {container_type_id?, iso_size?, count}
+  containers_json       Json?
   commodity             String?   @db.VarChar(500)
   hs_code               String?   @db.VarChar(20)
   final_use             String?   @db.VarChar(200)
   activity_sector       NvoccActivitySector?
+  service_scope         ServiceScope?
+  origin_door_address   String?   @db.Text
+  dest_door_address     String?   @db.Text
   insurance_details     String?   @db.Text
   lc_bank_details       String?   @db.Text
   attach_commercial_invoice Boolean @default(false)
@@ -7091,6 +7407,9 @@ model AirBookingForm {
   pieces             Int?
   gross_weight_kg    Decimal?  @db.Decimal(12, 3)
   chargeable_weight_kg Decimal? @db.Decimal(12, 3)
+  volume_cbm         Decimal?  @db.Decimal(10, 3)
+  pallet_count       Int?
+  pallets_json       Json?
   commodity          String?   @db.VarChar(500)
   special_handling   String?   @db.Text
   notes              String?   @db.Text
@@ -7154,6 +7473,14 @@ model AirComplianceBookingForm {
   net_weight_kg         Decimal?  @db.Decimal(12, 3)
   pol                   String?   @db.VarChar(100)
   pod                   String?   @db.VarChar(100)
+  /// Preferred over pol/pod for air validation going forward.
+  origin_airport_code   String?   @db.VarChar(10)
+  dest_airport_code     String?   @db.VarChar(10)
+  pieces                Int?
+  chargeable_weight_kg  Decimal?  @db.Decimal(12, 3)
+  volume_cbm            Decimal?  @db.Decimal(10, 3)
+  pallet_count          Int?
+  pallets_json          Json?
   shipper_owned_container Boolean @default(false)
   is_dg                 Boolean   @default(false)
   teu_count             Decimal?  @db.Decimal(8, 2)
@@ -7161,6 +7488,9 @@ model AirComplianceBookingForm {
   hs_code               String?   @db.VarChar(20)
   final_use             String?   @db.VarChar(200)
   activity_sector       NvoccActivitySector?
+  service_scope         ServiceScope?
+  origin_door_address   String?   @db.Text
+  dest_door_address     String?   @db.Text
   insurance_details     String?   @db.Text
   lc_bank_details       String?   @db.Text
   attach_commercial_invoice Boolean @default(false)
@@ -7213,6 +7543,386 @@ model AirComplianceBookingFormParty {
   @@map("air_compliance_booking_form_parties")
 }
 
+/// Sea FCL booking form — one per job.
+model SeaFclBookingForm {
+  id                    String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String         @db.Uuid
+  job_id                String         @unique @db.Uuid
+  date_of_request       DateTime?      @db.Date
+  client_booking_no     String?        @db.VarChar(50)
+  voyage_ref            String?        @db.VarChar(50)
+  service_scope         ServiceScope?
+  origin_door_address   String?        @db.Text
+  dest_door_address     String?        @db.Text
+  pol                   String?        @db.VarChar(100)
+  pod                   String?        @db.VarChar(100)
+  shipper_owned_container Boolean      @default(false)
+  teu_count             Decimal?       @db.Decimal(8, 2)
+  /// Array of {container_type_id?, iso_size?, count}
+  containers_json       Json?
+  etd                   DateTime?      @db.Date
+  eta                   DateTime?      @db.Date
+  incoterms             String?        @db.VarChar(10)
+  freight_terms         String?        @db.VarChar(30)
+  commodity             String?        @db.VarChar(500)
+  hs_code               String?        @db.VarChar(20)
+  cargo_category        CargoCategory?
+  is_dg                 Boolean        @default(false)
+  dg_class              String?        @db.VarChar(20)
+  gross_weight_kg       Decimal?       @db.Decimal(12, 3)
+  net_weight_kg         Decimal?       @db.Decimal(12, 3)
+  volume_cbm            Decimal?       @db.Decimal(10, 3)
+  pieces                Int?
+  insurance_details     String?        @db.Text
+  request_details       String?        @db.Text
+  attach_commercial_invoice            Boolean @default(false)
+  attach_packing_list                  Boolean @default(false)
+  attach_bl_awb_copy                   Boolean @default(false)
+  attach_carnet                        Boolean @default(false)
+  attach_vehicle_title                 Boolean @default(false)
+  attach_msds                          Boolean @default(false)
+  attach_dangerous_goods_declaration   Boolean @default(false)
+  attach_health_veterinary             Boolean @default(false)
+  attach_fda_moh                       Boolean @default(false)
+  consent_accepted_at   DateTime? @db.Timestamptz
+  is_complete           Boolean   @default(false)
+  completed_at          DateTime? @db.Timestamptz
+  completed_by          String?   @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  job     Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  parties SeaFclBookingFormParty[]
+
+  @@index([tenant_id])
+  @@map("sea_fcl_booking_forms")
+}
+
+model SeaFclBookingFormParty {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String              @db.Uuid
+  form_id       String              @db.Uuid
+  party_kind    JobBookingPartyKind
+  full_name     String?             @db.VarChar(300)
+  address       String?             @db.Text
+  city          String?             @db.VarChar(100)
+  country       String?             @db.VarChar(100)
+  entity_kind   PartyEntityKind?
+  other_details String?             @db.Text
+  created_at    DateTime            @default(now()) @db.Timestamptz
+  updated_at    DateTime            @updatedAt @db.Timestamptz
+
+  form SeaFclBookingForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, form_id, party_kind])
+  @@index([tenant_id, form_id])
+  @@map("sea_fcl_booking_form_parties")
+}
+
+/// Sea LCL booking form — one per job.
+model SeaLclBookingForm {
+  id                    String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String         @db.Uuid
+  job_id                String         @unique @db.Uuid
+  date_of_request       DateTime?      @db.Date
+  client_booking_no     String?        @db.VarChar(50)
+  voyage_ref            String?        @db.VarChar(50)
+  service_scope         ServiceScope?
+  origin_door_address   String?        @db.Text
+  dest_door_address     String?        @db.Text
+  pol                   String?        @db.VarChar(100)
+  pod                   String?        @db.VarChar(100)
+  cfs_warehouse         String?        @db.VarChar(200)
+  etd                   DateTime?      @db.Date
+  eta                   DateTime?      @db.Date
+  incoterms             String?        @db.VarChar(10)
+  freight_terms         String?        @db.VarChar(30)
+  commodity             String?        @db.VarChar(500)
+  hs_code               String?        @db.VarChar(20)
+  cargo_category        CargoCategory?
+  is_dg                 Boolean        @default(false)
+  dg_class              String?        @db.VarChar(20)
+  gross_weight_kg       Decimal?       @db.Decimal(12, 3)
+  net_weight_kg         Decimal?       @db.Decimal(12, 3)
+  volume_cbm            Decimal?       @db.Decimal(10, 3)
+  pieces                Int?
+  insurance_details     String?        @db.Text
+  request_details       String?        @db.Text
+  attach_commercial_invoice            Boolean @default(false)
+  attach_packing_list                  Boolean @default(false)
+  attach_bl_awb_copy                   Boolean @default(false)
+  attach_carnet                        Boolean @default(false)
+  attach_vehicle_title                 Boolean @default(false)
+  attach_msds                          Boolean @default(false)
+  attach_dangerous_goods_declaration   Boolean @default(false)
+  attach_health_veterinary             Boolean @default(false)
+  attach_fda_moh                       Boolean @default(false)
+  consent_accepted_at   DateTime? @db.Timestamptz
+  is_complete           Boolean   @default(false)
+  completed_at          DateTime? @db.Timestamptz
+  completed_by          String?   @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  job     Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  parties SeaLclBookingFormParty[]
+
+  @@index([tenant_id])
+  @@map("sea_lcl_booking_forms")
+}
+
+model SeaLclBookingFormParty {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String              @db.Uuid
+  form_id       String              @db.Uuid
+  party_kind    JobBookingPartyKind
+  full_name     String?             @db.VarChar(300)
+  address       String?             @db.Text
+  city          String?             @db.VarChar(100)
+  country       String?             @db.VarChar(100)
+  entity_kind   PartyEntityKind?
+  other_details String?             @db.Text
+  created_at    DateTime            @default(now()) @db.Timestamptz
+  updated_at    DateTime            @updatedAt @db.Timestamptz
+
+  form SeaLclBookingForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, form_id, party_kind])
+  @@index([tenant_id, form_id])
+  @@map("sea_lcl_booking_form_parties")
+}
+
+/// Land booking form — one per job.
+model LandBookingForm {
+  id                    String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String         @db.Uuid
+  job_id                String         @unique @db.Uuid
+  date_of_request       DateTime?      @db.Date
+  client_booking_no     String?        @db.VarChar(50)
+  voyage_ref            String?        @db.VarChar(50)
+  service_scope         ServiceScope?
+  origin_door_address   String?        @db.Text
+  dest_door_address     String?        @db.Text
+  origin_city_country   String?        @db.VarChar(200)
+  dest_city_country     String?        @db.VarChar(200)
+  vehicle_type          String?        @db.VarChar(100)
+  etd                   DateTime?      @db.Date
+  eta                   DateTime?      @db.Date
+  incoterms             String?        @db.VarChar(10)
+  commodity             String?        @db.VarChar(500)
+  hs_code               String?        @db.VarChar(20)
+  cargo_category        CargoCategory?
+  is_dg                 Boolean        @default(false)
+  dg_class              String?        @db.VarChar(20)
+  gross_weight_kg       Decimal?       @db.Decimal(12, 3)
+  net_weight_kg         Decimal?       @db.Decimal(12, 3)
+  volume_cbm            Decimal?       @db.Decimal(10, 3)
+  pieces                Int?
+  insurance_details     String?        @db.Text
+  request_details       String?        @db.Text
+  attach_commercial_invoice            Boolean @default(false)
+  attach_packing_list                  Boolean @default(false)
+  attach_bl_awb_copy                   Boolean @default(false)
+  attach_carnet                        Boolean @default(false)
+  attach_vehicle_title                 Boolean @default(false)
+  attach_msds                          Boolean @default(false)
+  attach_dangerous_goods_declaration   Boolean @default(false)
+  attach_health_veterinary             Boolean @default(false)
+  attach_fda_moh                       Boolean @default(false)
+  consent_accepted_at   DateTime? @db.Timestamptz
+  is_complete           Boolean   @default(false)
+  completed_at          DateTime? @db.Timestamptz
+  completed_by          String?   @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  job     Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  parties LandBookingFormParty[]
+
+  @@index([tenant_id])
+  @@map("land_booking_forms")
+}
+
+model LandBookingFormParty {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String              @db.Uuid
+  form_id       String              @db.Uuid
+  party_kind    JobBookingPartyKind
+  full_name     String?             @db.VarChar(300)
+  address       String?             @db.Text
+  city          String?             @db.VarChar(100)
+  country       String?             @db.VarChar(100)
+  entity_kind   PartyEntityKind?
+  other_details String?             @db.Text
+  created_at    DateTime            @default(now()) @db.Timestamptz
+  updated_at    DateTime            @updatedAt @db.Timestamptz
+
+  form LandBookingForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, form_id, party_kind])
+  @@index([tenant_id, form_id])
+  @@map("land_booking_form_parties")
+}
+
+/// Road freight booking form — one per job.
+model RoadFreightBookingForm {
+  id                    String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String         @db.Uuid
+  job_id                String         @unique @db.Uuid
+  date_of_request       DateTime?      @db.Date
+  client_booking_no     String?        @db.VarChar(50)
+  voyage_ref            String?        @db.VarChar(50)
+  service_scope         ServiceScope?
+  origin_door_address   String?        @db.Text
+  dest_door_address     String?        @db.Text
+  origin_city_country   String?        @db.VarChar(200)
+  dest_city_country     String?        @db.VarChar(200)
+  vehicle_type          String?        @db.VarChar(100)
+  border_crossing       String?        @db.VarChar(200)
+  etd                   DateTime?      @db.Date
+  eta                   DateTime?      @db.Date
+  incoterms             String?        @db.VarChar(10)
+  commodity             String?        @db.VarChar(500)
+  hs_code               String?        @db.VarChar(20)
+  cargo_category        CargoCategory?
+  is_dg                 Boolean        @default(false)
+  dg_class              String?        @db.VarChar(20)
+  gross_weight_kg       Decimal?       @db.Decimal(12, 3)
+  net_weight_kg         Decimal?       @db.Decimal(12, 3)
+  volume_cbm            Decimal?       @db.Decimal(10, 3)
+  pieces                Int?
+  insurance_details     String?        @db.Text
+  request_details       String?        @db.Text
+  attach_commercial_invoice            Boolean @default(false)
+  attach_packing_list                  Boolean @default(false)
+  attach_bl_awb_copy                   Boolean @default(false)
+  attach_carnet                        Boolean @default(false)
+  attach_vehicle_title                 Boolean @default(false)
+  attach_msds                          Boolean @default(false)
+  attach_dangerous_goods_declaration   Boolean @default(false)
+  attach_health_veterinary             Boolean @default(false)
+  attach_fda_moh                       Boolean @default(false)
+  consent_accepted_at   DateTime? @db.Timestamptz
+  is_complete           Boolean   @default(false)
+  completed_at          DateTime? @db.Timestamptz
+  completed_by          String?   @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  job     Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  parties RoadFreightBookingFormParty[]
+
+  @@index([tenant_id])
+  @@map("road_freight_booking_forms")
+}
+
+model RoadFreightBookingFormParty {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String              @db.Uuid
+  form_id       String              @db.Uuid
+  party_kind    JobBookingPartyKind
+  full_name     String?             @db.VarChar(300)
+  address       String?             @db.Text
+  city          String?             @db.VarChar(100)
+  country       String?             @db.VarChar(100)
+  entity_kind   PartyEntityKind?
+  other_details String?             @db.Text
+  created_at    DateTime            @default(now()) @db.Timestamptz
+  updated_at    DateTime            @updatedAt @db.Timestamptz
+
+  form RoadFreightBookingForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, form_id, party_kind])
+  @@index([tenant_id, form_id])
+  @@map("road_freight_booking_form_parties")
+}
+
+/// Courier booking form — one per job.
+model CourierBookingForm {
+  id                    String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String         @db.Uuid
+  job_id                String         @unique @db.Uuid
+  date_of_request       DateTime?      @db.Date
+  client_booking_no     String?        @db.VarChar(50)
+  voyage_ref            String?        @db.VarChar(50)
+  service_scope         ServiceScope?
+  origin_door_address   String?        @db.Text
+  dest_door_address     String?        @db.Text
+  origin_city_country   String?        @db.VarChar(200)
+  dest_city_country     String?        @db.VarChar(200)
+  tracking_number       String?        @db.VarChar(100)
+  etd                   DateTime?      @db.Date
+  eta                   DateTime?      @db.Date
+  commodity             String?        @db.VarChar(500)
+  hs_code               String?        @db.VarChar(20)
+  cargo_category        CargoCategory?
+  is_dg                 Boolean        @default(false)
+  dg_class              String?        @db.VarChar(20)
+  gross_weight_kg       Decimal?       @db.Decimal(12, 3)
+  net_weight_kg         Decimal?       @db.Decimal(12, 3)
+  volume_cbm            Decimal?       @db.Decimal(10, 3)
+  pieces                Int?
+  insurance_details     String?        @db.Text
+  request_details       String?        @db.Text
+  attach_commercial_invoice            Boolean @default(false)
+  attach_packing_list                  Boolean @default(false)
+  attach_bl_awb_copy                   Boolean @default(false)
+  attach_carnet                        Boolean @default(false)
+  attach_vehicle_title                 Boolean @default(false)
+  attach_msds                          Boolean @default(false)
+  attach_dangerous_goods_declaration   Boolean @default(false)
+  attach_health_veterinary             Boolean @default(false)
+  attach_fda_moh                       Boolean @default(false)
+  consent_accepted_at   DateTime? @db.Timestamptz
+  is_complete           Boolean   @default(false)
+  completed_at          DateTime? @db.Timestamptz
+  completed_by          String?   @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  job     Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  parties CourierBookingFormParty[]
+
+  @@index([tenant_id])
+  @@map("courier_booking_forms")
+}
+
+model CourierBookingFormParty {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String              @db.Uuid
+  form_id       String              @db.Uuid
+  party_kind    JobBookingPartyKind
+  full_name     String?             @db.VarChar(300)
+  address       String?             @db.Text
+  city          String?             @db.VarChar(100)
+  country       String?             @db.VarChar(100)
+  entity_kind   PartyEntityKind?
+  other_details String?             @db.Text
+  created_at    DateTime            @default(now()) @db.Timestamptz
+  updated_at    DateTime            @updatedAt @db.Timestamptz
+
+  form CourierBookingForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, form_id, party_kind])
+  @@index([tenant_id, form_id])
+  @@map("courier_booking_form_parties")
+}
+
 enum AirWorkflowStage {
   QUOTE_REQUESTED
   CS_TRIAGED
@@ -7237,5 +7947,89 @@ enum AirWorkflowStage {
   DELIVERY_ORDER_ISSUED
   POD_RECEIVED
   CLOSED
+}
+
+// ── Quote Requests bridge (website KFPP-style integrations) ───────────────
+
+enum ExternalQuoteRequestProvider {
+  KFPP_WP
+  GENERIC_REST
+}
+
+model ExternalQuoteRequestConnection {
+  id                 String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String                       @unique @db.Uuid
+  provider           ExternalQuoteRequestProvider @default(KFPP_WP)
+  base_url           String                       @db.VarChar(500)
+  api_key_ciphertext String                       @db.Text
+  api_key_prefix     String                       @db.VarChar(12)
+  auth_header_name   String                       @default("X-KFPP-Api-Key") @db.VarChar(80)
+  status_map         Json?
+  is_active          Boolean                      @default(true)
+  last_health_at     DateTime?                    @db.Timestamptz
+  last_health_ok     Boolean?
+  last_health_error  String?                      @db.Text
+  last_sync_at       DateTime?                    @db.Timestamptz
+  sync_cursor        String?                      @db.VarChar(100)
+  created_at         DateTime                     @default(now()) @db.Timestamptz
+  updated_at         DateTime                     @updatedAt @db.Timestamptz
+  created_by         String?                      @db.Uuid
+  updated_by         String?                      @db.Uuid
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@map("external_quote_request_connections")
+}
+
+model ExternalQuoteRequest {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  external_id          String    @db.VarChar(64)
+  status               String?   @db.VarChar(80)
+  contact_name         String?   @db.VarChar(200)
+  contact_email        String?   @db.VarChar(255)
+  contact_phone        String?   @db.VarChar(40)
+  company_name         String?   @db.VarChar(300)
+  message              String?   @db.Text
+  commodity            String?   @db.VarChar(300)
+  submitted_at         DateTime? @db.Timestamptz
+  company_id           String?   @db.Uuid
+  party_id             String?   @db.Uuid
+  lead_id              String?   @db.Uuid
+  enquiry_id           String?   @db.Uuid
+  raw_json             Json
+  last_synced_at       DateTime? @db.Timestamptz
+  status_pushed_at     DateTime? @db.Timestamptz
+  pending_status_push  Boolean   @default(false)
+  sync_error           String?   @db.Text
+  remote_status_at_pull String?  @db.VarChar(80)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+  deleted_at           DateTime? @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, external_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, contact_email])
+  @@index([tenant_id, last_synced_at])
+  @@map("external_quote_requests")
+}
+
+model ExternalQuoteRequestSyncRun {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  started_at    DateTime  @default(now()) @db.Timestamptz
+  finished_at   DateTime? @db.Timestamptz
+  fetched       Int       @default(0)
+  upserted      Int       @default(0)
+  failed        Int       @default(0)
+  error_summary String?   @db.Text
+  trigger       String    @default("manual") @db.VarChar(20)
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, started_at])
+  @@map("external_quote_request_sync_runs")
 }
 

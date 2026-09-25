@@ -18,6 +18,7 @@ import { NVOCC_PERMISSIONS } from "../../modules/nvocc/constants/nvocc-permissio
 import { NOTIFICATIONS_PERMISSIONS } from "../../modules/notifications/constants/notifications-permission.constants";
 import { DOCUMENTATION_PERMISSIONS } from "../../modules/documentation/constants/documentation-permission.constants";
 import { REPORTS_PERMISSIONS } from "../../modules/reports/constants/reports-permission.constants";
+import { QUOTE_REQUESTS_PERMISSIONS } from "../../modules/integrations/quote-requests/constants/quote-requests-permission.constants";
 import { ALL_MATRIX_PERMISSION_CODES } from "./module-permission-tree";
 
 export interface RoleCatalogEntry {
@@ -65,6 +66,7 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(DOCUMENTATION_PERMISSIONS),
       ...Object.values(NOTIFICATIONS_PERMISSIONS),
       ...Object.values(REPORTS_PERMISSIONS),
+      ...Object.values(QUOTE_REQUESTS_PERMISSIONS),
       ...ALL_MATRIX_PERMISSION_CODES,
     ],
   },
@@ -116,6 +118,9 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       NVOCC_PERMISSIONS.MANAGE,
       REPORTS_PERMISSIONS.READ,
       REPORTS_PERMISSIONS.GENERATE,
+      QUOTE_REQUESTS_PERMISSIONS.VIEW,
+      QUOTE_REQUESTS_PERMISSIONS.SYNC,
+      QUOTE_REQUESTS_PERMISSIONS.UPDATE_STATUS,
     ],
   },
   {
@@ -196,6 +201,9 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       INVOICES_PERMISSIONS.SEND,
       REPORTS_PERMISSIONS.READ,
       REPORTS_PERMISSIONS.GENERATE,
+      QUOTE_REQUESTS_PERMISSIONS.VIEW,
+      QUOTE_REQUESTS_PERMISSIONS.SYNC,
+      QUOTE_REQUESTS_PERMISSIONS.UPDATE_STATUS,
     ],
   },
   {
@@ -222,6 +230,9 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       INVOICES_PERMISSIONS.SEND,
       REPORTS_PERMISSIONS.READ,
       REPORTS_PERMISSIONS.GENERATE,
+      QUOTE_REQUESTS_PERMISSIONS.VIEW,
+      QUOTE_REQUESTS_PERMISSIONS.SYNC,
+      QUOTE_REQUESTS_PERMISSIONS.UPDATE_STATUS,
     ],
   },
   {
@@ -313,6 +324,9 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       NOTIFICATIONS_PERMISSIONS.VIEW,
       REPORTS_PERMISSIONS.READ,
       REPORTS_PERMISSIONS.GENERATE,
+      QUOTE_REQUESTS_PERMISSIONS.VIEW,
+      QUOTE_REQUESTS_PERMISSIONS.SYNC,
+      QUOTE_REQUESTS_PERMISSIONS.UPDATE_STATUS,
     ],
   },
   {

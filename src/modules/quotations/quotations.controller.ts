@@ -145,7 +145,7 @@ export class QuotationsController {
   @ApiOperation({
     summary: "Public online quote widget — no auth required (Ch.7.5)",
     description:
-      "Rate-limited. Identify the tenant with tenant_slug. Spam protection via IP throttle.",
+      "Rate-limited website Get a Quote. Identify the tenant with tenant_slug (embed on that forwarder's site only). Creates/links a customer Party + DRAFT quotation. For new portal emails, returns email + temporary_password once for POST /portal/auth/login (must_change_password). Existing portal accounts are not reset. Does not expose GP/cost. CORS: set CORS_ORIGINS to the website origin(s).",
   })
   createOnlineQuote(@Body() dto: CreateOnlineQuoteDto) {
     return this.service.createOnlineQuote(dto);

@@ -165,6 +165,12 @@ export class SearchService {
                 barcode_value: { contains: term, mode: "insensitive" },
               },
             },
+            { barcode_value: { contains: term, mode: "insensitive" } },
+            {
+              road_freight_details: {
+                vehicle_number: { contains: term, mode: "insensitive" },
+              },
+            },
           ],
         },
         ...(query.job_type ? [{ job_type: query.job_type as never }] : []),

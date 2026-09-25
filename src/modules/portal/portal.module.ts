@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { EmailModule } from "../../shared/email/email.module";
@@ -54,6 +54,7 @@ import { PortalComplianceBookingController } from "./portal-compliance-booking.c
 import { PortalComplianceBookingService } from "./portal-compliance-booking.service";
 import { PortalAirComplianceBookingController } from "./portal-air-compliance-booking.controller";
 import { PortalAirComplianceBookingService } from "./portal-air-compliance-booking.service";
+import { PortalCcController } from "./portal-cc.controller";
 import { ToolsModule } from "../tools/tools.module";
 import { NvoccModule } from "../nvocc/nvocc.module";
 import { JobsModule } from "../jobs/jobs.module";
@@ -65,7 +66,7 @@ import { JobsModule } from "../jobs/jobs.module";
     EmailModule,
     StorageModule,
     PdfModule,
-    QuotationsModule,
+    forwardRef(() => QuotationsModule),
     MastersModule,
     InvoicesModule,
     GlModule,
@@ -99,6 +100,7 @@ import { JobsModule } from "../jobs/jobs.module";
     PortalConverterController,
     PortalComplianceBookingController,
     PortalAirComplianceBookingController,
+    PortalCcController,
   ],
   providers: [
     PortalService,

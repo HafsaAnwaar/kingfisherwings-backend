@@ -3,15 +3,18 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { WmsStockService } from "./wms-stock.service";
+import { WmsStorageService } from "./wms-storage.service";
 
 @Injectable()
 export class WmsCronService {
   private readonly logger = new Logger(WmsCronService.name);
   private running = false;
+  private storageRunning = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly stock: WmsStockService,
+    private readonly storage: WmsStorageService,
     private readonly notifications: NotificationEmitterService,
   ) {}
 
@@ -59,6 +62,39 @@ export class WmsCronService {
       }
     } finally {
       this.running = false;
+    }
+  }
+
+  /** Mark overdue lots NOT_COLLECTED and upsert OVERDUE_EXTRA charges. */
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async handleStorageOverdue() {
+    if (this.storageRunning) return;
+    this.storageRunning = true;
+    try {
+      const tenants = await this.prisma.tenant.findMany({
+        where: {
+          is_active: true,
+          deleted_at: null,
+          status: { in: ["TRIAL", "ACTIVE"] },
+        },
+        select: { id: true, name: true },
+      });
+      for (const tenant of tenants) {
+        try {
+          const result = await this.storage.accrueOverdueForTenant(tenant.id);
+          if (result.lots_marked_overdue || result.charges_upserted) {
+            this.logger.log(
+              `Tenant ${tenant.name}: overdue lots=${result.lots_marked_overdue}, charges=${result.charges_upserted}`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Storage overdue accrual failed for tenant ${tenant.id}: ${String(error)}`,
+          );
+        }
+      }
+    } finally {
+      this.storageRunning = false;
     }
   }
 }

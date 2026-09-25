@@ -747,6 +747,39 @@ export class TenantsService {
     };
   }
 
+  async updateFeatures(
+    id: string,
+    body: { quote_requests_bridge?: boolean },
+  ) {
+    await this.ensureTenantExists(id);
+    const data: { quote_requests_bridge_enabled?: boolean } = {};
+    if (typeof body.quote_requests_bridge === "boolean") {
+      data.quote_requests_bridge_enabled = body.quote_requests_bridge;
+    }
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException("No feature flags provided.");
+    }
+    const tenant = await this.prisma.tenant.update({
+      where: { id },
+      data,
+    });
+    if (data.quote_requests_bridge_enabled === false) {
+      await this.prisma.externalQuoteRequestConnection.updateMany({
+        where: { tenant_id: id },
+        data: { is_active: false },
+      });
+    }
+    return {
+      success: true,
+      message: "Tenant features updated.",
+      data: {
+        id: tenant.id,
+        slug: tenant.slug,
+        quote_requests_bridge_enabled: tenant.quote_requests_bridge_enabled,
+      },
+    };
+  }
+
   // =====================================================
   // TENANT STATISTICS
   // =====================================================

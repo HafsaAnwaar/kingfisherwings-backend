@@ -13,6 +13,7 @@ import { Public } from "../../common/decorators/public.decorators";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import {
   AcceptPortalInviteDto,
+  ChangePortalPasswordDto,
   PortalLoginDto,
   PortalRefreshDto,
 } from "./dto/portal.dto";
@@ -31,7 +32,7 @@ export class PortalAuthController {
   @ApiOperation({
     summary: "Customer portal login",
     description:
-      "Public API for tenant websites. Requires tenant_slug + email + password issued by tenant staff after Get a Quote.",
+      "Public API for tenant websites. Requires tenant_slug + email + password. After online-quote, credentials may be returned once; check must_change_password and call POST /portal/auth/change-password.",
   })
   login(
     @Body() dto: PortalLoginDto,
@@ -70,6 +71,24 @@ export class PortalAuthController {
   @ApiOperation({ summary: "Revoke the current portal session" })
   logout(@CurrentPortal() user: CurrentPortalUser) {
     return this.portal.logout(user);
+  }
+
+  @Public()
+  @UseGuards(PortalAuthGuard)
+  @Post("change-password")
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary: "Change portal password",
+    description:
+      "Required when must_change_password is true (e.g. after online-quote temporary password).",
+  })
+  changePassword(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Body() dto: ChangePortalPasswordDto,
+  ) {
+    return this.portal.changePassword(user, dto);
   }
 
   @Public()

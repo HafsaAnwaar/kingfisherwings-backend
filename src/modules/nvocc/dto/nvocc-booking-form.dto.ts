@@ -3,6 +3,7 @@ import {
   PartyEntityKind,
   NvoccBookingPartyKind,
   NvoccActivitySector,
+  ServiceScope,
 } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
@@ -10,13 +11,33 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
-  Length,
+  IsUUID,
   MaxLength,
+  Min,
   ValidateNested,
 } from "class-validator";
+
+export class NvoccContainerSizeLineDto {
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  container_type_id?: string;
+
+  @ApiPropertyOptional({ example: "40HC" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  iso_size?: string;
+
+  @ApiProperty({ example: 2 })
+  @IsInt()
+  @Min(1)
+  count!: number;
+}
 
 export class NvoccBookingFormPartyDto {
   @ApiProperty({ enum: NvoccBookingPartyKind })
@@ -111,6 +132,31 @@ export class UpsertNvoccBookingFormDto {
   @IsOptional()
   @IsNumber()
   teu_count?: number;
+
+  @ApiPropertyOptional({
+    type: "array",
+    description: "Container size lines (iso_size or container_type_id + count)",
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => NvoccContainerSizeLineDto)
+  containers?: NvoccContainerSizeLineDto[];
+
+  @ApiPropertyOptional({ enum: ServiceScope })
+  @IsOptional()
+  @IsEnum(ServiceScope)
+  service_scope?: ServiceScope;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  origin_door_address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  dest_door_address?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

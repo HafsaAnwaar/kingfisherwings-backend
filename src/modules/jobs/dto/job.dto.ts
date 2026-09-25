@@ -12,7 +12,7 @@ import {
   Length,
   Min,
 } from "class-validator";
-import { JobType } from "@prisma/client";
+import { JobType, ServiceScope, CargoCategory } from "@prisma/client";
 
 export class CreateJobDto {
   @ApiProperty({ enum: JobType })
@@ -170,6 +170,45 @@ export class CreateJobDto {
   @IsOptional()
   @IsDateString()
   eta?: string;
+
+  @ApiPropertyOptional({
+    enum: ServiceScope,
+    description: "DOOR_TO_DOOR | DOOR_TO_PORT | PORT_TO_DOOR | PORT_TO_PORT",
+  })
+  @IsOptional()
+  @IsEnum(ServiceScope)
+  service_scope?: ServiceScope;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  origin_door_address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  dest_door_address?: string;
+
+  @ApiPropertyOptional({ enum: CargoCategory })
+  @IsOptional()
+  @IsEnum(CargoCategory)
+  cargo_category?: CargoCategory;
 }
 
 export class UpdateJobDto extends PartialType(CreateJobDto) {}
+
+export class ScanJobBarcodeDto {
+  @ApiProperty()
+  @IsString()
+  barcode!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}

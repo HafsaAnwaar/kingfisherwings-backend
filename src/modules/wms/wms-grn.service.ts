@@ -91,6 +91,18 @@ export class WmsGrnService {
         const quantity = Number(line.quantity);
         const cbmPerUnit =
           line.cbm == null ? null : Number(line.cbm) / quantity;
+        const settings = await tx.wmsSettings.upsert({
+          where: { tenant_id: user.tenantId },
+          create: {
+            tenant_id: user.tenantId,
+            default_currency: "AED",
+          },
+          update: {},
+        });
+        const paidDays = settings.default_free_days;
+        const startsAt = grn.received_at;
+        const paidUntil = new Date(startsAt);
+        paidUntil.setUTCDate(paidUntil.getUTCDate() + paidDays);
         const lot = await tx.wmsStockLot.create({
           data: {
             tenant_id: user.tenantId,
@@ -105,6 +117,12 @@ export class WmsGrnService {
             unit_cost: line.unit_cost,
             cbm_per_unit: cbmPerUnit,
             received_at: grn.received_at,
+            paid_storage_days: paidDays,
+            storage_rate_per_day: settings.default_storage_rate,
+            overdue_rate_per_day: settings.default_overdue_rate_per_day,
+            storage_starts_at: startsAt,
+            paid_until_date: paidUntil,
+            storage_status: "IN_STORAGE",
           },
         });
         await tx.wmsStockMovement.create({

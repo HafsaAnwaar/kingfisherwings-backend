@@ -467,6 +467,9 @@ export class DocumentGenerationService {
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
         include: {
           air_details: true,
+          land_details: true,
+          road_freight_details: true,
+          courier_details: true,
           sea_fcl_details: {
             include: {
               containers: {
@@ -589,6 +592,71 @@ export class DocumentGenerationService {
     const isAirImport = job.job_type === "AIR_IMPORT";
     const ad = job.air_details;
 
+    let barcodeImageDataUri: string | undefined;
+    const barcodeValue = (job as { barcode_value?: string | null }).barcode_value
+      ?? undefined;
+    if (documentType === "BARCODE_LABEL" && barcodeValue) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const bwipjs = require("bwip-js") as {
+          toBuffer: (opts: Record<string, unknown>) => Promise<Buffer>;
+        };
+        const png = await bwipjs.toBuffer({
+          bcid: "code128",
+          text: barcodeValue,
+          scale: 3,
+          height: 12,
+          includetext: false,
+        });
+        barcodeImageDataUri = `data:image/png;base64,${png.toString("base64")}`;
+      } catch {
+        barcodeImageDataUri = undefined;
+      }
+    }
+
+    const landOrigin = (
+      job as {
+        land_details?: { origin_city_country?: string | null } | null;
+        road_freight_details?: {
+          origin_city_country?: string | null;
+        } | null;
+        courier_details?: { pickup_address?: string | null } | null;
+      }
+    ).land_details?.origin_city_country;
+    const roadOrigin = (
+      job as {
+        road_freight_details?: {
+          origin_city_country?: string | null;
+        } | null;
+      }
+    ).road_freight_details?.origin_city_country;
+    const courierPickup = (
+      job as {
+        courier_details?: { pickup_address?: string | null } | null;
+      }
+    ).courier_details?.pickup_address;
+    const landDest = (
+      job as {
+        land_details?: { destination_city_country?: string | null } | null;
+      }
+    ).land_details?.destination_city_country;
+    const roadDest = (
+      job as {
+        road_freight_details?: {
+          destination_city_country?: string | null;
+        } | null;
+      }
+    ).road_freight_details?.destination_city_country;
+    const courierDelivery = (
+      job as {
+        courier_details?: { delivery_address?: string | null } | null;
+      }
+    ).courier_details?.delivery_address;
+
+    const hawb = isAirImport
+      ? (ad?.hawb_number_from_origin_agent ?? ad?.hawb_number ?? undefined)
+      : (ad?.hawb_number ?? undefined);
+
     const buffer = await this.pdfService.generateJobDocumentPdf({
       job_number: job.job_number,
       job_type: job.job_type,
@@ -599,9 +667,7 @@ export class DocumentGenerationService {
       gross_weight: job.gross_weight?.toString(),
       chargeable_weight: job.chargeable_weight?.toString(),
       pieces: job.pieces ?? undefined,
-      hawb_number: isAirImport
-        ? (ad?.hawb_number_from_origin_agent ?? ad?.hawb_number ?? undefined)
-        : (ad?.hawb_number ?? undefined),
+      hawb_number: hawb,
       mawb_number: isAirImport
         ? (ad?.mawb_number_from_origin ?? ad?.mawb_number ?? undefined)
         : (ad?.mawb_number ?? undefined),
@@ -624,9 +690,20 @@ export class DocumentGenerationService {
       delivery_address: ad?.delivery_address ?? undefined,
       final_destination: ad?.final_destination ?? undefined,
       airline_name: airline?.name,
-      origin: originPort?.name,
-      destination: destPort?.name,
+      origin:
+        originPort?.name ?? landOrigin ?? roadOrigin ?? courierPickup ?? undefined,
+      destination:
+        destPort?.name ??
+        landDest ??
+        roadDest ??
+        courierDelivery ??
+        undefined,
       is_original: isOriginal,
+      barcode_value: barcodeValue,
+      barcode_image_data_uri: barcodeImageDataUri,
+      primary_ref_label: hawb ? "AIRWAY BILL NO." : "JOB NO.",
+      primary_ref_value: hawb ?? job.job_number,
+      carrier_name: airline?.name,
     });
 
     const filename = `${job.job_number}-${documentType.toLowerCase()}${isOriginal ? "-original" : "-draft"}.pdf`;

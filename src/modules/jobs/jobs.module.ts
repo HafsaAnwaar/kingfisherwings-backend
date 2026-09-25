@@ -18,6 +18,7 @@ import { AirImportService } from "./air-import.service";
 import { SeaLclService } from "./sea-lcl.service";
 import { SeaLclImportService } from "./sea-lcl-import.service";
 import { LandService } from "./land.service";
+import { RoadFreightService } from "./road-freight.service";
 import { CourierService } from "./courier.service";
 import { TransportModule } from "../transport/transport.module";
 import { VendorModule } from "../vendor/vendor.module";
@@ -28,6 +29,11 @@ import { AirComplianceBookingFormService } from "./air-compliance-booking-form.s
 import { AirWorkflowService } from "./air-workflow.service";
 import { AirWorkflowActionsService } from "./air-workflow-actions.service";
 import { AirWorkflowController } from "./air-workflow.controller";
+import { ModeBookingFormService } from "./booking-forms/mode-booking-form.service";
+import { ModeBookingFormsController } from "./booking-forms/mode-booking-forms.controller";
+import { CustomsClearanceService } from "./customs-clearance/customs-clearance.service";
+import { CustomsClearanceController } from "./customs-clearance/customs-clearance.controller";
+import { CustomsClearanceQueueController } from "./customs-clearance/customs-clearance-queue.controller";
 
 @Module({
   imports: [
@@ -44,10 +50,13 @@ import { AirWorkflowController } from "./air-workflow.controller";
     MastersModule,
   ],
   controllers: [
+    CustomsClearanceQueueController,
     JobsController,
     JobsSeaScansController,
     SeaKpiReportController,
     AirWorkflowController,
+    ModeBookingFormsController,
+    CustomsClearanceController,
   ],
   providers: [
     JobsService,
@@ -61,7 +70,10 @@ import { AirWorkflowController } from "./air-workflow.controller";
     SeaLclService,
     SeaLclImportService,
     LandService,
+    RoadFreightService,
+    ModeBookingFormService,
     CourierService,
+    CustomsClearanceService,
   ],
   exports: [
     JobsService,
@@ -74,7 +86,10 @@ import { AirWorkflowController } from "./air-workflow.controller";
     SeaLclService,
     SeaLclImportService,
     LandService,
+    RoadFreightService,
+    ModeBookingFormService,
     CourierService,
+    CustomsClearanceService,
   ],
 })
 export class JobsModule {}

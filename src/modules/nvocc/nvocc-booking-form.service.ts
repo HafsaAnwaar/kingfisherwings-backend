@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import {
   NvoccActivitySector,
+  Prisma,
   UserRole,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -252,6 +253,24 @@ export class NvoccBookingFormService {
         is_dg: dto.is_dg ?? existing?.is_dg ?? false,
         teu_count:
           dto.teu_count !== undefined ? dto.teu_count : existing?.teu_count,
+        containers_json:
+          dto.containers !== undefined
+            ? (dto.containers as unknown as Prisma.InputJsonValue)
+            : (existing?.containers_json as
+                | Prisma.InputJsonValue
+                | undefined),
+        service_scope:
+          dto.service_scope !== undefined
+            ? dto.service_scope
+            : existing?.service_scope ?? undefined,
+        origin_door_address:
+          dto.origin_door_address !== undefined
+            ? dto.origin_door_address
+            : existing?.origin_door_address,
+        dest_door_address:
+          dto.dest_door_address !== undefined
+            ? dto.dest_door_address
+            : existing?.dest_door_address,
         commodity: dto.commodity ?? existing?.commodity,
         hs_code: dto.hs_code ?? existing?.hs_code,
         final_use: dto.final_use ?? existing?.final_use,
@@ -343,6 +362,25 @@ export class NvoccBookingFormService {
             updated_by: opts.actorId,
           },
         });
+      }
+
+      if (dto.service_scope || dto.origin_door_address || dto.dest_door_address) {
+        const jobId = booking.converted_job_id;
+        if (jobId) {
+          await tx.job.update({
+            where: { id: jobId },
+            data: {
+              ...(dto.service_scope ? { service_scope: dto.service_scope } : {}),
+              ...(dto.origin_door_address !== undefined
+                ? { origin_door_address: dto.origin_door_address }
+                : {}),
+              ...(dto.dest_door_address !== undefined
+                ? { dest_door_address: dto.dest_door_address }
+                : {}),
+              updated_by: opts.actorId,
+            },
+          });
+        }
       }
 
       return tx.nvoccBookingForm.findFirst({

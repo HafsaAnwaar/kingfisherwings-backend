@@ -68,6 +68,12 @@ export interface JobDocumentPdfData {
   notify_party_name?: string;
   delivery_address?: string;
   final_destination?: string;
+  /** Universal barcode label */
+  barcode_value?: string;
+  barcode_image_data_uri?: string;
+  primary_ref_label?: string;
+  primary_ref_value?: string;
+  carrier_name?: string;
 }
 
 export interface NvoccDocumentPdfData {
@@ -283,6 +289,20 @@ export class PdfService implements OnModuleDestroy {
   }
 
   async generateJobDocumentPdf(data: JobDocumentPdfData): Promise<Buffer> {
+    if (data.document_type === "BARCODE_LABEL") {
+      const template = Handlebars.compile(BARCODE_LABEL_TEMPLATE);
+      const html = template({
+        ...data,
+        title: "BARCODE LABEL",
+        watermark: data.is_original ? "ORIGINAL" : "DRAFT",
+      });
+      return this.htmlToPdf(html, {
+        width: "4in",
+        height: "6in",
+        margin: { top: "5mm", bottom: "5mm", left: "5mm", right: "5mm" },
+      });
+    }
+
     const template = Handlebars.compile(JOB_DOCUMENT_TEMPLATE);
     const html = template({
       ...data,
@@ -377,7 +397,20 @@ export class PdfService implements OnModuleDestroy {
     return this.htmlToPdf(html);
   }
 
-  private async htmlToPdf(html: string): Promise<Buffer> {
+  private async htmlToPdf(
+    html: string,
+    pdfOptions?: {
+      format?: "A4" | "Letter";
+      width?: string;
+      height?: string;
+      margin?: {
+        top?: string;
+        bottom?: string;
+        left?: string;
+        right?: string;
+      };
+    },
+  ): Promise<Buffer> {
     let page;
     try {
       const browser = await this.getBrowser();
@@ -387,9 +420,11 @@ export class PdfService implements OnModuleDestroy {
         timeout: Number(process.env.PUPPETEER_TIMEOUT ?? 30_000),
       });
       const pdf = await page.pdf({
-        format: "A4",
+        format: pdfOptions?.width ? undefined : (pdfOptions?.format ?? "A4"),
+        width: pdfOptions?.width,
+        height: pdfOptions?.height,
         printBackground: true,
-        margin: { top: "20mm", bottom: "20mm" },
+        margin: pdfOptions?.margin ?? { top: "20mm", bottom: "20mm" },
       });
       return Buffer.from(pdf);
     } catch (err) {
@@ -713,6 +748,54 @@ const JOB_DOCUMENT_TEMPLATE = `
     {{#if delivery_address}}<tr><td class="label">Delivery Address</td><td>{{delivery_address}}</td></tr>{{/if}}
     {{#if final_destination}}<tr><td class="label">Final Destination</td><td>{{final_destination}}</td></tr>{{/if}}
     <tr><td class="label">Airline</td><td>{{airline_name}}</td></tr>
+  </table>
+</body>
+</html>
+`;
+
+const BARCODE_LABEL_TEMPLATE = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; margin: 0; padding: 8px; }
+    .carrier { font-size: 20px; font-weight: bold; letter-spacing: 1px; margin-bottom: 6px; }
+    .barcode { text-align: center; margin: 8px 0; }
+    .barcode img { max-width: 100%; height: 56px; }
+    .code { text-align: center; font-family: "Courier New", monospace; font-size: 13px; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; border: 2px solid #000; }
+    td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
+    .lbl { font-size: 9px; text-transform: uppercase; color: #333; display: block; }
+    .val { font-size: 16px; font-weight: bold; }
+    .val-lg { font-size: 22px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="carrier">{{#if carrier_name}}{{carrier_name}}{{else}}KINGFISHER{{/if}}</div>
+  <div class="barcode">
+    {{#if barcode_image_data_uri}}<img src="{{barcode_image_data_uri}}" alt="barcode" />{{/if}}
+  </div>
+  <div class="code">{{barcode_value}}</div>
+  <table>
+    <tr>
+      <td colspan="2">
+        <span class="lbl">{{#if primary_ref_label}}{{primary_ref_label}}{{else}}JOB NO.{{/if}}</span>
+        <span class="val-lg">{{#if primary_ref_value}}{{primary_ref_value}}{{else}}{{job_number}}{{/if}}</span>
+      </td>
+    </tr>
+    <tr>
+      <td><span class="lbl">Origin</span><span class="val">{{origin}}</span></td>
+      <td><span class="lbl">Destination</span><span class="val">{{destination}}</span></td>
+    </tr>
+    <tr>
+      <td><span class="lbl">Total No. of Pieces</span><span class="val">{{pieces}}</span></td>
+      <td><span class="lbl">Weight</span><span class="val">{{gross_weight}}</span></td>
+    </tr>
+    <tr>
+      <td><span class="lbl">HAWB No.</span><span class="val">{{hawb_number}}</span></td>
+      <td><span class="lbl">Job No.</span><span class="val">{{job_number}}</span></td>
+    </tr>
   </table>
 </body>
 </html>

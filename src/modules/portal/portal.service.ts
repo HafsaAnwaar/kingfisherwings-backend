@@ -15,6 +15,7 @@ import { PasswordHelper } from "../users/helpers/password.helper";
 import { EmailService } from "../../shared/email/email.service";
 import {
   AcceptPortalInviteDto,
+  ChangePortalPasswordDto,
   CreatePortalUserDto,
   PortalLoginDto,
   PortalRefreshDto,
@@ -108,6 +109,7 @@ export class PortalService {
       success: true,
       data: {
         ...tokens,
+        must_change_password: user.must_change_password,
         portal_user: {
           id: user.id,
           email: user.email,
@@ -116,6 +118,7 @@ export class PortalService {
           party_name: user.party.name,
           tenant_id: tenant.id,
           tenant_slug: tenant.slug,
+          must_change_password: user.must_change_password,
         },
       },
     };
@@ -291,6 +294,7 @@ export class PortalService {
         full_name: user.full_name,
         phone: user.phone,
         status: user.status,
+        must_change_password: user.must_change_password,
         last_login_at: user.last_login_at,
         party: user.party,
         tenant: user.tenant,
@@ -299,7 +303,165 @@ export class PortalService {
     };
   }
 
+  async changePassword(
+    portalUser: CurrentPortalUser,
+    dto: ChangePortalPasswordDto,
+  ) {
+    PasswordHelper.assertStrength(dto.new_password);
+
+    const user = await this.prisma.portalUser.findFirst({
+      where: { id: portalUser.id, deleted_at: null },
+    });
+    if (!user || user.status !== PortalUserStatus.ACTIVE) {
+      throw new UnauthorizedException("Portal account is not active.");
+    }
+
+    const currentValid = await PasswordUtil.verify(
+      user.password_hash,
+      dto.current_password,
+    );
+    if (!currentValid) {
+      throw new UnauthorizedException("Current password is incorrect.");
+    }
+
+    if (dto.current_password === dto.new_password) {
+      throw new BadRequestException(
+        "New password must be different from the current password.",
+      );
+    }
+
+    const passwordHash = await PasswordUtil.hash(dto.new_password);
+    await this.prisma.portalUser.update({
+      where: { id: user.id },
+      data: {
+        password_hash: passwordHash,
+        must_change_password: false,
+        updated_by: user.id,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Password updated. You can continue using the portal.",
+      data: {
+        must_change_password: false,
+      },
+    };
+  }
+
   // ─── Staff: provision credentials (after Get a Quote) ───────
+
+  /**
+   * Public online-quote path: create ACTIVE portal user with a one-time
+   * temporary password when none exists. Never overwrites an existing login.
+   */
+  async provisionFromOnlineQuote(opts: {
+    tenantId: string;
+    partyId: string;
+    email: string;
+    fullName: string;
+    phone?: string | null;
+    sendEmail?: boolean;
+  }): Promise<{
+    email: string;
+    temporary_password: string | null;
+    portal_account_created: boolean;
+    must_change_password: boolean;
+    portal_user_id: string;
+  }> {
+    const email = opts.email.trim().toLowerCase();
+    const existing = await this.prisma.portalUser.findFirst({
+      where: {
+        tenant_id: opts.tenantId,
+        email,
+        deleted_at: null,
+      },
+    });
+
+    if (existing) {
+      // Ensure party can log in if a portal user already exists
+      await this.prisma.runWithTenant(opts.tenantId, (tx) =>
+        tx.party.update({
+          where: { id: opts.partyId },
+          data: { portal_access: true },
+        }),
+      );
+      return {
+        email: existing.email,
+        temporary_password: null,
+        portal_account_created: false,
+        must_change_password: existing.must_change_password,
+        portal_user_id: existing.id,
+      };
+    }
+
+    const plainPassword = PasswordUtil.generateTemporaryPassword();
+    const passwordHash = await PasswordUtil.hash(plainPassword);
+
+    const party = await this.prisma.runWithTenant(opts.tenantId, (tx) =>
+      tx.party.findFirst({
+        where: {
+          id: opts.partyId,
+          tenant_id: opts.tenantId,
+          deleted_at: null,
+        },
+        select: { id: true, name: true, is_active: true },
+      }),
+    );
+    if (!party) {
+      throw new NotFoundException("Party not found.");
+    }
+    if (!party.is_active) {
+      throw new BadRequestException("Party is inactive.");
+    }
+
+    const created = await this.prisma.runWithTenant(
+      opts.tenantId,
+      async (tx: Prisma.TransactionClient) => {
+        await tx.party.update({
+          where: { id: party.id },
+          data: { portal_access: true },
+        });
+
+        return tx.portalUser.create({
+          data: {
+            tenant_id: opts.tenantId,
+            party_id: party.id,
+            email,
+            password_hash: passwordHash,
+            full_name: (opts.fullName || party.name).trim().slice(0, 200),
+            phone: opts.phone?.trim() || null,
+            status: PortalUserStatus.ACTIVE,
+            must_change_password: true,
+            activated_at: new Date(),
+          },
+        });
+      },
+    );
+
+    await this.portalPermissions.seedDefaultsIfEmpty(
+      opts.tenantId,
+      party.id,
+      undefined,
+    );
+
+    if (opts.sendEmail !== false) {
+      await this.sendCredentialsEmail(opts.tenantId, {
+        to: email,
+        fullName: created.full_name,
+        password: plainPassword,
+        partyName: party.name,
+      });
+    }
+
+    return {
+      email: created.email,
+      temporary_password: plainPassword,
+      portal_account_created: true,
+      must_change_password: true,
+      portal_user_id: created.id,
+    };
+  }
 
   async createPortalUser(
     tenantId: string,
@@ -361,6 +523,7 @@ export class PortalService {
             status: inviteMode
               ? PortalUserStatus.INVITED
               : PortalUserStatus.ACTIVE,
+            must_change_password: generated,
             invite_token: inviteToken,
             invite_expires_at: inviteExpiresAt,
             invited_at: inviteMode ? new Date() : null,
@@ -468,6 +631,7 @@ export class PortalService {
         data: {
           password_hash: passwordHash,
           status: PortalUserStatus.ACTIVE,
+          must_change_password: false,
           invite_token: null,
           invite_expires_at: null,
           activated_at: new Date(),
@@ -644,6 +808,7 @@ export class PortalService {
         password_hash: passwordHash,
         updated_by: actorId,
         status: PortalUserStatus.ACTIVE,
+        must_change_password: generated,
       },
     });
 
