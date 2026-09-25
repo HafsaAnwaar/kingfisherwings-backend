@@ -35,8 +35,13 @@ export class WmsStorageController {
     @CurrentUser() user: CurrentUserType,
     @Query("party_id") partyId?: string,
     @Query("status") status?: string,
+    @Query("charge_kind") chargeKind?: string,
   ) {
-    return this.service.listCharges(user, { party_id: partyId, status });
+    return this.service.listCharges(user, {
+      party_id: partyId,
+      status,
+      charge_kind: chargeKind,
+    });
   }
 
   @Post("invoice")

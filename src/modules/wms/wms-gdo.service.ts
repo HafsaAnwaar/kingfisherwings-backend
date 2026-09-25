@@ -215,10 +215,19 @@ export class WmsGdoService {
     for (const lot of lots) {
       if (remaining <= 0) break;
       const consumed = Math.min(remaining, Number(lot.qty_remaining));
-      await tx.wmsStockLot.update({
+      const updated = await tx.wmsStockLot.update({
         where: { id: lot.id },
         data: { qty_remaining: { decrement: consumed } },
       });
+      if (Number(updated.qty_remaining) <= 0) {
+        await tx.wmsStockLot.update({
+          where: { id: lot.id },
+          data: {
+            storage_status: "COLLECTED",
+            collected_at: new Date(),
+          },
+        });
+      }
       await tx.wmsStockMovement.create({
         data: {
           tenant_id: user.tenantId,

@@ -24,7 +24,7 @@ import {
   MarkAirInvoiceSentDto,
   UpsertAirBookingFormDto,
 } from "./dto/air-workflow.dto";
-import { UpsertNvoccBookingFormDto } from "../nvocc/dto/nvocc-booking-form.dto";
+import { UpsertAirComplianceBookingFormDto } from "./booking-forms/dto/air-compliance-booking-form.dto";
 import { GenerateJobDocumentDto } from "./dto/generate-job-document.dto";
 
 @ApiTags("Jobs — Air Workflow")
@@ -106,7 +106,7 @@ export class AirWorkflowController {
   upsertComplianceForm(
     @CurrentUser() user: CurrentUserType,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: UpsertNvoccBookingFormDto,
+    @Body() dto: UpsertAirComplianceBookingFormDto,
   ) {
     return this.complianceForms.upsertStaff(user.tenantId, id, dto, user);
   }

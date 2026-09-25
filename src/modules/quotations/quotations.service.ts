@@ -2,9 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from "@nestjs/common";
 import {
   Prisma,
@@ -48,6 +50,7 @@ import {
   SendQuotationEmailDto,
 } from "./dto/quotation-pdf.dto";
 import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
+import { PortalService } from "../portal/portal.service";
 import { EmailService } from "../../shared/email/email.service";
 import { StorageService } from "../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
@@ -66,6 +69,7 @@ const JOB_TYPE_CODE: Record<JobType, string> = {
   SEA_LCL_EXPORT: "LE",
   SEA_LCL_IMPORT: "LI",
   LAND: "LD",
+  ROAD_FREIGHT: "RF",
   COURIER: "CR",
   CUSTOMS_CLEARANCE: "CC",
   NVOCC_EXPORT: "NE",
@@ -112,6 +116,8 @@ export class QuotationsService {
     private readonly notifications: NotificationEmitterService,
     private readonly negotiation: QuotationNegotiationService,
     private readonly masterLabels: MasterLabelService,
+    @Inject(forwardRef(() => PortalService))
+    private readonly portal: PortalService,
   ) {}
 
   // ============================================================
@@ -1228,7 +1234,7 @@ export class QuotationsService {
 
   async createOnlineQuote(dto: CreateOnlineQuoteDto) {
     const tenant = await this.prisma.tenant.findFirst({
-      where: { slug: dto.tenant_slug, deleted_at: null },
+      where: { slug: dto.tenant_slug, deleted_at: null, is_active: true },
     });
 
     if (!tenant) {
@@ -1236,11 +1242,17 @@ export class QuotationsService {
     }
 
     const tenantId = tenant.id;
+    const companyId = await this.resolveOnlineQuoteCompanyId(
+      tenantId,
+      dto.company_id,
+    );
 
     let customerId = dto.customer_id;
+    let contactEmail = dto.contact_email?.trim().toLowerCase();
+    let contactName = dto.contact_name?.trim();
 
     if (!customerId) {
-      if (!dto.contact_email || !dto.contact_name) {
+      if (!contactEmail || !contactName) {
         throw new BadRequestException(
           "contact_email and contact_name are required when customer_id is not provided.",
         );
@@ -1250,7 +1262,7 @@ export class QuotationsService {
         tx.party.findFirst({
           where: {
             tenant_id: tenantId,
-            email: dto.contact_email!.toLowerCase(),
+            email: contactEmail!,
             deleted_at: null,
           },
         }),
@@ -1258,20 +1270,58 @@ export class QuotationsService {
 
       if (existing) {
         customerId = existing.id;
+        contactName = contactName || existing.name;
+        contactEmail = existing.email?.toLowerCase() || contactEmail;
+        if (companyId && !existing.company_id) {
+          await this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.party.update({
+              where: { id: existing.id },
+              data: { company_id: companyId },
+            }),
+          );
+        }
       } else {
         const created = await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.party.create({
             data: {
               tenant_id: tenantId,
+              company_id: companyId,
               party_type: "CUSTOMER",
               code: `WEB-${Date.now()}`,
-              name: dto.contact_name!,
-              email: dto.contact_email!.toLowerCase(),
+              name: contactName!,
+              email: contactEmail!,
               is_active: true,
+              portal_access: true,
             },
           }),
         );
         customerId = created.id;
+      }
+    } else {
+      const party = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.party.findFirst({
+          where: { id: customerId!, tenant_id: tenantId, deleted_at: null },
+          select: { id: true, email: true, name: true, company_id: true },
+        }),
+      );
+      if (!party) {
+        throw new NotFoundException("Customer party not found.");
+      }
+      contactEmail =
+        contactEmail || party.email?.toLowerCase() || undefined;
+      contactName = contactName || party.name;
+      if (!contactEmail) {
+        throw new BadRequestException(
+          "contact_email is required to provision portal login for this quote.",
+        );
+      }
+      if (companyId && !party.company_id) {
+        await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.party.update({
+            where: { id: party.id },
+            data: { company_id: companyId },
+          }),
+        );
       }
     }
 
@@ -1279,7 +1329,8 @@ export class QuotationsService {
       tenantId,
       {
         job_type: dto.job_type,
-        customer_id: customerId,
+        customer_id: customerId!,
+        company_id: companyId,
         origin_port_id: dto.origin_port_id,
         dest_port_id: dto.dest_port_id,
         commodity: dto.commodity,
@@ -1304,21 +1355,97 @@ export class QuotationsService {
     }
 
     const refreshed = await this.findOne(tenantId, quotation.id);
+    const revenueLines = refreshed.lines.filter((line) => !line.is_cost);
+    const revenueTotal = revenueLines.reduce(
+      (sum, line) => sum + Number(line.amount ?? 0),
+      0,
+    );
+
+    let portalCreds: {
+      email: string;
+      temporary_password: string | null;
+      portal_account_created: boolean;
+      must_change_password: boolean;
+    } = {
+      email: contactEmail!,
+      temporary_password: null,
+      portal_account_created: false,
+      must_change_password: false,
+    };
+
+    try {
+      portalCreds = await this.portal.provisionFromOnlineQuote({
+        tenantId,
+        partyId: customerId!,
+        email: contactEmail!,
+        fullName: contactName || contactEmail!,
+        sendEmail: true,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Online quote portal provision failed for ${contactEmail}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
 
     return {
       success: true,
-      message:
-        "Online quote request received. Our sales team will follow up shortly.",
+      message: portalCreds.portal_account_created
+        ? "Online quote request received. Use the temporary password below to log in to the customer portal."
+        : portalCreds.temporary_password === null &&
+            portalCreds.portal_account_created === false
+          ? "Online quote request received. An existing portal account was found — log in with your current password (contact the forwarder if you need a reset)."
+          : "Online quote request received. Our sales team will follow up shortly.",
       data: {
         quotation_id: refreshed.id,
         quotation_number: refreshed.quotation_number,
         status: refreshed.status,
-        revenue_total: refreshed.revenue_total,
-        gp_amount: refreshed.gp_amount,
-        gp_percent: refreshed.gp_percent,
-        line_count: refreshed.lines.length,
+        revenue_total: revenueTotal,
+        line_count: revenueLines.length,
+        tenant_slug: tenant.slug,
+        email: portalCreds.email,
+        ...(portalCreds.temporary_password
+          ? { temporary_password: portalCreds.temporary_password }
+          : {}),
+        portal_account_created: portalCreds.portal_account_created,
+        must_change_password: portalCreds.must_change_password,
+        login_hint:
+          "POST /portal/auth/login with tenant_slug + email + password. If must_change_password is true, call POST /portal/auth/change-password after login.",
       },
     };
+  }
+
+  /** Resolve company for online widget: validated dto.company_id or tenant default. */
+  private async resolveOnlineQuoteCompanyId(
+    tenantId: string,
+    companyId?: string,
+  ): Promise<string | undefined> {
+    if (companyId) {
+      await this.assertCompanyExists(tenantId, companyId);
+      return companyId;
+    }
+    const defaultCompany = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.company.findFirst({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          is_active: true,
+          is_default: true,
+        },
+        select: { id: true },
+      }),
+    );
+    if (defaultCompany) return defaultCompany.id;
+
+    const anyCompany = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.company.findFirst({
+        where: { tenant_id: tenantId, deleted_at: null, is_active: true },
+        select: { id: true },
+        orderBy: { created_at: "asc" },
+      }),
+    );
+    return anyCompany?.id;
   }
 
   /**

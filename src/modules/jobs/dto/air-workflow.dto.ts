@@ -67,6 +67,38 @@ export class AirBookingFormPartyDto {
   other_details?: string;
 }
 
+export class AirPalletLineDto {
+  @ApiProperty({ example: "PMC" })
+  @IsString()
+  @MaxLength(30)
+  pallet_type!: string;
+
+  @ApiProperty({ example: 2 })
+  @IsInt()
+  @Min(1)
+  count!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  length_cm?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  width_cm?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  height_cm?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  weight_kg?: number;
+}
+
 export class UpsertAirBookingFormDto extends AirWorkflowOverrideDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -85,6 +117,25 @@ export class UpsertAirBookingFormDto extends AirWorkflowOverrideDto {
   @IsNumber()
   @Min(0)
   chargeable_weight_kg?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  volume_cbm?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  pallet_count?: number;
+
+  @ApiPropertyOptional({ type: [AirPalletLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AirPalletLineDto)
+  pallets?: AirPalletLineDto[];
 
   @ApiPropertyOptional()
   @IsOptional()

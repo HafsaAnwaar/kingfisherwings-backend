@@ -103,6 +103,18 @@ export class AcceptPortalInviteDto {
   full_name?: string;
 }
 
+export class ChangePortalPasswordDto {
+  @ApiProperty({ description: "Current (temporary) password." })
+  @IsString()
+  @MinLength(1)
+  current_password!: string;
+
+  @ApiProperty({ description: "New password (must meet strength rules)." })
+  @IsString()
+  @MinLength(8)
+  new_password!: string;
+}
+
 export class UpdatePortalUserStatusDto {
   @ApiProperty({ enum: ["ACTIVE", "DISABLED", "INVITED"] })
   @IsIn(["ACTIVE", "DISABLED", "INVITED"])

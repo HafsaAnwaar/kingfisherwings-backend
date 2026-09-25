@@ -7,6 +7,7 @@ import { JobsService } from "../jobs/jobs.service";
 import { AirImportService } from "../jobs/air-import.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { HrCronService } from "../hr/hr-cron.service";
+import { QuoteRequestsService } from "../integrations/quote-requests/quote-requests.service";
 
 @Injectable()
 export class SchedulerService {
@@ -20,6 +21,7 @@ export class SchedulerService {
   private importNoticeRunning = false;
   private hrDocumentExpiryRunning = false;
   private hrMissingTimesheetRunning = false;
+  private quoteRequestsSyncRunning = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -29,6 +31,7 @@ export class SchedulerService {
     private readonly airImport: AirImportService,
     private readonly notifications: NotificationEmitterService,
     private readonly hrCron: HrCronService,
+    private readonly quoteRequests: QuoteRequestsService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
@@ -534,6 +537,31 @@ export class SchedulerService {
       );
     } finally {
       this.hrMissingTimesheetRunning = false;
+    }
+  }
+
+  /** Quote Requests bridge — pull from enabled tenant website APIs. */
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async handleQuoteRequestsSync() {
+    if (this.quoteRequestsSyncRunning) {
+      this.logger.warn(
+        "Quote-requests sync cron skipped — previous run still in progress.",
+      );
+      return;
+    }
+    this.quoteRequestsSyncRunning = true;
+    this.logger.log("Starting quote-requests bridge sync cron.");
+    try {
+      const results = await this.quoteRequests.syncAllEnabledTenants();
+      const ok = results.filter((r) => r.ok).length;
+      this.logger.log(
+        `Quote-requests sync cron complete — ${ok}/${results.length} tenant(s) ok.`,
+      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      this.logger.error(`Quote-requests sync cron failed: ${message}`);
+    } finally {
+      this.quoteRequestsSyncRunning = false;
     }
   }
 

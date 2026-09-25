@@ -5,6 +5,7 @@ import { QuotationsModule } from "../quotations/quotations.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { HrModule } from "../hr/hr.module";
+import { QuoteRequestsModule } from "../integrations/quote-requests/quote-requests.module";
 import { SchedulerService } from "./scheduler.service";
 
 @Module({
@@ -15,6 +16,7 @@ import { SchedulerService } from "./scheduler.service";
     JobsModule,
     NotificationsModule,
     HrModule,
+    QuoteRequestsModule,
   ],
   providers: [SchedulerService],
 })

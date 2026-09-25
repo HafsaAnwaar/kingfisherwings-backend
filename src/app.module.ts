@@ -36,6 +36,7 @@ import { NvoccModule } from "./modules/nvocc/nvocc.module";
 import { DocumentationModule } from "./modules/documentation/documentation.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { PublicApiModule } from "./modules/public-api/public-api.module";
+import { QuoteRequestsModule } from "./modules/integrations/quote-requests/quote-requests.module";
 import { TrackModule } from "./modules/track/track.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 
@@ -93,6 +94,7 @@ import { LocaleModule } from "./common/locale/locale.module";
     DocumentationModule,
     ReportsModule,
     PublicApiModule,
+    QuoteRequestsModule,
   ],
   providers: [
     AppThrottlerGuard,

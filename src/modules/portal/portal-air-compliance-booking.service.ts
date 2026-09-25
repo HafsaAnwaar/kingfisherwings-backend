@@ -11,9 +11,9 @@ import { AirComplianceBookingFormService } from "../jobs/air-compliance-booking-
 import {
   COMPLIANCE_DOC_KINDS,
   ComplianceDocKind,
-  SubmitNvoccComplianceFormDto,
-  UpsertNvoccBookingFormDto,
-} from "../nvocc/dto/nvocc-booking-form.dto";
+  SubmitAirComplianceFormDto,
+  UpsertAirComplianceBookingFormDto,
+} from "../jobs/booking-forms/dto/air-compliance-booking-form.dto";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
 
@@ -97,7 +97,7 @@ export class PortalAirComplianceBookingService {
   async saveDraft(
     user: CurrentPortalUser,
     jobId: string,
-    dto: UpsertNvoccBookingFormDto,
+    dto: UpsertAirComplianceBookingFormDto,
   ) {
     await this.assertOwnedAirJob(user, jobId);
     const form = await this.forms.upsertDraft(
@@ -117,7 +117,7 @@ export class PortalAirComplianceBookingService {
   async submit(
     user: CurrentPortalUser,
     jobId: string,
-    dto: SubmitNvoccComplianceFormDto,
+    dto: SubmitAirComplianceFormDto,
   ) {
     await this.assertOwnedAirJob(user, jobId);
     const form = await this.forms.submitAsCustomer(

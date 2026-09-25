@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { JobType, UserRole } from "@prisma/client";
+import { JobType, Prisma, UserRole } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UpsertAirBookingFormDto } from "./dto/air-workflow.dto";
 
@@ -58,6 +58,11 @@ export class AirBookingFormService {
         pieces: dto.pieces,
         gross_weight_kg: dto.gross_weight_kg,
         chargeable_weight_kg: dto.chargeable_weight_kg,
+        volume_cbm: dto.volume_cbm,
+        pallet_count: dto.pallet_count,
+        pallets_json: dto.pallets
+          ? (JSON.parse(JSON.stringify(dto.pallets)) as Prisma.InputJsonValue)
+          : undefined,
         commodity: dto.commodity,
         special_handling: dto.special_handling,
         notes: dto.notes,

@@ -89,7 +89,7 @@ export class TransportService {
         },
       });
 
-      if (job.job_type === "LAND") {
+      if (job.job_type === "LAND" || job.job_type === "ROAD_FREIGHT") {
         await this.markJobMilestone(
           tx,
           tenantId,
@@ -215,7 +215,7 @@ export class TransportService {
           },
         });
         const job = await tx.job.findFirst({ where: { id: row.job_id } });
-        if (job?.job_type === "LAND") {
+        if (job?.job_type === "LAND" || job?.job_type === "ROAD_FREIGHT") {
           await this.markJobMilestone(
             tx,
             tenantId,
@@ -247,7 +247,7 @@ export class TransportService {
           data: { status: "IN_TRANSIT", updated_by: actorId },
         });
         const job = await tx.job.findFirst({ where: { id: row.job_id } });
-        if (job?.job_type === "LAND") {
+        if (job?.job_type === "LAND" || job?.job_type === "ROAD_FREIGHT") {
           await this.markJobMilestone(
             tx,
             tenantId,
@@ -283,7 +283,7 @@ export class TransportService {
           },
         });
         const job = await tx.job.findFirst({ where: { id: row.job_id } });
-        if (job?.job_type === "LAND") {
+        if (job?.job_type === "LAND" || job?.job_type === "ROAD_FREIGHT") {
           await this.markJobMilestone(
             tx,
             tenantId,

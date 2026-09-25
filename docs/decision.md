@@ -408,6 +408,8 @@ Portal finance and vendor finance call `InvoicesService` / `PaymentsService` / `
 |----------|-----|
 | One quotation aggregate + charge lines + GP | Ch.7 lifecycle; convert-to-job later, do not fork “estimate” vs “quote”. |
 | Online quote is `@Public()` + throttle | Website “Get a Quote” without a staff token. |
+| Online quote auto-provisions portal login | New contact emails get a one-time `temporary_password` in the API response (+ email when SMTP is on); existing portal users are not reset. |
+| Public online-quote strips GP/cost | Same rule as portal quote responses. |
 | Tariffs + zip distances as quotation sub-resources | Pricing helpers live next to quotes, not in masters. |
 | Analytics endpoints on `/quotations/reports/*` | Week 14 CRM **wraps** these; does not copy the SQL. |
 
@@ -465,7 +467,7 @@ Portal finance and vendor finance call `InvoicesService` / `PaymentsService` / `
 | Decision | Why |
 |----------|-----|
 | New `PortalUser` / `PortalSession` | Customers must not hold staff JWTs. |
-| Invite-only portal | Tenant staff issue credentials after “Get a Quote” / KYC. |
+| Invite-only portal (staff) **or** online-quote auto-provision | Staff can still invite/reset; website Get a Quote may create ACTIVE portal users with temp password + `must_change_password`. |
 | Party-scoped ownership | Shipper **or** consignee **or** `billing_party_id`. |
 | `PortalPermission` matrix | Per-customer document view/download. |
 | Public `/track` sanitized DTO | No internal notes, cost, GP, staff names. Rate-limited. |
@@ -594,7 +596,8 @@ Product chart is **NVOCC Sea Export** only. Sea FCL Export stays a parallel carr
 | CRO / container request | **SHIPPED** | Manual staff form (`NvoccContainerRequest` + lines) — **not** DP World API. Only auto field: container numbers (Ops allocate via tenant sequence). Issue → portal visible + `DocumentType.CRO` / `CONTAINER_REQUEST`. |
 | Portal customer actions | **SHIPPED** | Accept quote; compliance form; view CRO/containers; confirm pick → `PICKED`; confirm port gate token; request draft BL. |
 | Original HBL payment gate | **LOCKED · SHIPPED** | Accounts `confirm-payment` sets `payment_confirmed_at`. Gated `hbl-original` / `hbl-original-gated` blocked until payment + draft issued. |
-| Air pallet + ULD | **REMOVED** | `AirPalletType` master and ULD request/allocate/drop-off removed from air freight. Air booking form keeps flight / airports / commodity / parties only. |
+| Air pallet + ULD | **PARTIAL** | ULD request/allocate/portal drop-off remains removed. **Air booking forms** capture pallet lines + CBM. **Masters** `AirPalletType` CRUD + `POST /masters/air-pallet-types/seed-defaults` restored (shared specs catalog, same pattern as container-types). |
+| Unified JobBookingForm | **REMOVED** | Replaced by per-type forms: Sea FCL/LCL, Land, Road Freight, Courier, plus enhanced NVOCC + Air compliance. |
 | Air booking form | **SHIPPED** | Customer fills same 8-step **compliance** form via portal (`/portal/shipments/:id/compliance-form`). Ops `PUT /jobs/:id/air-booking-form` is flight/airport operational data only (does not gate `BOOKING_FORM_COMPLETE`). |
 | Container type dimensions | **SHIPPED** | `ContainerType` inside L/W/H, door, CBM/Cft, tare, max cargo. Seed from Container Specification PDF catalog. |
 | Finer `nvocc.cs` / `nvocc.ops` permission codes | **DEFERRED** | Role→stage map first; add matrix codes only if FE needs them. |

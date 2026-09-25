@@ -1,6 +1,11 @@
 import { BadRequestException } from "@nestjs/common";
-import { NvoccBookingPartyKind } from "@prisma/client";
+import { NvoccBookingPartyKind, ServiceScope } from "@prisma/client";
 import { UpsertNvoccBookingFormDto } from "../../modules/nvocc/dto/nvocc-booking-form.dto";
+import {
+  assertContainerLines,
+  assertRequiredParties,
+  assertServiceScopeAndDoors,
+} from "../../modules/jobs/booking-forms/booking-form-shared";
 
 const REQUIRED_PARTIES: NvoccBookingPartyKind[] = [
   "SHIPPER",
@@ -8,10 +13,9 @@ const REQUIRED_PARTIES: NvoccBookingPartyKind[] = [
   "NOTIFY",
 ];
 
-/** Shared Kingfisher 8-step compliance form submit validation (NVOCC + Air). */
+/** NVOCC compliance booking form submit validation. */
 export function validateComplianceFormSubmit(dto: UpsertNvoccBookingFormDto) {
   const missing: string[] = [];
-  if (dto.teu_count == null) missing.push("teu_count");
   if (!dto.pol?.trim()) missing.push("pol");
   if (!dto.pod?.trim()) missing.push("pod");
   if (dto.gross_weight_kg == null) missing.push("gross_weight_kg");
@@ -23,22 +27,28 @@ export function validateComplianceFormSubmit(dto: UpsertNvoccBookingFormDto) {
   if (!dto.booking_agent_line?.trim()) missing.push("booking_agent_line");
   if (!dto.agent_requester_name?.trim()) missing.push("agent_requester_name");
 
-  const kinds = new Set(dto.parties?.map((p) => p.party_kind) ?? []);
-  for (const k of REQUIRED_PARTIES) {
-    if (!kinds.has(k)) missing.push(`parties.${k}`);
-  }
-  for (const p of dto.parties ?? []) {
-    if (!p.full_name?.trim() || !p.address?.trim()) {
-      missing.push(`${p.party_kind}.full_name_or_address`);
-    }
-    if (!p.city?.trim()) missing.push(`${p.party_kind}.city`);
-    if (!p.country?.trim()) missing.push(`${p.party_kind}.country`);
-    if (!p.entity_kind) missing.push(`${p.party_kind}.entity_kind`);
-  }
-
   if (missing.length) {
     throw new BadRequestException(
       `Compliance booking form incomplete: ${missing.join(", ")}`,
+    );
+  }
+
+  assertServiceScopeAndDoors({
+    service_scope: dto.service_scope as ServiceScope | undefined,
+    origin_door_address: dto.origin_door_address,
+    dest_door_address: dto.dest_door_address,
+  });
+
+  assertRequiredParties(
+    dto.parties as { party_kind: string }[] | undefined,
+    REQUIRED_PARTIES,
+  );
+
+  if (dto.containers?.length) {
+    assertContainerLines(dto.containers);
+  } else if (dto.teu_count == null) {
+    throw new BadRequestException(
+      "Compliance booking form incomplete: containers or teu_count",
     );
   }
 }

@@ -20,7 +20,7 @@ import { JobsService } from "./jobs.service";
 import { JobsDashboardService } from "./jobs-dashboard.service";
 import { JobsDashboardQueryDto } from "../../common/dto/dashboard-period-query.dto";
 
-import { CreateJobDto, UpdateJobDto } from "./dto/job.dto";
+import { CreateJobDto, ScanJobBarcodeDto, UpdateJobDto } from "./dto/job.dto";
 import { UpdateAirJobDetailDto } from "./dto/air-job-detail.dto";
 import {
   UpdateSeaFclJobDetailDto,
@@ -100,6 +100,7 @@ import { AirImportService } from "./air-import.service";
 import { SeaLclService } from "./sea-lcl.service";
 import { SeaLclImportService } from "./sea-lcl-import.service";
 import { LandService } from "./land.service";
+import { RoadFreightService } from "./road-freight.service";
 import { CourierService } from "./courier.service";
 import { TransportService } from "../transport/transport.service";
 import {
@@ -109,6 +110,13 @@ import {
   RecordLandPickupDto,
   UpdateLandJobDetailDto,
 } from "./dto/land-job-detail.dto";
+import {
+  AssignRoadFreightTruckerDto,
+  CreateRoadFreightPodDto,
+  RecordRoadFreightBorderCrossingDto,
+  RecordRoadFreightPickupDto,
+  UpdateRoadFreightJobDetailDto,
+} from "./dto/road-freight-job-detail.dto";
 import {
   ConfirmCourierBookingDto,
   CreateCourierPodDto,
@@ -137,6 +145,7 @@ export class JobsController {
     private readonly seaLcl: SeaLclService,
     private readonly seaLclImport: SeaLclImportService,
     private readonly land: LandService,
+    private readonly roadFreight: RoadFreightService,
     private readonly courier: CourierService,
     private readonly transport: TransportService,
     private readonly vendorQuotes: VendorQuotesService,
@@ -208,6 +217,33 @@ export class JobsController {
       dto,
       actorId,
     );
+  }
+
+  @Get("by-barcode/:code")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Lookup job by barcode (any job type) — returns full job summary",
+  })
+  findByBarcode(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Param("code") code: string,
+  ) {
+    return this.service.findByBarcode(tenantId, code, permissions);
+  }
+
+  @Post("scan")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Scan barcode, record scan event, return job summary",
+  })
+  scanBarcode(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Body() dto: ScanJobBarcodeDto,
+  ) {
+    return this.service.scanBarcode(tenantId, dto, actorId, permissions);
   }
 
   @Get([":id/job-offers", ":id/vendor-quotes"])
@@ -771,6 +807,85 @@ export class JobsController {
   ) {
     return this.land.createPod(tenantId, id, dto, actorId);
   }
+
+  @Patch(":id/road-freight-details")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Update Road Freight booking fields" })
+  updateRoadFreightDetails(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateRoadFreightJobDetailDto,
+  ) {
+    return this.roadFreight.updateDetails(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/road-freight/assign-trucker")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Assign a trucker to a ROAD_FREIGHT job and mark PICKUP_SCHEDULED",
+  })
+  assignRoadFreightTrucker(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: AssignRoadFreightTruckerDto,
+  ) {
+    return this.roadFreight.assignTrucker(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/road-freight/pickup")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Record road freight cargo pickup" })
+  recordRoadFreightPickup(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: RecordRoadFreightPickupDto,
+  ) {
+    return this.roadFreight.recordPickup(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/road-freight/border-crossing")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Record road freight border crossing / customs cleared at border",
+  })
+  recordRoadFreightBorderCrossing(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: RecordRoadFreightBorderCrossingDto,
+  ) {
+    return this.roadFreight.recordBorderCrossing(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/road-freight/cross-border")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Upsert cross-border declaration fields on a ROAD_FREIGHT job",
+  })
+  upsertRoadFreightCrossBorder(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateRoadFreightJobDetailDto,
+  ) {
+    return this.roadFreight.upsertCrossBorder(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/road-freight/pod")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Record ROAD_FREIGHT proof of delivery" })
+  createRoadFreightPod(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CreateRoadFreightPodDto,
+  ) {
+    return this.roadFreight.createPod(tenantId, id, dto, actorId);
+  }
+
 
   @Patch(":id/courier-details")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
@@ -2259,7 +2374,9 @@ export class JobsController {
 
   @Get(":id/customs-examinations")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List customs examination records (AIR_IMPORT)" })
+  @ApiOperation({
+    summary: "List customs examination records (AIR_IMPORT or CUSTOMS_CLEARANCE)",
+  })
   listCustomsExaminations(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
@@ -2269,7 +2386,9 @@ export class JobsController {
 
   @Post(":id/customs-examinations")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Record a customs examination (AIR_IMPORT)" })
+  @ApiOperation({
+    summary: "Record a customs examination (AIR_IMPORT or CUSTOMS_CLEARANCE)",
+  })
   createCustomsExamination(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,

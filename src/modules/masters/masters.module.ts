@@ -20,6 +20,8 @@ import { AirportsService } from "./airports/airports.service";
 
 import { ContainerTypesController } from "./container-types/container-types.controller";
 import { ContainerTypesService } from "./container-types/container-types.service";
+import { AirPalletTypesController } from "./air-pallet-types/air-pallet-types.controller";
+import { AirPalletTypesService } from "./air-pallet-types/air-pallet-types.service";
 
 import { HsCodesController } from "./hs-codes/hs-codes.controller";
 import { HsCodesService } from "./hs-codes/hs-codes.service";
@@ -126,6 +128,7 @@ const CONTROLLERS = [
   PortsController,
   AirportsController,
   ContainerTypesController,
+  AirPalletTypesController,
   HsCodesController,
   AirlinesController,
   ShippingLinesController,
@@ -174,6 +177,7 @@ const SERVICES = [
   PortsService,
   AirportsService,
   ContainerTypesService,
+  AirPalletTypesService,
   HsCodesService,
   AirlinesService,
   ShippingLinesService,

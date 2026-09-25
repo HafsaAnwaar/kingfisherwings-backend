@@ -41,6 +41,18 @@ export class HsCodesController {
     return this.service.findAll(tenantId, query);
   }
 
+  @Post("validate")
+  @RequirePermissions(MASTERS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Validate HS code against master (prohibited/restricted/rates)",
+  })
+  validate(
+    @CurrentUser("tenantId") tenantId: string,
+    @Body() body: { hs_code: string },
+  ) {
+    return this.service.validateHs(tenantId, body.hs_code);
+  }
+
   @Get(":id")
   @RequirePermissions(MASTERS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "Get an HS code by id" })

@@ -28,7 +28,7 @@ export class AirImportService {
   ) {}
 
   async listCustomsExaminations(tenantId: string, jobId: string) {
-    await this.assertAirImportJob(tenantId, jobId);
+    await this.assertExamJob(tenantId, jobId);
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobCustomsExamination.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
@@ -43,8 +43,8 @@ export class AirImportService {
     dto: CreateCustomsExaminationDto,
     actorId?: string,
   ) {
-    await this.assertAirImportJob(tenantId, jobId);
-    return this.prisma.runWithTenant(tenantId, (tx) =>
+    const jobType = await this.assertExamJob(tenantId, jobId);
+    const exam = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobCustomsExamination.create({
         data: {
           tenant_id: tenantId,
@@ -59,6 +59,34 @@ export class AirImportService {
         },
       }),
     );
+    if (
+      jobType === "CUSTOMS_CLEARANCE" &&
+      (dto.result === "HELD" ||
+        dto.result === "SEIZED" ||
+        dto.result === "QUERY")
+    ) {
+      await this.prisma.runWithTenant(tenantId, async (tx) => {
+        const detail = await tx.jobCustomsClearanceDetail.findFirst({
+          where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+        });
+        if (!detail) return;
+        await tx.ccCustomsQuery.create({
+          data: {
+            tenant_id: tenantId,
+            detail_id: detail.id,
+            query_text: "Examination failed — amendment required.",
+            status: "OPEN",
+            created_by: actorId,
+            updated_by: actorId,
+          },
+        });
+        await tx.jobCustomsClearanceDetail.update({
+          where: { id: detail.id },
+          data: { cc_status: "QUERY", updated_by: actorId },
+        });
+      });
+    }
+    return exam;
   }
 
   async calculateStorage(
@@ -435,6 +463,25 @@ export class AirImportService {
     await this.prisma.runWithTenant(tenantId, (tx) =>
       this.assertAirImportJobInTx(tx, tenantId, jobId),
     );
+  }
+
+  /** AIR_IMPORT or standalone CUSTOMS_CLEARANCE may record examinations. */
+  private async assertExamJob(tenantId: string, jobId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
+      if (
+        job.job_type !== AIR_IMPORT_TYPE &&
+        job.job_type !== "CUSTOMS_CLEARANCE"
+      ) {
+        throw new BadRequestException(
+          "Examinations require AIR_IMPORT or CUSTOMS_CLEARANCE job.",
+        );
+      }
+      return job.job_type;
+    });
   }
 
   private async assertAirImportJobInTx(

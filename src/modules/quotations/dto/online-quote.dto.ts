@@ -35,6 +35,15 @@ export class CreateOnlineQuoteDto {
   @IsUUID()
   customer_id?: string;
 
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Optional company under this tenant. Must belong to tenant_slug; otherwise tenant default company is used.",
+  })
+  @IsOptional()
+  @IsUUID()
+  company_id?: string;
+
   @ApiPropertyOptional({ example: "john@acme.com" })
   @IsOptional()
   @IsStrictEmail()

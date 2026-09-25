@@ -44,6 +44,7 @@ export const MODULE_PERMISSION_TREE: PermissionModuleNode[] = [
         jobType: "SEA_LCL_IMPORT",
       },
       { key: "land", label: "Land", jobType: "LAND" },
+      { key: "road_freight", label: "Road Freight", jobType: "ROAD_FREIGHT" },
       { key: "courier", label: "Courier", jobType: "COURIER" },
       {
         key: "customs_clearance",
