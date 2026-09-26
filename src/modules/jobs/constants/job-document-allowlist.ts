@@ -179,6 +179,8 @@ const WAREHOUSE_DOCUMENTS: DocumentType[] = [
   "BARCODE_LABEL",
   "PACKING_LIST",
   "COMMERCIAL_INVOICE",
+  "GRN",
+  "GDN",
 ];
 
 const SERVICE_JOB_DOCUMENTS: DocumentType[] = [
@@ -212,6 +214,9 @@ export function assertDocumentAllowedForJobType(
   jobType: JobType,
   documentType: DocumentType,
 ): void {
+  if (documentType === "GRN" || documentType === "GDN") {
+    return;
+  }
   const allowed = ALLOWLIST[jobType];
   if (!allowed) {
     throw new BadRequestException(

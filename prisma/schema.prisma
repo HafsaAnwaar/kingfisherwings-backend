@@ -288,6 +288,8 @@ enum DocumentType {
   CRO
   CONTAINER_REQUEST
   ULD_REQUEST
+  GRN
+  GDN
   OTHER
 }
 
@@ -1965,6 +1967,9 @@ enum WmsDocumentStatus {
 enum WmsAsnStatus {
   DRAFT
   CONFIRMED
+  PICKED
+  UNLOADING
+  UNLOADED
   RECEIVED
   CANCELLED
 }
@@ -2036,6 +2041,10 @@ model WmsAsn {
   expected_at     DateTime?    @db.Timestamptz
   status          WmsAsnStatus @default(DRAFT)
   remarks         String?      @db.Text
+  picked_at       DateTime?    @db.Timestamptz
+  unloading_at    DateTime?    @db.Timestamptz
+  unloaded_at     DateTime?    @db.Timestamptz
+  auto_grn_id     String?      @db.Uuid
   created_at      DateTime     @default(now()) @db.Timestamptz
   updated_at      DateTime     @updatedAt @db.Timestamptz
   created_by      String?      @db.Uuid
@@ -2081,6 +2090,9 @@ model WmsGrn {
   status        WmsDocumentStatus @default(DRAFT)
   remarks       String?           @db.Text
   posted_at     DateTime?         @db.Timestamptz
+  customer_emailed_at   DateTime? @db.Timestamptz
+  portal_published_at   DateTime? @db.Timestamptz
+  job_document_id       String?   @db.Uuid
   created_at    DateTime          @default(now()) @db.Timestamptz
   updated_at    DateTime          @updatedAt @db.Timestamptz
   created_by    String?           @db.Uuid
@@ -2128,6 +2140,9 @@ model WmsGdo {
   status        WmsDocumentStatus @default(DRAFT)
   remarks       String?           @db.Text
   posted_at     DateTime?         @db.Timestamptz
+  customer_emailed_at   DateTime? @db.Timestamptz
+  portal_published_at   DateTime? @db.Timestamptz
+  job_document_id       String?   @db.Uuid
   created_at    DateTime          @default(now()) @db.Timestamptz
   updated_at    DateTime          @updatedAt @db.Timestamptz
   created_by    String?           @db.Uuid
@@ -4934,6 +4949,8 @@ enum PortalDocumentType {
   DO
   POD
   PRE_ALERT
+  GRN
+  GDN
   OTHER
 }
 

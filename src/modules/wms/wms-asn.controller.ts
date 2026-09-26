@@ -7,7 +7,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
@@ -23,16 +23,19 @@ import { WmsAsnService } from "./wms-asn.service";
 @Controller("wms/asns")
 export class WmsAsnController {
   constructor(private readonly service: WmsAsnService) {}
+
   @Get()
   @RequirePermissions(WMS_PERMISSIONS.VIEW)
   list(@CurrentUser() user: CurrentUserType) {
     return this.service.list(user);
   }
+
   @Post()
   @RequirePermissions(WMS_PERMISSIONS.MANAGE_ASN)
   create(@CurrentUser() user: CurrentUserType, @Body() dto: CreateAsnDto) {
     return this.service.create(user, dto);
   }
+
   @Get(":id")
   @RequirePermissions(WMS_PERMISSIONS.VIEW)
   get(
@@ -41,14 +44,64 @@ export class WmsAsnController {
   ) {
     return this.service.get(user, id);
   }
+
   @Post(":id/confirm")
   @RequirePermissions(WMS_PERMISSIONS.MANAGE_ASN)
+  @ApiOperation({ summary: "Confirm draft ASN" })
   confirm(
     @CurrentUser() user: CurrentUserType,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.confirm(user, id);
   }
+
+  @Post(":id/mark-picked")
+  @RequirePermissions(WMS_PERMISSIONS.MANAGE_ASN)
+  @ApiOperation({
+    summary: "Mark ASN PICKED (cargo collected / en route to warehouse)",
+  })
+  markPicked(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.markPicked(user, id);
+  }
+
+  @Post(":id/mark-unloading")
+  @RequirePermissions(WMS_PERMISSIONS.MANAGE_ASN)
+  @ApiOperation({
+    summary: "Mark ASN UNLOADING (arrived at warehouse, unload in progress)",
+  })
+  markUnloading(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.markUnloading(user, id);
+  }
+
+  @Post(":id/mark-unloaded")
+  @RequirePermissions(WMS_PERMISSIONS.MANAGE_ASN)
+  @ApiOperation({
+    summary:
+      "Mark ASN UNLOADED — auto-creates/posts GRN and emails + publishes GRN to customer portal",
+  })
+  markUnloaded(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.markUnloaded(user, id);
+  }
+
+  @Post(":id/resend-grn")
+  @RequirePermissions(WMS_PERMISSIONS.MANAGE_ASN)
+  @ApiOperation({ summary: "Resend GRN email + republish portal document" })
+  resendGrn(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.resendGrn(user, id);
+  }
+
   @Post(":id/cancel")
   @RequirePermissions(WMS_PERMISSIONS.MANAGE_ASN)
   cancel(

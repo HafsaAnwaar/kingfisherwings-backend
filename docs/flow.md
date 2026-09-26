@@ -563,13 +563,18 @@ Staff ERP only (`wms.*` permissions). SuperAdmin tokens rejected on `/wms/*` via
 PUT /wms/settings { valuation_method: FIFO|LIFO, free_days, rate, currency }
 POST /wms/items
 POST /wms/asns → POST /wms/asns/:id/confirm
+POST /wms/asns/:id/mark-picked → mark-unloading → mark-unloaded
+  → auto GRN create+post + email/portal DocumentType.GRN (needs party_id + job_id)
+POST /wms/asns/:id/resend-grn
 POST /wms/grns → POST /wms/grns/:id/post
-  → WmsStockLot + GRN_IN movements (ASN → RECEIVED)
+  → WmsStockLot + GRN_IN movements (ASN → RECEIVED, legacy path)
 POST /wms/gdos → POST /wms/gdos/:id/post
-  → consume lots FIFO/LIFO
+  → consume lots FIFO/LIFO; ops_status DISPATCHED + email/portal GDN
+POST /wms/gdos/:id/resend-gdn
 POST /wms/transfers → POST /wms/transfers/:id/post
 POST /wms/stock/adjust
 GET  /wms/stock/on-hand | /movements | /low-stock | /lot-aging
+GET  /wms/ops-board   (yard ASNs, GDOs, OVERDUE/OVER_BILL lot labels)
 POST /wms/storage/calculate → OPEN WmsStorageCharge rows
 POST /wms/storage/invoice { charge_ids }
   → DRAFT CUSTOMER_INVOICE via InvoicesService.createWmsStorageDraft (staff posts)

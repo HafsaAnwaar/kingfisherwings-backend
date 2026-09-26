@@ -543,7 +543,10 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 | WMS is staff ERP | **SHIPPED** | `JwtAuthGuard` + `wms.*` permissions. Not portal/vendor. SuperAdmin blocked like HR. |
 | Role | **SHIPPED** | Existing `WAREHOUSE_STAFF` seeded with WMS perms; `TENANT_ADMIN` / `OPERATIONS_MANAGER` / `BRANCH_MANAGER` get appropriate subsets. |
 | CFS link for LCL (Week 18) | **LOCKED** | Week 18 may reference WMS lots/storage charges; Week 17 does not invent LCL job types. |
-| Out of scope Week 17 | **LOCKED** | Portal warehouse views; barcode scan hardware console (sea residual); full 12 Fresa WMS print reports as separate PDFs (API JSON reports first); multi-bin/location inside warehouse (single warehouse location grain). |
+| Out of scope Week 17 | **LOCKED** | Barcode scan hardware console (sea residual); full 12 Fresa WMS print reports as separate PDFs (API JSON reports first); multi-bin/location inside warehouse (single warehouse location grain). **Exception (later):** customer **GRN/GDN delivery** via email + portal job documents on unload/dispatch — not a portal inventory UI. |
+| ASN yard statuses | **SHIPPED** | `CONFIRMED` → `PICKED` → `UNLOADING` → `UNLOADED`. `UNLOADED` auto-creates/posts GRN and emails + publishes portal `DocumentType.GRN`. Legacy manual GRN post still sets ASN `RECEIVED`. |
+| GDO dispatched + GDN | **SHIPPED** | GDO `POSTED` exposed as `ops_status: DISPATCHED`; auto email + portal `DocumentType.GDN`. |
+| Ops board | **SHIPPED** | `GET /wms/ops-board` aggregates yard ASNs, GDOs, and lot `OVERDUE` / `OVER_BILL` labels from storage status + charge kinds. |
 
 ### Week 18 — Sea LCL Export + Import (Ch.12–13)
 

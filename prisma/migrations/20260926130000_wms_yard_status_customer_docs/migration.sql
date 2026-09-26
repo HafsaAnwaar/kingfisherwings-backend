@@ -1,0 +1,27 @@
+-- WMS yard statuses + customer GRN/GDN delivery audit columns.
+
+ALTER TYPE "WmsAsnStatus" ADD VALUE IF NOT EXISTS 'PICKED';
+ALTER TYPE "WmsAsnStatus" ADD VALUE IF NOT EXISTS 'UNLOADING';
+ALTER TYPE "WmsAsnStatus" ADD VALUE IF NOT EXISTS 'UNLOADED';
+
+ALTER TYPE "DocumentType" ADD VALUE IF NOT EXISTS 'GRN';
+ALTER TYPE "DocumentType" ADD VALUE IF NOT EXISTS 'GDN';
+
+ALTER TYPE "PortalDocumentType" ADD VALUE IF NOT EXISTS 'GRN';
+ALTER TYPE "PortalDocumentType" ADD VALUE IF NOT EXISTS 'GDN';
+
+ALTER TABLE "wms_asns"
+  ADD COLUMN IF NOT EXISTS "picked_at" TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS "unloading_at" TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS "unloaded_at" TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS "auto_grn_id" UUID;
+
+ALTER TABLE "wms_grns"
+  ADD COLUMN IF NOT EXISTS "customer_emailed_at" TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS "portal_published_at" TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS "job_document_id" UUID;
+
+ALTER TABLE "wms_gdos"
+  ADD COLUMN IF NOT EXISTS "customer_emailed_at" TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS "portal_published_at" TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS "job_document_id" UUID;

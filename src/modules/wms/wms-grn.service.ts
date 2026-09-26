@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DocumentNumberType } from "@prisma/client";
+import { DocumentNumberType, Prisma, WmsAsnStatus } from "@prisma/client";
 import type { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PdfService } from "../../shared/pdf/pdf.service";
@@ -59,6 +59,60 @@ export class WmsGrnService {
     );
   }
 
+  /** Create a draft GRN from ASN lines (used by mark-unloaded). */
+  async createFromAsn(
+    user: CurrentUser,
+    asnId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const run = async (client: Prisma.TransactionClient) => {
+      const asn = await client.wmsAsn.findFirst({
+        where: { id: asnId, tenant_id: user.tenantId, deleted_at: null },
+        include: { lines: { orderBy: { sort_order: "asc" } } },
+      });
+      if (!asn) throw new NotFoundException("ASN not found.");
+      if (!asn.lines.length) {
+        throw new BadRequestException("ASN has no lines to receive.");
+      }
+      const number = await this.numberGenerator.generate(
+        user.tenantId,
+        DocumentNumberType.GRN,
+      );
+      return client.wmsGrn.create({
+        data: {
+          tenant_id: user.tenantId,
+          grn_number: number,
+          warehouse_id: asn.warehouse_id,
+          party_id: asn.party_id,
+          job_id: asn.job_id,
+          asn_id: asn.id,
+          received_at: new Date(),
+          remarks: asn.remarks,
+          created_by: user.id,
+          updated_by: user.id,
+          lines: {
+            create: asn.lines.map((line, index) => ({
+              tenant_id: user.tenantId,
+              item_id: line.item_id,
+              quantity: line.quantity,
+              unit_cost: 0,
+              cbm: line.cbm,
+              remarks: line.remarks,
+              sort_order: index,
+            })),
+          },
+        },
+        include: {
+          warehouse: true,
+          lines: { include: { item: true }, orderBy: { sort_order: "asc" } },
+        },
+      });
+    };
+
+    if (tx) return run(tx);
+    return this.prisma.runWithTenant(user.tenantId, run);
+  }
+
   list(user: CurrentUser) {
     return this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.wmsGrn.findMany({
@@ -73,89 +127,121 @@ export class WmsGrnService {
     return this.require(user.tenantId, id);
   }
 
-  async post(user: CurrentUser, id: string) {
-    return this.prisma.runWithTenant(user.tenantId, async (tx) => {
-      const grn = await tx.wmsGrn.findFirst({
-        where: { id, tenant_id: user.tenantId, deleted_at: null },
-        include: { lines: true },
-      });
-      if (!grn) throw new NotFoundException("GRN not found.");
-      const claimed = await tx.wmsGrn.updateMany({
-        where: { id, tenant_id: user.tenantId, status: "DRAFT" },
-        data: { status: "POSTED", posted_at: new Date(), updated_by: user.id },
-      });
-      if (claimed.count !== 1)
-        throw new BadRequestException("Only a draft GRN can be posted.");
+  async post(
+    user: CurrentUser,
+    id: string,
+    opts?: { asnStatusOnPost?: WmsAsnStatus },
+  ) {
+    return this.prisma.runWithTenant(user.tenantId, (tx) =>
+      this.postInTransaction(tx, user, id, opts),
+    );
+  }
 
-      for (const line of grn.lines) {
-        const quantity = Number(line.quantity);
-        const cbmPerUnit =
-          line.cbm == null ? null : Number(line.cbm) / quantity;
-        const settings = await tx.wmsSettings.upsert({
-          where: { tenant_id: user.tenantId },
-          create: {
-            tenant_id: user.tenantId,
-            default_currency: "AED",
-          },
-          update: {},
-        });
-        const paidDays = settings.default_free_days;
-        const startsAt = grn.received_at;
-        const paidUntil = new Date(startsAt);
-        paidUntil.setUTCDate(paidUntil.getUTCDate() + paidDays);
-        const lot = await tx.wmsStockLot.create({
-          data: {
-            tenant_id: user.tenantId,
-            warehouse_id: grn.warehouse_id,
-            item_id: line.item_id,
-            grn_line_id: line.id,
-            party_id: grn.party_id,
-            job_id: grn.job_id,
-            batch_code: line.batch_code,
-            qty_received: line.quantity,
-            qty_remaining: line.quantity,
-            unit_cost: line.unit_cost,
-            cbm_per_unit: cbmPerUnit,
-            received_at: grn.received_at,
-            paid_storage_days: paidDays,
-            storage_rate_per_day: settings.default_storage_rate,
-            overdue_rate_per_day: settings.default_overdue_rate_per_day,
-            storage_starts_at: startsAt,
-            paid_until_date: paidUntil,
-            storage_status: "IN_STORAGE",
-          },
-        });
-        await tx.wmsStockMovement.create({
-          data: {
-            tenant_id: user.tenantId,
-            warehouse_id: grn.warehouse_id,
-            item_id: line.item_id,
-            lot_id: lot.id,
-            movement_type: "GRN_IN",
-            quantity: line.quantity,
-            unit_cost: line.unit_cost,
-            reference_type: "GRN",
-            reference_id: grn.id,
-            remarks: line.remarks,
-            moved_at: grn.received_at,
-            created_by: user.id,
-          },
-        });
-      }
-      if (grn.asn_id) {
+  async postInTransaction(
+    tx: Prisma.TransactionClient,
+    user: CurrentUser,
+    id: string,
+    opts?: { asnStatusOnPost?: WmsAsnStatus },
+  ) {
+    const grn = await tx.wmsGrn.findFirst({
+      where: { id, tenant_id: user.tenantId, deleted_at: null },
+      include: { lines: true },
+    });
+    if (!grn) throw new NotFoundException("GRN not found.");
+    const claimed = await tx.wmsGrn.updateMany({
+      where: { id, tenant_id: user.tenantId, status: "DRAFT" },
+      data: { status: "POSTED", posted_at: new Date(), updated_by: user.id },
+    });
+    if (claimed.count !== 1)
+      throw new BadRequestException("Only a draft GRN can be posted.");
+
+    for (const line of grn.lines) {
+      const quantity = Number(line.quantity);
+      const cbmPerUnit =
+        line.cbm == null ? null : Number(line.cbm) / quantity;
+      const settings = await tx.wmsSettings.upsert({
+        where: { tenant_id: user.tenantId },
+        create: {
+          tenant_id: user.tenantId,
+          default_currency: "AED",
+        },
+        update: {},
+      });
+      const paidDays = settings.default_free_days;
+      const startsAt = grn.received_at;
+      const paidUntil = new Date(startsAt);
+      paidUntil.setUTCDate(paidUntil.getUTCDate() + paidDays);
+      const lot = await tx.wmsStockLot.create({
+        data: {
+          tenant_id: user.tenantId,
+          warehouse_id: grn.warehouse_id,
+          item_id: line.item_id,
+          grn_line_id: line.id,
+          party_id: grn.party_id,
+          job_id: grn.job_id,
+          batch_code: line.batch_code,
+          qty_received: line.quantity,
+          qty_remaining: line.quantity,
+          unit_cost: line.unit_cost,
+          cbm_per_unit: cbmPerUnit,
+          received_at: grn.received_at,
+          paid_storage_days: paidDays,
+          storage_rate_per_day: settings.default_storage_rate,
+          overdue_rate_per_day: settings.default_overdue_rate_per_day,
+          storage_starts_at: startsAt,
+          paid_until_date: paidUntil,
+          storage_status: "IN_STORAGE",
+        },
+      });
+      await tx.wmsStockMovement.create({
+        data: {
+          tenant_id: user.tenantId,
+          warehouse_id: grn.warehouse_id,
+          item_id: line.item_id,
+          lot_id: lot.id,
+          movement_type: "GRN_IN",
+          quantity: line.quantity,
+          unit_cost: line.unit_cost,
+          reference_type: "GRN",
+          reference_id: grn.id,
+          remarks: line.remarks,
+          moved_at: grn.received_at,
+          created_by: user.id,
+        },
+      });
+    }
+    if (grn.asn_id) {
+      const target = opts?.asnStatusOnPost ?? "RECEIVED";
+      if (target === "UNLOADED") {
         await tx.wmsAsn.updateMany({
           where: {
             id: grn.asn_id,
             tenant_id: user.tenantId,
-            status: { in: ["DRAFT", "CONFIRMED"] },
+            status: { in: ["UNLOADING", "PICKED", "CONFIRMED"] },
+          },
+          data: {
+            status: "UNLOADED",
+            unloaded_at: new Date(),
+            auto_grn_id: grn.id,
+            updated_by: user.id,
+          },
+        });
+      } else {
+        await tx.wmsAsn.updateMany({
+          where: {
+            id: grn.asn_id,
+            tenant_id: user.tenantId,
+            status: {
+              in: ["DRAFT", "CONFIRMED", "PICKED", "UNLOADING"],
+            },
           },
           data: { status: "RECEIVED", updated_by: user.id },
         });
       }
-      return tx.wmsGrn.findUniqueOrThrow({
-        where: { id },
-        include: { lines: true, warehouse: true },
-      });
+    }
+    return tx.wmsGrn.findUniqueOrThrow({
+      where: { id },
+      include: { lines: true, warehouse: true },
     });
   }
 

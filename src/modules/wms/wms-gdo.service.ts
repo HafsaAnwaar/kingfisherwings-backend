@@ -10,6 +10,7 @@ import { PdfService } from "../../shared/pdf/pdf.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import { CurrentUser } from "../users/interfaces/current-user.interface";
 import { CreateGdoDto } from "./dto/wms.dto";
+import { WmsCustomerNotifyService } from "./wms-customer-notify.service";
 import {
   buildWmsDocumentPdfHtml,
   formatPdfDate,
@@ -22,6 +23,7 @@ export class WmsGdoService {
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
     private readonly pdf: PdfService,
+    private readonly customerNotify: WmsCustomerNotifyService,
   ) {}
 
   async create(user: CurrentUser, dto: CreateGdoDto) {
@@ -60,26 +62,34 @@ export class WmsGdoService {
   }
 
   list(user: CurrentUser) {
-    return this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.wmsGdo.findMany({
+    return this.prisma.runWithTenant(user.tenantId, async (tx) => {
+      const rows = await tx.wmsGdo.findMany({
         where: { tenant_id: user.tenantId, deleted_at: null },
         include: { warehouse: true, lines: { include: { item: true } } },
         orderBy: { created_at: "desc" },
-      }),
-    );
+      });
+      return rows.map((row) => this.withOpsStatus(row));
+    });
   }
 
-  get(user: CurrentUser, id: string) {
-    return this.require(user.tenantId, id);
+  async get(user: CurrentUser, id: string) {
+    return this.withOpsStatus(await this.require(user.tenantId, id));
   }
 
   async post(user: CurrentUser, id: string) {
-    return this.prisma.runWithTenant(user.tenantId, async (tx) => {
-      const gdo = await tx.wmsGdo.findFirst({
+    const existing = await this.require(user.tenantId, id);
+    if (existing.status === "DRAFT" && (!existing.party_id || !existing.job_id)) {
+      throw new BadRequestException(
+        "GDO must have party_id and job_id before post (required for customer GDN email + portal).",
+      );
+    }
+
+    const gdo = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
+      const draft = await tx.wmsGdo.findFirst({
         where: { id, tenant_id: user.tenantId, deleted_at: null },
         include: { lines: true },
       });
-      if (!gdo) throw new NotFoundException("GDO not found.");
+      if (!draft) throw new NotFoundException("GDO not found.");
       const claimed = await tx.wmsGdo.updateMany({
         where: { id, tenant_id: user.tenantId, status: "DRAFT" },
         data: { status: "POSTED", posted_at: new Date(), updated_by: user.id },
@@ -90,21 +100,56 @@ export class WmsGdoService {
         where: { tenant_id: user.tenantId },
       });
 
-      for (const line of gdo.lines) {
+      for (const line of draft.lines) {
         await this.consumeLots(tx, user, {
-          warehouseId: gdo.warehouse_id,
+          warehouseId: draft.warehouse_id,
           itemId: line.item_id,
           quantity: Number(line.quantity),
           order: settings?.valuation_method === "LIFO" ? "desc" : "asc",
-          referenceId: gdo.id,
+          referenceId: draft.id,
           remarks: line.remarks,
         });
       }
       return tx.wmsGdo.findUniqueOrThrow({
         where: { id },
-        include: { lines: true, warehouse: true },
+        include: {
+          warehouse: true,
+          lines: { include: { item: true }, orderBy: { sort_order: "asc" } },
+        },
       });
     });
+
+    let notify;
+    try {
+      notify = await this.customerNotify.notifyGdn(user, gdo.id);
+    } catch (err) {
+      notify = {
+        emailed: false,
+        portal_published: false,
+        job_document_id: null as string | null,
+        email_error: err instanceof Error ? err.message : String(err),
+      };
+    }
+
+    const refreshed = await this.require(user.tenantId, id);
+    return { ...this.withOpsStatus(refreshed), notify };
+  }
+
+  async resendGdn(user: CurrentUser, id: string) {
+    const gdo = await this.require(user.tenantId, id);
+    if (gdo.status !== "POSTED") {
+      throw new BadRequestException(
+        "Resend GDN is only available for POSTED (DISPATCHED) GDOs.",
+      );
+    }
+    if (!gdo.party_id || !gdo.job_id) {
+      throw new BadRequestException(
+        "GDO must have party_id and job_id to resend GDN.",
+      );
+    }
+    const notify = await this.customerNotify.notifyGdn(user, id);
+    const refreshed = await this.require(user.tenantId, id);
+    return { ...this.withOpsStatus(refreshed), notify };
   }
 
   async cancel(user: CurrentUser, id: string) {
@@ -117,7 +162,7 @@ export class WmsGdoService {
     );
     if (!result.count)
       throw new BadRequestException("Only a draft GDO can be cancelled.");
-    return { id, status: "CANCELLED" };
+    return { id, status: "CANCELLED", ops_status: "CANCELLED" };
   }
 
   async downloadPdf(user: CurrentUser, id: string, res: Response) {
@@ -178,6 +223,13 @@ export class WmsGdoService {
       `attachment; filename="${payload.filename}"`,
     );
     res.send(buffer);
+  }
+
+  private withOpsStatus<T extends { status: string }>(row: T) {
+    return {
+      ...row,
+      ops_status: row.status === "POSTED" ? "DISPATCHED" : row.status,
+    };
   }
 
   private async consumeLots(
