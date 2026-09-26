@@ -37,6 +37,7 @@ export const CC_STAGE_OWNER: Record<string, WorkflowDept> = {
 
 export const CC_MILESTONES: string[] = [
   "CC_JOB_OPENED",
+  "BOOKING_FORM_COMPLETE",
   "DOCS_COMPLETE",
   "HS_CLASSIFIED",
   "ENTRY_FILED",

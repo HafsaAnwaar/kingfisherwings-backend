@@ -17,6 +17,7 @@ import { JOBS_PERMISSIONS } from "../constants/jobs-permission.constants";
 import { ModeBookingFormService } from "./mode-booking-form.service";
 import {
   UpsertCourierBookingFormDto,
+  UpsertCustomsClearanceBookingFormDto,
   UpsertLandBookingFormDto,
   UpsertRoadFreightBookingFormDto,
   UpsertSeaFclBookingFormDto,
@@ -193,5 +194,42 @@ export class ModeBookingFormsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.forms.complete("courier", tenantId, id, actorId);
+  }
+
+  @Get(":id/customs-clearance/booking-form")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Get Customs Clearance booking form",
+    description:
+      "Specialized intake form for CUSTOMS_CLEARANCE jobs (direction, ports, invoice value, HS lines, CHA parties). Ops workflow remains under /jobs/:id/cc/*.",
+  })
+  getCustomsClearance(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.forms.get("customs_clearance", tenantId, id);
+  }
+
+  @Put(":id/customs-clearance/booking-form")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Upsert Customs Clearance booking form" })
+  putCustomsClearance(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertCustomsClearanceBookingFormDto,
+  ) {
+    return this.forms.upsert("customs_clearance", tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/customs-clearance/booking-form/complete")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Complete Customs Clearance booking form" })
+  completeCustomsClearance(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.forms.complete("customs_clearance", tenantId, id, actorId);
   }
 }

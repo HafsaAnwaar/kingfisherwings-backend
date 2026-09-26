@@ -597,7 +597,8 @@ Product chart is **NVOCC Sea Export** only. Sea FCL Export stays a parallel carr
 | Portal customer actions | **SHIPPED** | Accept quote; compliance form; view CRO/containers; confirm pick → `PICKED`; confirm port gate token; request draft BL. |
 | Original HBL payment gate | **LOCKED · SHIPPED** | Accounts `confirm-payment` sets `payment_confirmed_at`. Gated `hbl-original` / `hbl-original-gated` blocked until payment + draft issued. |
 | Air pallet + ULD | **PARTIAL** | ULD request/allocate/portal drop-off remains removed. **Air booking forms** capture pallet lines + CBM. **Masters** `AirPalletType` CRUD + `POST /masters/air-pallet-types/seed-defaults` restored (shared specs catalog, same pattern as container-types). |
-| Unified JobBookingForm | **REMOVED** | Replaced by per-type forms: Sea FCL/LCL, Land, Road Freight, Courier, plus enhanced NVOCC + Air compliance. |
+| Unified JobBookingForm | **REMOVED** | Replaced by per-type forms: Sea FCL/LCL, Land, Road Freight, Courier, **Customs Clearance**, plus enhanced NVOCC + Air compliance. |
+| Customs Clearance booking form | **SHIPPED** | Staff intake under `GET/PUT /jobs/:id/customs-clearance/booking-form` (+ `/complete`). Separate from ops `/jobs/:id/cc/*`. Seeds empty form on job create; milestone `BOOKING_FORM_COMPLETE`. |
 | Air booking form | **SHIPPED** | Customer fills same 8-step **compliance** form via portal (`/portal/shipments/:id/compliance-form`). Ops `PUT /jobs/:id/air-booking-form` is flight/airport operational data only (does not gate `BOOKING_FORM_COMPLETE`). |
 | Container type dimensions | **SHIPPED** | `ContainerType` inside L/W/H, door, CBM/Cft, tare, max cargo. Seed from Container Specification PDF catalog. |
 | Finer `nvocc.cs` / `nvocc.ops` permission codes | **DEFERRED** | Role→stage map first; add matrix codes only if FE needs them. |

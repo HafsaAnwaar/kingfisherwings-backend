@@ -3,27 +3,37 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { JobType, Prisma, ServiceScope } from "@prisma/client";
+import { CcDirection, JobType, Prisma, ServiceScope } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { markJobMilestoneIfPresent } from "../utils/mark-milestone.util";
 import {
   assertCargoDocs,
+  assertCcCargoLines,
   assertContainerLines,
   assertRequiredParties,
   assertServiceScopeAndDoors,
+  CC_PARTY_KINDS,
+  CcCargoLineInput,
   ContainerSizeLine,
   requireFields,
 } from "./booking-form-shared";
 import {
   ModeBookingFormBaseDto,
   UpsertCourierBookingFormDto,
+  UpsertCustomsClearanceBookingFormDto,
   UpsertLandBookingFormDto,
   UpsertRoadFreightBookingFormDto,
   UpsertSeaFclBookingFormDto,
   UpsertSeaLclBookingFormDto,
 } from "./dto/mode-booking-form.dto";
 
-type FormKind = "sea_fcl" | "sea_lcl" | "land" | "road_freight" | "courier";
+type FormKind =
+  | "sea_fcl"
+  | "sea_lcl"
+  | "land"
+  | "road_freight"
+  | "courier"
+  | "customs_clearance";
 
 const JOB_TYPES: Record<FormKind, JobType[]> = {
   sea_fcl: ["SEA_FCL_EXPORT", "SEA_FCL_IMPORT"],
@@ -31,6 +41,7 @@ const JOB_TYPES: Record<FormKind, JobType[]> = {
   land: ["LAND"],
   road_freight: ["ROAD_FREIGHT"],
   courier: ["COURIER"],
+  customs_clearance: ["CUSTOMS_CLEARANCE"],
 };
 
 const DEFAULT_SCOPE: Record<FormKind, ServiceScope> = {
@@ -39,6 +50,7 @@ const DEFAULT_SCOPE: Record<FormKind, ServiceScope> = {
   land: "DOOR_TO_DOOR",
   road_freight: "DOOR_TO_DOOR",
   courier: "DOOR_TO_DOOR",
+  customs_clearance: "PORT_TO_PORT",
 };
 
 @Injectable()
@@ -86,7 +98,7 @@ export class ModeBookingFormService {
         actorId,
         markComplete,
       );
-      const updated = await this.updateForm(tx, kind, form.id, data);
+      await this.updateForm(tx, kind, form.id, data);
 
       if (dto.parties?.length) {
         await this.upsertParties(tx, kind, tenantId, form.id, dto.parties);
@@ -110,6 +122,16 @@ export class ModeBookingFormService {
           updated_by: actorId,
         },
       });
+
+      if (kind === "customs_clearance") {
+        await this.syncCcDetailFromForm(
+          tx,
+          tenantId,
+          jobId,
+          dto as UpsertCustomsClearanceBookingFormDto,
+          actorId,
+        );
+      }
 
       if (markComplete) {
         await markJobMilestoneIfPresent(
@@ -155,6 +177,86 @@ export class ModeBookingFormService {
   private validateComplete(kind: FormKind, dto: Record<string, unknown>) {
     const parties =
       (dto.parties as { party_kind: string }[] | undefined) ?? undefined;
+
+    if (kind === "customs_clearance") {
+      assertServiceScopeAndDoors({
+        service_scope: (dto.service_scope as ServiceScope | null) ?? "PORT_TO_PORT",
+        origin_door_address: dto.origin_door_address as string | null,
+        dest_door_address: dto.dest_door_address as string | null,
+        requireScope: false,
+      });
+      assertRequiredParties(parties, CC_PARTY_KINDS);
+      assertCargoDocs({
+        cargo_category: dto.cargo_category as never,
+        is_dg: dto.is_dg as boolean,
+        attach_commercial_invoice: dto.attach_commercial_invoice as boolean,
+        attach_carnet: dto.attach_carnet as boolean,
+        attach_vehicle_title: dto.attach_vehicle_title as boolean,
+        attach_msds: dto.attach_msds as boolean,
+        attach_dangerous_goods_declaration:
+          dto.attach_dangerous_goods_declaration as boolean,
+        attach_health_veterinary: dto.attach_health_veterinary as boolean,
+        attach_fda_moh: dto.attach_fda_moh as boolean,
+      });
+
+      const d = dto as UpsertCustomsClearanceBookingFormDto & {
+        cargo_lines_json?: CcCargoLineInput[];
+        invoice_value_amount?: number | null;
+        invoice_currency?: string | null;
+        attach_packing_list?: boolean;
+        attach_poa?: boolean;
+        attach_bl_awb_copy?: boolean;
+        direction?: CcDirection;
+      };
+      const direction = d.direction ?? (dto.direction as CcDirection) ?? "IMPORT";
+      const cargoLines =
+        d.cargo_lines ??
+        (dto.cargo_lines_json as CcCargoLineInput[] | undefined);
+
+      requireFields("Customs clearance booking form", [
+        [!!direction, "direction"],
+        [
+          !!(d.border_or_port?.trim() || (dto.border_or_port as string)?.trim()),
+          "border_or_port",
+        ],
+        [!!d.commodity?.trim(), "commodity"],
+        [
+          d.invoice_value_amount != null ||
+            (dto as { invoice_value_amount?: number }).invoice_value_amount != null,
+          "invoice_value_amount",
+        ],
+        [
+          !!(
+            d.invoice_currency?.trim() ||
+            (dto as { invoice_currency?: string }).invoice_currency?.trim()
+          ),
+          "invoice_currency",
+        ],
+        [
+          !!d.attach_packing_list ||
+            !!(dto as { attach_packing_list?: boolean }).attach_packing_list,
+          "attach_packing_list",
+        ],
+        [
+          !!d.attach_poa || !!(dto as { attach_poa?: boolean }).attach_poa,
+          "attach_poa",
+        ],
+      ]);
+
+      if (direction === "IMPORT") {
+        requireFields("Customs clearance booking form", [
+          [
+            !!d.attach_bl_awb_copy ||
+              !!(dto as { attach_bl_awb_copy?: boolean }).attach_bl_awb_copy,
+            "attach_bl_awb_copy",
+          ],
+        ]);
+      }
+
+      assertCcCargoLines(cargoLines);
+      return;
+    }
+
     assertServiceScopeAndDoors({
       service_scope: dto.service_scope as ServiceScope | null,
       origin_door_address: dto.origin_door_address as string | null,
@@ -242,6 +344,7 @@ export class ModeBookingFormService {
       etd,
       eta,
       containers,
+      cargo_lines,
       ...rest
     } = dto;
 
@@ -255,6 +358,9 @@ export class ModeBookingFormService {
     if (kind === "sea_fcl" && containers) {
       data.containers_json = JSON.parse(JSON.stringify(containers));
     }
+    if (kind === "customs_clearance" && cargo_lines) {
+      data.cargo_lines_json = JSON.parse(JSON.stringify(cargo_lines));
+    }
     if (consent_accepted) data.consent_accepted_at = new Date();
     if (markComplete) {
       data.is_complete = true;
@@ -262,7 +368,36 @@ export class ModeBookingFormService {
       data.completed_by = actorId;
     }
     delete data.containers;
+    delete data.cargo_lines;
     return data;
+  }
+
+  /** Soft-sync intake fields onto ops detail without touching workflow status. */
+  private async syncCcDetailFromForm(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+    dto: UpsertCustomsClearanceBookingFormDto,
+    actorId?: string,
+  ) {
+    const detail = await tx.jobCustomsClearanceDetail.findFirst({
+      where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+    });
+    if (!detail) return;
+
+    const patch: Prisma.JobCustomsClearanceDetailUncheckedUpdateInput = {
+      updated_by: actorId,
+    };
+    if (dto.direction !== undefined) patch.direction = dto.direction;
+    if (dto.border_or_port !== undefined) patch.border_or_port = dto.border_or_port;
+    if (dto.entry_type !== undefined) patch.entry_type = dto.entry_type;
+    if (dto.freight_job_id !== undefined) patch.freight_job_id = dto.freight_job_id;
+    if (dto.request_details !== undefined) patch.remarks = dto.request_details;
+
+    await tx.jobCustomsClearanceDetail.update({
+      where: { id: detail.id },
+      data: patch,
+    });
   }
 
   private async assertJob(
@@ -305,6 +440,8 @@ export class ModeBookingFormService {
         return tx.roadFreightBookingForm.findFirst({ where, include });
       case "courier":
         return tx.courierBookingForm.findFirst({ where, include });
+      case "customs_clearance":
+        return tx.customsClearanceBookingForm.findFirst({ where, include });
     }
   }
 
@@ -339,6 +476,11 @@ export class ModeBookingFormService {
           data,
           include: { parties: true },
         });
+      case "customs_clearance":
+        return tx.customsClearanceBookingForm.create({
+          data: { ...data, direction: "IMPORT" },
+          include: { parties: true },
+        });
     }
   }
 
@@ -359,6 +501,8 @@ export class ModeBookingFormService {
         return tx.roadFreightBookingForm.update({ where: { id }, data });
       case "courier":
         return tx.courierBookingForm.update({ where: { id }, data });
+      case "customs_clearance":
+        return tx.customsClearanceBookingForm.update({ where: { id }, data });
     }
   }
 
@@ -414,6 +558,13 @@ export class ModeBookingFormService {
           break;
         case "courier":
           await tx.courierBookingFormParty.upsert({
+            where: { tenant_id_form_id_party_kind: key },
+            create: { ...key, ...base },
+            update: base,
+          });
+          break;
+        case "customs_clearance":
+          await tx.customsClearanceBookingFormParty.upsert({
             where: { tenant_id_form_id_party_kind: key },
             create: { ...key, ...base },
             update: base,

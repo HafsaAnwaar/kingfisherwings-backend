@@ -348,6 +348,21 @@ async function seedJobTypeExtrasInner(
       where: { id: jobId, service_scope: null },
       data: { service_scope: "DOOR_TO_DOOR" },
     });
+  } else if (jobType === "CUSTOMS_CLEARANCE") {
+    await tx.customsClearanceBookingForm.create({
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        service_scope: "PORT_TO_PORT",
+        direction: CcDirection.IMPORT,
+        created_by: actorId,
+        updated_by: actorId,
+      },
+    });
+    await tx.job.updateMany({
+      where: { id: jobId, service_scope: null },
+      data: { service_scope: "PORT_TO_PORT" },
+    });
   } else if (
     jobType === "AIR_EXPORT" ||
     jobType === "AIR_IMPORT" ||

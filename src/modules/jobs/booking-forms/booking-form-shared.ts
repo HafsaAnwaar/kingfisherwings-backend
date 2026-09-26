@@ -12,6 +12,9 @@ export type BookingPartyInput = {
 
 export const FREIGHT_PARTY_KINDS = ["SHIPPER", "CONSIGNEE", "NOTIFY"] as const;
 
+/** Customs clearance: shipper, consignee/importer, and CHA/agent. */
+export const CC_PARTY_KINDS = ["SHIPPER", "CONSIGNEE", "AGENT"] as const;
+
 export function assertServiceScopeAndDoors(input: {
   service_scope?: ServiceScope | null;
   origin_door_address?: string | null;
@@ -164,6 +167,32 @@ export function assertAirPalletLines(
     }
     if (!line.count || line.count < 1) {
       throw new BadRequestException(`pallets[${i}]: count must be >= 1`);
+    }
+  }
+}
+
+export type CcCargoLineInput = {
+  description?: string | null;
+  hs_code?: string | null;
+  country_of_origin?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  value_amount?: number | null;
+  currency_code?: string | null;
+};
+
+export function assertCcCargoLines(lines: CcCargoLineInput[] | undefined) {
+  if (!lines?.length) {
+    throw new BadRequestException(
+      "Customs clearance booking form incomplete: cargo_lines (at least one line)",
+    );
+  }
+  for (const [i, line] of lines.entries()) {
+    if (!line.description?.trim()) {
+      throw new BadRequestException(`cargo_lines[${i}]: description required`);
+    }
+    if (!line.hs_code?.trim()) {
+      throw new BadRequestException(`cargo_lines[${i}]: hs_code required`);
     }
   }
 }
