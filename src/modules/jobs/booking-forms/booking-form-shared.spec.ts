@@ -1,5 +1,6 @@
-import { missingCargoDocs } from "./booking-form-shared";
+import { missingCargoDocs, assertCcCargoLines } from "./booking-form-shared";
 import { CargoCategory } from "@prisma/client";
+import { BadRequestException } from "@nestjs/common";
 
 describe("booking-form-shared cargo docs", () => {
   it("requires commercial invoice always", () => {
@@ -22,5 +23,17 @@ describe("booking-form-shared cargo docs", () => {
         is_dg: true,
       }),
     ).toEqual(["msds", "dgd"]);
+  });
+});
+
+describe("assertCcCargoLines", () => {
+  it("requires at least one line with description and hs_code", () => {
+    expect(() => assertCcCargoLines(undefined)).toThrow(BadRequestException);
+    expect(() =>
+      assertCcCargoLines([{ description: "Widgets" }]),
+    ).toThrow(/hs_code/);
+    expect(() =>
+      assertCcCargoLines([{ description: "Widgets", hs_code: "8471" }]),
+    ).not.toThrow();
   });
 });

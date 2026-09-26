@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { CargoCategory, JobBookingPartyKind, PartyEntityKind, ServiceScope } from "@prisma/client";
+import {
+  CargoCategory,
+  CcDirection,
+  JobBookingPartyKind,
+  PartyEntityKind,
+  ServiceScope,
+} from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,
@@ -428,4 +434,156 @@ export class UpsertCourierBookingFormDto extends ModeBookingFormBaseDto {
   @IsOptional()
   @IsDateString()
   eta?: string;
+}
+
+export class CcCargoLineInputDto {
+  @ApiPropertyOptional({ example: "Cotton apparel" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @ApiPropertyOptional({ example: "620342" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  hs_code?: string;
+
+  @ApiPropertyOptional({ example: "CN" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  country_of_origin?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  quantity?: number;
+
+  @ApiPropertyOptional({ example: "PCS" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  unit?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  value_amount?: number;
+
+  @ApiPropertyOptional({ example: "USD" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(3)
+  currency_code?: string;
+}
+
+/** Customs clearance intake form — broker/customer data for CUSTOMS_CLEARANCE jobs. */
+export class UpsertCustomsClearanceBookingFormDto extends ModeBookingFormBaseDto {
+  @ApiPropertyOptional({ enum: CcDirection, default: CcDirection.IMPORT })
+  @IsOptional()
+  @IsEnum(CcDirection)
+  direction?: CcDirection;
+
+  @ApiPropertyOptional({ example: "Karachi Port / PICT" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  border_or_port?: string;
+
+  @ApiPropertyOptional({ example: "BOE", description: "Entry / filing type (BOE, SB, …)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  entry_type?: string;
+
+  @ApiPropertyOptional({ example: "Home consumption" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  declaration_type?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  port_of_entry?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  port_of_exit?: string;
+
+  @ApiPropertyOptional({ example: "CN" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  country_of_origin?: string;
+
+  @ApiPropertyOptional({ example: "PK" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  country_of_destination?: string;
+
+  @ApiPropertyOptional({ example: "CIF" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  incoterms?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  invoice_value_amount?: number;
+
+  @ApiPropertyOptional({ example: "USD" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(3)
+  invoice_currency?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Optional linked freight job for the same shipment",
+  })
+  @IsOptional()
+  @IsUUID()
+  freight_job_id?: string;
+
+  @ApiPropertyOptional({ type: [CcCargoLineInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CcCargoLineInputDto)
+  cargo_lines?: CcCargoLineInputDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  etd?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  eta?: string;
+
+  @ApiPropertyOptional({ description: "Certificate of Origin attached" })
+  @IsOptional()
+  @IsBoolean()
+  attach_coo?: boolean;
+
+  @ApiPropertyOptional({ description: "Power of Attorney / CHA authorization attached" })
+  @IsOptional()
+  @IsBoolean()
+  attach_poa?: boolean;
+
+  @ApiPropertyOptional({ description: "Permits / licenses attached" })
+  @IsOptional()
+  @IsBoolean()
+  attach_permit?: boolean;
 }

@@ -769,6 +769,25 @@ Existing NVOCC document routes (`/nvocc/jobs/:id/documents/hbl-draft`, `hbl-orig
 | `GET` | `/jobs/:id/air-booking-form` |
 | `PUT` | `/jobs/:id/air-booking-form` |
 
+**Mode booking forms (staff; per job-type family)**
+
+| Method | Path | Job types |
+|--------|------|-----------|
+| `GET`/`PUT` | `/jobs/:id/sea-fcl/booking-form` | SEA_FCL_* |
+| `POST` | `/jobs/:id/sea-fcl/booking-form/complete` | |
+| `GET`/`PUT` | `/jobs/:id/sea-lcl/booking-form` | SEA_LCL_* |
+| `POST` | `/jobs/:id/sea-lcl/booking-form/complete` | |
+| `GET`/`PUT` | `/jobs/:id/land/booking-form` | LAND |
+| `POST` | `/jobs/:id/land/booking-form/complete` | |
+| `GET`/`PUT` | `/jobs/:id/road-freight/booking-form` | ROAD_FREIGHT |
+| `POST` | `/jobs/:id/road-freight/booking-form/complete` | |
+| `GET`/`PUT` | `/jobs/:id/courier/booking-form` | COURIER |
+| `POST` | `/jobs/:id/courier/booking-form/complete` | |
+| `GET`/`PUT` | `/jobs/:id/customs-clearance/booking-form` | CUSTOMS_CLEARANCE |
+| `POST` | `/jobs/:id/customs-clearance/booking-form/complete` | |
+
+Customs Clearance form captures direction, border/port, declaration/entry type, invoice value, HS cargo lines, COO/POA/permit flags, and SHIPPER/CONSIGNEE/AGENT parties. Ops filing/duty workflow stays under `/jobs/:id/cc/*` (unchanged).
+
 CLI backfill: `npm run seed:freight-specs` (container types + air pallet types). New tenants auto-seed both catalogs after create.
 
 Smoke runbook: [SWAGGER_COMPLETE_TESTING_GUIDE.md](./SWAGGER_COMPLETE_TESTING_GUIDE.md) § Part G2 (NVOCC) and G3 (Air).

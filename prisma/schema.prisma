@@ -2513,6 +2513,7 @@ model Job {
   land_booking_form         LandBookingForm?
   road_freight_booking_form RoadFreightBookingForm?
   courier_booking_form      CourierBookingForm?
+  customs_clearance_booking_form CustomsClearanceBookingForm?
   charges          JobCharge[]
   milestones       JobMilestone[]
   documents        JobDocument[]
@@ -7921,6 +7922,94 @@ model CourierBookingFormParty {
   @@unique([tenant_id, form_id, party_kind])
   @@index([tenant_id, form_id])
   @@map("courier_booking_form_parties")
+}
+
+/// Customs clearance booking / intake form — one per CUSTOMS_CLEARANCE job.
+/// Ops workflow state stays on JobCustomsClearanceDetail; this is customer/broker intake.
+model CustomsClearanceBookingForm {
+  id                    String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String         @db.Uuid
+  job_id                String         @unique @db.Uuid
+  date_of_request       DateTime?      @db.Date
+  client_booking_no     String?        @db.VarChar(50)
+  voyage_ref            String?        @db.VarChar(50)
+  service_scope         ServiceScope?
+  origin_door_address   String?        @db.Text
+  dest_door_address     String?        @db.Text
+  direction             CcDirection    @default(IMPORT)
+  border_or_port        String?        @db.VarChar(200)
+  entry_type            String?        @db.VarChar(20)
+  declaration_type      String?        @db.VarChar(50)
+  port_of_entry         String?        @db.VarChar(100)
+  port_of_exit          String?        @db.VarChar(100)
+  country_of_origin     String?        @db.Char(2)
+  country_of_destination String?       @db.Char(2)
+  incoterms             String?        @db.VarChar(10)
+  invoice_value_amount  Decimal?       @db.Decimal(18, 4)
+  invoice_currency      String?        @db.Char(3)
+  freight_job_id        String?        @db.Uuid
+  cargo_lines_json      Json?
+  etd                   DateTime?      @db.Date
+  eta                   DateTime?      @db.Date
+  commodity             String?        @db.VarChar(500)
+  hs_code               String?        @db.VarChar(20)
+  cargo_category        CargoCategory?
+  is_dg                 Boolean        @default(false)
+  dg_class              String?        @db.VarChar(20)
+  gross_weight_kg       Decimal?       @db.Decimal(12, 3)
+  net_weight_kg         Decimal?       @db.Decimal(12, 3)
+  volume_cbm            Decimal?       @db.Decimal(10, 3)
+  pieces                Int?
+  insurance_details     String?        @db.Text
+  request_details       String?        @db.Text
+  attach_commercial_invoice            Boolean @default(false)
+  attach_packing_list                  Boolean @default(false)
+  attach_bl_awb_copy                   Boolean @default(false)
+  attach_coo                           Boolean @default(false)
+  attach_poa                           Boolean @default(false)
+  attach_permit                        Boolean @default(false)
+  attach_carnet                        Boolean @default(false)
+  attach_vehicle_title                 Boolean @default(false)
+  attach_msds                          Boolean @default(false)
+  attach_dangerous_goods_declaration   Boolean @default(false)
+  attach_health_veterinary             Boolean @default(false)
+  attach_fda_moh                       Boolean @default(false)
+  consent_accepted_at   DateTime? @db.Timestamptz
+  is_complete           Boolean   @default(false)
+  completed_at          DateTime? @db.Timestamptz
+  completed_by          String?   @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  created_by            String?   @db.Uuid
+  updated_by            String?   @db.Uuid
+  deleted_at            DateTime? @db.Timestamptz
+
+  job     Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  parties CustomsClearanceBookingFormParty[]
+
+  @@index([tenant_id])
+  @@map("customs_clearance_booking_forms")
+}
+
+model CustomsClearanceBookingFormParty {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String              @db.Uuid
+  form_id       String              @db.Uuid
+  party_kind    JobBookingPartyKind
+  full_name     String?             @db.VarChar(300)
+  address       String?             @db.Text
+  city          String?             @db.VarChar(100)
+  country       String?             @db.VarChar(100)
+  entity_kind   PartyEntityKind?
+  other_details String?             @db.Text
+  created_at    DateTime            @default(now()) @db.Timestamptz
+  updated_at    DateTime            @updatedAt @db.Timestamptz
+
+  form CustomsClearanceBookingForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, form_id, party_kind])
+  @@index([tenant_id, form_id])
+  @@map("customs_clearance_booking_form_parties")
 }
 
 enum AirWorkflowStage {

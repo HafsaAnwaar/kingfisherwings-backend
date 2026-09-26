@@ -115,11 +115,7 @@ function defaultServiceScopeForJobType(
   ) {
     return "DOOR_TO_DOOR";
   }
-  if (
-    jobType === "CUSTOMS_CLEARANCE" ||
-    jobType === "WAREHOUSE" ||
-    jobType === "SERVICE_JOB"
-  ) {
+  if (jobType === "WAREHOUSE" || jobType === "SERVICE_JOB") {
     return undefined;
   }
   return "PORT_TO_PORT";
@@ -724,6 +720,7 @@ export class JobsService {
           land_booking_form: { include: { parties: true } },
           road_freight_booking_form: { include: { parties: true } },
           courier_booking_form: { include: { parties: true } },
+          customs_clearance_booking_form: { include: { parties: true } },
           customs_clearance_details: {
             include: {
               cargo_lines: {
