@@ -44,6 +44,10 @@ export function toPortalDocumentType(
       return "CRO";
     case "ULD_REQUEST":
       return "ULD_REQUEST";
+    case "GRN":
+      return "GRN";
+    case "GDN":
+      return "GDN";
     default:
       return "OTHER";
   }

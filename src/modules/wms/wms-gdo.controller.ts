@@ -72,12 +72,24 @@ export class WmsGdoController {
 
   @Post(":id/post")
   @RequirePermissions(WMS_PERMISSIONS.MANAGE_GDO)
-  @ApiOperation({ summary: "Post GDO — consumes lots FIFO/LIFO" })
+  @ApiOperation({
+    summary: "Post GDO (DISPATCHED) — consumes lots and sends GDN to customer",
+  })
   post(
     @CurrentUser() user: CurrentUserType,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.post(user, id);
+  }
+
+  @Post(":id/resend-gdn")
+  @RequirePermissions(WMS_PERMISSIONS.MANAGE_GDO)
+  @ApiOperation({ summary: "Resend GDN email + republish portal document" })
+  resendGdn(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.resendGdn(user, id);
   }
 
   @Post(":id/cancel")
