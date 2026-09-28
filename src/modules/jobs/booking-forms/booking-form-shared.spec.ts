@@ -1,4 +1,8 @@
-import { missingCargoDocs, assertCcCargoLines } from "./booking-form-shared";
+import {
+  missingCargoDocs,
+  assertCcCargoLines,
+  assertWhStockLines,
+} from "./booking-form-shared";
 import { CargoCategory } from "@prisma/client";
 import { BadRequestException } from "@nestjs/common";
 
@@ -34,6 +38,18 @@ describe("assertCcCargoLines", () => {
     ).toThrow(/hs_code/);
     expect(() =>
       assertCcCargoLines([{ description: "Widgets", hs_code: "8471" }]),
+    ).not.toThrow();
+  });
+});
+
+describe("assertWhStockLines", () => {
+  it("requires lines with description/sku and quantity", () => {
+    expect(() => assertWhStockLines(undefined)).toThrow(BadRequestException);
+    expect(() =>
+      assertWhStockLines([{ description: "Carton", quantity: 0 }]),
+    ).toThrow(/quantity/);
+    expect(() =>
+      assertWhStockLines([{ sku_code: "SKU-1", quantity: 2 }]),
     ).not.toThrow();
   });
 });

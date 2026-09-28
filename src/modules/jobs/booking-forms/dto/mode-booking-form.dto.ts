@@ -587,3 +587,98 @@ export class UpsertCustomsClearanceBookingFormDto extends ModeBookingFormBaseDto
   @IsBoolean()
   attach_permit?: boolean;
 }
+
+export class WhStockLineInputDto {
+  @ApiPropertyOptional({ example: "SKU-1001" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  sku_code?: string;
+
+  @ApiPropertyOptional({ example: "Carton of apparel" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  quantity?: number;
+
+  @ApiPropertyOptional({ example: "PCS" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  unit?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cbm?: number;
+}
+
+/** Warehouse storage booking / intake form for WAREHOUSE jobs. */
+export class UpsertWarehouseBookingFormDto extends ModeBookingFormBaseDto {
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Masters warehouse location id",
+  })
+  @IsOptional()
+  @IsUUID()
+  warehouse_id?: string;
+
+  @ApiPropertyOptional({ example: "Jebel Ali CFS A" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  warehouse_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  expected_inbound_at?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  expected_outbound_at?: string;
+
+  @ApiPropertyOptional({ example: 14 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  storage_days_requested?: number;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  bonded?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  temperature_controlled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  handling_instructions?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Optional linked freight job for the same cargo",
+  })
+  @IsOptional()
+  @IsUUID()
+  freight_job_id?: string;
+
+  @ApiPropertyOptional({ type: [WhStockLineInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => WhStockLineInputDto)
+  stock_lines?: WhStockLineInputDto[];
+}
