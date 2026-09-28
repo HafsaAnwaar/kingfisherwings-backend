@@ -22,6 +22,7 @@ import {
   UpsertRoadFreightBookingFormDto,
   UpsertSeaFclBookingFormDto,
   UpsertSeaLclBookingFormDto,
+  UpsertWarehouseBookingFormDto,
 } from "./dto/mode-booking-form.dto";
 
 @ApiTags("Jobs — mode booking forms")
@@ -231,5 +232,42 @@ export class ModeBookingFormsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.forms.complete("customs_clearance", tenantId, id, actorId);
+  }
+
+  @Get(":id/warehouse/booking-form")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Get Warehouse booking form",
+    description:
+      "Specialized intake for WAREHOUSE jobs (warehouse location, inbound/outbound dates, stock lines, bonded/temp flags). WMS ASN/GRN/GDO remain under /wms/*.",
+  })
+  getWarehouse(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.forms.get("warehouse", tenantId, id);
+  }
+
+  @Put(":id/warehouse/booking-form")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Upsert Warehouse booking form" })
+  putWarehouse(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertWarehouseBookingFormDto,
+  ) {
+    return this.forms.upsert("warehouse", tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/warehouse/booking-form/complete")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Complete Warehouse booking form" })
+  completeWarehouse(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.forms.complete("warehouse", tenantId, id, actorId);
   }
 }

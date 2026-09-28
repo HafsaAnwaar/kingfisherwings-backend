@@ -12,10 +12,12 @@ import {
   assertContainerLines,
   assertRequiredParties,
   assertServiceScopeAndDoors,
+  assertWhStockLines,
   CC_PARTY_KINDS,
   CcCargoLineInput,
   ContainerSizeLine,
   requireFields,
+  WhStockLineInput,
 } from "./booking-form-shared";
 import {
   ModeBookingFormBaseDto,
@@ -25,6 +27,7 @@ import {
   UpsertRoadFreightBookingFormDto,
   UpsertSeaFclBookingFormDto,
   UpsertSeaLclBookingFormDto,
+  UpsertWarehouseBookingFormDto,
 } from "./dto/mode-booking-form.dto";
 
 type FormKind =
@@ -33,7 +36,8 @@ type FormKind =
   | "land"
   | "road_freight"
   | "courier"
-  | "customs_clearance";
+  | "customs_clearance"
+  | "warehouse";
 
 const JOB_TYPES: Record<FormKind, JobType[]> = {
   sea_fcl: ["SEA_FCL_EXPORT", "SEA_FCL_IMPORT"],
@@ -42,15 +46,17 @@ const JOB_TYPES: Record<FormKind, JobType[]> = {
   road_freight: ["ROAD_FREIGHT"],
   courier: ["COURIER"],
   customs_clearance: ["CUSTOMS_CLEARANCE"],
+  warehouse: ["WAREHOUSE"],
 };
 
-const DEFAULT_SCOPE: Record<FormKind, ServiceScope> = {
+const DEFAULT_SCOPE: Record<FormKind, ServiceScope | null> = {
   sea_fcl: "PORT_TO_PORT",
   sea_lcl: "PORT_TO_PORT",
   land: "DOOR_TO_DOOR",
   road_freight: "DOOR_TO_DOOR",
   courier: "DOOR_TO_DOOR",
   customs_clearance: "PORT_TO_PORT",
+  warehouse: null,
 };
 
 @Injectable()
@@ -257,6 +263,65 @@ export class ModeBookingFormService {
       return;
     }
 
+    if (kind === "warehouse") {
+      assertServiceScopeAndDoors({
+        service_scope: dto.service_scope as ServiceScope | null,
+        origin_door_address: dto.origin_door_address as string | null,
+        dest_door_address: dto.dest_door_address as string | null,
+        requireScope: false,
+      });
+      assertRequiredParties(parties);
+      assertCargoDocs({
+        cargo_category: dto.cargo_category as never,
+        is_dg: dto.is_dg as boolean,
+        attach_commercial_invoice: dto.attach_commercial_invoice as boolean,
+        attach_carnet: dto.attach_carnet as boolean,
+        attach_vehicle_title: dto.attach_vehicle_title as boolean,
+        attach_msds: dto.attach_msds as boolean,
+        attach_dangerous_goods_declaration:
+          dto.attach_dangerous_goods_declaration as boolean,
+        attach_health_veterinary: dto.attach_health_veterinary as boolean,
+        attach_fda_moh: dto.attach_fda_moh as boolean,
+      });
+
+      const d = dto as UpsertWarehouseBookingFormDto & {
+        stock_lines_json?: WhStockLineInput[];
+        expected_inbound_at?: string | Date | null;
+        attach_packing_list?: boolean;
+        warehouse_id?: string | null;
+        warehouse_name?: string | null;
+      };
+      const stockLines =
+        d.stock_lines ??
+        (dto.stock_lines_json as WhStockLineInput[] | undefined);
+
+      requireFields("Warehouse booking form", [
+        [
+          !!(d.warehouse_id || (dto as { warehouse_id?: string }).warehouse_id) ||
+            !!(
+              d.warehouse_name?.trim() ||
+              (dto as { warehouse_name?: string }).warehouse_name?.trim()
+            ),
+          "warehouse_id_or_warehouse_name",
+        ],
+        [
+          !!(
+            d.expected_inbound_at ||
+            (dto as { expected_inbound_at?: string }).expected_inbound_at
+          ),
+          "expected_inbound_at",
+        ],
+        [!!d.commodity?.trim(), "commodity"],
+        [
+          !!d.attach_packing_list ||
+            !!(dto as { attach_packing_list?: boolean }).attach_packing_list,
+          "attach_packing_list",
+        ],
+      ]);
+      assertWhStockLines(stockLines);
+      return;
+    }
+
     assertServiceScopeAndDoors({
       service_scope: dto.service_scope as ServiceScope | null,
       origin_door_address: dto.origin_door_address as string | null,
@@ -345,6 +410,9 @@ export class ModeBookingFormService {
       eta,
       containers,
       cargo_lines,
+      stock_lines,
+      expected_inbound_at,
+      expected_outbound_at,
       ...rest
     } = dto;
 
@@ -355,11 +423,20 @@ export class ModeBookingFormService {
     if (date_of_request) data.date_of_request = new Date(date_of_request);
     if (typeof etd === "string" && etd) data.etd = new Date(etd);
     if (typeof eta === "string" && eta) data.eta = new Date(eta);
+    if (typeof expected_inbound_at === "string" && expected_inbound_at) {
+      data.expected_inbound_at = new Date(expected_inbound_at);
+    }
+    if (typeof expected_outbound_at === "string" && expected_outbound_at) {
+      data.expected_outbound_at = new Date(expected_outbound_at);
+    }
     if (kind === "sea_fcl" && containers) {
       data.containers_json = JSON.parse(JSON.stringify(containers));
     }
     if (kind === "customs_clearance" && cargo_lines) {
       data.cargo_lines_json = JSON.parse(JSON.stringify(cargo_lines));
+    }
+    if (kind === "warehouse" && stock_lines) {
+      data.stock_lines_json = JSON.parse(JSON.stringify(stock_lines));
     }
     if (consent_accepted) data.consent_accepted_at = new Date();
     if (markComplete) {
@@ -369,6 +446,7 @@ export class ModeBookingFormService {
     }
     delete data.containers;
     delete data.cargo_lines;
+    delete data.stock_lines;
     return data;
   }
 
@@ -442,6 +520,8 @@ export class ModeBookingFormService {
         return tx.courierBookingForm.findFirst({ where, include });
       case "customs_clearance":
         return tx.customsClearanceBookingForm.findFirst({ where, include });
+      case "warehouse":
+        return tx.warehouseBookingForm.findFirst({ where, include });
     }
   }
 
@@ -455,7 +535,7 @@ export class ModeBookingFormService {
     const data = {
       tenant_id: tenantId,
       job_id: jobId,
-      service_scope: DEFAULT_SCOPE[kind],
+      service_scope: DEFAULT_SCOPE[kind] ?? undefined,
       created_by: actorId,
       updated_by: actorId,
     };
@@ -481,6 +561,11 @@ export class ModeBookingFormService {
           data: { ...data, direction: "IMPORT" },
           include: { parties: true },
         });
+      case "warehouse":
+        return tx.warehouseBookingForm.create({
+          data,
+          include: { parties: true },
+        });
     }
   }
 
@@ -503,6 +588,8 @@ export class ModeBookingFormService {
         return tx.courierBookingForm.update({ where: { id }, data });
       case "customs_clearance":
         return tx.customsClearanceBookingForm.update({ where: { id }, data });
+      case "warehouse":
+        return tx.warehouseBookingForm.update({ where: { id }, data });
     }
   }
 
@@ -565,6 +652,13 @@ export class ModeBookingFormService {
           break;
         case "customs_clearance":
           await tx.customsClearanceBookingFormParty.upsert({
+            where: { tenant_id_form_id_party_kind: key },
+            create: { ...key, ...base },
+            update: base,
+          });
+          break;
+        case "warehouse":
+          await tx.warehouseBookingFormParty.upsert({
             where: { tenant_id_form_id_party_kind: key },
             create: { ...key, ...base },
             update: base,

@@ -196,3 +196,31 @@ export function assertCcCargoLines(lines: CcCargoLineInput[] | undefined) {
     }
   }
 }
+
+export type WhStockLineInput = {
+  sku_code?: string | null;
+  description?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  cbm?: number | null;
+};
+
+export function assertWhStockLines(lines: WhStockLineInput[] | undefined) {
+  if (!lines?.length) {
+    throw new BadRequestException(
+      "Warehouse booking form incomplete: stock_lines (at least one line)",
+    );
+  }
+  for (const [i, line] of lines.entries()) {
+    if (!line.description?.trim() && !line.sku_code?.trim()) {
+      throw new BadRequestException(
+        `stock_lines[${i}]: description or sku_code required`,
+      );
+    }
+    if (line.quantity == null || line.quantity <= 0) {
+      throw new BadRequestException(
+        `stock_lines[${i}]: quantity must be > 0`,
+      );
+    }
+  }
+}

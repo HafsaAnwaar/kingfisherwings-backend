@@ -721,6 +721,7 @@ export class JobsService {
           road_freight_booking_form: { include: { parties: true } },
           courier_booking_form: { include: { parties: true } },
           customs_clearance_booking_form: { include: { parties: true } },
+          warehouse_booking_form: { include: { parties: true } },
           customs_clearance_details: {
             include: {
               cargo_lines: {

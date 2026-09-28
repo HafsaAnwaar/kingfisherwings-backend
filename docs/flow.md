@@ -790,8 +790,10 @@ Existing NVOCC document routes (`/nvocc/jobs/:id/documents/hbl-draft`, `hbl-orig
 | `POST` | `/jobs/:id/courier/booking-form/complete` | |
 | `GET`/`PUT` | `/jobs/:id/customs-clearance/booking-form` | CUSTOMS_CLEARANCE |
 | `POST` | `/jobs/:id/customs-clearance/booking-form/complete` | |
+| `GET`/`PUT` | `/jobs/:id/warehouse/booking-form` | WAREHOUSE |
+| `POST` | `/jobs/:id/warehouse/booking-form/complete` | |
 
-Customs Clearance form captures direction, border/port, declaration/entry type, invoice value, HS cargo lines, COO/POA/permit flags, and SHIPPER/CONSIGNEE/AGENT parties. Ops filing/duty workflow stays under `/jobs/:id/cc/*` (unchanged).
+Warehouse form captures warehouse location, expected inbound/outbound, storage days, bonded/temperature flags, stock lines, and packing list. WMS ASN/GRN/GDO stay under `/wms/*`.
 
 CLI backfill: `npm run seed:freight-specs` (container types + air pallet types). New tenants auto-seed both catalogs after create.
 

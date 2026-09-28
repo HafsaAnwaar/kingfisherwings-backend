@@ -363,6 +363,15 @@ async function seedJobTypeExtrasInner(
       where: { id: jobId, service_scope: null },
       data: { service_scope: "PORT_TO_PORT" },
     });
+  } else if (jobType === "WAREHOUSE") {
+    await tx.warehouseBookingForm.create({
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        created_by: actorId,
+        updated_by: actorId,
+      },
+    });
   } else if (
     jobType === "AIR_EXPORT" ||
     jobType === "AIR_IMPORT" ||
