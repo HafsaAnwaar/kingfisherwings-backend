@@ -112,6 +112,7 @@ AWS_SECRET_ACCESS_KEY=...
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
+# Hostinger: SMTP_HOST=smtp.hostinger.com SMTP_PORT=465 SMTP_SECURE=true
 SMTP_USER=kingfisherwings@gmail.com
 SMTP_PASS=<gmail-app-password>
 SMTP_FROM_EMAIL=kingfisherwings@gmail.com
