@@ -37,6 +37,20 @@ export interface SendEmailOptions {
   requireDelivery?: boolean;
 }
 
+function isTransientSmtpError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("greeting never received") ||
+    lower.includes("connection timeout") ||
+    lower.includes("etimedout") ||
+    lower.includes("econnreset") ||
+    lower.includes("econnrefused") ||
+    lower.includes("socket closed") ||
+    lower.includes("connection closed") ||
+    lower.includes("timed out")
+  );
+}
+
 @Injectable()
 export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
@@ -91,10 +105,23 @@ export class EmailService implements OnModuleInit {
       tls: {
         minVersion: "TLSv1.2",
         servername: settings.host,
+        // Hostinger / shared hosts sometimes present intermediate chain quirks
+        rejectUnauthorized: true,
       },
       requireTLS: !settings.secure && settings.port === 587,
       pool: false,
     } as nodemailer.TransportOptions);
+  }
+
+  /** Fresh transporter for retry after transient TCP/greeting failures. */
+  private recreateSmtpTransporter() {
+    if (!this.settings || this.settings.provider !== "smtp") return;
+    try {
+      this.transporter?.close();
+    } catch {
+      /* ignore */
+    }
+    this.transporter = this.createSmtpTransport(this.settings);
   }
 
   async onModuleInit() {
@@ -128,12 +155,17 @@ export class EmailService implements OnModuleInit {
       return;
     }
 
-    // SMTP path
     if (!this.transporter) {
       this.logger.warn(
-        "SMTP not configured. On Render free tier SMTP is blocked — set EMAIL_PROVIDER=gmail_api (or resend) with HTTPS credentials. See docs/EMAIL_SETUP_GMAIL.md.",
+        "SMTP not configured. On Render free tier SMTP is blocked — set EMAIL_PROVIDER=resend (or gmail_api) with HTTPS credentials. See docs/EMAIL_SETUP_GMAIL.md.",
       );
       return;
+    }
+
+    if (s.onRender) {
+      this.logger.warn(
+        `SMTP on Render (${s.host}:${s.port}). Free instances block outbound 25/465/587 — prefer EMAIL_PROVIDER=resend with verified domain From ${s.fromEmail}.`,
+      );
     }
 
     try {
@@ -141,15 +173,16 @@ export class EmailService implements OnModuleInit {
       this.smtpReachable = true;
       this.lastVerifyError = null;
       this.logger.log(
-        `Email provider=smtp ready (${s.host}:${s.port} → ${s.from})`,
+        `Email provider=smtp ready (${s.host}:${s.port} secure=${s.secure} → ${s.from})`,
       );
     } catch (err) {
       this.smtpReachable = false;
       const msg = err instanceof Error ? err.message : String(err);
       this.lastVerifyError = this.formatDeliveryError(msg);
       this.logger.warn(
-        `SMTP verify failed (common on Render free tier — ports 587/465 blocked): ${this.lastVerifyError}. ` +
-          `Fix: set EMAIL_PROVIDER=gmail_api with OAuth refresh token, or EMAIL_PROVIDER=resend with RESEND_API_KEY, or upgrade Render to a paid instance.`,
+        `SMTP verify failed: ${this.lastVerifyError}. ` +
+          `If on Render free: set EMAIL_PROVIDER=resend + RESEND_API_KEY (verify ${s.fromEmail} domain). ` +
+          `Local Hostinger: SMTP_HOST=smtp.hostinger.com SMTP_PORT=465 SMTP_SECURE=true.`,
       );
     }
   }
@@ -182,40 +215,47 @@ export class EmailService implements OnModuleInit {
       from: s?.from ?? null,
       smtp_reachable: s?.provider === "smtp" ? this.smtpReachable : null,
       last_verify_error: this.lastVerifyError,
+      on_render: s?.onRender ?? false,
       render_note:
-        "Render free web services block outbound SMTP (25/465/587). Use EMAIL_PROVIDER=gmail_api or resend (HTTPS), or upgrade the instance.",
+        "Render free web services block outbound SMTP (25/465/587). Use EMAIL_PROVIDER=resend (HTTPS + verified domain) or gmail_api, or upgrade the instance. Hostinger SMTP needs PORT=465 + SECURE=true (or 587 + SECURE=false).",
     };
   }
 
   private formatDeliveryError(raw: string): string {
     const lower = raw.toLowerCase();
     if (
+      lower.includes("greeting never received") ||
       lower.includes("connection timeout") ||
       lower.includes("etimedout") ||
       lower.includes("econnrefused") ||
       lower.includes("connect enetunreach") ||
       lower.includes("connect ehostunreach")
     ) {
+      const host = this.settings?.host ?? "SMTP_HOST";
+      const port = this.settings?.port ?? "?";
       return (
-        `${raw} — Backend cannot reach the SMTP server. ` +
-        `On Render free tier outbound SMTP is blocked. ` +
-        `Set EMAIL_PROVIDER=gmail_api (Gmail HTTPS API) or EMAIL_PROVIDER=resend, ` +
-        `or upgrade Render to paid. Local SMTP: smtp.gmail.com:587 + App Password.`
+        `${raw} — The API host timed out opening SMTP during send (PDF + mail). ` +
+        `/health can show smtp.configured=true and still fail here. ` +
+        `Current target ${host}:${port}. ` +
+        `On Render free tier outbound SMTP is blocked — set EMAIL_PROVIDER=resend with RESEND_API_KEY ` +
+        `and RESEND_FROM matching your verified domain (e.g. inquiry@yourdomain.com), or upgrade Render. ` +
+        `Local/paid host: Hostinger use smtp.hostinger.com:465 with SMTP_SECURE=true.`
       );
     }
     if (lower.includes("ebadname") || lower.includes("enotfound")) {
       return (
-        `${raw} — SMTP_HOST must be smtp.gmail.com (not your mailbox email).`
+        `${raw} — SMTP_HOST must be a hostname like smtp.hostinger.com or smtp.gmail.com (not your mailbox email).`
       );
     }
     if (
       lower.includes("invalid login") ||
       lower.includes("badcredentials") ||
       lower.includes("username and password not accepted") ||
-      lower.includes("535")
+      lower.includes("535") ||
+      lower.includes("authentication failed")
     ) {
       return (
-        `${raw} — Gmail rejected credentials. Use App Password for SMTP, or Gmail OAuth for gmail_api.`
+        `${raw} — SMTP rejected credentials. For Hostinger use the full mailbox address as SMTP_USER and the mailbox password as SMTP_PASS. For Gmail use an App Password.`
       );
     }
     return raw;
@@ -251,22 +291,7 @@ export class EmailService implements OnModuleInit {
     };
   }
 
-  private async deliver(mail: OutboundMail): Promise<void> {
-    const s = this.settings!;
-    if (s.provider === "gmail_api") {
-      await sendViaGmailApi({
-        clientId: s.gmailClientId!,
-        clientSecret: s.gmailClientSecret!,
-        refreshToken: s.gmailRefreshToken!,
-        user: s.gmailUser!,
-        mail,
-      });
-      return;
-    }
-    if (s.provider === "resend") {
-      await sendViaResend({ apiKey: s.resendApiKey!, mail });
-      return;
-    }
+  private async sendSmtpOnce(mail: OutboundMail): Promise<void> {
     if (!this.transporter) {
       throw new Error("SMTP transporter not initialized");
     }
@@ -283,6 +308,37 @@ export class EmailService implements OnModuleInit {
         contentType: a.contentType,
       })),
     });
+  }
+
+  private async deliver(mail: OutboundMail): Promise<void> {
+    const s = this.settings!;
+    if (s.provider === "gmail_api") {
+      await sendViaGmailApi({
+        clientId: s.gmailClientId!,
+        clientSecret: s.gmailClientSecret!,
+        refreshToken: s.gmailRefreshToken!,
+        user: s.gmailUser!,
+        mail,
+      });
+      return;
+    }
+    if (s.provider === "resend") {
+      await sendViaResend({ apiKey: s.resendApiKey!, mail });
+      return;
+    }
+
+    try {
+      await this.sendSmtpOnce(mail);
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      if (!isTransientSmtpError(raw)) throw err;
+
+      this.logger.warn(
+        `SMTP transient failure (${raw.slice(0, 120)}); recreating transporter and retrying once…`,
+      );
+      this.recreateSmtpTransporter();
+      await this.sendSmtpOnce(mail);
+    }
   }
 
   async send(options: SendEmailOptions) {
@@ -312,7 +368,7 @@ export class EmailService implements OnModuleInit {
 
     if (!this.isConfigured()) {
       const msg =
-        "Email not configured. On Render free tier use EMAIL_PROVIDER=gmail_api or resend (HTTPS). See docs/EMAIL_SETUP_GMAIL.md.";
+        "Email not configured. On Render free tier use EMAIL_PROVIDER=resend or gmail_api (HTTPS). See docs/EMAIL_SETUP_GMAIL.md.";
       this.logger.warn(`${msg} (id=${log.id})`);
       await this.prisma.runWithTenant(options.tenantId, (tx) =>
         tx.emailLog.update({
@@ -349,6 +405,7 @@ export class EmailService implements OnModuleInit {
         error instanceof Error ? error.message : "Unknown email error";
       const message = this.formatDeliveryError(raw);
       this.lastVerifyError = message;
+      if (this.settings?.provider === "smtp") this.smtpReachable = false;
       this.logger.error(`Email failed: ${message}`);
 
       const failed = await this.prisma.runWithTenant(options.tenantId, (tx) =>

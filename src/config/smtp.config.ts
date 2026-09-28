@@ -7,7 +7,10 @@ function trimEnv(key: string): string | undefined {
   return t.length ? t : undefined;
 }
 
-/** Gmail App Passwords are often pasted with spaces — strip them. */
+/**
+ * Gmail App Passwords are often pasted with spaces — strip whitespace only.
+ * Do not strip other characters (Hostinger mailbox passwords may include symbols).
+ */
 function normalizeSmtpPass(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   return raw.replace(/\s+/g, "").trim() || undefined;
@@ -32,6 +35,7 @@ export type EmailProvider = "smtp" | "gmail_api" | "resend";
 /**
  * Resolve delivery provider.
  * Render free tier blocks SMTP ports 25/465/587 — use gmail_api or resend (HTTPS).
+ * Prefer HTTPS providers when their credentials are present (even if EMAIL_PROVIDER=auto).
  */
 export function resolveEmailProvider(): EmailProvider {
   const forced = (trimEnv("EMAIL_PROVIDER") ?? "auto").toLowerCase();
@@ -47,12 +51,23 @@ export function resolveEmailProvider(): EmailProvider {
 
   if (trimEnv("RESEND_API_KEY")) return "resend";
 
+  // On Render, defaulting to SMTP almost always fails on free tier.
+  // Prefer resend/gmail if partially configured was already handled above.
   return "smtp";
+}
+
+function isHostingerHost(host: string): boolean {
+  return (
+    /(^|\.)hostinger\.com$/i.test(host) ||
+    /(^|\.)titan\.email$/i.test(host) ||
+    /^mail\./i.test(host)
+  );
 }
 
 /**
  * Normalize SMTP_* for Nodemailer. Rejects common misconfig where
  * SMTP_HOST is set to the mailbox address (causes queryA EBADNAME).
+ * Fixes Hostinger 465 without SSL and Gmail port/secure mismatches.
  */
 export function resolveSmtpSettings() {
   let host = trimEnv("SMTP_HOST") ?? "localhost";
@@ -64,15 +79,17 @@ export function resolveSmtpSettings() {
 
   if (host.includes("@")) {
     console.warn(
-      `[smtp] SMTP_HOST looks like an email (${host}). Using smtp.gmail.com instead.`,
+      `[smtp] SMTP_HOST looks like an email (${host}). Using smtp.hostinger.com instead.`,
     );
-    host = "smtp.gmail.com";
+    host = "smtp.hostinger.com";
   }
 
   const isGmail =
     /(^|\.)gmail\.com$/i.test(host) ||
     /(^|\.)googlemail\.com$/i.test(host) ||
     host === "smtp.gmail.com";
+
+  const isHostinger = isHostingerHost(host);
 
   if (isGmail) {
     host = "smtp.gmail.com";
@@ -89,6 +106,20 @@ export function resolveSmtpSettings() {
     secure = false;
   }
 
+  // Port/secure consistency (any provider)
+  if (port === 465 && !secure) {
+    console.warn(
+      `[smtp] SMTP_PORT=465 requires SSL. Forcing SMTP_SECURE=true (host=${host}).`,
+    );
+    secure = true;
+  }
+  if (port === 587 && secure) {
+    console.warn(
+      `[smtp] SMTP_PORT=587 uses STARTTLS. Forcing SMTP_SECURE=false (host=${host}).`,
+    );
+    secure = false;
+  }
+
   if (isGmail) {
     if (secure && port === 587) {
       port = 465;
@@ -102,20 +133,30 @@ export function resolveSmtpSettings() {
     }
   }
 
+  if (isHostinger && port !== 465 && port !== 587) {
+    console.warn(
+      `[smtp] Unusual Hostinger port ${port}; prefer 465 (SSL) or 587 (STARTTLS).`,
+    );
+  }
+
+  // Longer defaults: PDF+mail under load often exceeds 20s greeting on slow SMTP.
   const connectionTimeout = parseInt(
-    trimEnv("SMTP_CONNECTION_TIMEOUT_MS") ?? "20000",
+    trimEnv("SMTP_CONNECTION_TIMEOUT_MS") ?? "45000",
     10,
   );
   const greetingTimeout = parseInt(
-    trimEnv("SMTP_GREETING_TIMEOUT_MS") ?? "20000",
+    trimEnv("SMTP_GREETING_TIMEOUT_MS") ?? "45000",
     10,
   );
   const socketTimeout = parseInt(
-    trimEnv("SMTP_SOCKET_TIMEOUT_MS") ?? "60000",
+    trimEnv("SMTP_SOCKET_TIMEOUT_MS") ?? "90000",
     10,
   );
 
   const provider = resolveEmailProvider();
+  const onRender = Boolean(
+    trimEnv("RENDER") || trimEnv("RENDER_EXTERNAL_URL") || trimEnv("RENDER_SERVICE_ID"),
+  );
 
   return {
     provider,
@@ -129,22 +170,22 @@ export function resolveSmtpSettings() {
     fromEmail,
     vendorNotifyEmail: trimEnv("VENDOR_NOTIFY_EMAIL"),
     isGmail,
+    isHostinger,
+    onRender,
     connectionTimeout: Number.isFinite(connectionTimeout)
       ? connectionTimeout
-      : 20000,
-    greetingTimeout: Number.isFinite(greetingTimeout) ? greetingTimeout : 20000,
-    socketTimeout: Number.isFinite(socketTimeout) ? socketTimeout : 60000,
+      : 45000,
+    greetingTimeout: Number.isFinite(greetingTimeout) ? greetingTimeout : 45000,
+    socketTimeout: Number.isFinite(socketTimeout) ? socketTimeout : 90000,
     family: 4 as const,
     gmailClientId: trimEnv("GMAIL_CLIENT_ID"),
     gmailClientSecret: trimEnv("GMAIL_CLIENT_SECRET"),
     gmailRefreshToken: trimEnv("GMAIL_REFRESH_TOKEN"),
-    /** Mailbox used with Gmail API (defaults to SMTP_USER / FROM). */
     gmailUser:
       trimEnv("GMAIL_USER") ??
       trimEnv("SMTP_USER") ??
       trimEnv("SMTP_FROM_EMAIL"),
     resendApiKey: trimEnv("RESEND_API_KEY"),
-    /** Resend From; defaults to SMTP_FROM. Must be on a verified Resend domain (or onboarding@resend.dev). */
     resendFrom: trimEnv("RESEND_FROM") ?? buildFromAddress(fromEmail, fromName),
   };
 }
