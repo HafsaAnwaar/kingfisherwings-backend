@@ -571,6 +571,7 @@ These are **not implemented**. Items marked **LOCKED** come from the 28-week pla
 | Transport requests | **SHIPPED** | New `TransportRequest` aggregate shared across **all** job types. Status: `CREATED → ASSIGNED → PICKUP_CONFIRMED → IN_TRANSIT → DELIVERED` (or `CANCELLED`). Numbered via `DocumentNumberType.TRANSPORT_REQUEST`. |
 | Courier vendors | **SHIPPED** | New `CourierVendor` master (FedEx/DHL/UPS/local). Not a `PartyType`. |
 | Courier barcodes | **SHIPPED** | Reuse Week 5 `BARCODE_LABEL` PDF queue. Booking confirm generates `tracking_number` + `barcode_value`. `CourierDeliveryCheckpoint` for scans. |
+| Universal job barcodes | **SHIPPED** | `Job.barcode_value` = `JB` + CODE128-safe job number (opaque vs public refs). Staff/Tenant Admin only: `GET /jobs/by-barcode/:code` + `POST /jobs/scan` (JWT + `jobs.view` / `jobs.update` + tenant scope) return full job card — id, ports/airports, origin/destination, weight, CBM, pieces, parties, mode refs, recent scans. Public `/track` does **not** resolve by barcode; printed label alone does not expose ERP data. |
 | Cross-border / courier docs | **SHIPPED** | New `DocumentType`: `CROSS_BORDER_DECLARATION`, `CUSTOMS_TRANSIT`, `DELIVERY_NOTE`, `COURIER_REPORT`. |
 | Permissions | **SHIPPED** | Land/courier job ops reuse `jobs.view` / `jobs.update`. Tenant-wide TR list uses `transport.view` / `transport.manage`. |
 | Out of scope Week 19 | **LOCKED** | GPS/telematics; live carrier APIs (FedEx/DHL); UI; portal land/courier views. |

@@ -284,6 +284,10 @@ export class JobsService {
     });
   }
 
+  /**
+   * Staff/tenant-only barcode resolve. Printed CODE128 is an opaque id —
+   * full job details are returned only after JWT + tenant + jobs.view.
+   */
   async findByBarcode(tenantId: string, code: string, permissions?: string[]) {
     const barcode = code.trim();
     if (!barcode) throw new NotFoundException("Job not found for barcode.");
@@ -311,6 +315,8 @@ export class JobsService {
           road_freight_details: true,
           courier_details: true,
           nvocc_details: true,
+          warehouse_booking_form: true,
+          customs_clearance_details: true,
         },
       });
       if (!job) throw new NotFoundException("Job not found for barcode.");
@@ -320,64 +326,267 @@ export class JobsService {
         );
       }
 
-      const [shipper, consignee, originPort, destPort] = await Promise.all([
+      const partySelect = {
+        id: true,
+        name: true,
+        code: true,
+      } as const;
+      const portSelect = {
+        id: true,
+        name: true,
+        un_locode: true,
+        city: true,
+        country_code: true,
+      } as const;
+
+      const airOriginId = job.air_details?.origin_airport_id ?? null;
+      const airDestId = job.air_details?.dest_airport_id ?? null;
+
+      const [
+        shipper,
+        consignee,
+        billingParty,
+        agent,
+        originPort,
+        destPort,
+        originAirport,
+        destAirport,
+        containerType,
+        recentScans,
+      ] = await Promise.all([
         job.shipper_id
           ? tx.party.findFirst({
               where: { id: job.shipper_id, tenant_id: tenantId },
-              select: { id: true, name: true, code: true },
+              select: partySelect,
             })
           : null,
         job.consignee_id
           ? tx.party.findFirst({
               where: { id: job.consignee_id, tenant_id: tenantId },
-              select: { id: true, name: true, code: true },
+              select: partySelect,
+            })
+          : null,
+        job.billing_party_id
+          ? tx.party.findFirst({
+              where: { id: job.billing_party_id, tenant_id: tenantId },
+              select: partySelect,
+            })
+          : null,
+        job.agent_id
+          ? tx.party.findFirst({
+              where: { id: job.agent_id, tenant_id: tenantId },
+              select: partySelect,
             })
           : null,
         job.origin_port_id
           ? tx.port.findFirst({
               where: { id: job.origin_port_id, tenant_id: tenantId },
-              select: { id: true, name: true },
+              select: portSelect,
             })
           : null,
         job.dest_port_id
           ? tx.port.findFirst({
               where: { id: job.dest_port_id, tenant_id: tenantId },
-              select: { id: true, name: true },
+              select: portSelect,
             })
           : null,
+        airOriginId
+          ? tx.airport.findFirst({
+              where: { id: airOriginId, tenant_id: tenantId },
+              select: {
+                id: true,
+                name: true,
+                iata_code: true,
+                country_code: true,
+              },
+            })
+          : null,
+        airDestId
+          ? tx.airport.findFirst({
+              where: { id: airDestId, tenant_id: tenantId },
+              select: {
+                id: true,
+                name: true,
+                iata_code: true,
+                country_code: true,
+              },
+            })
+          : null,
+        job.container_type_id
+          ? tx.containerType.findFirst({
+              where: { id: job.container_type_id, tenant_id: tenantId },
+              select: { id: true, code: true, name: true },
+            })
+          : null,
+        tx.jobScanEvent.findMany({
+          where: { tenant_id: tenantId, job_id: job.id },
+          orderBy: { scanned_at: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            barcode_value: true,
+            location: true,
+            notes: true,
+            scanned_at: true,
+            scanned_by: true,
+          },
+        }),
       ]);
 
-      const origin =
+      const originLabel =
         originPort?.name ??
+        originAirport?.name ??
         job.land_details?.origin_city_country ??
         job.road_freight_details?.origin_city_country ??
         job.courier_details?.pickup_address ??
+        job.origin_door_address ??
         null;
-      const destination =
+      const destinationLabel =
         destPort?.name ??
+        destAirport?.name ??
         job.land_details?.destination_city_country ??
         job.road_freight_details?.destination_city_country ??
         job.courier_details?.delivery_address ??
+        job.dest_door_address ??
         null;
 
+      const dec = (v: unknown) =>
+        v == null ? null : typeof v === "object" && v !== null && "toString" in v
+          ? String(v)
+          : v;
+
       return {
+        // Opaque barcode → full job card (staff ERP only)
+        access: "tenant_staff_only" as const,
         id: job.id,
         job_number: job.job_number,
         barcode_value: job.barcode_value,
         job_type: job.job_type,
         status: job.status,
         service_scope: job.service_scope,
+        cargo_category: job.cargo_category,
+        company_id: job.company_id,
+        branch_id: job.branch_id,
+        department_id: job.department_id,
+        parent_job_id: job.parent_job_id,
+        // Cargo measures
         pieces: job.pieces,
-        gross_weight: job.gross_weight,
-        chargeable_weight: job.chargeable_weight,
-        volume_cbm: job.volume_cbm,
+        gross_weight: dec(job.gross_weight),
+        chargeable_weight: dec(job.chargeable_weight),
+        volume_cbm: dec(job.volume_cbm),
         commodity: job.commodity,
-        origin,
-        destination,
+        hs_code: job.hs_code,
+        is_dg: job.is_dg,
+        dg_class: job.dg_class,
+        incoterms: job.incoterms,
+        container_count: job.container_count,
+        container_type: containerType,
+        // Route
+        origin: originLabel,
+        destination: destinationLabel,
         origin_port: originPort,
         dest_port: destPort,
+        origin_airport: originAirport,
+        dest_airport: destAirport,
+        origin_door_address: job.origin_door_address,
+        dest_door_address: job.dest_door_address,
+        etd: job.etd,
+        eta: job.eta,
+        // Parties
         shipper,
         consignee,
+        billing_party: billingParty,
+        agent,
+        salesperson_id: job.salesperson_id,
+        ops_user_id: job.ops_user_id,
+        // Mode-specific snapshots
+        mode_details: {
+          air: job.air_details
+            ? {
+                hawb_number: job.air_details.hawb_number,
+                mawb_number: job.air_details.mawb_number,
+                flight_number: job.air_details.flight_number,
+                flight_date: job.air_details.flight_date,
+              }
+            : null,
+          sea_fcl: job.sea_fcl_details
+            ? {
+                hbl_number: job.sea_fcl_details.hbl_number,
+                mbl_number: job.sea_fcl_details.mbl_number,
+                booking_number: job.sea_fcl_details.booking_number,
+                voyage_number: job.sea_fcl_details.voyage_number,
+                place_of_receipt: job.sea_fcl_details.place_of_receipt,
+                place_of_delivery: job.sea_fcl_details.place_of_delivery,
+                etd: job.sea_fcl_details.etd,
+                eta: job.sea_fcl_details.eta,
+              }
+            : null,
+          sea_lcl: job.sea_lcl_details
+            ? {
+                hbl_number: job.sea_lcl_details.hbl_number,
+                mbl_number: job.sea_lcl_details.mbl_number,
+                booking_number: job.sea_lcl_details.booking_number,
+                voyage_number: job.sea_lcl_details.voyage_number,
+                place_of_receipt: job.sea_lcl_details.place_of_receipt,
+                place_of_delivery: job.sea_lcl_details.place_of_delivery,
+                etd: job.sea_lcl_details.etd,
+                eta: job.sea_lcl_details.eta,
+                consolidation_number:
+                  job.sea_lcl_details.consolidation_number,
+              }
+            : null,
+          land: job.land_details
+            ? {
+                vehicle_number: job.land_details.vehicle_number,
+                vehicle_type: job.land_details.vehicle_type,
+                driver_name: job.land_details.driver_name,
+                origin_city_country: job.land_details.origin_city_country,
+                destination_city_country:
+                  job.land_details.destination_city_country,
+                etd: job.land_details.etd,
+                eta: job.land_details.eta,
+              }
+            : null,
+          road_freight: job.road_freight_details
+            ? {
+                vehicle_number: job.road_freight_details.vehicle_number,
+                origin_city_country:
+                  job.road_freight_details.origin_city_country,
+                destination_city_country:
+                  job.road_freight_details.destination_city_country,
+              }
+            : null,
+          courier: job.courier_details
+            ? {
+                tracking_number: job.courier_details.tracking_number,
+                barcode_value: job.courier_details.barcode_value,
+                service_type: job.courier_details.service_type,
+                pickup_address: job.courier_details.pickup_address,
+                delivery_address: job.courier_details.delivery_address,
+              }
+            : null,
+          warehouse: job.warehouse_booking_form
+            ? {
+                warehouse_id: job.warehouse_booking_form.warehouse_id,
+                warehouse_name: job.warehouse_booking_form.warehouse_name,
+                bonded: job.warehouse_booking_form.bonded,
+                expected_inbound_at:
+                  job.warehouse_booking_form.expected_inbound_at,
+                expected_outbound_at:
+                  job.warehouse_booking_form.expected_outbound_at,
+              }
+            : null,
+          customs_clearance: job.customs_clearance_details
+            ? {
+                direction: job.customs_clearance_details.direction,
+                cc_status: job.customs_clearance_details.cc_status,
+                border_or_port: job.customs_clearance_details.border_or_port,
+                entry_number: job.customs_clearance_details.entry_number,
+                shipping_bill_number:
+                  job.customs_clearance_details.shipping_bill_number,
+              }
+            : null,
+        },
         references: {
           hawb: job.air_details?.hawb_number ?? null,
           mawb: job.air_details?.mawb_number ?? null,
@@ -389,12 +598,14 @@ export class JobsService {
             job.sea_fcl_details?.mbl_number ??
             job.sea_lcl_details?.mbl_number ??
             null,
+          booking_number: job.sea_fcl_details?.booking_number ?? null,
           tracking_number: job.courier_details?.tracking_number ?? null,
           vehicle_number:
             job.land_details?.vehicle_number ??
             job.road_freight_details?.vehicle_number ??
             null,
         },
+        recent_scans: recentScans,
       };
     });
   }
@@ -410,7 +621,7 @@ export class JobsService {
       dto.barcode,
       permissions,
     );
-    await this.prisma.runWithTenant(tenantId, (tx) =>
+    const scanEvent = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobScanEvent.create({
         data: {
           tenant_id: tenantId,
@@ -420,9 +631,20 @@ export class JobsService {
           notes: dto.notes,
           scanned_by: actorId,
         },
+        select: {
+          id: true,
+          barcode_value: true,
+          location: true,
+          notes: true,
+          scanned_at: true,
+          scanned_by: true,
+        },
       }),
     );
-    return summary;
+    return {
+      ...summary,
+      scan_event: scanEvent,
+    };
   }
 
   async findAll(
