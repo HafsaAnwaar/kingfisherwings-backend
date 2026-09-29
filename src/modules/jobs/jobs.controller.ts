@@ -222,7 +222,10 @@ export class JobsController {
   @Get("by-barcode/:code")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
-    summary: "Lookup job by barcode (any job type) — returns full job summary",
+    summary:
+      "Staff barcode lookup — full job card (ports, weight, CBM, parties)",
+    description:
+      "Tenant-authenticated only. Printed CODE128 encodes an opaque id; job details are never returned without staff JWT + tenant scope. Public /track does not resolve by barcode.",
   })
   findByBarcode(
     @CurrentUser("tenantId") tenantId: string,
@@ -235,7 +238,10 @@ export class JobsController {
   @Post("scan")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Scan barcode, record scan event, return job summary",
+    summary:
+      "Staff in-system barcode scan — record event + return full job details",
+    description:
+      "For Tenant Admin / staff scanners inside the ERP. Requires jobs.update. Returns id, ports, origin/destination, weight, CBM, pieces, parties, mode refs, and the new scan_event. Outsiders scanning the printed label only see the CODE128 string — not this payload.",
   })
   scanBarcode(
     @CurrentUser("tenantId") tenantId: string,

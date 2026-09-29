@@ -638,7 +638,9 @@ POST  /transport-requests/:id/record-cost
 POST  /transport-requests/:id/documents/transport-request
 
 GET/POST/PATCH/DELETE /masters/courier-vendors
-GET /track?ref=vehicle|tracking|barcode
+GET /track?ref=vehicle|tracking|job|AWB|BL   (public — NOT by staff barcode)
+GET /jobs/by-barcode/:code                  (staff JWT — full job card)
+POST /jobs/scan                             (staff JWT — scan event + full job card)
 ```
 
 Existing tenants: `POST /tenants/:id/sync-permissions` for `transport.view` / `transport.manage`.

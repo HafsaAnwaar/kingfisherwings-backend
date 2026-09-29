@@ -73,12 +73,8 @@ export class TrackService {
                 tracking_number: { equals: q, mode: "insensitive" },
               },
             },
-            {
-              courier_details: {
-                barcode_value: { equals: q, mode: "insensitive" },
-              },
-            },
-            { barcode_value: { equals: q, mode: "insensitive" } },
+            // Intentionally NOT matching Job.barcode_value / courier barcode —
+            // those are staff-only (GET /jobs/by-barcode, POST /jobs/scan).
             {
               road_freight_details: {
                 vehicle_number: { equals: q, mode: "insensitive" },
@@ -129,7 +125,6 @@ export class TrackService {
           courier_details: {
             select: {
               tracking_number: true,
-              barcode_value: true,
               service_type: true,
               pickup_address: true,
               delivery_address: true,
@@ -318,7 +313,6 @@ export class TrackService {
             vehicle_number: job.land_details?.vehicle_number ?? null,
             driver_name: job.land_details?.driver_name ?? null,
             tracking_number: job.courier_details?.tracking_number ?? null,
-            barcode_value: job.courier_details?.barcode_value ?? null,
             courier_service_type: job.courier_details?.service_type ?? null,
           },
           milestones: job.milestones.map((m) => ({
