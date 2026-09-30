@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "crypto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import * as argon2 from "argon2";
 import Stripe from "stripe";
+import { StripeSdk } from "../payments/stripe-gateway.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -122,7 +123,9 @@ export class StripeBillingService {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) return null;
     if (!this.stripeClient) {
-      this.stripeClient = new Stripe(key);
+      // StripeSdk: `new Stripe()` via default import is undefined at runtime
+      // without esModuleInterop (stripe@22 CJS export).
+      this.stripeClient = new StripeSdk(key);
     }
     return this.stripeClient;
   }
@@ -139,7 +142,12 @@ export class StripeBillingService {
     };
   }
 
-  async createCheckoutSession() {
+  /**
+   * Legacy single-price subscription checkout. Tags the tenant so the
+   * Stripe webhook (PaymentsModule) can sync the subscription back to it.
+   * Prefer POST /tenant/subscription/checkout (plan-aware).
+   */
+  async createCheckoutSession(tenantId?: string) {
     const stripe = this.getStripe();
     if (!stripe) {
       return {
@@ -161,6 +169,21 @@ export class StripeBillingService {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
+      ...(tenantId
+        ? {
+            client_reference_id: tenantId,
+            metadata: {
+              erp_scope: "platform_subscription",
+              tenant_id: tenantId,
+            },
+            subscription_data: {
+              metadata: {
+                erp_scope: "platform_subscription",
+                tenant_id: tenantId,
+              },
+            },
+          }
+        : {}),
       success_url: `${process.env.APP_URL ?? "http://localhost:3000"}/billing/success`,
       cancel_url: `${process.env.APP_URL ?? "http://localhost:3000"}/billing/cancel`,
     });

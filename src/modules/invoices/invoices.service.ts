@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import {
@@ -20,6 +21,10 @@ import { EmailService } from "../../shared/email/email.service";
 import { GlAutoPostService } from "../gl/gl-auto-post.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { WebhookDispatcherService } from "../public-api/webhook-dispatcher.service";
+import { PaymentLinksService } from "../payments/payment-links.service";
+import { PaymentNotificationsService } from "../payments/payment-notifications.service";
+import { PaymentGatewaySettingsService } from "../payments/payment-gateway-settings.service";
+import { portalFrontendUrl } from "../payments/utils/frontend-url.util";
 import {
   lineTotal,
   MasterLabelService,
@@ -40,6 +45,8 @@ const EDITABLE_STATUSES: InvoiceStatus[] = ["DRAFT"];
 
 @Injectable()
 export class InvoicesService {
+  private readonly logger = new Logger(InvoicesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
@@ -49,6 +56,9 @@ export class InvoicesService {
     private readonly glAutoPost: GlAutoPostService,
     private readonly notifications: NotificationEmitterService,
     private readonly webhooks: WebhookDispatcherService,
+    private readonly paymentLinks: PaymentLinksService,
+    private readonly paymentMailer: PaymentNotificationsService,
+    private readonly paymentGateway: PaymentGatewaySettingsService,
     private readonly masterLabels: MasterLabelService,
   ) {}
 
@@ -1182,6 +1192,27 @@ export class InvoicesService {
     const isPurchase = invoice.invoice_type === "PURCHASE_INVOICE";
     const label = isPurchase ? "Purchase invoice" : "Invoice";
 
+    // Stripe "Pay Now" link (customer invoices / debit notes with a balance).
+    let payNowHtml = "";
+    if (
+      dto.include_payment_link !== false &&
+      (invoice.invoice_type === "CUSTOMER_INVOICE" || invoice.invoice_type === "DEBIT_NOTE") &&
+      Number(invoice.balance_due) > 0.0001 &&
+      (await this.paymentGateway.isOnlinePaymentEnabled(tenantId))
+    ) {
+      try {
+        const link = await this.paymentLinks.createForInvoice(tenantId, id, { actorId });
+        payNowHtml = this.paymentMailer.payNowHtml(
+          link.url,
+          `${portalFrontendUrl()}/portal/invoices/${id}`,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Pay Now link skipped for ${invoice.invoice_number}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
     const emailLog = await this.emailService.send({
       tenantId,
       eventType: "INVOICE_SENT",
@@ -1190,6 +1221,7 @@ export class InvoicesService {
       body:
         (dto.message ??
           `<p>Please find ${label.toLowerCase()} <strong>${invoice.invoice_number}</strong> attached.</p>`) +
+        payNowHtml +
         (pdfWarning
           ? `<p><em>Note: PDF attachment unavailable (${pdfWarning})</em></p>`
           : ""),
@@ -1219,6 +1251,7 @@ export class InvoicesService {
         status: emailLog.status,
         pdf_attached: Boolean(pdfBuffer),
         pdf_warning: pdfWarning,
+        payment_link_included: Boolean(payNowHtml),
       }));
   }
 

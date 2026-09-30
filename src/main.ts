@@ -82,7 +82,9 @@ function resolvePublicApiUrl(opts: {
 
 async function bootstrap() {
   initSentry();
-  const app = await NestFactory.create(AppModule);
+  // rawBody: keeps the exact request bytes on req.rawBody so Stripe webhook
+  // signatures can be verified (JSON parsing is otherwise unchanged).
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const config = app.get(ConfigService);
 

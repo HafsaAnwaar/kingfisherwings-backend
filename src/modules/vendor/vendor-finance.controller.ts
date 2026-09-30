@@ -34,6 +34,7 @@ import { VendorCcpService } from "./vendor-ccp.service";
 import { VendorFinanceService } from "./vendor-finance.service";
 import { VendorDocumentShareService } from "./vendor-document-share.service";
 import { DocumentShareEmailDto } from "../../shared/email/dto/document-share-email.dto";
+import { InvoiceOnlinePaymentsService } from "../payments/invoice-online-payments.service";
 
 const PDF_MIME = new Set(["application/pdf"]);
 
@@ -47,6 +48,7 @@ export class VendorInvoicesController {
     private readonly finance: VendorFinanceService,
     private readonly ccp: VendorCcpService,
     private readonly share: VendorDocumentShareService,
+    private readonly paymentStatus: InvoiceOnlinePaymentsService,
   ) {}
 
   @Get("open-items")
@@ -111,6 +113,43 @@ export class VendorInvoicesController {
     @Query() query: VendorInvoiceQueryDto,
   ) {
     return this.finance.listInvoices(user, query);
+  }
+
+  @Get(":id/payment-status")
+  @ApiOperation({
+    summary: "Payment status of my purchase invoice",
+    description:
+      "Balance, posted payments (remittances) and payment proofs awaiting review.",
+  })
+  async invoicePaymentStatus(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    await this.finance.getInvoice(user, id);
+    const status = await this.paymentStatus.invoicePaymentStatus(
+      user.tenantId,
+      id,
+      user.partyId,
+    );
+    // Vendors are payees: no online "pay" action or checkout attempts here.
+    const { invoice_id, invoice_number, invoice_status, currency_code } =
+      status.data;
+    return {
+      success: true,
+      data: {
+        invoice_id,
+        invoice_number,
+        invoice_status,
+        currency_code,
+        total_amount: status.data.total_amount,
+        amount_paid: status.data.amount_paid,
+        balance_due: status.data.balance_due,
+        due_date: status.data.due_date,
+        payment_status: status.data.payment_status,
+        pending_proofs: status.data.pending_proofs,
+        payments: status.data.payments,
+      },
+    };
   }
 
   @Get(":id")

@@ -1,4 +1,6 @@
 import { Module, forwardRef } from "@nestjs/common";
+import { PaymentsModule } from "../payments/payments.module";
+import { PortalOnlinePaymentsController } from "./portal-online-payments.controller";
 import { JwtModule } from "@nestjs/jwt";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { EmailModule } from "../../shared/email/email.module";
@@ -69,6 +71,7 @@ import { JobsModule } from "../jobs/jobs.module";
     forwardRef(() => QuotationsModule),
     MastersModule,
     InvoicesModule,
+    PaymentsModule,
     GlModule,
     NotificationsModule,
     NvoccModule,
@@ -76,6 +79,7 @@ import { JobsModule } from "../jobs/jobs.module";
     JwtModule.register({}),
   ],
   controllers: [
+    PortalOnlinePaymentsController,
     PortalLookupsController,
     PortalAuthController,
     PartyPortalUsersController,

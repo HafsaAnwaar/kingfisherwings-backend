@@ -19,6 +19,10 @@ import { NOTIFICATIONS_PERMISSION_CONSTANTS } from "../../modules/notifications/
 import { DOCUMENTATION_PERMISSION_CONSTANTS } from "../../modules/documentation/constants/documentation-permission.constants";
 import { REPORTS_PERMISSION_CONSTANTS } from "../../modules/reports/constants/reports-permission.constants";
 import { QUOTE_REQUESTS_PERMISSION_CONSTANTS } from "../../modules/integrations/quote-requests/constants/quote-requests-permission.constants";
+import {
+  PAYMENTS_PERMISSION_CONSTANTS,
+  PLATFORM_BILLING_PERMISSION_CONSTANTS,
+} from "../../modules/payments/constants/payments-permission.constants";
 import { MATRIX_PERMISSION_CATALOG } from "./module-permission-tree";
 
 export interface PermissionCatalogEntry {
@@ -88,6 +92,18 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     action,
     description: `${GL_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
+  ...Object.values(PAYMENTS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: PAYMENTS_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${PAYMENTS_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(PLATFORM_BILLING_PERMISSION_CONSTANTS.ACTIONS).map(
+    (action) => ({
+      module: PLATFORM_BILLING_PERMISSION_CONSTANTS.MODULE,
+      action,
+      description: `${PLATFORM_BILLING_PERMISSION_CONSTANTS.MODULE}.${action}`,
+    }),
+  ),
   ...Object.values(PORTAL_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
     module: PORTAL_PERMISSION_CONSTANTS.MODULE,
     action,

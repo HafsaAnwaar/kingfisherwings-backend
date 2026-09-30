@@ -3,6 +3,7 @@ import { CRM_PERMISSIONS } from "../../modules/crm/constants/crm-permission.cons
 import { PARTIES_PERMISSIONS } from "../../modules/parties/constants/parties-permission.constants";
 import { INVOICES_PERMISSIONS } from "../../modules/invoices/constants/invoices-permission.constants";
 import { GL_PERMISSIONS } from "../../modules/gl/constants/gl-permission.constants";
+import { PAYMENTS_PERMISSIONS } from "../../modules/payments/constants/payments-permission.constants";
 import { WMS_PERMISSIONS } from "../../modules/wms/constants/wms-permission.constants";
 import { HR_PERMISSIONS } from "../../modules/hr/constants/hr-permission.constants";
 import { JOBS_PERMISSIONS } from "../../modules/jobs/constants/jobs-permission.constants";
@@ -104,7 +105,7 @@ export const MATRIX_TO_CLASSIC_BRIDGE: Record<string, BridgeEntry> = Object.from
   node(
     "finance",
     "payments",
-    [GL_PERMISSIONS.VIEW, GL_PERMISSIONS.VIEW_AGING],
+    [GL_PERMISSIONS.VIEW, GL_PERMISSIONS.VIEW_AGING, PAYMENTS_PERMISSIONS.VIEW],
     [
       GL_PERMISSIONS.VIEW,
       GL_PERMISSIONS.VIEW_AGING,
@@ -113,6 +114,9 @@ export const MATRIX_TO_CLASSIC_BRIDGE: Record<string, BridgeEntry> = Object.from
       GL_PERMISSIONS.CREATE,
       GL_PERMISSIONS.UPDATE,
       GL_PERMISSIONS.POST,
+      PAYMENTS_PERMISSIONS.VIEW,
+      PAYMENTS_PERMISSIONS.COLLECT,
+      PAYMENTS_PERMISSIONS.REFUND,
     ],
   ),
   node(
