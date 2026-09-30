@@ -152,6 +152,42 @@ export class StripeGatewayService {
     );
   }
 
+  /** API version this SDK speaks; webhook endpoints should match it. */
+  sdkApiVersion(): string | null {
+    const v = (StripeSdk as unknown as { API_VERSION?: string }).API_VERSION;
+    return v ?? null;
+  }
+
+  /**
+   * Processing fee for a succeeded PaymentIntent, from its charge's
+   * balance transaction. `null` while Stripe has not settled it yet.
+   */
+  async paymentIntentFee(
+    client: Stripe,
+    paymentIntentId: string,
+  ): Promise<{
+    chargeId: string | null;
+    fee: number;
+    currency: string;
+  } | null> {
+    const pi = await this.call("paymentIntents.retrieve", () =>
+      client.paymentIntents.retrieve(paymentIntentId, {
+        expand: ["latest_charge.balance_transaction"],
+      }),
+    );
+    const charge =
+      pi.latest_charge && typeof pi.latest_charge !== "string"
+        ? pi.latest_charge
+        : null;
+    const bt =
+      charge?.balance_transaction &&
+      typeof charge.balance_transaction !== "string"
+        ? charge.balance_transaction
+        : null;
+    if (!bt) return null;
+    return { chargeId: charge?.id ?? null, fee: bt.fee, currency: bt.currency };
+  }
+
   async listRefundsForPaymentIntent(client: Stripe, paymentIntentId: string) {
     const page = await this.call("refunds.list", () =>
       client.refunds.list({ payment_intent: paymentIntentId, limit: 100 }),

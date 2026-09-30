@@ -10,6 +10,7 @@ import { PaymentAuditService } from "./payment-audit.service";
 import { PaymentGatewaySettingsService } from "./payment-gateway-settings.service";
 import { PaymentLinksService } from "./payment-links.service";
 import { PaymentNotificationsService } from "./payment-notifications.service";
+import { PaymentReconciliationService } from "./payment-reconciliation.service";
 import {
   InvoiceOnlinePaymentsController,
   OnlinePaymentsController,
@@ -60,6 +61,7 @@ import { StripeWebhookService } from "./stripe-webhook.service";
     PlatformBillingService,
     PlatformSubscriptionsService,
     StripeWebhookService,
+    PaymentReconciliationService,
   ],
   exports: [
     InvoiceOnlinePaymentsService,

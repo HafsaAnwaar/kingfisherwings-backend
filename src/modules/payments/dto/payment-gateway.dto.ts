@@ -16,7 +16,8 @@ export class UpdatePaymentGatewaySettingsDto {
 
   @ApiPropertyOptional({
     description:
-      "Collect through the platform's Stripe account instead of the company's own.",
+      "Collect through the platform's Stripe account instead of the company's own. " +
+      "Super Admin only (PUT /platform/tenants/:tenantId/payment-gateway); tenants get 403.",
   })
   @IsOptional()
   @IsBoolean()
@@ -60,6 +61,15 @@ export class UpdatePaymentGatewaySettingsDto {
   @IsOptional()
   @IsUUID()
   bank_account_id?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Expense GL account for Stripe processing fees. When set, each Stripe receipt gets a journal " +
+      "(Dr fees / Cr bank) so the bank account nets to what Stripe pays out.",
+  })
+  @IsOptional()
+  @IsUUID()
+  fee_gl_account_id?: string;
 
   @ApiPropertyOptional({ maxLength: 22 })
   @IsOptional()

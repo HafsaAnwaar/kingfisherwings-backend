@@ -57,11 +57,13 @@ function setup() {
     applyCheckoutSession: jest.fn().mockResolvedValue({ handled: true }),
     applyPaymentIntent: jest.fn().mockResolvedValue({ handled: true }),
     applyStripeRefund: jest.fn(),
+    applyDispute: jest.fn().mockResolvedValue({ id: "t" }),
   };
   const platform = {
     applyCheckoutSession: jest.fn().mockResolvedValue({ handled: true }),
     applyPaymentIntent: jest.fn(),
     applyStripeRefund: jest.fn(),
+    applyDispute: jest.fn().mockResolvedValue(null),
   };
   const subs = { syncSubscription: jest.fn() };
   const audit = { log: jest.fn() };
@@ -215,5 +217,40 @@ describe("StripeWebhookService", () => {
     expect(
       prisma.stripeWebhookEvent.update.mock.calls.at(-1)[0].data.status,
     ).toBe("IGNORED");
+  });
+
+  it("routes chargebacks on a tenant endpoint to that tenant only", async () => {
+    const { service, settings, invoicePayments } = setup();
+    settings.resolveWebhookByToken.mockResolvedValue({
+      gateway: { tenant_id: TENANT_A },
+      accountRef: "tenant:gw-a",
+      webhookSecret: "whsec_d",
+      client: {},
+    });
+    const { raw, sig } = signedBody(
+      {
+        id: "evt_d",
+        object: "event",
+        type: "charge.dispute.created",
+        livemode: false,
+        data: {
+          object: {
+            id: "du_1",
+            object: "dispute",
+            payment_intent: "pi_1",
+            status: "needs_response",
+            metadata: {},
+          },
+        },
+      },
+      "whsec_d",
+    );
+    const res = await service.handle(raw, sig, "d".repeat(48));
+    expect(res.handled).toBe(true);
+    expect(invoicePayments.applyDispute).toHaveBeenCalledWith(
+      TENANT_A,
+      "tenant:gw-a",
+      expect.objectContaining({ id: "du_1" }),
+    );
   });
 });

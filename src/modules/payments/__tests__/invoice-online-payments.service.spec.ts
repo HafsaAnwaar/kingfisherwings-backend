@@ -85,6 +85,10 @@ function setup() {
   };
   const mailer = { sendReceipt: jest.fn() };
   const audit = { log: jest.fn() };
+  const vouchers = {
+    create: jest.fn().mockResolvedValue({ id: "v-fee", status: "DRAFT" }),
+    post: jest.fn().mockResolvedValue({ id: "v-fee" }),
+  };
   const service = new InvoiceOnlinePaymentsService(
     prisma as never,
     stripe as never,
@@ -94,8 +98,19 @@ function setup() {
     notifications as never,
     mailer as never,
     audit as never,
+    vouchers as never,
   );
-  return { service, tx, prisma, stripe, settings, gl, audit };
+  return {
+    service,
+    tx,
+    prisma,
+    stripe,
+    settings,
+    gl,
+    audit,
+    vouchers,
+    notifications,
+  };
 }
 
 const openInvoice = {
@@ -378,6 +393,265 @@ describe("InvoiceOnlinePaymentsService", () => {
           { type: "STAFF", id: "u" },
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe("hardening", () => {
+    it("rejects balances below Stripe's minimum charge before calling Stripe", async () => {
+      const { service, tx, stripe } = setup();
+      tx.invoice.findFirst.mockResolvedValue({
+        ...openInvoice,
+        currency_code: "AED",
+        balance_due: new Prisma.Decimal("1.50"),
+      });
+      await expect(
+        service.startCheckout(TENANT, INVOICE, {
+          initiator: { type: "STAFF" },
+          returnUrl: "x",
+        }),
+      ).rejects.toThrow(/at least 2.00/);
+      expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    it("alerts finance when part of a Stripe receipt cannot be allocated", async () => {
+      const { service, tx, gl, notifications } = setup();
+      const txn = makeTxn({ stripe_payment_intent_id: "pi_1" });
+      tx.paymentTransaction.findUnique.mockResolvedValue(txn);
+      tx.paymentTransaction.update.mockImplementation(({ data }) => ({
+        ...txn,
+        ...data,
+        invoice: { id: INVOICE, invoice_number: "INV/1" },
+        party: { id: PARTY, name: "Acme", email: null },
+        payment: null,
+      }));
+      tx.invoice.findFirst.mockResolvedValue({
+        ...openInvoice,
+        balance_due: new Prisma.Decimal("400"),
+      });
+      gl.post.mockResolvedValue({ id: "pay-1", payment_number: "PAY/1" });
+      await service.markSucceeded(TENANT, txn.id, {
+        paymentIntentId: "pi_1",
+        amountMinor: 100000,
+        currency: "usd",
+      });
+      expect(gl.create.mock.calls[0][1].allocations).toEqual([
+        { invoice_id: INVOICE, amount: 400 },
+      ]);
+      const alert = notifications.notifyFinanceStaff.mock.calls.find(
+        (c: unknown[]) =>
+          (c[1] as { type: string }).type === "PAYMENT_ACTION_REQUIRED",
+      );
+      expect(alert?.[1].message).toContain("600.00 USD");
+    });
+
+    describe("recordStripeFee", () => {
+      function feeSetup(
+        feeCurrency = "usd",
+        gwFeeAccount: string | null = "acct-fees",
+      ) {
+        const ctx = setup();
+        const txn = makeTxn({
+          status: "PAID",
+          payment_id: "pay-1",
+          stripe_payment_intent_id: "pi_1",
+        });
+        (
+          ctx.tx.paymentTransaction as unknown as { updateMany: jest.Mock }
+        ).updateMany = jest.fn().mockResolvedValue({ count: 1 });
+        ctx.tx.paymentTransaction.findFirst.mockResolvedValue(txn);
+        (ctx.tx as unknown as { voucher: unknown }).voucher = {
+          findFirst: jest.fn().mockResolvedValue(null),
+        };
+        Object.assign(ctx.settings, {
+          clientForAccountRef: jest.fn().mockResolvedValue({}),
+          find: jest
+            .fn()
+            .mockResolvedValue({ fee_gl_account_id: gwFeeAccount }),
+        });
+        Object.assign(ctx.stripe, {
+          paymentIntentFee: jest.fn().mockResolvedValue({
+            chargeId: "ch_1",
+            fee: 3230,
+            currency: feeCurrency,
+          }),
+        });
+        ctx.gl.findOne.mockResolvedValue({
+          id: "pay-1",
+          payment_number: "PAY/1",
+          gl_account_id: "acct-bank",
+          exchange_rate: new Prisma.Decimal(1),
+          company_id: null,
+          party_id: PARTY,
+        });
+        return ctx;
+      }
+
+      it("books Dr fees / Cr bank for the Stripe fee", async () => {
+        const { service, vouchers, tx } = feeSetup();
+        await service.recordStripeFee(TENANT, "t");
+        const dto = vouchers.create.mock.calls[0][1];
+        expect(dto.voucher_type).toBe("JOURNAL");
+        expect(dto.reference_number).toBe("STRIPE-FEE:pi_1");
+        expect(dto.lines).toEqual([
+          expect.objectContaining({
+            account_id: "acct-fees",
+            debit_amount: 32.3,
+          }),
+          expect.objectContaining({
+            account_id: "acct-bank",
+            credit_amount: 32.3,
+          }),
+        ]);
+        expect(vouchers.post).toHaveBeenCalledWith(TENANT, "v-fee");
+        expect(
+          tx.paymentTransaction.update.mock.calls.at(-1)[0].data,
+        ).toMatchObject({
+          fee_voucher_id: "v-fee",
+          stripe_fee_currency: "USD",
+        });
+      });
+
+      it("only records (no journal) when Stripe settles in another currency", async () => {
+        const { service, vouchers } = feeSetup("eur");
+        await service.recordStripeFee(TENANT, "t");
+        expect(vouchers.create).not.toHaveBeenCalled();
+      });
+
+      it("releases the claim when the fee is not settled yet, for the reconciler to retry", async () => {
+        const { service, stripe, tx } = feeSetup();
+        (
+          stripe as unknown as { paymentIntentFee: jest.Mock }
+        ).paymentIntentFee.mockResolvedValue(null);
+        await service.recordStripeFee(TENANT, "t");
+        expect(tx.paymentTransaction.update.mock.calls.at(-1)[0].data).toEqual({
+          fee_recorded_at: null,
+        });
+      });
+    });
+
+    describe("applyDispute", () => {
+      function disputeSetup(txnOver: Record<string, unknown> = {}) {
+        const ctx = setup();
+        const txn = makeTxn({
+          status: "PAID",
+          payment_id: "pay-1",
+          stripe_payment_intent_id: "pi_1",
+          ...txnOver,
+        });
+        ctx.tx.paymentTransaction.findFirst.mockResolvedValue(txn);
+        ctx.tx.paymentTransaction.update.mockResolvedValue(txn);
+        (ctx.tx as unknown as { paymentRefund: unknown }).paymentRefund = {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn(({ data }) => ({ id: "ref-1", ...data })),
+        };
+        const applySpy = jest
+          .spyOn(ctx.service, "applyRefundAccounting")
+          .mockResolvedValue(undefined);
+        return { ...ctx, txn, applySpy };
+      }
+      const dispute = (status: string) =>
+        ({
+          id: "du_1",
+          payment_intent: "pi_1",
+          amount: 100000,
+          currency: "usd",
+          status,
+          reason: "fraudulent",
+          evidence_details: { due_by: 1790000000 },
+          metadata: {},
+        }) as never;
+
+      it("marks an opened dispute DISPUTED and alerts finance", async () => {
+        const { service, tx, notifications, applySpy } = disputeSetup();
+        await service.applyDispute(
+          TENANT,
+          "platform",
+          dispute("needs_response"),
+        );
+        expect(
+          tx.paymentTransaction.update.mock.calls[0][0].data,
+        ).toMatchObject({
+          status: "DISPUTED",
+          stripe_dispute_id: "du_1",
+        });
+        expect(notifications.notifyFinanceStaff.mock.calls[0][1].type).toBe(
+          "PAYMENT_DISPUTED",
+        );
+        expect(applySpy).not.toHaveBeenCalled();
+      });
+
+      it("reverses the payment in the ERP when the dispute is lost", async () => {
+        const { service, tx, applySpy } = disputeSetup({
+          status: "DISPUTED",
+          stripe_dispute_id: "du_1",
+        });
+        await service.applyDispute(TENANT, "platform", dispute("lost"));
+        const created = (
+          tx as unknown as { paymentRefund: { create: jest.Mock } }
+        ).paymentRefund.create.mock.calls[0][0].data;
+        expect(created).toMatchObject({
+          stripe_refund_id: "dispute:du_1",
+          status: "SUCCEEDED",
+        });
+        expect(created.amount.toFixed(2)).toBe("1000.00");
+        expect(applySpy).toHaveBeenCalledWith(TENANT, "ref-1");
+      });
+
+      it("restores PAID when the dispute is won", async () => {
+        const { service, tx } = disputeSetup({
+          status: "DISPUTED",
+          stripe_dispute_id: "du_1",
+        });
+        await service.applyDispute(TENANT, "platform", dispute("won"));
+        expect(tx.paymentTransaction.update.mock.calls[0][0].data.status).toBe(
+          "PAID",
+        );
+      });
+
+      it("ignores disputes for another Stripe account's payment", async () => {
+        const { service, tx } = disputeSetup();
+        const res = await service.applyDispute(
+          TENANT,
+          "tenant:other",
+          dispute("needs_response"),
+        );
+        expect(res).toBeNull();
+        expect(tx.paymentTransaction.update).not.toHaveBeenCalled();
+      });
+    });
+
+    it("does not re-post a Stripe receipt that staff cancelled by hand when refunding", async () => {
+      const { service, tx, gl, notifications } = setup();
+      const txn = makeTxn({
+        status: "PAID",
+        payment_id: "pay-1",
+        stripe_payment_intent_id: "pi_1",
+      });
+      (tx as unknown as { paymentRefund: unknown }).paymentRefund = {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: "r1",
+          payment_transaction_id: txn.id,
+          amount: new Prisma.Decimal("300"),
+          currency_code: "USD",
+        }),
+        update: jest.fn(),
+      };
+      tx.paymentTransaction.findFirst.mockResolvedValue(txn);
+      tx.paymentTransaction.update.mockResolvedValue(txn);
+      gl.findOne.mockResolvedValue({
+        id: "pay-1",
+        status: "CANCELLED",
+        payment_number: "PAY/1",
+      });
+      await service.applyRefundAccounting(TENANT, "r1");
+      expect(gl.cancel).not.toHaveBeenCalled();
+      expect(gl.create).not.toHaveBeenCalled();
+      const alert = notifications.notifyFinanceStaff.mock.calls.find(
+        (c: unknown[]) =>
+          (c[1] as { type: string }).type === "PAYMENT_ACTION_REQUIRED",
+      );
+      expect(alert?.[1].message).toContain("cancelled manually");
     });
   });
 });

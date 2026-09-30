@@ -34,6 +34,7 @@ import { InvoiceOnlinePaymentsService } from "./invoice-online-payments.service"
 import { PaymentGatewaySettingsService } from "./payment-gateway-settings.service";
 import { PaymentLinksService } from "./payment-links.service";
 import { StripeGatewayService } from "./stripe-gateway.service";
+import { PaymentReconciliationService } from "./payment-reconciliation.service";
 import { staffFrontendUrl } from "./utils/frontend-url.util";
 
 /**
@@ -54,6 +55,7 @@ export class OnlinePaymentsController {
     private readonly settings: PaymentGatewaySettingsService,
     private readonly stripe: StripeGatewayService,
     private readonly glPayments: GlPaymentsService,
+    private readonly reconciliation: PaymentReconciliationService,
   ) {}
 
   // ─── Stripe configuration ───
@@ -129,6 +131,20 @@ export class OnlinePaymentsController {
     @CurrentUser("id") actorId: string,
   ) {
     return this.settings.rotateWebhookToken(tenantId, actorId);
+  }
+
+  @Post("stripe/reconcile")
+  @RequirePermissions(PAYMENTS_PERMISSIONS.MANAGE_GATEWAY)
+  @ApiOperation({
+    summary: "Re-check this company's pending online payments with Stripe now",
+    description:
+      "Runs the same idempotent reconciliation as the 15-minute job, for this company only.",
+  })
+  async reconcile(@CurrentUser("tenantId") tenantId: string) {
+    return {
+      success: true,
+      data: await this.reconciliation.runForTenant(tenantId),
+    };
   }
 
   // ─── Payment history (ERP ledger = source of truth) ───

@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { PaymentGatewaySettingsService } from "../payment-gateway-settings.service";
 import { StripeGatewayService } from "../stripe-gateway.service";
 
@@ -39,11 +39,21 @@ describe("PaymentGatewaySettingsService", () => {
   it("refuses platform-account collection when the platform key is missing", async () => {
     const { svc } = setup();
     await expect(
-      svc.updateSettings(TENANT, {
-        is_enabled: true,
-        use_platform_account: true,
-      }),
+      svc.updateSettings(
+        TENANT,
+        { is_enabled: true, use_platform_account: true },
+        undefined,
+        { allowPlatformAccount: true },
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("only lets the Super Admin switch on platform-account collection", async () => {
+    const { svc, prisma } = setup();
+    await expect(
+      svc.updateSettings(TENANT, { use_platform_account: true }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.tenantPaymentGateway.create).not.toHaveBeenCalled();
   });
 
   it("encrypts secrets at rest and never returns them", async () => {

@@ -25,6 +25,8 @@ import {
   METADATA_SCOPE,
   OPEN_ATTEMPT_STATUSES,
   PLATFORM_ACCOUNT_REF,
+  RECONCILE_ATTEMPT_STATUSES,
+  RECONCILE_STALE_AFTER_MS,
   STRIPE_METADATA,
 } from "./constants/online-payment.constants";
 import {
@@ -46,7 +48,9 @@ import {
   fromMinorUnits,
   gtMoney,
   isPositiveMoney,
+  minDecimal,
   roundMoney,
+  stripeMinimumError,
   toDecimal,
   toMinorUnits,
 } from "./utils/money.util";
@@ -625,6 +629,8 @@ export class PlatformBillingService {
     const amount = roundMoney(invoice.balance_due);
     const currency = invoice.currency_code.toUpperCase();
     const amountMinor = toMinorUnits(amount, currency);
+    const belowMinimum = stripeMinimumError(amount, currency);
+    if (belowMinimum) throw new BadRequestException(belowMinimum);
 
     const open = await this.prisma.platformPayment.findMany({
       where: {
@@ -1218,7 +1224,196 @@ export class PlatformBillingService {
         chargeId: info.chargeId ?? null,
       },
     });
+    void this.recordStripeFee(paymentId);
     return applied;
+  }
+
+  /** Stores Stripe's fee on a platform payment (platform has no GL). */
+  async recordStripeFee(paymentId: string) {
+    try {
+      const p = await this.prisma.platformPayment.findUnique({
+        where: { id: paymentId },
+      });
+      const client = this.stripe.platformClient();
+      if (
+        !p?.stripe_payment_intent_id ||
+        p.stripe_fee_amount !== null ||
+        !client
+      )
+        return;
+      const fee = await this.stripe.paymentIntentFee(
+        client,
+        p.stripe_payment_intent_id,
+      );
+      if (!fee) return;
+      await this.prisma.platformPayment.update({
+        where: { id: p.id },
+        data: {
+          stripe_fee_amount: fromMinorUnits(
+            fee.fee,
+            fee.currency.toUpperCase(),
+          ),
+          stripe_fee_currency: fee.currency.toUpperCase(),
+          stripe_charge_id: p.stripe_charge_id ?? fee.chargeId,
+        },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Platform fee lookup failed for ${paymentId}: ${String(err)}`,
+      );
+    }
+  }
+
+  /** Chargebacks on platform invoice payments — same rules as tenant invoices. */
+  async applyDispute(dispute: Stripe.Dispute) {
+    const piId =
+      typeof dispute.payment_intent === "string"
+        ? dispute.payment_intent
+        : dispute.payment_intent?.id;
+    if (!piId) return null;
+    const p = await this.prisma.platformPayment.findUnique({
+      where: { stripe_payment_intent_id: piId },
+    });
+    if (!p) return null;
+
+    const restored = isPositiveMoney(p.amount_refunded)
+      ? "PARTIALLY_REFUNDED"
+      : "PAID";
+    let status: OnlinePaymentStatus | undefined;
+    if (dispute.status === "won" || dispute.status === "warning_closed") {
+      status = p.status === "DISPUTED" ? restored : undefined;
+    } else if (dispute.status !== "lost") {
+      status = ["PAID", "PARTIALLY_REFUNDED"].includes(p.status)
+        ? "DISPUTED"
+        : undefined;
+    }
+    await this.prisma.platformPayment.update({
+      where: { id: p.id },
+      data: {
+        stripe_dispute_id: dispute.id,
+        dispute_status: dispute.status,
+        disputed_at: p.disputed_at ?? new Date(),
+        ...(status ? { status } : {}),
+      },
+    });
+
+    if (dispute.status === "lost") {
+      const key = `dispute:${dispute.id}`;
+      const lost = minDecimal(
+        fromMinorUnits(dispute.amount, p.currency_code),
+        toDecimal(p.amount).minus(toDecimal(p.amount_refunded)),
+      );
+      const row = await this.prisma.runWithTenant(p.tenant_id, async (tx) => {
+        const existing = await tx.paymentRefund.findFirst({
+          where: { tenant_id: p.tenant_id, stripe_refund_id: key },
+        });
+        if (existing) return existing;
+        if (!isPositiveMoney(lost)) return null;
+        return tx.paymentRefund.create({
+          data: {
+            tenant_id: p.tenant_id,
+            scope: "PLATFORM_INVOICE",
+            platform_payment_id: p.id,
+            amount: lost,
+            currency_code: p.currency_code,
+            reason: `Chargeback lost (${dispute.reason})`,
+            stripe_refund_id: key,
+            status: "SUCCEEDED",
+            requested_by_type: "SUPER_ADMIN",
+            processed_at: new Date(),
+          },
+        });
+      });
+      if (row) await this.applyRefund(p.tenant_id, row.id);
+    }
+    await this.audit.log(p.tenant_id, {
+      action: "PAYMENT_DISPUTE_UPDATED",
+      entity: "PlatformPayment",
+      entityId: p.id,
+      metadata: {
+        dispute_id: dispute.id,
+        status: dispute.status,
+        reason: dispute.reason,
+      },
+    });
+    this.logger.warn(
+      `Platform payment ${p.id} dispute ${dispute.id} is ${dispute.status} (${dispute.reason}).`,
+    );
+    return p;
+  }
+
+  /** Reconciler: stale platform checkouts, missing fees, unapplied refunds. */
+  async reconcilePlatform() {
+    const result = { checked: 0, fees: 0, refunds: 0, errors: 0 };
+    const client = this.stripe.platformClient();
+    if (!client) return result;
+    const stale = await this.prisma.platformPayment.findMany({
+      where: {
+        provider: "STRIPE",
+        status: { in: RECONCILE_ATTEMPT_STATUSES },
+        stripe_checkout_session_id: { not: null },
+        created_at: { lt: new Date(Date.now() - RECONCILE_STALE_AFTER_MS) },
+      },
+      take: 25,
+    });
+    for (const p of stale) {
+      try {
+        const session = await this.stripe.retrieveCheckoutSession(
+          client,
+          p.stripe_checkout_session_id!,
+        );
+        await this.applyCheckoutSession(session);
+        result.checked++;
+      } catch (err) {
+        result.errors++;
+        this.logger.warn(`Platform reconcile ${p.id} failed: ${String(err)}`);
+      }
+    }
+    const feeless = await this.prisma.platformPayment.findMany({
+      where: {
+        provider: "STRIPE",
+        applied_at: { not: null },
+        stripe_fee_amount: null,
+        paid_at: { gt: new Date(Date.now() - 7 * 86_400_000) },
+      },
+      select: { id: true },
+      take: 25,
+    });
+    for (const p of feeless) {
+      await this.recordStripeFee(p.id);
+      result.fees++;
+    }
+    const tenants = await this.prisma.platformPayment.findMany({
+      where: { updated_at: { gt: new Date(Date.now() - 30 * 86_400_000) } },
+      distinct: ["tenant_id"],
+      select: { tenant_id: true },
+    });
+    for (const { tenant_id } of tenants) {
+      const pending = await this.prisma.runWithTenant(tenant_id, (tx) =>
+        tx.paymentRefund.findMany({
+          where: {
+            tenant_id,
+            scope: "PLATFORM_INVOICE",
+            status: "SUCCEEDED",
+            accounting_applied_at: null,
+          },
+          select: { id: true },
+          take: 25,
+        }),
+      );
+      for (const r of pending) {
+        try {
+          await this.applyRefund(tenant_id, r.id);
+          result.refunds++;
+        } catch (err) {
+          result.errors++;
+          this.logger.warn(
+            `Platform refund retry ${r.id} failed: ${String(err)}`,
+          );
+        }
+      }
+    }
+    return result;
   }
 
   async applyStripeRefund(refund: Stripe.Refund) {

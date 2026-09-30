@@ -209,9 +209,15 @@ describe("Stripe payments (e2e)", () => {
       })
       .expect(201);
     partyId = data<{ id: string }>(party).id;
+    // Tenants may not self-enable platform-account collection (compliance).
     await http()
       .put("/payments/stripe/settings")
       .set(auth(A.token))
+      .send({ is_enabled: true, use_platform_account: true })
+      .expect(403);
+    await http()
+      .put(`/platform/tenants/${A.id}/payment-gateway`)
+      .set(auth(sa))
       .send({ is_enabled: true, use_platform_account: true })
       .expect(200);
   }, 180_000);
@@ -387,6 +393,89 @@ describe("Stripe payments (e2e)", () => {
       }),
     ).expect(200);
     expect(forged.body.handled).toBe(false);
+  });
+
+  it("chargebacks: an open dispute blocks refunds; a lost dispute reverses the receipt", async () => {
+    const inv = await postedInvoice(200);
+    const txn = await attempt(inv.id, 200, 1);
+    const pi = `pi_e2e_${runId}_dispute`;
+    await postWebhook(
+      signedWebhook("checkout.session.completed", session(inv, txn, pi)),
+    ).expect(200);
+    expect(
+      (await prisma.invoice.findUniqueOrThrow({ where: { id: inv.id } }))
+        .status,
+    ).toBe("PAID");
+
+    const dispute = (status: string) => ({
+      id: `du_e2e_${runId}`,
+      object: "dispute",
+      payment_intent: pi,
+      amount: 20000,
+      currency: "usd",
+      status,
+      reason: "fraudulent",
+      metadata: {},
+    });
+    const opened = await postWebhook(
+      signedWebhook("charge.dispute.created", dispute("needs_response")),
+    ).expect(200);
+    expect(opened.body.handled).toBe(true);
+    const disputed = await prisma.runWithTenant(A.id, (tx) =>
+      tx.paymentTransaction.findUniqueOrThrow({ where: { id: txn.id } }),
+    );
+    expect(disputed.status).toBe("DISPUTED");
+    await http()
+      .post(`/payments/${txn.id}/refund`)
+      .set(auth(A.token))
+      .send({})
+      .expect(400);
+
+    const closed = signedWebhook("charge.dispute.closed", dispute("lost"));
+    await postWebhook(closed).expect(200);
+    await postWebhook(closed).expect(200); // redelivery is a no-op
+    const reopened = await prisma.invoice.findUniqueOrThrow({
+      where: { id: inv.id },
+    });
+    expect(reopened.status).not.toBe("PAID");
+    expect(Number(reopened.balance_due)).toBe(200);
+    const live = await prisma.payment.count({
+      where: {
+        tenant_id: A.id,
+        reference_number: `STRIPE:${pi}`,
+        status: "POSTED",
+      },
+    });
+    expect(live).toBe(0);
+    const after = await prisma.runWithTenant(A.id, (tx) =>
+      tx.paymentTransaction.findUniqueOrThrow({ where: { id: txn.id } }),
+    );
+    expect(after.status).toBe("REFUNDED");
+    expect(after.dispute_status).toBe("lost");
+  });
+
+  it("reconciler and readiness endpoints", async () => {
+    const r = await http()
+      .post("/payments/stripe/reconcile")
+      .set(auth(A.token))
+      .expect(201);
+    expect(r.body.data).toEqual(
+      expect.objectContaining({ checked: expect.any(Number) }),
+    );
+    const status = await http()
+      .get("/platform/billing/stripe/status")
+      .set(auth(sa))
+      .expect(200);
+    expect(status.body.data).toEqual(
+      expect.objectContaining({
+        ready: expect.any(Boolean),
+        problems: expect.any(Array),
+      }),
+    );
+    await http()
+      .post("/platform/billing/reconcile")
+      .set(auth(A.token))
+      .expect(403);
   });
 
   it("platform billing: Super Admin invoice → tenant proof → verification", async () => {

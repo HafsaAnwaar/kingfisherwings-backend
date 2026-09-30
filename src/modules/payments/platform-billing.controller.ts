@@ -57,6 +57,7 @@ import { PlatformBillingService } from "./platform-billing.service";
 import { PlatformSubscriptionsService } from "./platform-subscriptions.service";
 import { StripeGatewayService } from "./stripe-gateway.service";
 import { StripeWebhookService } from "./stripe-webhook.service";
+import { PaymentReconciliationService } from "./payment-reconciliation.service";
 
 const PROOF_BODY_SCHEMA = {
   schema: {
@@ -104,23 +105,39 @@ export class PlatformBillingController {
     private readonly gateways: PaymentGatewaySettingsService,
     private readonly stripe: StripeGatewayService,
     private readonly webhooks: StripeWebhookService,
+    private readonly reconciliation: PaymentReconciliationService,
   ) {}
 
   // ─── Stripe ───
 
   @Get("billing/stripe/status")
   @ApiOperation({
-    summary: "Platform Stripe configuration status (no secrets)",
+    summary: "Platform Stripe configuration + payments health (no secrets)",
+    description:
+      "Lists configuration problems (missing keys, FRONTEND_URL, encryption key), failed webhooks " +
+      "in the last 24h, stuck payments, and the SDK API version webhook endpoints should use.",
   })
-  stripeStatus() {
+  async stripeStatus() {
     return {
       success: true,
       data: {
         secret_key_configured: Boolean(this.stripe.platformClient()),
         webhook_secret_configured: Boolean(this.stripe.platformWebhookSecret()),
         publishable_key: this.stripe.platformPublishableKey(),
+        ...(await this.reconciliation.readiness()),
       },
     };
+  }
+
+  @Post("billing/reconcile")
+  @ApiOperation({
+    summary: "Run payment reconciliation now (normally every 15 min)",
+    description:
+      "Re-checks stale checkouts with Stripe, retries ERP posting / fee journals / refund accounting, " +
+      "and replays failed webhooks. Idempotent.",
+  })
+  reconcile() {
+    return this.reconciliation.runAll();
   }
 
   @Get("billing/webhook-events")
@@ -157,7 +174,9 @@ export class PlatformBillingController {
     @Param("tenantId", ParseUUIDPipe) tenantId: string,
     @Body() dto: UpdatePaymentGatewaySettingsDto,
   ) {
-    return this.gateways.updateSettings(tenantId, dto);
+    return this.gateways.updateSettings(tenantId, dto, undefined, {
+      allowPlatformAccount: true,
+    });
   }
 
   // ─── Plans ───

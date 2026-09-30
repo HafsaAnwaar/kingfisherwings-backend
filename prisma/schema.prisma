@@ -5122,6 +5122,8 @@ enum NotificationType {
   PAYMENT_REFUNDED
   PLATFORM_INVOICE_ISSUED
   PLATFORM_PAYMENT_RECEIVED
+  PAYMENT_DISPUTED
+  PAYMENT_ACTION_REQUIRED
 }
 
 /// Customer → forwarder contact messages from the portal.
@@ -8267,6 +8269,8 @@ enum OnlinePaymentStatus {
   PARTIALLY_REFUNDED
   PENDING_VERIFICATION
   REJECTED
+  /// Customer opened a chargeback; funds held by Stripe until resolved.
+  DISPUTED
 }
 
 enum PaymentGatewayProvider {
@@ -8338,6 +8342,8 @@ model TenantPaymentGateway {
   /// Optional TenantBankAccount whose GL account receives Stripe receipts.
   bank_account_id          String?                @db.Uuid
   statement_descriptor     String?                @db.VarChar(22)
+  /// Expense account for Stripe processing fees (journal Dr fees / Cr bank).
+  fee_gl_account_id        String?                @db.Uuid
   created_at               DateTime               @default(now()) @db.Timestamptz
   updated_at               DateTime               @updatedAt @db.Timestamptz
   created_by               String?                @db.Uuid
@@ -8403,6 +8409,14 @@ model PaymentTransaction {
   initiated_by_type          PaymentInitiatorType
   initiated_by_id            String?                @db.Uuid
   payment_link_id            String?                @db.Uuid
+  /// Stripe processing fee (settlement currency) and the journal that booked it.
+  stripe_fee_amount          Decimal?               @db.Decimal(18, 4)
+  stripe_fee_currency        String?                @db.Char(3)
+  fee_voucher_id             String?                @db.Uuid
+  fee_recorded_at            DateTime?              @db.Timestamptz
+  stripe_dispute_id          String?                @db.VarChar(255)
+  dispute_status             String?                @db.VarChar(40)
+  disputed_at                DateTime?              @db.Timestamptz
   created_at                 DateTime               @default(now()) @db.Timestamptz
   updated_at                 DateTime               @updatedAt @db.Timestamptz
 
@@ -8622,6 +8636,11 @@ model PlatformPayment {
   reviewed_by_super_admin_id String?                @db.Uuid
   reviewed_at                DateTime?              @db.Timestamptz
   rejection_reason           String?                @db.VarChar(1000)
+  stripe_fee_amount          Decimal?               @db.Decimal(18, 4)
+  stripe_fee_currency        String?                @db.Char(3)
+  stripe_dispute_id          String?                @db.VarChar(255)
+  dispute_status             String?                @db.VarChar(40)
+  disputed_at                DateTime?              @db.Timestamptz
   created_at                 DateTime               @default(now()) @db.Timestamptz
   updated_at                 DateTime               @updatedAt @db.Timestamptz
 

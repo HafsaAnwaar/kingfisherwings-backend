@@ -92,3 +92,47 @@ export function minDecimal(a: DecimalLike, b: DecimalLike): Prisma.Decimal {
   const db = toDecimal(b);
   return da.lessThan(db) ? da : db;
 }
+
+/**
+ * Stripe minimum charge amounts (major units) for common currencies —
+ * see https://docs.stripe.com/currencies#minimum-and-maximum-charge-amounts.
+ * Checked up front so payers get a clear message instead of a provider error.
+ */
+export const STRIPE_MINIMUM_CHARGE: Record<string, string> = {
+  USD: "0.50",
+  AED: "2.00",
+  AUD: "0.50",
+  BGN: "1.00",
+  BRL: "0.50",
+  CAD: "0.50",
+  CHF: "0.50",
+  CZK: "15.00",
+  DKK: "2.50",
+  EUR: "0.50",
+  GBP: "0.30",
+  HKD: "4.00",
+  HUF: "175.00",
+  INR: "0.50",
+  JPY: "50",
+  MXN: "10.00",
+  MYR: "2.00",
+  NOK: "3.00",
+  NZD: "0.50",
+  PLN: "2.00",
+  RON: "2.00",
+  SEK: "3.00",
+  SGD: "0.50",
+  THB: "10.00",
+};
+
+/** Returns an error message when the amount is below Stripe's minimum. */
+export function stripeMinimumError(
+  amount: DecimalLike,
+  currency: string,
+): string | null {
+  const min = STRIPE_MINIMUM_CHARGE[currency.toUpperCase()];
+  if (!min) return null;
+  return toDecimal(amount).lessThan(min)
+    ? `Online payments in ${currency.toUpperCase()} must be at least ${min}; please pay this balance by another method.`
+    : null;
+}

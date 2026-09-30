@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -39,9 +40,14 @@ export class PaymentGatewaySettingsService {
   ) {}
 
   private encryptionKey(): string {
+    const dedicated = process.env.PAYMENT_GATEWAY_ENCRYPTION_KEY?.trim();
+    // In production the key must be dedicated: sharing the 2FA key means
+    // rotating it would silently make every stored Stripe key unreadable.
     const key =
-      process.env.PAYMENT_GATEWAY_ENCRYPTION_KEY?.trim() ||
-      process.env.TWO_FACTOR_ENCRYPTION_KEY?.trim();
+      dedicated ||
+      (process.env.NODE_ENV === "production"
+        ? undefined
+        : process.env.TWO_FACTOR_ENCRYPTION_KEY?.trim());
     if (!key) {
       throw new InternalServerErrorException(
         "PAYMENT_GATEWAY_ENCRYPTION_KEY is not configured.",
@@ -55,7 +61,14 @@ export class PaymentGatewaySettingsService {
   }
 
   private decrypt(value: string) {
-    return TwoFactorCrypto.decrypt(value, this.encryptionKey());
+    try {
+      return TwoFactorCrypto.decrypt(value, this.encryptionKey());
+    } catch {
+      throw new ServiceUnavailableException(
+        "Stored Stripe keys cannot be decrypted (was PAYMENT_GATEWAY_ENCRYPTION_KEY changed?). " +
+          "Re-enter the Stripe secret key and webhook secret in payment settings.",
+      );
+    }
   }
 
   async find(tenantId: string) {
@@ -77,7 +90,32 @@ export class PaymentGatewaySettingsService {
     tenantId: string,
     dto: UpdatePaymentGatewaySettingsDto,
     actorId?: string,
+    opts: { allowPlatformAccount?: boolean } = {},
   ) {
+    // Collecting a company's customer payments into the platform's Stripe
+    // account makes the platform hold funds owed to that company — a
+    // platform-level (compliance) decision, so only the Super Admin can set it.
+    if (dto.use_platform_account !== undefined && !opts.allowPlatformAccount) {
+      throw new ForbiddenException(
+        "Only the platform administrator can change platform-account collection.",
+      );
+    }
+    if (dto.fee_gl_account_id) {
+      const acct = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.chartOfAccount.findFirst({
+          where: {
+            id: dto.fee_gl_account_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+            is_postable: true,
+          },
+        }),
+      );
+      if (!acct)
+        throw new NotFoundException(
+          "Fee GL account not found or not postable.",
+        );
+    }
     if (dto.secret_key && !/^(sk|rk)_(test|live)_/.test(dto.secret_key)) {
       throw new BadRequestException("secret_key must be a Stripe secret key.");
     }
@@ -148,6 +186,9 @@ export class PaymentGatewaySettingsService {
         : {}),
       ...(dto.statement_descriptor !== undefined
         ? { statement_descriptor: dto.statement_descriptor || null }
+        : {}),
+      ...(dto.fee_gl_account_id !== undefined
+        ? { fee_gl_account_id: dto.fee_gl_account_id || null }
         : {}),
       updated_by: actorId,
     };
@@ -309,6 +350,7 @@ export class PaymentGatewaySettingsService {
       publishable_key: this.publishableKeyFor(gw),
       allow_partial_payments: gw.allow_partial_payments,
       bank_account_id: gw.bank_account_id,
+      fee_gl_account_id: gw.fee_gl_account_id,
       statement_descriptor: gw.statement_descriptor,
       platform_account_available: Boolean(this.stripe.platformClient()),
       webhook_url: gw.use_platform_account

@@ -47,6 +47,7 @@ const UUID_RE =
 @Injectable()
 export class StripeWebhookService {
   private readonly logger = new Logger(StripeWebhookService.name);
+  private readonly warnedApiVersions = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -65,6 +66,7 @@ export class StripeWebhookService {
   ) {
     const { account, secret } = await this.resolveAccount(token);
     const event = this.stripe.constructEvent(rawBody, signature, secret);
+    this.warnOnApiVersionMismatch(event);
 
     const stored = await this.persist(event, account);
     const claimed = await this.claim(stored);
@@ -224,6 +226,17 @@ export class StripeWebhookService {
       case "refund.failed":
       case "charge.refund.updated":
         return this.onRefund(event.data.object as Stripe.Refund, account);
+
+      case "charge.dispute.created":
+
+      case "charge.dispute.updated":
+
+      case "charge.dispute.closed":
+
+      case "charge.dispute.funds_withdrawn":
+
+      case "charge.dispute.funds_reinstated":
+        return this.onDispute(event.data.object as Stripe.Dispute, account);
 
       case "customer.subscription.created":
       case "customer.subscription.updated":
@@ -396,6 +409,43 @@ export class StripeWebhookService {
       if (row) return { handled: true, tenantId };
     }
     return { handled: false, reason: "payment_not_found" };
+  }
+
+  /** Chargebacks carry no ERP metadata; the payment intent locates the row. */
+  private async onDispute(
+    dispute: Stripe.Dispute,
+    account: WebhookAccount,
+  ): Promise<DispatchResult> {
+    if (account.accountRef === PLATFORM_ACCOUNT_REF) {
+      const row = await this.platformBilling.applyDispute(dispute);
+      if (row) return { handled: true, tenantId: row.tenant_id };
+    }
+    const candidates = await this.candidateTenants(dispute.metadata, account);
+    for (const tenantId of candidates) {
+      const row = await this.invoicePayments.applyDispute(
+        tenantId,
+        account.accountRef,
+        dispute,
+      );
+      if (row) return { handled: true, tenantId };
+    }
+    return { handled: false, reason: "payment_not_found" };
+  }
+
+  /**
+   * Payload shape follows the webhook endpoint's API version (set in the
+   * Stripe dashboard), not this SDK's. Warn once per version so a
+   * mismatched endpoint is noticed before a field goes missing.
+   */
+  private warnOnApiVersionMismatch(event: Stripe.Event) {
+    const sdk = this.stripe.sdkApiVersion();
+    const got = event.api_version ?? null;
+    if (!sdk || !got || got === sdk || this.warnedApiVersions.has(got)) return;
+    this.warnedApiVersions.add(got);
+    this.logger.warn(
+      `Stripe webhook endpoint sends API version ${got}, SDK uses ${sdk}. ` +
+        "Update the endpoint's API version in the Stripe dashboard to match.",
+    );
   }
 
   private async onBillingInvoice(

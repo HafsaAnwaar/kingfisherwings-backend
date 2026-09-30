@@ -8,10 +8,16 @@ function trimBase(url: string | undefined): string | undefined {
   return v ? v.replace(/\/$/, "") : undefined;
 }
 
+/**
+ * FRONTEND_URL, else the first CORS origin (both are frontend hosts).
+ * APP_URL is deliberately not used: it is the API host, so payers would be
+ * sent to a 404 after paying. The readiness report flags a missing value.
+ */
 export function staffFrontendUrl(): string {
+  const firstCorsOrigin = process.env.CORS_ORIGINS?.split(",")[0];
   return (
     trimBase(process.env.FRONTEND_URL) ??
-    trimBase(process.env.APP_URL) ??
+    trimBase(firstCorsOrigin) ??
     "http://localhost:5173"
   );
 }

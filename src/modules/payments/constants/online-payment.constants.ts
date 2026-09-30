@@ -53,7 +53,19 @@ export const SETTLED_ATTEMPT_STATUSES: OnlinePaymentStatus[] = [
   "PAID",
   "PARTIALLY_REFUNDED",
   "REFUNDED",
+  "DISPUTED",
 ];
+
+/** Attempts the reconciler re-checks with Stripe once they go stale. */
+export const RECONCILE_ATTEMPT_STATUSES: OnlinePaymentStatus[] = [
+  "PENDING",
+  "REQUIRES_ACTION",
+  "PROCESSING",
+];
+/** Only re-check attempts older than this (webhooks normally win). */
+export const RECONCILE_STALE_AFTER_MS = 15 * 60 * 1000;
+/** Failed webhook events are replayed at most this many times. */
+export const WEBHOOK_MAX_REPLAYS = 5;
 
 /** Stripe Checkout sessions live at most 24h; we default to 1h. */
 export const CHECKOUT_SESSION_TTL_SECONDS = 60 * 60;

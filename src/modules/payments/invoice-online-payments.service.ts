@@ -14,6 +14,7 @@ import {
 import Stripe from "stripe";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PaymentsService } from "../gl/payments.service";
+import { VouchersService } from "../gl/vouchers.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import {
   CHECKOUT_SESSION_TTL_SECONDS,
@@ -23,6 +24,8 @@ import {
   ONLINE_PAYABLE_INVOICE_STATUSES,
   ONLINE_PAYABLE_INVOICE_TYPES,
   OPEN_ATTEMPT_STATUSES,
+  RECONCILE_ATTEMPT_STATUSES,
+  RECONCILE_STALE_AFTER_MS,
   SETTLED_ATTEMPT_STATUSES,
   STRIPE_METADATA,
 } from "./constants/online-payment.constants";
@@ -41,6 +44,7 @@ import {
   isPositiveMoney,
   minDecimal,
   roundMoney,
+  stripeMinimumError,
   toDecimal,
   toMinorUnits,
 } from "./utils/money.util";
@@ -92,6 +96,7 @@ export class InvoiceOnlinePaymentsService {
     private readonly notifications: NotificationEmitterService,
     private readonly mailer: PaymentNotificationsService,
     private readonly audit: PaymentAuditService,
+    private readonly vouchers: VouchersService,
   ) {}
 
   // ───────────────────────────── checkout ─────────────────────────────
@@ -114,6 +119,8 @@ export class InvoiceOnlinePaymentsService {
     if (amountMinor <= 0n) {
       throw new BadRequestException("Amount is too small to charge online.");
     }
+    const belowMinimum = stripeMinimumError(amount, currency);
+    if (belowMinimum) throw new BadRequestException(belowMinimum);
 
     // Reuse an identical open session (double-click / page refresh) and
     // supersede any other open ones so the invoice is never paid twice.
@@ -800,6 +807,9 @@ export class InvoiceOnlinePaymentsService {
     if ("newlyPaid" in claim && claim.newlyPaid) {
       await this.afterSuccess(tenantId, linked);
     }
+    // Fee needs another Stripe call; never hold the webhook for it. The
+    // reconciler retries anything that could not be recorded yet.
+    void this.recordStripeFee(tenantId, transactionId);
     return linked;
   }
 
@@ -1102,19 +1112,36 @@ export class InvoiceOnlinePaymentsService {
       const net = toDecimal(txn.amount).minus(refundedTotal);
 
       let newPaymentId: string | null = txn.payment_id;
+      const warnings: string[] = [];
       if (txn.payment_id) {
         const erp = await this.glPayments.findOne(tenantId, txn.payment_id);
-        if (erp.status === "POSTED") {
-          await this.glPayments.cancel(tenantId, erp.id);
-        } else if (erp.status === "DRAFT") {
-          await this.glPayments.softDelete(tenantId, erp.id);
-        }
-        newPaymentId = null;
-        if (isPositiveMoney(net)) {
-          newPaymentId = await this.postErpReceipt(tenantId, {
-            ...txn,
-            amount: net,
-          });
+        if (erp.status === "CANCELLED") {
+          // Staff already reversed this receipt by hand — do not recreate it.
+          newPaymentId = null;
+          warnings.push(
+            `receipt ${erp.payment_number} had already been cancelled manually, so the net amount was not re-posted`,
+          );
+        } else {
+          const reconciled = erp.voucher_id
+            ? await this.reconciledVoucherInfo(tenantId, erp.voucher_id)
+            : null;
+          if (reconciled) {
+            warnings.push(
+              `voucher ${reconciled} was already bank-reconciled; its reversal is a new unreconciled entry — re-check the reconciliation`,
+            );
+          }
+          if (erp.status === "POSTED") {
+            await this.glPayments.cancel(tenantId, erp.id);
+          } else if (erp.status === "DRAFT") {
+            await this.glPayments.softDelete(tenantId, erp.id);
+          }
+          newPaymentId = null;
+          if (isPositiveMoney(net)) {
+            newPaymentId = await this.postErpReceipt(tenantId, {
+              ...txn,
+              amount: net,
+            });
+          }
         }
       }
 
@@ -1138,8 +1165,19 @@ export class InvoiceOnlinePaymentsService {
           amount: toDecimal(refund.amount).toFixed(2),
           refunded_total: refundedTotal.toFixed(2),
           reposted_erp_payment_id: newPaymentId,
+          warnings,
         },
       });
+      if (warnings.length) {
+        await this.notifications.notifyFinanceStaff(tenantId, {
+          type: "PAYMENT_ACTION_REQUIRED",
+          title: "Refund needs accounting review",
+          message: `Refund of ${toDecimal(refund.amount).toFixed(2)} ${refund.currency_code}: ${warnings.join("; ")}.`,
+          entity_type: "invoice",
+          entity_id: txn.invoice_id,
+          link_path: `/invoices/${txn.invoice_id}`,
+        });
+      }
       await this.notifications.notifyFinanceStaff(tenantId, {
         type: "PAYMENT_REFUNDED",
         title: "Online payment refunded",
@@ -1169,6 +1207,350 @@ export class InvoiceOnlinePaymentsService {
       );
       throw err;
     }
+  }
+
+  // ─────────────────────────── fees & disputes ───────────────────────────
+
+  /**
+   * Records Stripe's processing fee for a settled payment and, when the
+   * company configured a fee expense account, books it:
+   *   Dr Stripe fees (fee_gl_account_id) / Cr the bank account the receipt hit.
+   * Receipts stay gross; with this journal the bank/clearing account ends
+   * at the net amount Stripe actually pays out. Never throws.
+   */
+  async recordStripeFee(tenantId: string, transactionId: string) {
+    try {
+      const claimed = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.paymentTransaction.updateMany({
+          where: {
+            id: transactionId,
+            tenant_id: tenantId,
+            fee_recorded_at: null,
+            payment_id: { not: null },
+            stripe_payment_intent_id: { not: null },
+          },
+          data: { fee_recorded_at: new Date() },
+        }),
+      );
+      if (claimed.count === 0) return;
+    } catch (err) {
+      this.logger.warn(`Fee claim failed for ${transactionId}: ${String(err)}`);
+      return;
+    }
+
+    const release = async () => {
+      try {
+        await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.paymentTransaction.update({
+            where: { id: transactionId },
+            data: { fee_recorded_at: null },
+          }),
+        );
+      } catch {
+        // Best effort — a stuck claim only delays fee recording.
+      }
+    };
+
+    try {
+      const txn = await this.requireTransaction(tenantId, transactionId);
+      const client = await this.settings.clientForAccountRef(
+        txn.account_ref,
+        tenantId,
+      );
+      const fee = await this.stripe.paymentIntentFee(
+        client,
+        txn.stripe_payment_intent_id!,
+      );
+      if (!fee) {
+        await release(); // not settled yet — the reconciler retries
+        return;
+      }
+      const feeCurrency = fee.currency.toUpperCase();
+      const feeAmount = fromMinorUnits(fee.fee, feeCurrency);
+
+      let voucherId: string | null = null;
+      const gateway = await this.settings.find(tenantId);
+      const erp = await this.glPayments.findOne(tenantId, txn.payment_id!);
+      if (
+        gateway?.fee_gl_account_id &&
+        erp.gl_account_id &&
+        isPositiveMoney(feeAmount) &&
+        feeCurrency === txn.currency_code.toUpperCase()
+      ) {
+        const reference = `STRIPE-FEE:${txn.stripe_payment_intent_id}`;
+        const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.voucher.findFirst({
+            where: {
+              tenant_id: tenantId,
+              reference_number: reference,
+              deleted_at: null,
+              status: { in: ["DRAFT", "POSTED"] },
+            },
+          }),
+        );
+        let voucher = existing;
+        if (!voucher) {
+          voucher = await this.vouchers.create(tenantId, {
+            voucher_type: "JOURNAL",
+            currency_code: txn.currency_code,
+            exchange_rate: Number(erp.exchange_rate) || 1,
+            narration: `Stripe processing fee for receipt ${erp.payment_number}`,
+            reference_number: reference,
+            company_id: erp.company_id ?? undefined,
+            party_id: erp.party_id,
+            lines: [
+              {
+                account_id: gateway.fee_gl_account_id,
+                debit_amount: Number(feeAmount.toFixed(4)),
+                narration: "Stripe processing fee",
+              },
+              {
+                account_id: erp.gl_account_id,
+                credit_amount: Number(feeAmount.toFixed(4)),
+                narration: `Stripe fee deducted — ${erp.payment_number}`,
+              },
+            ],
+          });
+        }
+        if (voucher.status === "DRAFT") {
+          await this.vouchers.post(tenantId, voucher.id);
+        }
+        voucherId = voucher.id;
+      } else if (feeCurrency !== txn.currency_code.toUpperCase()) {
+        this.logger.log(
+          `Stripe fee for ${transactionId} settled in ${feeCurrency} (charge in ${txn.currency_code}); recorded only.`,
+        );
+      }
+
+      await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.paymentTransaction.update({
+          where: { id: transactionId },
+          data: {
+            stripe_fee_amount: feeAmount,
+            stripe_fee_currency: feeCurrency,
+            fee_voucher_id: voucherId,
+            stripe_charge_id: txn.stripe_charge_id ?? fee.chargeId,
+          },
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Could not record Stripe fee for ${transactionId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      await release();
+    }
+  }
+
+  /**
+   * Chargebacks (charge.dispute.*). Opened → attempt DISPUTED + finance
+   * alerted (refunds blocked). Won → back to PAID. Lost → the disputed
+   * amount is reversed in the ERP exactly like a refund (idempotent via a
+   * synthetic `dispute:<id>` refund reference).
+   */
+  async applyDispute(
+    tenantId: string,
+    accountRef: string,
+    dispute: Stripe.Dispute,
+  ) {
+    const piId =
+      typeof dispute.payment_intent === "string"
+        ? dispute.payment_intent
+        : dispute.payment_intent?.id;
+    if (!piId) return null;
+    const txn = await this.findForGatewayObject(tenantId, accountRef, {
+      paymentIntentId: piId,
+    });
+    if (!txn) return null;
+
+    const firstSeen = !txn.stripe_dispute_id;
+    const restored: OnlinePaymentStatus = isPositiveMoney(txn.amount_refunded)
+      ? "PARTIALLY_REFUNDED"
+      : "PAID";
+    let status: OnlinePaymentStatus | undefined;
+    if (dispute.status === "won" || dispute.status === "warning_closed") {
+      status = txn.status === "DISPUTED" ? restored : undefined;
+    } else if (dispute.status !== "lost") {
+      status = ["PAID", "PARTIALLY_REFUNDED"].includes(txn.status)
+        ? "DISPUTED"
+        : undefined;
+    }
+
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.paymentTransaction.update({
+        where: { id: txn.id },
+        data: {
+          stripe_dispute_id: dispute.id,
+          dispute_status: dispute.status,
+          disputed_at: txn.disputed_at ?? new Date(),
+          ...(status ? { status } : {}),
+        },
+      }),
+    );
+
+    if (dispute.status === "lost") {
+      const refundable = toDecimal(txn.amount).minus(
+        toDecimal(txn.amount_refunded),
+      );
+      const lostAmount = minDecimal(
+        fromMinorUnits(dispute.amount, txn.currency_code),
+        refundable,
+      );
+      const key = `dispute:${dispute.id}`;
+      const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
+        const existing = await tx.paymentRefund.findFirst({
+          where: { tenant_id: tenantId, stripe_refund_id: key },
+        });
+        if (existing) return existing;
+        if (!isPositiveMoney(lostAmount)) return null;
+        return tx.paymentRefund.create({
+          data: {
+            tenant_id: tenantId,
+            scope: "TENANT_INVOICE",
+            payment_transaction_id: txn.id,
+            amount: lostAmount,
+            currency_code: txn.currency_code,
+            reason: `Chargeback lost (${dispute.reason})`,
+            stripe_refund_id: key,
+            status: "SUCCEEDED",
+            requested_by_type: "STAFF",
+            processed_at: new Date(),
+          },
+        });
+      });
+      if (row) await this.applyRefundAccounting(tenantId, row.id);
+    }
+
+    await this.audit.log(tenantId, {
+      action: "PAYMENT_DISPUTE_UPDATED",
+      entity: "PaymentTransaction",
+      entityId: txn.id,
+      metadata: {
+        dispute_id: dispute.id,
+        status: dispute.status,
+        reason: dispute.reason,
+      },
+    });
+    if (firstSeen || ["won", "lost"].includes(dispute.status)) {
+      await this.notifications.notifyFinanceStaff(tenantId, {
+        type: "PAYMENT_DISPUTED",
+        title:
+          dispute.status === "lost"
+            ? "Chargeback lost — payment reversed"
+            : dispute.status === "won"
+              ? "Chargeback won"
+              : "Customer disputed an online payment",
+        message:
+          `Dispute ${dispute.id} (${dispute.reason}) is ${dispute.status}` +
+          (dispute.evidence_details?.due_by && firstSeen
+            ? `; respond in Stripe by ${new Date(dispute.evidence_details.due_by * 1000).toISOString().slice(0, 10)}`
+            : "") +
+          ".",
+        entity_type: "invoice",
+        entity_id: txn.invoice_id,
+        link_path: `/invoices/${txn.invoice_id}`,
+      });
+    }
+    return txn;
+  }
+
+  /**
+   * Safety net for missed / misconfigured webhooks (run by the
+   * reconciliation cron): re-reads stale attempts from Stripe, retries ERP
+   * posting, fee recording and refund accounting that did not complete.
+   */
+  async reconcileTenant(tenantId: string) {
+    const staleBefore = new Date(Date.now() - RECONCILE_STALE_AFTER_MS);
+    const result = { checked: 0, posted: 0, fees: 0, refunds: 0, errors: 0 };
+    const { stale, unposted, feeless, refunds } =
+      await this.prisma.runWithTenant(tenantId, async (tx) => ({
+        stale: await tx.paymentTransaction.findMany({
+          where: {
+            tenant_id: tenantId,
+            status: { in: RECONCILE_ATTEMPT_STATUSES },
+            stripe_checkout_session_id: { not: null },
+            created_at: { lt: staleBefore },
+          },
+          select: { id: true },
+          take: 25,
+        }),
+        unposted: await tx.paymentTransaction.findMany({
+          where: {
+            tenant_id: tenantId,
+            status: "PAID",
+            payment_id: null,
+            stripe_payment_intent_id: { not: null },
+            OR: [
+              { erp_posting_claimed_at: null },
+              {
+                erp_posting_claimed_at: {
+                  lt: new Date(Date.now() - ERP_POSTING_CLAIM_STALE_MS),
+                },
+              },
+            ],
+          },
+          select: { id: true, stripe_payment_intent_id: true },
+          take: 25,
+        }),
+        feeless: await tx.paymentTransaction.findMany({
+          where: {
+            tenant_id: tenantId,
+            fee_recorded_at: null,
+            payment_id: { not: null },
+            paid_at: { gt: new Date(Date.now() - 7 * 86_400_000) },
+          },
+          select: { id: true },
+          take: 25,
+        }),
+        refunds: await tx.paymentRefund.findMany({
+          where: {
+            tenant_id: tenantId,
+            scope: "TENANT_INVOICE",
+            status: "SUCCEEDED",
+            accounting_applied_at: null,
+          },
+          select: { id: true },
+          take: 25,
+        }),
+      }));
+
+    for (const t of stale) {
+      try {
+        await this.checkoutStatus(tenantId, t.id, true);
+        result.checked++;
+      } catch (err) {
+        result.errors++;
+        this.logger.warn(`Reconcile ${t.id} failed: ${String(err)}`);
+      }
+    }
+    for (const t of unposted) {
+      try {
+        await this.markSucceeded(tenantId, t.id, {
+          paymentIntentId: t.stripe_payment_intent_id,
+          amountMinor: null,
+          currency: null,
+        });
+        result.posted++;
+      } catch (err) {
+        result.errors++;
+        this.logger.warn(`ERP posting retry ${t.id} failed: ${String(err)}`);
+      }
+    }
+    for (const t of feeless) {
+      await this.recordStripeFee(tenantId, t.id);
+      result.fees++;
+    }
+    for (const r of refunds) {
+      try {
+        await this.applyRefundAccounting(tenantId, r.id);
+        result.refunds++;
+      } catch (err) {
+        result.errors++;
+        this.logger.warn(
+          `Refund accounting retry ${r.id} failed: ${String(err)}`,
+        );
+      }
+    }
+    return result;
   }
 
   // ───────────────────────────── internals ─────────────────────────────
@@ -1274,7 +1656,38 @@ export class InvoiceOnlinePaymentsService {
     }
 
     const posted = await this.glPayments.post(tenantId, created.id);
+
+    const unallocated = allocate ? amount.minus(allocate) : amount;
+    if (isPositiveMoney(unallocated)) {
+      await this.notifications.notifyFinanceStaff(tenantId, {
+        type: "PAYMENT_ACTION_REQUIRED",
+        title: "Online payment held on account",
+        message:
+          `${unallocated.toFixed(2)} ${txn.currency_code} of Stripe receipt ${posted.payment_number} ` +
+          `could not be allocated to ${invoice?.invoice_number ?? "the invoice"} (already paid or cancelled). ` +
+          `Allocate it to another invoice or refund it.`,
+        entity_type: "payment",
+        entity_id: posted.id,
+        link_path: `/gl/payments/${posted.id}`,
+      });
+    }
     return posted.id;
+  }
+
+  /** Voucher number if the voucher appears in a bank reconciliation. */
+  private async reconciledVoucherInfo(tenantId: string, voucherId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const line = await tx.bankReconciliationLine.findFirst({
+        where: { tenant_id: tenantId, voucher_id: voucherId, deleted_at: null },
+        select: { id: true },
+      });
+      if (!line) return null;
+      const v = await tx.voucher.findUnique({
+        where: { id: voucherId },
+        select: { voucher_number: true },
+      });
+      return v?.voucher_number ?? voucherId;
+    });
   }
 
   private async afterSuccess(

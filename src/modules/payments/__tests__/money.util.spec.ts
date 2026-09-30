@@ -2,6 +2,7 @@ import {
   fromMinorUnits,
   gtMoney,
   roundMoney,
+  stripeMinimumError,
   toMinorUnits,
 } from "../utils/money.util";
 
@@ -30,5 +31,11 @@ describe("money.util", () => {
     expect(gtMoney("100.00005", "100")).toBe(false);
     expect(gtMoney("100.01", "100")).toBe(true);
     expect(roundMoney("10.005").toFixed(2)).toBe("10.01");
+  });
+
+  it("flags amounts below Stripe's minimum charge", () => {
+    expect(stripeMinimumError("1.99", "AED")).toMatch(/at least 2.00/);
+    expect(stripeMinimumError("2.00", "aed")).toBeNull();
+    expect(stripeMinimumError("0.01", "XYZ")).toBeNull();
   });
 });
