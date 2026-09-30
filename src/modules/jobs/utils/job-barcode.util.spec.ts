@@ -1,11 +1,12 @@
 import { barcodeFromJobNumber } from "./job-barcode.util";
 
 describe("barcodeFromJobNumber", () => {
-  it("strips non-alphanumeric characters", () => {
-    expect(barcodeFromJobNumber("KF/RF/09/26/0001")).toBe("KFRF09260001");
+  it("strips separators and prefixes JB for opaque staff-only codes", () => {
+    expect(barcodeFromJobNumber("KF/RF/09/26/0001")).toBe("JBKFRF09260001");
   });
 
-  it("uppercases the result", () => {
-    expect(barcodeFromJobNumber("ae-export-1")).toBe("AEEXPORT1");
+  it("uppercases alphanumeric job numbers without duplicating JB", () => {
+    expect(barcodeFromJobNumber("ae-export-1")).toBe("JBAEEXPORT1");
+    expect(barcodeFromJobNumber("JBALREADY")).toBe("JBALREADY");
   });
 });
