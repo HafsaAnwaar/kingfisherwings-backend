@@ -1310,7 +1310,10 @@ export class InvoiceOnlinePaymentsService {
     });
     const to = txn.payer_email ?? txn.party.email;
     if (to) {
-      await this.mailer.sendReceipt(tenantId, {
+      // Not awaited: SMTP timeouts (up to ~90s) must not hold the Stripe
+      // webhook response open. sendReceipt never throws; the ERP payment is
+      // already posted at this point.
+      void this.mailer.sendReceipt(tenantId, {
         to,
         invoiceNumber: txn.invoice.invoice_number,
         amount,

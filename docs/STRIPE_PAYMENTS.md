@@ -133,3 +133,70 @@ Existing endpoints reused unchanged: `/gl/payments/*` (manual receipts/payments)
 - Tenant suspension on unpaid subscriptions is left to the Super Admin (status is synced,
   tenants are only auto-promoted to ACTIVE).
 - Frontend (ERP, portal, pay page) is a separate project; this repo exposes the APIs above.
+
+## Known risks / operational issues
+
+Ordered by likely impact. "Gap" = not handled in code yet; "Ops" = configuration/process.
+
+### Accounting
+1. **Stripe fees and payouts (Gap).** Receipts post the *gross* amount to the bank account
+   (default GL 1200, or the gateway's `bank_account_id`). Stripe pays out *net of fees*, in
+   batches, days later — bank reconciliation will not match 1:1. Mitigation: point
+   `bank_account_id` at a dedicated "Stripe clearing" bank/GL account and book fees +
+   transfers to the real bank when reconciling payouts. Follow-up: handle
+   `payout.paid` / balance transactions to post fees automatically.
+2. **Disputes / chargebacks (Gap).** `charge.dispute.*` is not handled: a disputed payment
+   stays PAID in the ERP while Stripe claws the money back. Until handled, finance must
+   watch disputes in the Stripe dashboard and reverse manually (cancel the receipt via
+   `/gl/payments/:id/cancel`).
+3. **Refund reversals vs. closed periods / reconciled vouchers.** A refund cancels the
+   original receipt with the existing `cancel()`, which has no period-lock or
+   reconciliation check. If the receipt voucher was already bank-reconciled, the
+   reconciliation will be out of balance after a refund. Refund *after* reconciling, or
+   re-open the reconciliation.
+4. **Overpayment edge cases.** The checkout amount is fixed when the session is created.
+   If the balance drops before payment (credit note, manual receipt, two tabs paying at
+   once), the extra is posted as an *unallocated* receipt (on-account). Finance must
+   refund or allocate it — watch `unallocated_amount` on `STRIPE:` receipts.
+5. **Don't manually cancel Stripe receipts** in `/gl/payments`. A later refund re-posts the
+   net amount and would recreate a receipt staff meant to remove.
+
+### Webhooks / Stripe configuration
+6. **Misconfigured webhook = payments not recorded (Ops).** If a company's own Stripe
+   account has no webhook (or it points at the platform URL / wrong secret), money is
+   captured but the invoice stays unpaid. There is no background reconciler; the only
+   safety net is `GET …/checkout-status?sync=true` (or the portal `?sync=true`) which
+   re-reads the session from Stripe. Monitor `GET /platform/billing/webhook-events?status=FAILED`.
+   Follow-up: scheduled job to sync attempts stuck in PENDING/PROCESSING > 1h.
+7. **Webhook API version (Ops).** Payload shape follows the *endpoint's* API version in the
+   Stripe dashboard, not the SDK (stripe@22). Create endpoints on the current API version.
+   Subscription period fields and `invoice.subscription` moved in recent versions — the code
+   reads both shapes, but older/newer endpoint versions are untested.
+8. **Response time.** Stripe expects a fast 2xx; slow responses count as failures and
+   repeated failures can get the endpoint disabled. Receipt emails are therefore sent
+   without blocking the webhook; ERP posting itself is typically well under a second.
+9. **Encryption key rotation (Ops).** Tenant Stripe secrets are encrypted with
+   `PAYMENT_GATEWAY_ENCRYPTION_KEY` (fallback `TWO_FACTOR_ENCRYPTION_KEY`). Changing it makes
+   stored keys unreadable (checkout and tenant webhooks fail) — re-enter keys after rotating.
+   Set a dedicated key so rotating the 2FA key doesn't break payments.
+
+### Rollout
+10. **Permissions (Ops).** Existing tenants need `POST /tenants/sync-permissions`, and users
+    must log in again (permissions are embedded in the JWT) or they get 403 on the new routes.
+11. **Frontend routes (Ops).** Emails and Checkout redirects point to frontend pages that must
+    exist: `/pay/:token`, `/portal/invoices/:id`, `/invoices/:id`, `/billing/invoices/:id`,
+    `/billing/subscription`. Until built, customers land on 404s after paying (the payment
+    itself is still recorded via webhook). Set `FRONTEND_URL` — otherwise links fall back to
+    `APP_URL` (the API host).
+12. **Currency limits.** Stripe must support the invoice currency and enforce minimums
+    (e.g. 0.50 USD, 2.00 AED); tiny balances are rejected with a 400. Three-decimal
+    currencies (KWD/BHD/OMR/JOD) are rounded to 10 fils as Stripe requires.
+13. **Collecting on the platform account for tenants (`use_platform_account`) is a
+    compliance question**, not just a technical one: the platform receives money owed to the
+    tenant (payment-facilitator rules, payout to tenant is manual). Prefer each company's
+    own Stripe account; Stripe Connect is the proper model if the platform must collect.
+14. **Database role.** The existing auth layer requires a DB role with BYPASSRLS (as today);
+    RLS on the new tables only adds defence in depth.
+15. **Migration.** The partial unique index `payments_gateway_reference_live_key` would fail
+    if existing live payments already share a `STRIPE:%`/`PROOF:%` reference (unlikely). The
+    enum additions need PostgreSQL ≥ 12 (Neon: fine).
