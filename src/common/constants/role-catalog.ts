@@ -8,6 +8,10 @@ import { SEARCH_PERMISSIONS } from "../../modules/search/constants/search-permis
 import { TOOLS_PERMISSIONS } from "../../modules/tools/constants/tools-permission.constants";
 import { INVOICES_PERMISSIONS } from "../../modules/invoices/constants/invoices-permission.constants";
 import { GL_PERMISSIONS } from "../../modules/gl/constants/gl-permission.constants";
+import {
+  PAYMENTS_PERMISSIONS,
+  PLATFORM_BILLING_PERMISSIONS,
+} from "../../modules/payments/constants/payments-permission.constants";
 import { PORTAL_PERMISSIONS } from "../../modules/portal/constants/portal-permission.constants";
 import { VENDOR_PERMISSIONS } from "../../modules/vendor/constants/vendor-permission.constants";
 import { CRM_PERMISSIONS } from "../../modules/crm/constants/crm-permission.constants";
@@ -56,6 +60,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       ...Object.values(TOOLS_PERMISSIONS),
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),
+      ...Object.values(PAYMENTS_PERMISSIONS),
+      ...Object.values(PLATFORM_BILLING_PERMISSIONS),
       ...Object.values(PORTAL_PERMISSIONS),
       ...Object.values(VENDOR_PERMISSIONS),
       ...Object.values(CRM_PERMISSIONS),
@@ -254,6 +260,8 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
       QUOTATIONS_PERMISSIONS.VIEW,
       ...Object.values(INVOICES_PERMISSIONS),
       ...Object.values(GL_PERMISSIONS),
+      ...Object.values(PAYMENTS_PERMISSIONS),
+      PLATFORM_BILLING_PERMISSIONS.VIEW,
       HR_PERMISSIONS.VIEW,
       HR_PERMISSIONS.MANAGE_PAYROLL,
       WMS_PERMISSIONS.VIEW,

@@ -197,6 +197,15 @@ export class SendInvoiceEmailDto {
   @IsString()
   @Length(1, 500)
   message?: string;
+
+  @ApiPropertyOptional({
+    default: true,
+    description:
+      "Include a secure Stripe 'Pay Now' link when online payments are enabled and the invoice has a balance.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  include_payment_link?: boolean;
 }
 
 export class InvoiceQueryDto {
