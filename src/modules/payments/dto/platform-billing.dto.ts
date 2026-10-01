@@ -117,6 +117,11 @@ export class CreatePlatformInvoiceDto {
 }
 
 export class UpdatePlatformInvoiceDto {
+  @ApiPropertyOptional({ example: "2026-10-01" })
+  @IsOptional()
+  @IsDateString()
+  issue_date?: string;
+
   @ApiPropertyOptional({ type: [PlatformInvoiceLineDto] })
   @IsOptional()
   @IsArray()
@@ -202,6 +207,15 @@ export class PlatformInvoiceQueryDto {
 }
 
 export class SendPlatformInvoiceDto {
+  @ApiPropertyOptional({
+    default: true,
+    description:
+      "false = finalize for portal delivery only (no email). The tenant sees it in the portal either way.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  deliver_email?: boolean;
+
   @ApiPropertyOptional({
     description:
       "Override recipient; defaults to the tenant's contact + tenant admins.",

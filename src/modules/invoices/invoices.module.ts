@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { PdfModule } from "../../shared/pdf/pdf.module";
@@ -32,7 +32,7 @@ import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
     PublicApiModule,
     MastersModule,
     ReportsModule,
-    PaymentsModule,
+    forwardRef(() => PaymentsModule),
   ],
   controllers: [
     InvoicesController,
