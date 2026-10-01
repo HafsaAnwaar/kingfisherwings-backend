@@ -33,6 +33,7 @@ import { UpdatePaymentGatewaySettingsDto } from "./dto/payment-gateway.dto";
 import { InvoiceOnlinePaymentsService } from "./invoice-online-payments.service";
 import { PaymentGatewaySettingsService } from "./payment-gateway-settings.service";
 import { PaymentLinksService } from "./payment-links.service";
+import { TenantConnectService } from "./tenant-connect.service";
 import { StripeGatewayService } from "./stripe-gateway.service";
 import { PaymentReconciliationService } from "./payment-reconciliation.service";
 import { staffFrontendUrl } from "./utils/frontend-url.util";
@@ -56,6 +57,7 @@ export class OnlinePaymentsController {
     private readonly stripe: StripeGatewayService,
     private readonly glPayments: GlPaymentsService,
     private readonly reconciliation: PaymentReconciliationService,
+    private readonly tenantConnect: TenantConnectService,
   ) {}
 
   // ─── Stripe configuration ───
@@ -131,6 +133,37 @@ export class OnlinePaymentsController {
     @CurrentUser("id") actorId: string,
   ) {
     return this.settings.rotateWebhookToken(tenantId, actorId);
+  }
+
+  @Get("stripe/connect")
+  @RequirePermissions(PAYMENTS_PERMISSIONS.MANAGE_GATEWAY)
+  @ApiOperation({
+    summary: "Stripe Connect status for collecting customer payments",
+  })
+  connectStatus(@CurrentUser("tenantId") tenantId: string) {
+    return this.tenantConnect.status(tenantId);
+  }
+
+  @Post("stripe/connect/onboarding-link")
+  @RequirePermissions(PAYMENTS_PERMISSIONS.MANAGE_GATEWAY)
+  @ApiOperation({
+    summary: "Connect the company's Stripe account (Stripe-hosted onboarding)",
+    description:
+      "No API keys needed. When Stripe finishes verifying the company, online payments turn on " +
+      "automatically and customer payments settle into the company's Stripe account.",
+  })
+  connectOnboarding(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+  ) {
+    return this.tenantConnect.onboardingLink(tenantId, actorId);
+  }
+
+  @Post("stripe/connect/dashboard-link")
+  @RequirePermissions(PAYMENTS_PERMISSIONS.MANAGE_GATEWAY)
+  @ApiOperation({ summary: "Open the company's Stripe Express dashboard" })
+  connectDashboard(@CurrentUser("tenantId") tenantId: string) {
+    return this.tenantConnect.dashboardLink(tenantId);
   }
 
   @Post("stripe/reconcile")

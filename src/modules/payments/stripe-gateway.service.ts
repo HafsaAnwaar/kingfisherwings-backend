@@ -188,7 +188,7 @@ export class StripeGatewayService {
     return { chargeId: charge?.id ?? null, fee: bt.fee, currency: bt.currency };
   }
 
-  // ─── Stripe Connect (vendor payouts) ───
+  // ─── Stripe Connect (vendor payouts, company collection) ───
 
   /** Connect is "provided later": everything below is off until enabled. */
   connectEnabled(): boolean {
@@ -233,6 +233,89 @@ export class StripeGatewayService {
     return this.call("transfers.create", () =>
       client.transfers.create(params, { idempotencyKey }),
     );
+  }
+
+  /**
+   * Account debit: pulls funds from a connected account's balance into the
+   * platform balance (used to fund a vendor payout for a company that
+   * collects through its own connected account).
+   */
+  async debitConnectedAccount(
+    client: Stripe,
+    connectedAccountId: string,
+    params: Omit<Stripe.TransferCreateParams, "destination">,
+    idempotencyKey: string,
+  ) {
+    const platformId = await this.platformAccountId(client);
+    return this.call("transfers.create(debit)", () =>
+      client.transfers.create(
+        { ...params, destination: platformId },
+        { idempotencyKey, stripeAccount: connectedAccountId },
+      ),
+    );
+  }
+
+  /** Reverses a transfer (optionally one created on a connected account). */
+  async reverseTransfer(
+    client: Stripe,
+    transferId: string,
+    params: Stripe.TransferCreateReversalParams,
+    idempotencyKey: string,
+    onAccount?: string,
+  ) {
+    return this.call("transfers.createReversal", () =>
+      client.transfers.createReversal(transferId, params, {
+        idempotencyKey,
+        ...(onAccount ? { stripeAccount: onAccount } : {}),
+      }),
+    );
+  }
+
+  /** Transfer that settled a destination charge into the connected account. */
+  async destinationTransferId(
+    client: Stripe,
+    paymentIntentId: string,
+  ): Promise<string | null> {
+    const pi = await this.call("paymentIntents.retrieve", () =>
+      client.paymentIntents.retrieve(paymentIntentId, {
+        expand: ["latest_charge"],
+      }),
+    );
+    const charge =
+      pi.latest_charge && typeof pi.latest_charge !== "string"
+        ? pi.latest_charge
+        : null;
+    const transfer = charge?.transfer;
+    return typeof transfer === "string" ? transfer : (transfer?.id ?? null);
+  }
+
+  async createLoginLink(client: Stripe, connectedAccountId: string) {
+    return this.call("accounts.createLoginLink", () =>
+      client.accounts.createLoginLink(connectedAccountId),
+    );
+  }
+
+  private platformIdCache = new WeakMap<Stripe, string>();
+
+  private async platformAccountId(client: Stripe): Promise<string> {
+    const cached = this.platformIdCache.get(client);
+    if (cached) return cached;
+    const acct = await this.call("accounts.retrieve(self)", () =>
+      client.accounts.retrieveCurrent(),
+    );
+    this.platformIdCache.set(client, acct.id);
+    return acct.id;
+  }
+
+  /**
+   * Platform application fee on Connect customer payments, in basis points
+   * (STRIPE_CONNECT_APPLICATION_FEE_BPS, default 0 = no fee).
+   */
+  connectApplicationFeeBps(): number {
+    const raw = Number(process.env.STRIPE_CONNECT_APPLICATION_FEE_BPS ?? 0);
+    return Number.isFinite(raw) && raw > 0
+      ? Math.min(Math.floor(raw), 5000)
+      : 0;
   }
 
   async listRefundsForPaymentIntent(client: Stripe, paymentIntentId: string) {

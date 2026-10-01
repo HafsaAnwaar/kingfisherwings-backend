@@ -20,6 +20,7 @@ import { PaymentGatewaySettingsService } from "./payment-gateway-settings.servic
 import { PlatformBillingService } from "./platform-billing.service";
 import { PlatformSubscriptionsService } from "./platform-subscriptions.service";
 import { StripeGatewayService } from "./stripe-gateway.service";
+import { TenantConnectService } from "./tenant-connect.service";
 import {
   VENDOR_PAYOUT_SCOPE,
   VendorPayoutsService,
@@ -62,6 +63,7 @@ export class StripeWebhookService {
     private readonly subscriptions: PlatformSubscriptionsService,
     private readonly audit: PaymentAuditService,
     private readonly vendorPayouts: VendorPayoutsService,
+    private readonly tenantConnect: TenantConnectService,
   ) {}
 
   async handle(
@@ -458,7 +460,7 @@ export class StripeWebhookService {
       : { handled: false, reason: "payout_not_found" };
   }
 
-  /** Connected vendor account changed (onboarding progress / capabilities). */
+  /** Connected vendor / company account changed (onboarding, capabilities). */
   private async onAccountUpdated(
     acct: Stripe.Account,
     account: WebhookAccount,
@@ -466,6 +468,17 @@ export class StripeWebhookService {
     const row = await this.prisma.vendorPayoutAccount.findUnique({
       where: { stripe_account_id: acct.id },
     });
+    // Company collection accounts are created on the platform account.
+    if (
+      !row &&
+      account.accountRef === PLATFORM_ACCOUNT_REF &&
+      !account.tenantId
+    ) {
+      const gw = await this.tenantConnect.applyAccountUpdate(acct);
+      return gw
+        ? { handled: true, tenantId: gw.tenant_id }
+        : { handled: false, reason: "unknown_connected_account" };
+    }
     if (
       !row ||
       row.account_ref !== account.accountRef ||
@@ -564,9 +577,10 @@ export class StripeWebhookService {
     if (tenantId) return [tenantId];
     if (account.tenantId) return [];
     // Dashboard refund on the platform account for a tenant that collects
-    // through the platform account: search those tenants only.
+    // through the platform account (or Connect destination charges, which
+    // live on the platform account): search those tenants only.
     const gateways = await this.prisma.tenantPaymentGateway.findMany({
-      where: { use_platform_account: true },
+      where: { OR: [{ use_platform_account: true }, { use_connect: true }] },
       select: { tenant_id: true },
     });
     return gateways.map((g) => g.tenant_id);

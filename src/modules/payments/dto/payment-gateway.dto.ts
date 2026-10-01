@@ -82,6 +82,15 @@ export class UpdatePaymentGatewaySettingsDto {
 
   @ApiPropertyOptional({
     description:
+      "Stripe Connect: collect customer payments into the company's own connected Stripe account " +
+      "(set automatically when onboarding completes; requires onboarding to have started).",
+  })
+  @IsOptional()
+  @IsBoolean()
+  use_connect?: boolean;
+
+  @ApiPropertyOptional({
+    description:
       "Signing secret (whsec_) of this company's Stripe Connect webhook endpoint. Write-only; stored encrypted.",
   })
   @IsOptional()

@@ -23,13 +23,20 @@ export interface ResolvedTenantAccount {
   client: Stripe;
   accountRef: string;
   gateway: TenantPaymentGateway;
+  /**
+   * Stripe Connect collection: the company's connected account. Charges are
+   * created on the platform (accountRef "platform") as destination charges
+   * that settle into this account.
+   */
+  connectAccountId: string | null;
 }
 
 /**
  * Per-tenant Stripe account configuration. Customer invoice payments are
  * collected into the tenant's own Stripe account; a tenant can instead be
  * switched to the platform account (use_platform_account) when the
- * operator collects on the tenant's behalf.
+ * operator collects on the tenant's behalf, or collect through its own
+ * Stripe Connect account (use_connect, onboarded via Stripe-hosted pages).
  */
 @Injectable()
 export class PaymentGatewaySettingsService {
@@ -161,9 +168,16 @@ export class PaymentGatewaySettingsService {
         "The platform Stripe account is not configured; provide the company's own keys.",
       );
     }
+    const willUseConnect = dto.use_connect ?? existing?.use_connect ?? false;
+    if (willUseConnect && !existing?.connect_account_id) {
+      throw new BadRequestException(
+        "Start Stripe onboarding first (POST /payments/stripe/connect/onboarding-link).",
+      );
+    }
     if (
       willEnable &&
       !willUsePlatform &&
+      !willUseConnect &&
       !dto.secret_key &&
       !existing?.secret_key_encrypted
     ) {
@@ -176,6 +190,9 @@ export class PaymentGatewaySettingsService {
       ...(dto.is_enabled !== undefined ? { is_enabled: dto.is_enabled } : {}),
       ...(dto.use_platform_account !== undefined
         ? { use_platform_account: dto.use_platform_account }
+        : {}),
+      ...(dto.use_connect !== undefined
+        ? { use_connect: dto.use_connect }
         : {}),
       ...(dto.secret_key
         ? { secret_key_encrypted: this.encrypt(dto.secret_key) }
@@ -233,6 +250,7 @@ export class PaymentGatewaySettingsService {
       metadata: {
         is_enabled: saved.is_enabled,
         use_platform_account: saved.use_platform_account,
+        use_connect: saved.use_connect,
         secret_key_changed: Boolean(dto.secret_key),
         webhook_secret_changed: Boolean(dto.webhook_secret),
       },
@@ -296,7 +314,7 @@ export class PaymentGatewaySettingsService {
       gateway: gw,
       accountRef: tenantAccountRef(gw.id),
       webhookSecret: this.decrypt(gw.webhook_secret_encrypted),
-      client: this.resolveClient(gw).client,
+      client: this.ownKeysClient(gw),
     };
   }
 
@@ -316,7 +334,7 @@ export class PaymentGatewaySettingsService {
       gateway: gw,
       accountRef: tenantAccountRef(gw.id),
       webhookSecret: this.decrypt(gw.connect_webhook_secret_encrypted),
-      client: this.resolveClient(gw).client,
+      client: this.ownKeysClient(gw),
     };
   }
 
@@ -346,22 +364,50 @@ export class PaymentGatewaySettingsService {
       return {
         client: this.stripe.requirePlatformClient(),
         accountRef: PLATFORM_ACCOUNT_REF,
+        connectAccountId: null,
       };
     }
+    if (gw.use_connect) {
+      if (!this.connectCollectionReady(gw)) {
+        throw new BadRequestException(
+          "Online payments become available once the company finishes Stripe onboarding.",
+        );
+      }
+      return {
+        client: this.stripe.requirePlatformClient(),
+        accountRef: PLATFORM_ACCOUNT_REF,
+        connectAccountId: gw.connect_account_id,
+      };
+    }
+    return {
+      client: this.ownKeysClient(gw),
+      accountRef: tenantAccountRef(gw.id),
+      connectAccountId: null,
+    };
+  }
+
+  /** Company collects through its connected account and Stripe allows charges. */
+  connectCollectionReady(gw: TenantPaymentGateway | null) {
+    return Boolean(
+      gw?.use_connect &&
+      gw.connect_account_id &&
+      gw.connect_charges_enabled &&
+      this.stripe.connectEnabled(),
+    );
+  }
+
+  private ownKeysClient(gw: TenantPaymentGateway) {
     if (!gw.secret_key_encrypted) {
       throw new BadRequestException(
         "Stripe secret key is not configured for this company.",
       );
     }
-    return {
-      client: this.stripe.clientForKey(this.decrypt(gw.secret_key_encrypted)),
-      accountRef: tenantAccountRef(gw.id),
-    };
+    return this.stripe.clientForKey(this.decrypt(gw.secret_key_encrypted));
   }
 
   publishableKeyFor(gw: TenantPaymentGateway | null): string | null {
     if (!gw) return null;
-    return gw.use_platform_account
+    return gw.use_platform_account || gw.use_connect
       ? this.stripe.platformPublishableKey()
       : gw.publishable_key;
   }
@@ -387,15 +433,25 @@ export class PaymentGatewaySettingsService {
       webhook_secret_set: Boolean(gw.webhook_secret_encrypted),
       connect_webhook_secret_set: Boolean(gw.connect_webhook_secret_encrypted),
       auto_vendor_payouts: gw.auto_vendor_payouts,
+      use_connect: gw.use_connect,
+      connect: {
+        account_connected: Boolean(gw.connect_account_id),
+        details_submitted: gw.connect_details_submitted,
+        charges_enabled: gw.connect_charges_enabled,
+        payouts_enabled: gw.connect_payouts_enabled,
+        requirements_due: gw.connect_requirements_due ?? [],
+        ready: this.connectCollectionReady(gw),
+      },
       publishable_key: this.publishableKeyFor(gw),
       allow_partial_payments: gw.allow_partial_payments,
       bank_account_id: gw.bank_account_id,
       fee_gl_account_id: gw.fee_gl_account_id,
       statement_descriptor: gw.statement_descriptor,
       platform_account_available: Boolean(this.stripe.platformClient()),
-      webhook_url: gw.use_platform_account
-        ? `${apiBase}/payments/stripe/webhook`
-        : `${apiBase}/payments/stripe/webhook/${gw.webhook_token}`,
+      webhook_url:
+        gw.use_platform_account || gw.use_connect
+          ? `${apiBase}/payments/stripe/webhook`
+          : `${apiBase}/payments/stripe/webhook/${gw.webhook_token}`,
       updated_at: gw.updated_at,
     };
   }

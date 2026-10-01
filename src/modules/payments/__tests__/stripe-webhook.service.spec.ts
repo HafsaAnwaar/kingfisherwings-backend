@@ -80,6 +80,7 @@ function setup() {
     subs as never,
     audit as never,
     vendorPayouts as never,
+    { applyAccountUpdate: jest.fn().mockResolvedValue(null) } as never,
   );
   return { service, prisma, settings, invoicePayments, platform };
 }

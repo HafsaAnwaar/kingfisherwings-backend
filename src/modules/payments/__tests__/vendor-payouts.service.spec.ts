@@ -35,6 +35,7 @@ function setup(opts: { ready?: boolean; enabled?: boolean } = {}) {
       create: jest.fn(({ data }) => ({ id: "po1", ...data })),
       update: jest.fn(({ data }) => ({ id: "po1", ...data })),
       findFirst: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
     },
   };
   const prisma = {
