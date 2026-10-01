@@ -67,6 +67,10 @@ function setup() {
   };
   const subs = { syncSubscription: jest.fn() };
   const audit = { log: jest.fn() };
+  const vendorPayouts = {
+    applyTransferReversed: jest.fn(),
+    updateAccountFromStripe: jest.fn(),
+  };
   const service = new StripeWebhookService(
     prisma as never,
     stripe,
@@ -75,6 +79,7 @@ function setup() {
     platform as never,
     subs as never,
     audit as never,
+    vendorPayouts as never,
   );
   return { service, prisma, settings, invoicePayments, platform };
 }

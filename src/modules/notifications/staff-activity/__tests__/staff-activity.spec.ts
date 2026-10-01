@@ -254,13 +254,17 @@ describe("StaffActivityService.deliver", () => {
     return { svc, tx, prisma, email };
   }
 
-  it("emails the registered tenant email + tenant admins, deduped, never the actor", async () => {
+  it("emails the registered tenant email + tenant admins (incl. the acting admin), deduped", async () => {
     const { svc, email, prisma, tx } = setup();
     await svc.deliver({ auditLogId: "log1", tenantId: TENANT_A });
     const to = email.send.mock.calls.map(
       (c: unknown[]) => (c[0] as { to: string }).to,
     );
-    expect(to.sort()).toEqual(["admin2@abc.test", "owner@abc.test"]);
+    expect(to.sort()).toEqual([
+      "admin2@abc.test",
+      "john@abc.test",
+      "owner@abc.test",
+    ]);
     const msg = email.send.mock.calls[0][0];
     expect(msg.subject).toContain("Staff Activity: Created Invoice");
     expect(msg.body).toContain("ABC Logistics");
@@ -288,6 +292,6 @@ describe("StaffActivityService.deliver", () => {
     await expect(
       svc.deliver({ auditLogId: "log1", tenantId: TENANT_A }),
     ).resolves.toBeUndefined();
-    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenCalledTimes(3);
   });
 });

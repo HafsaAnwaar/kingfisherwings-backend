@@ -1,12 +1,15 @@
 import {
   BadRequestException,
+  Inject,
+  forwardRef,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { PaymentRequestStatus, Prisma } from "@prisma/client";
+import { PaymentMethod, PaymentRequestStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import { PaymentsService } from "../gl/payments.service";
+import { VendorPayoutsService } from "../payments/vendor-payouts.service";
 import {
   CreatePaymentRequestDto,
   PaymentRequestQueryDto,
@@ -22,6 +25,8 @@ export class PaymentRequestsService {
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
     private readonly payments: PaymentsService,
+    @Inject(forwardRef(() => VendorPayoutsService))
+    private readonly vendorPayouts: VendorPayoutsService,
   ) {}
 
   async findAll(tenantId: string, query: PaymentRequestQueryDto) {
@@ -196,7 +201,7 @@ export class PaymentRequestsService {
       );
     }
 
-    return this.prisma.runWithTenant(tenantId, (tx) =>
+    const approved = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.paymentRequest.update({
         where: { id },
         data: {
@@ -207,6 +212,13 @@ export class PaymentRequestsService {
         },
       }),
     );
+    // Stripe Connect: pay the vendor automatically (no-op until Connect is
+    // enabled; never blocks or changes the approval response).
+    void this.vendorPayouts.autoPayApprovedRequest(tenantId, id, {
+      type: "STAFF",
+      id: actorId,
+    });
+    return approved;
   }
 
   async reject(
@@ -235,7 +247,17 @@ export class PaymentRequestsService {
     );
   }
 
-  async markPaid(tenantId: string, id: string, actorId?: string) {
+  async markPaid(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    /** Set by automatic Stripe Connect payouts (transfer reference/method). */
+    payment?: {
+      referenceNumber?: string;
+      narration?: string;
+      paymentMethod?: PaymentMethod;
+    },
+  ) {
     const request = await this.findOne(tenantId, id);
 
     if (request.status !== "APPROVED") {
@@ -292,8 +314,9 @@ export class PaymentRequestsService {
           invoiceId: request.invoice_id,
           amount: Number(request.amount),
           currencyCode: request.currency_code,
-          referenceNumber: request.request_number,
-          narration: request.remarks ?? undefined,
+          referenceNumber: payment?.referenceNumber ?? request.request_number,
+          narration: payment?.narration ?? request.remarks ?? undefined,
+          paymentMethod: payment?.paymentMethod,
         },
         actorId,
       );
@@ -362,7 +385,11 @@ export class PaymentRequestsService {
 
     const approvedAmount = Number(row.amount);
     const paidAmount =
-      row.status === "PAID" ? approvedAmount : row.payment_id ? approvedAmount : 0;
+      row.status === "PAID"
+        ? approvedAmount
+        : row.payment_id
+          ? approvedAmount
+          : 0;
     const pendingAmount =
       row.status === "PAID" ? 0 : approvedAmount - paidAmount;
 

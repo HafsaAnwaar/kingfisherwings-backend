@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { PaymentsModule } from "../payments/payments.module";
+import { VendorPayoutsPortalController } from "./vendor-payouts-portal.controller";
 import { JwtModule } from "@nestjs/jwt";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { MastersModule } from "../masters/masters.module";
@@ -53,6 +54,7 @@ import { ToolsModule } from "../tools/tools.module";
     JwtModule.register({}),
   ],
   controllers: [
+    VendorPayoutsPortalController,
     VendorAuthController,
     PartyVendorUsersController,
     VendorUsersAdminController,

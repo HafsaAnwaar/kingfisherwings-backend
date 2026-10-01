@@ -71,6 +71,24 @@ export class UpdatePaymentGatewaySettingsDto {
   @IsUUID()
   fee_gl_account_id?: string;
 
+  @ApiPropertyOptional({
+    default: true,
+    description:
+      "Stripe Connect: automatically pay approved vendor payment requests to the vendor's connected account.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  auto_vendor_payouts?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      "Signing secret (whsec_) of this company's Stripe Connect webhook endpoint. Write-only; stored encrypted.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  connect_webhook_secret?: string;
+
   @ApiPropertyOptional({ maxLength: 22 })
   @IsOptional()
   @IsString()

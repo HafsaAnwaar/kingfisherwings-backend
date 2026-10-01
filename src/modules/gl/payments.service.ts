@@ -8,6 +8,7 @@ import {
   InvoiceStatus,
   InvoiceType,
   PaymentDirection,
+  PaymentMethod,
   Prisma,
   VoucherType,
 } from "@prisma/client";
@@ -871,6 +872,7 @@ export class PaymentsService {
       currencyCode: string;
       referenceNumber?: string;
       narration?: string;
+      paymentMethod?: PaymentMethod;
     },
     actorId?: string,
   ) {
@@ -900,7 +902,7 @@ export class PaymentsService {
         party_id: input.partyId,
         amount: input.amount,
         currency_code: input.currencyCode,
-        payment_method: "BANK_TRANSFER",
+        payment_method: input.paymentMethod ?? "BANK_TRANSFER",
         reference_number: input.referenceNumber,
         narration:
           input.narration ??

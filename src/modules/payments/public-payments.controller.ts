@@ -38,6 +38,35 @@ import { paymentLinkUrl } from "./utils/frontend-url.util";
 export class StripeWebhookController {
   constructor(private readonly webhooks: StripeWebhookService) {}
 
+  // Stripe Connect endpoints (events from connected vendor accounts) are
+  // declared first so "connect" is never taken as a :token.
+  @Post("connect")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Stripe Connect webhook (platform account's connected accounts)",
+  })
+  @ApiHeader({ name: "stripe-signature", required: true })
+  platformConnect(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers("stripe-signature") signature?: string,
+  ) {
+    return this.webhooks.handle(req.rawBody, signature, undefined, true);
+  }
+
+  @Post(":token/connect")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Stripe Connect webhook (a company's connected accounts)",
+  })
+  @ApiHeader({ name: "stripe-signature", required: true })
+  tenantConnect(
+    @Req() req: RawBodyRequest<Request>,
+    @Param("token") token: string,
+    @Headers("stripe-signature") signature?: string,
+  ) {
+    return this.webhooks.handle(req.rawBody, signature, token, true);
+  }
+
   @Post()
   @HttpCode(200)
   @ApiOperation({

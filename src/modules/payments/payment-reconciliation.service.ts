@@ -10,6 +10,7 @@ import { InvoiceOnlinePaymentsService } from "./invoice-online-payments.service"
 import { PlatformBillingService } from "./platform-billing.service";
 import { StripeGatewayService } from "./stripe-gateway.service";
 import { StripeWebhookService } from "./stripe-webhook.service";
+import { VendorPayoutsService } from "./vendor-payouts.service";
 
 /**
  * Safety net for the webhook-driven flow. Every 15 minutes:
@@ -32,6 +33,7 @@ export class PaymentReconciliationService implements OnModuleInit {
     private readonly invoicePayments: InvoiceOnlinePaymentsService,
     private readonly platformBilling: PlatformBillingService,
     private readonly webhooks: StripeWebhookService,
+    private readonly vendorPayouts: VendorPayoutsService,
   ) {}
 
   onModuleInit() {
@@ -61,6 +63,7 @@ export class PaymentReconciliationService implements OnModuleInit {
       fees: 0,
       refunds: 0,
       webhook_replays: 0,
+      vendor_payouts: 0,
       errors: 0,
     };
     try {
@@ -71,6 +74,8 @@ export class PaymentReconciliationService implements OnModuleInit {
       for (const { tenant_id } of gateways) {
         try {
           const r = await this.invoicePayments.reconcileTenant(tenant_id);
+          const v = await this.vendorPayouts.reconcileTenant(tenant_id);
+          summary.vendor_payouts += v.paid + v.posted;
           summary.tenants++;
           summary.checked += r.checked;
           summary.posted += r.posted;
@@ -202,6 +207,14 @@ export class PaymentReconciliationService implements OnModuleInit {
         prod
           ? "PAYMENT_GATEWAY_ENCRYPTION_KEY is not set — companies cannot save their own Stripe keys."
           : "PAYMENT_GATEWAY_ENCRYPTION_KEY is not set (dev falls back to TWO_FACTOR_ENCRYPTION_KEY).",
+      );
+    }
+    if (
+      this.stripe.connectEnabled() &&
+      !this.stripe.platformConnectWebhookSecret()
+    ) {
+      problems.push(
+        "STRIPE_CONNECT_WEBHOOK_SECRET is not set — vendor onboarding status updates rely on the reconciler.",
       );
     }
     if (!process.env.FRONTEND_URL?.trim()) {
