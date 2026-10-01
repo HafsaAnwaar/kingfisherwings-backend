@@ -495,6 +495,7 @@ enum EmailEventType {
   PAYMENT_LINK
   PAYMENT_RECEIPT
   PLATFORM_INVOICE_SENT
+  STAFF_ACTIVITY
   OTHER
 }
 
@@ -8566,6 +8567,10 @@ model PlatformInvoice {
   cancel_reason             String?               @db.VarChar(500)
   created_by_super_admin_id String?               @db.Uuid
   updated_by_super_admin_id String?               @db.Uuid
+  /// Mirror in the platform ledger company's books (existing Invoice model),
+  /// set when PLATFORM_LEDGER_TENANT_ID is configured.
+  erp_invoice_id            String?               @db.Uuid
+  erp_sync_claimed_at       DateTime?             @db.Timestamptz
   created_at                DateTime              @default(now()) @db.Timestamptz
   updated_at                DateTime              @updatedAt @db.Timestamptz
   deleted_at                DateTime?             @db.Timestamptz
@@ -8636,6 +8641,10 @@ model PlatformPayment {
   reviewed_by_super_admin_id String?                @db.Uuid
   reviewed_at                DateTime?              @db.Timestamptz
   rejection_reason           String?                @db.VarChar(1000)
+  /// Receipt in the platform ledger company's books and the net amount it covers.
+  erp_payment_id             String?                @db.Uuid
+  erp_synced_amount          Decimal                @default(0) @db.Decimal(18, 4)
+  erp_sync_claimed_at        DateTime?              @db.Timestamptz
   stripe_fee_amount          Decimal?               @db.Decimal(18, 4)
   stripe_fee_currency        String?                @db.Char(3)
   stripe_dispute_id          String?                @db.VarChar(255)

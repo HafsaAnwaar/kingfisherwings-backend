@@ -161,3 +161,40 @@ platform payments), the last processed webhook time and the SDK API version.
 Still not covered: Stripe Connect / paying vendors online; posting Stripe **payout** transfers
 automatically (fees are posted; moving the payout from the clearing account to the bank is a
 normal bank transfer entry).
+
+## Super Admin finance (platform ledger)
+
+Super Admin billing reuses the platform invoice flow above (create → edit draft →
+`POST /platform/invoices/:id/send`; `{"deliver_email": false}` finalizes for portal delivery
+only). Accounting reuses the *existing* ERP: set `PLATFORM_LEDGER_TENANT_ID` to the platform
+operator's own company (tenant) and seed its chart of accounts. Then:
+
+| Platform event | Booked in the ledger company through |
+|---|---|
+| Invoice sent / finalized | `InvoicesService.create` + `post` — customer invoice (existing numbering; `lpo_number` = PF number), billed tenant = customer `PLT-<tenant code>`; a "Rounding adjustment" line keeps totals equal to the cent |
+| Payment applied (Stripe, verified proof, manual) | `PaymentsService.create` + `post` — RECEIPT allocated to that invoice (receipt voucher, AR, balances) |
+| Refund / lost chargeback | existing receipt cancelled (reversal voucher) and the net re-posted |
+| Invoice edited / cancelled | unpaid ERP invoice cancelled (and re-booked after an edit) |
+
+Sync is idempotent and claim-guarded; failures never block billing and are retried by the
+15-minute reconciler. `GET /platform/finance/status` shows configuration and anything awaiting booking.
+
+Super Admin endpoints (`/platform/finance/*`, Super Admin token only) — existing services on the ledger company:
+`receivables` (tenant, invoice, dates, amount, paid, outstanding, status, last payment method/date,
+overdue, totals by currency, pending payments), `ar/aging`, `ar/open-items`,
+`ar/tenant/:tenantId/statement`, `ar/statement/:partyId`, `ap/aging`, `ap/open-items`,
+`ap/statement/:partyId`, `vendor-bills` (list/create), `invoices[/:id]`, `invoices/:id/post`,
+`invoices/:id/payment-proofs`, `payment-proofs/:id/approve|reject`, `payments[/:id]` (create,
+`/:id/post`), `vouchers[/:id]`, `reports/trial-balance|balance-sheet|profit-and-loss|cash-flow`.
+Platform payment views now include `submitted_by` (name, email) for proofs.
+
+## Staff activity emails
+
+Every successful staff mutation (POST/PUT/PATCH/DELETE by a tenant staff JWT) is captured once
+by a global interceptor (`src/modules/notifications/staff-activity`), written to the existing
+`audit_logs`, and emailed via the existing EmailService (`email_logs`, event `STAFF_ACTIVITY`)
+through a Bull queue on the existing Redis (in-process fallback without Redis). Recipients: the
+tenant's registered sign-up email + all active `TENANT_ADMIN` users of the *same* tenant, minus
+the actor. Reads, auth, notifications, previews/PDF/exports, search, reports and draft line-item
+edits are ignored (`staff-activity.rules.ts`). Email failures never affect the request.
+Disable with `STAFF_ACTIVITY_EMAILS=false`.

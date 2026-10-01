@@ -40,6 +40,7 @@ import {
 } from "./dto/platform-billing.dto";
 import { RefundPaymentDto } from "./dto/online-payment.dto";
 import { PaymentAuditService } from "./payment-audit.service";
+import { PlatformLedgerService } from "./platform-ledger.service";
 import { PaymentLinksService } from "./payment-links.service";
 import { PaymentNotificationsService } from "./payment-notifications.service";
 import { StripeCustomersService } from "./stripe-customers.service";
@@ -93,6 +94,7 @@ export class PlatformBillingService {
     private readonly storage: StorageService,
     private readonly pdf: PdfService,
     private readonly audit: PaymentAuditService,
+    private readonly ledger: PlatformLedgerService,
   ) {}
 
   // ─────────────────────────── invoices (Super Admin) ───────────────────────────
@@ -217,6 +219,9 @@ export class PlatformBillingService {
             ? { period_end: new Date(dto.period_end) }
             : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          ...(dto.issue_date !== undefined
+            ? { issue_date: new Date(dto.issue_date) }
+            : {}),
           ...totals.header,
           balance_due: totals.header.total_amount,
           updated_by_super_admin_id: superAdminId,
@@ -227,6 +232,12 @@ export class PlatformBillingService {
 
     // Amount changed → any open checkout for the old amount is stale.
     await this.expireOpenCheckouts(id);
+    if (invoice.erp_invoice_id) {
+      // Re-book the edited invoice in the platform ledger (unpaid, so the
+      // old ERP invoice can be cancelled through the existing flow).
+      await this.ledger.resetInvoice(id);
+      await this.ledger.syncInvoiceSafe(id);
+    }
     await this.audit.log(invoice.tenant_id, {
       action: "PLATFORM_INVOICE_UPDATED",
       entity: "PlatformInvoice",
@@ -340,10 +351,14 @@ export class PlatformBillingService {
       where: { id: invoice.tenant_id },
     });
 
-    const recipients = dto.to_email
-      ? [dto.to_email]
-      : await this.tenantBillingEmails(tenant.id, tenant.email);
-    if (!recipients.length) {
+    // deliver_email=false finalizes the invoice for portal delivery only.
+    const emailIt = dto.deliver_email !== false;
+    const recipients = !emailIt
+      ? []
+      : dto.to_email
+        ? [dto.to_email]
+        : await this.tenantBillingEmails(tenant.id, tenant.email);
+    if (emailIt && !recipients.length) {
       throw new BadRequestException(
         "Tenant has no billing email; pass to_email.",
       );
@@ -354,8 +369,12 @@ export class PlatformBillingService {
       data: {
         status: invoice.status === "DRAFT" ? "SENT" : invoice.status,
         sent_at: invoice.sent_at ?? new Date(),
-        last_emailed_at: new Date(),
-        last_emailed_to: recipients.join(", ").slice(0, 255),
+        ...(emailIt
+          ? {
+              last_emailed_at: new Date(),
+              last_emailed_to: recipients.join(", ").slice(0, 255),
+            }
+          : {}),
         updated_by_super_admin_id: superAdminId,
       },
       include: { lines: { orderBy: { sort_order: "asc" } } },
@@ -367,10 +386,15 @@ export class PlatformBillingService {
       payUrl = link.url;
     }
 
-    const pdf = await this.renderPdf(sent, tenant).catch((err) => {
-      this.logger.warn(`Platform invoice PDF failed: ${String(err)}`);
-      return undefined;
-    });
+    // Book it in the platform ledger's existing AR (no-op if not configured).
+    await this.ledger.syncInvoiceSafe(id);
+
+    const pdf = !emailIt
+      ? undefined
+      : await this.renderPdf(sent, tenant).catch((err) => {
+          this.logger.warn(`Platform invoice PDF failed: ${String(err)}`);
+          return undefined;
+        });
 
     const results = [];
     for (const to of recipients) {
@@ -490,6 +514,7 @@ export class PlatformBillingService {
         updated_by_super_admin_id: superAdminId,
       },
     });
+    await this.ledger.syncInvoiceSafe(id); // cancels the ERP mirror, if any
     await this.audit.log(invoice.tenant_id, {
       action: "PLATFORM_INVOICE_CANCELLED",
       entity: "PlatformInvoice",
@@ -535,10 +560,47 @@ export class PlatformBillingService {
       orderBy: { created_at: "desc" },
       take: 200,
     });
+    const submitters = await this.submitters(rows);
     return {
       success: true,
-      data: rows.map((p) => ({ ...this.toPaymentView(p), invoice: p.invoice })),
+      data: rows.map((p) => ({
+        ...this.toPaymentView(p),
+        invoice: p.invoice,
+        submitted_by: p.submitted_by_user_id
+          ? (submitters.get(p.submitted_by_user_id) ?? null)
+          : null,
+      })),
     };
+  }
+
+  /** Name/email of the tenant users who submitted payments (per tenant, RLS-safe). */
+  private async submitters(
+    rows: Array<{ tenant_id: string; submitted_by_user_id: string | null }>,
+  ) {
+    const byTenant = new Map<string, Set<string>>();
+    for (const r of rows) {
+      if (!r.submitted_by_user_id) continue;
+      const set = byTenant.get(r.tenant_id) ?? new Set<string>();
+      set.add(r.submitted_by_user_id);
+      byTenant.set(r.tenant_id, set);
+    }
+    const out = new Map<string, { id: string; name: string; email: string }>();
+    for (const [tenantId, ids] of byTenant) {
+      const users = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.user.findMany({
+          where: { tenant_id: tenantId, id: { in: [...ids] } },
+          select: { id: true, first_name: true, last_name: true, email: true },
+        }),
+      );
+      for (const u of users) {
+        out.set(u.id, {
+          id: u.id,
+          name: `${u.first_name} ${u.last_name}`.trim(),
+          email: u.email,
+        });
+      }
+    }
+    return out;
   }
 
   async getPayment(paymentId: string, tenantId?: string) {
@@ -558,6 +620,9 @@ export class PlatformBillingService {
       data: {
         ...this.toPaymentView(p),
         invoice: p.invoice,
+        submitted_by: p.submitted_by_user_id
+          ? ((await this.submitters([p])).get(p.submitted_by_user_id) ?? null)
+          : null,
         refunds: refunds.map((r) => ({
           id: r.id,
           amount: roundMoney(r.amount).toFixed(2),
@@ -1413,6 +1478,10 @@ export class PlatformBillingService {
         }
       }
     }
+    const booked = await this.ledger.reconcile();
+    if (booked.invoices || booked.payments) {
+      this.logger.log(`Platform ledger sync: ${JSON.stringify(booked)}`);
+    }
     return result;
   }
 
@@ -1547,6 +1616,7 @@ export class PlatformBillingService {
 
     if (result.newly) {
       const p = result.payment;
+      await this.ledger.syncPaymentSafe(p.id);
       await this.audit.log(p.tenant_id, {
         action: "PAYMENT_SUCCEEDED",
         entity: "PlatformPayment",
@@ -1639,6 +1709,9 @@ export class PlatformBillingService {
           },
         });
       });
+      if (refund.platform_payment_id) {
+        await this.ledger.syncPaymentSafe(refund.platform_payment_id);
+      }
       await this.audit.log(tenantId, {
         action: "REFUND_COMPLETED",
         entity: "PaymentRefund",

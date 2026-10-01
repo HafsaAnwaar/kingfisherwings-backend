@@ -12,6 +12,7 @@ function service() {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 }
 

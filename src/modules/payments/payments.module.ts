@@ -1,9 +1,10 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { EmailModule } from "../../shared/email/email.module";
 import { PdfModule } from "../../shared/pdf/pdf.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { GlModule } from "../gl/gl.module";
+import { InvoicesModule } from "../invoices/invoices.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { InvoiceOnlinePaymentsService } from "./invoice-online-payments.service";
 import { PaymentAuditService } from "./payment-audit.service";
@@ -20,6 +21,8 @@ import {
   TenantPlatformBillingController,
 } from "./platform-billing.controller";
 import { PlatformBillingService } from "./platform-billing.service";
+import { PlatformLedgerService } from "./platform-ledger.service";
+import { PlatformFinanceController } from "./platform-finance.controller";
 import { PlatformSubscriptionsService } from "./platform-subscriptions.service";
 import {
   PublicPaymentLinksController,
@@ -41,6 +44,8 @@ import { StripeWebhookService } from "./stripe-webhook.service";
     EmailModule,
     StorageModule,
     PdfModule,
+    // Platform ledger books Super Admin invoices via the existing InvoicesService.
+    forwardRef(() => InvoicesModule),
   ],
   controllers: [
     StripeWebhookController,
@@ -49,6 +54,7 @@ import { StripeWebhookService } from "./stripe-webhook.service";
     InvoiceOnlinePaymentsController,
     PlatformBillingController,
     TenantPlatformBillingController,
+    PlatformFinanceController,
   ],
   providers: [
     StripeGatewayService,
@@ -62,6 +68,7 @@ import { StripeWebhookService } from "./stripe-webhook.service";
     PlatformSubscriptionsService,
     StripeWebhookService,
     PaymentReconciliationService,
+    PlatformLedgerService,
   ],
   exports: [
     InvoiceOnlinePaymentsService,
