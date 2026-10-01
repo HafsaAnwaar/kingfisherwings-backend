@@ -8345,6 +8345,10 @@ model TenantPaymentGateway {
   statement_descriptor     String?                @db.VarChar(22)
   /// Expense account for Stripe processing fees (journal Dr fees / Cr bank).
   fee_gl_account_id        String?                @db.Uuid
+  /// Stripe Connect: pay approved vendor payment requests automatically.
+  auto_vendor_payouts         Boolean              @default(true)
+  /// Signing secret of the company's Connect webhook endpoint (encrypted).
+  connect_webhook_secret_encrypted String?         @db.Text
   created_at               DateTime               @default(now()) @db.Timestamptz
   updated_at               DateTime               @updatedAt @db.Timestamptz
   created_by               String?                @db.Uuid
@@ -8660,4 +8664,62 @@ model PlatformPayment {
   @@index([platform_invoice_id])
   @@index([tenant_id, status])
   @@map("platform_payments")
+}
+
+// ─── VENDOR PAYOUTS (Stripe Connect) ─────────────────────────
+// Tenant → vendor payments sent automatically as Stripe transfers to the
+// vendor's connected account. The ERP AP payment is still created and
+// posted through the existing payment-request / gl PaymentsService flow.
+
+/// Vendor's Stripe Express connected account. Not under RLS: Connect
+/// webhooks (account.updated) resolve it by stripe_account_id before a
+/// tenant context exists; service code always filters tenant_id.
+model VendorPayoutAccount {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String   @db.Uuid
+  party_id          String   @db.Uuid
+  /// Stripe account that sends the transfers ("platform" or "tenant:<gateway id>").
+  account_ref       String   @db.VarChar(80)
+  stripe_account_id String   @unique @db.VarChar(255)
+  details_submitted Boolean  @default(false)
+  payouts_enabled   Boolean  @default(false)
+  transfers_active  Boolean  @default(false)
+  requirements_due  Json?
+  created_at        DateTime @default(now()) @db.Timestamptz
+  updated_at        DateTime @updatedAt @db.Timestamptz
+
+  @@unique([tenant_id, party_id, account_ref])
+  @@index([tenant_id])
+  @@map("vendor_payout_accounts")
+}
+
+model VendorPayout {
+  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String               @db.Uuid
+  party_id           String               @db.Uuid
+  invoice_id         String?              @db.Uuid
+  payment_request_id String?              @db.Uuid
+  status             OnlinePaymentStatus  @default(PENDING)
+  amount             Decimal              @db.Decimal(18, 4)
+  currency_code      String               @db.Char(3)
+  amount_minor       BigInt
+  account_ref        String               @db.VarChar(80)
+  stripe_account_id  String               @db.VarChar(255)
+  stripe_transfer_id String?              @unique @db.VarChar(255)
+  /// ERP AP payment (payment voucher) created for this payout.
+  erp_payment_id     String?              @db.Uuid
+  failure_message    String?              @db.Text
+  initiated_by_type  PaymentInitiatorType
+  initiated_by_id    String?              @db.Uuid
+  paid_at            DateTime?            @db.Timestamptz
+  reversed_at        DateTime?            @db.Timestamptz
+  created_at         DateTime             @default(now()) @db.Timestamptz
+  updated_at         DateTime             @updatedAt @db.Timestamptz
+
+  @@index([tenant_id])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, payment_request_id])
+  @@index([tenant_id, invoice_id])
+  @@index([tenant_id, status])
+  @@map("vendor_payouts")
 }

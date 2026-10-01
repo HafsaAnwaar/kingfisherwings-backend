@@ -589,37 +589,36 @@ describe("Super Admin finance + staff activity emails (e2e)", () => {
       ).toHaveLength(1);
     });
 
-    it("never notifies another tenant, and never the actor about their own action", async () => {
+    it("never notifies another tenant, and emails the tenant admin about their own action too", async () => {
       const bLogs = await emailLogs(B.id, "STAFF_ACTIVITY");
       expect(bLogs).toHaveLength(0);
       const allA = await emailLogs(A.id, "STAFF_ACTIVITY");
+      // A non-admin staff member is never a recipient.
       expect(allA.every((l) => l.to_email !== `staff.${runId}@pf.test`)).toBe(
         true,
       );
 
-      // The owner acting alone: the only admin is the actor → no email.
-      const before = allA.length;
+      // The owner (tenant admin) acting themselves is still informed.
+      const ownerCode = `O${runId}`.slice(0, 20);
       await http()
         .post("/parties")
         .set(auth(A.token))
         .send({
           party_type: "CUSTOMER",
-          code: `O${runId}`.slice(0, 20),
+          code: ownerCode,
           name: "Owner-made",
         })
         .expect(201);
-      await new Promise((r) => setTimeout(r, 1500));
-      const audit = await prisma.runWithTenant(A.id, (tx) =>
-        tx.auditLog.count({
-          where: { tenant_id: A.id, action: "Created Customer" },
-        }),
-      );
-      expect(audit).toBeGreaterThan(0); // recorded …
-      const ownerMails = (await emailLogs(A.id, "STAFF_ACTIVITY")).filter((l) =>
-        (l.body ?? "").includes("Owner-made"),
-      );
-      expect(ownerMails).toHaveLength(0); // … but not emailed to the actor
-      expect((await emailLogs(A.id, "STAFF_ACTIVITY")).length).toBe(before);
+      const ownerMails = (
+        await waitFor(
+          () => emailLogs(A.id, "STAFF_ACTIVITY"),
+          (l) => l.some((x) => (x.body ?? "").includes(ownerCode)),
+        )
+      ).filter((l) => (l.body ?? "").includes(ownerCode));
+      expect(ownerMails).toHaveLength(1); // one email, no duplicates
+      expect(ownerMails[0].to_email).toBe(A.email.toLowerCase());
+      expect(ownerMails[0].subject).toContain("Created Customer");
+      expect((await emailLogs(B.id, "STAFF_ACTIVITY")).length).toBe(0);
     });
   });
 });

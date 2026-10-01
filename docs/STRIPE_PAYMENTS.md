@@ -16,7 +16,7 @@ Code: `src/modules/payments/` · Migration: `prisma/migrations/20260930120000_st
 | Customer invoice (Tenant → Customer) | Customer (portal, Pay Now link) or staff-initiated checkout | Tenant's own Stripe account, or the platform account if `use_platform_account` | ERP receipt via GL (`STRIPE:<payment_intent>`) |
 | Platform invoice (Super Admin → Tenant) | Tenant admin | Platform account | `platform_invoices` (platform receivables) |
 | Manual payment / proof | Customer, vendor, staff, or tenant (platform) | — | Customer/vendor: proof **approve** posts an ERP receipt/payment (`PROOF:<proof id>`). Platform: Super Admin verifies |
-| Vendor (AP) | Tenant pays vendor | — (no Stripe Connect) | Existing payment requests / proofs; approving a vendor proof posts an AP payment |
+| Vendor (AP) | Tenant pays vendor | Stripe Connect transfer to the vendor's Express account (when `STRIPE_CONNECT_ENABLED=true`) | Approving a payment request pays automatically; AP payment via the existing `markPaid` / GL (`STRIPE:<transfer id>`) |
 | SaaS subscription | Tenant | Platform account (Stripe Billing) | Tenant subscription fields synced from webhooks |
 
 ```
@@ -126,8 +126,9 @@ Existing endpoints reused unchanged: `/gl/payments/*` (manual receipts/payments)
 
 ## Limitations / follow-ups
 
-- No Stripe Connect: paying vendors online is out of scope; vendor payments stay manual
-  (bank transfer/cheque + proof) through the existing AP flow.
+- Vendor payouts need Stripe Connect activated on the Stripe account (see
+  "Automatic vendor payouts"); until `STRIPE_CONNECT_ENABLED=true` nothing is paid out and the
+  existing manual AP flow (mark-paid, proofs) remains available as a fallback.
 - Platform invoices are platform receivables; they are not auto-booked as purchase invoices
   in the tenant's own ledger.
 - Tenant suspension on unpaid subscriptions is left to the Super Admin (status is synced,
@@ -158,7 +159,7 @@ Health check: `GET /platform/billing/stripe/status` returns `ready`, a `problems
 FRONTEND_URL, encryption key, gateways without webhook secret, failed webhooks in 24h, stuck
 platform payments), the last processed webhook time and the SDK API version.
 
-Still not covered: Stripe Connect / paying vendors online; posting Stripe **payout** transfers
+Still not covered: posting Stripe **payout** transfers (platform balance → bank)
 automatically (fees are posted; moving the payout from the clearing account to the bank is a
 normal bank transfer entry).
 
@@ -194,7 +195,40 @@ Every successful staff mutation (POST/PUT/PATCH/DELETE by a tenant staff JWT) is
 by a global interceptor (`src/modules/notifications/staff-activity`), written to the existing
 `audit_logs`, and emailed via the existing EmailService (`email_logs`, event `STAFF_ACTIVITY`)
 through a Bull queue on the existing Redis (in-process fallback without Redis). Recipients: the
-tenant's registered sign-up email + all active `TENANT_ADMIN` users of the *same* tenant, minus
-the actor. Reads, auth, notifications, previews/PDF/exports, search, reports and draft line-item
+tenant's registered sign-up email + all active `TENANT_ADMIN` users of the *same* tenant —
+including an admin who performed the action themselves (deduplicated: one email per address). Reads, auth, notifications, previews/PDF/exports, search, reports and draft line-item
 edits are ignored (`staff-activity.rules.ts`). Email failures never affect the request.
 Disable with `STAFF_ACTIVITY_EMAILS=false`.
+
+## Automatic vendor payouts (Stripe Connect)
+
+Vendor payments are automatic; no manual step is needed once Connect is on.
+
+1. **Onboarding (once per vendor).** The vendor opens `POST /vendor/payouts/account/onboarding-link`
+   in the vendor portal (or staff send `POST /vendor-payouts/accounts/:partyId/onboarding-link`)
+   and completes Stripe's hosted Express onboarding (bank + identity). The connected account is
+   stored in `vendor_payout_accounts`; readiness (`transfers_active` + `payouts_enabled`) is synced
+   from the Connect `account.updated` webhook and by the 15-minute reconciler.
+2. **Pay on approval.** `POST /payment-requests/:id/approve` (existing endpoint, unchanged
+   response) triggers a Stripe transfer for the request amount read from the ERP. The existing
+   `markPaid` then posts the AP payment (`STRIPE:<transfer id>`, allocated to the linked bill);
+   a request without a bill is booked as an unallocated AP payment (vendor advance). Requests
+   approved before the vendor finished onboarding are paid as soon as the account becomes ready.
+3. **Vendor bills.** `POST /vendor-payouts/purchase-invoices/:id` pays a posted bill's balance.
+4. **Reversals.** A Connect `transfer.reversed` event cancels the AP payment (existing reversal
+   voucher), sets the payout to `REFUNDED`, reopens the request and alerts finance.
+
+Safety: one live payout per request/bill (partial unique indexes), Stripe idempotency keys
+(`erp-payout:<payout id>`), amounts and tenant/vendor only from the ERP and JWTs, failed transfers
+are marked `FAILED` with a finance alert, and approval never fails because of a payout.
+Per tenant, `auto_vendor_payouts` (gateway settings, default on) can pause automatic payouts.
+
+Enable: activate Connect on the platform Stripe account, add a Connect webhook endpoint
+(`POST {PUBLIC_API_URL}/payments/stripe/webhook/connect`, events `account.updated`,
+`transfer.reversed`), then set `STRIPE_CONNECT_ENABLED=true` and `STRIPE_CONNECT_WEBHOOK_SECRET`.
+Tenants on their own Stripe account use `/payments/stripe/webhook/:token/connect` with the
+`connect_webhook_secret` saved in their gateway settings.
+
+Endpoints: staff `GET /vendor-payouts`, `GET /vendor-payouts/:id`,
+`GET /vendor-payouts/accounts/:partyId`, `POST /vendor-payouts/payment-requests/:id`;
+vendor portal `GET /vendor/payouts`, `GET /vendor/payouts/:id`, `GET /vendor/payouts/account`.

@@ -48,7 +48,8 @@ const roleLabel = (role: string) =>
  * through a Bull job when Redis is available (in-process otherwise). The
  * originating request never waits on, or fails because of, email.
  * Recipients are resolved inside the activity's own tenant only: the
- * tenant's registered sign-up email plus its active TENANT_ADMIN users.
+ * tenant's registered sign-up email plus its active TENANT_ADMIN users —
+ * including an admin who performed the action themselves.
  */
 @Injectable()
 export class StaffActivityService {
@@ -156,14 +157,13 @@ export class StaffActivityService {
     );
     if (!log || !tenant) return;
 
-    const actorEmail = actor?.email?.toLowerCase();
     const recipients = [
       ...new Set(
         [tenant.email, ...admins.map((a) => a.email)]
           .filter((e): e is string => Boolean(e))
           .map((e) => e.toLowerCase()),
       ),
-    ].filter((e) => e !== actorEmail); // never email people about their own action
+    ];
     if (!recipients.length) return;
 
     const meta = (log.metadata ?? {}) as Record<string, string | null>;

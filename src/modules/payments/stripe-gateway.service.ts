@@ -188,6 +188,53 @@ export class StripeGatewayService {
     return { chargeId: charge?.id ?? null, fee: bt.fee, currency: bt.currency };
   }
 
+  // ─── Stripe Connect (vendor payouts) ───
+
+  /** Connect is "provided later": everything below is off until enabled. */
+  connectEnabled(): boolean {
+    return process.env.STRIPE_CONNECT_ENABLED === "true";
+  }
+
+  platformConnectWebhookSecret(): string | null {
+    return process.env.STRIPE_CONNECT_WEBHOOK_SECRET?.trim() || null;
+  }
+
+  async createConnectedAccount(
+    client: Stripe,
+    params: Stripe.AccountCreateParams,
+    idempotencyKey: string,
+  ) {
+    return this.call("accounts.create", () =>
+      client.accounts.create(params, { idempotencyKey }),
+    );
+  }
+
+  async retrieveConnectedAccount(client: Stripe, accountId: string) {
+    return this.call("accounts.retrieve", () =>
+      client.accounts.retrieve(accountId),
+    );
+  }
+
+  async createAccountLink(
+    client: Stripe,
+    params: Stripe.AccountLinkCreateParams,
+  ) {
+    return this.call("accountLinks.create", () =>
+      client.accountLinks.create(params),
+    );
+  }
+
+  /** Moves funds from the sending account's balance to a connected account. */
+  async createTransfer(
+    client: Stripe,
+    params: Stripe.TransferCreateParams,
+    idempotencyKey: string,
+  ) {
+    return this.call("transfers.create", () =>
+      client.transfers.create(params, { idempotencyKey }),
+    );
+  }
+
   async listRefundsForPaymentIntent(client: Stripe, paymentIntentId: string) {
     const page = await this.call("refunds.list", () =>
       client.refunds.list({ payment_intent: paymentIntentId, limit: 100 }),

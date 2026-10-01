@@ -34,6 +34,7 @@ export const IGNORED_ROUTES: RegExp[] = [
 
 /** Friendly entity names for route prefixes (longest prefix wins). */
 const ENTITY_LABELS: Array<[string, string]> = [
+  ["vendor-payouts", "Vendor Payout"],
   ["gl/payments", "Payment"],
   ["gl/vouchers", "Voucher"],
   ["gl/accounts", "GL Account"],
@@ -96,6 +97,14 @@ const VERBS: Record<string, string> = {
   "reset-password": "Reset Password of",
 };
 
+/** Routes whose action reads better spelled out. */
+const EXACT_ACTIONS: Record<string, string> = {
+  "/vendor-payouts/payment-requests/:id": "Paid Vendor (Stripe payout)",
+  "/vendor-payouts/purchase-invoices/:id": "Paid Vendor Bill (Stripe payout)",
+  "/vendor-payouts/accounts/:partyId/onboarding-link":
+    "Started Vendor Payout Onboarding",
+};
+
 const titleCase = (s: string) =>
   s
     .replace(/[-_]/g, " ")
@@ -116,6 +125,15 @@ export function describeActivity(
   params: Record<string, string>,
   body: Record<string, unknown> | null,
 ): DescribedActivity {
+  const exact = EXACT_ACTIONS[routePath];
+  if (exact) {
+    const bodyId = typeof body?.id === "string" ? body.id : null;
+    return {
+      action: exact,
+      entity: "Vendor Payout",
+      linkPath: bodyId ? `/vendor-payouts/${bodyId}` : null,
+    };
+  }
   const segments = routePath.split("/").filter(Boolean);
   const staticPath = segments.filter((s) => !s.startsWith(":")).join("/");
 

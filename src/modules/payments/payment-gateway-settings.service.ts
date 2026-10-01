@@ -124,6 +124,14 @@ export class PaymentGatewaySettingsService {
         "publishable_key must be a Stripe publishable key.",
       );
     }
+    if (
+      dto.connect_webhook_secret &&
+      !dto.connect_webhook_secret.startsWith("whsec_")
+    ) {
+      throw new BadRequestException(
+        "connect_webhook_secret must be a Stripe webhook signing secret.",
+      );
+    }
     if (dto.webhook_secret && !dto.webhook_secret.startsWith("whsec_")) {
       throw new BadRequestException(
         "webhook_secret must be a Stripe webhook signing secret.",
@@ -174,6 +182,16 @@ export class PaymentGatewaySettingsService {
         : {}),
       ...(dto.webhook_secret
         ? { webhook_secret_encrypted: this.encrypt(dto.webhook_secret) }
+        : {}),
+      ...(dto.connect_webhook_secret
+        ? {
+            connect_webhook_secret_encrypted: this.encrypt(
+              dto.connect_webhook_secret,
+            ),
+          }
+        : {}),
+      ...(dto.auto_vendor_payouts !== undefined
+        ? { auto_vendor_payouts: dto.auto_vendor_payouts }
         : {}),
       ...(dto.publishable_key !== undefined
         ? { publishable_key: dto.publishable_key || null }
@@ -282,6 +300,26 @@ export class PaymentGatewaySettingsService {
     };
   }
 
+  /** Connect webhook secret for a tenant gateway resolved by URL token. */
+  async resolveConnectWebhookByToken(token: string) {
+    const gw = await this.prisma.tenantPaymentGateway.findUnique({
+      where: { webhook_token: token },
+    });
+    if (
+      !gw ||
+      gw.use_platform_account ||
+      !gw.connect_webhook_secret_encrypted
+    ) {
+      return null;
+    }
+    return {
+      gateway: gw,
+      accountRef: tenantAccountRef(gw.id),
+      webhookSecret: this.decrypt(gw.connect_webhook_secret_encrypted),
+      client: this.resolveClient(gw).client,
+    };
+  }
+
   /** Client for a stored account_ref (used when reconciling / refunding). */
   async clientForAccountRef(
     accountRef: string,
@@ -347,6 +385,8 @@ export class PaymentGatewaySettingsService {
       use_platform_account: gw.use_platform_account,
       secret_key_set: Boolean(gw.secret_key_encrypted),
       webhook_secret_set: Boolean(gw.webhook_secret_encrypted),
+      connect_webhook_secret_set: Boolean(gw.connect_webhook_secret_encrypted),
+      auto_vendor_payouts: gw.auto_vendor_payouts,
       publishable_key: this.publishableKeyFor(gw),
       allow_partial_payments: gw.allow_partial_payments,
       bank_account_id: gw.bank_account_id,

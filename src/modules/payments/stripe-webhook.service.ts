@@ -20,6 +20,10 @@ import { PaymentGatewaySettingsService } from "./payment-gateway-settings.servic
 import { PlatformBillingService } from "./platform-billing.service";
 import { PlatformSubscriptionsService } from "./platform-subscriptions.service";
 import { StripeGatewayService } from "./stripe-gateway.service";
+import {
+  VENDOR_PAYOUT_SCOPE,
+  VendorPayoutsService,
+} from "./vendor-payouts.service";
 
 interface WebhookAccount {
   accountRef: string;
@@ -57,14 +61,17 @@ export class StripeWebhookService {
     private readonly platformBilling: PlatformBillingService,
     private readonly subscriptions: PlatformSubscriptionsService,
     private readonly audit: PaymentAuditService,
+    private readonly vendorPayouts: VendorPayoutsService,
   ) {}
 
   async handle(
     rawBody: Buffer | undefined,
     signature: string | undefined,
     token?: string,
+    /** Stripe Connect endpoint (events from connected vendor accounts). */
+    connect = false,
   ) {
-    const { account, secret } = await this.resolveAccount(token);
+    const { account, secret } = await this.resolveAccount(token, connect);
     const event = this.stripe.constructEvent(rawBody, signature, secret);
     this.warnOnApiVersionMismatch(event);
 
@@ -112,10 +119,16 @@ export class StripeWebhookService {
 
   private async resolveAccount(
     token?: string,
+    connect = false,
   ): Promise<{ account: WebhookAccount; secret: string }> {
+    if (connect && !this.stripe.connectEnabled()) {
+      throw new NotFoundException();
+    }
     if (token) {
       if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException();
-      const resolved = await this.settings.resolveWebhookByToken(token);
+      const resolved = connect
+        ? await this.settings.resolveConnectWebhookByToken(token)
+        : await this.settings.resolveWebhookByToken(token);
       if (!resolved) throw new NotFoundException();
       return {
         account: {
@@ -126,7 +139,9 @@ export class StripeWebhookService {
         secret: resolved.webhookSecret,
       };
     }
-    const secret = this.stripe.platformWebhookSecret();
+    const secret = connect
+      ? this.stripe.platformConnectWebhookSecret()
+      : this.stripe.platformWebhookSecret();
     const client = this.stripe.platformClient();
     if (!secret || !client) {
       throw new BadRequestException("Stripe webhooks are not configured.");
@@ -226,6 +241,18 @@ export class StripeWebhookService {
       case "refund.failed":
       case "charge.refund.updated":
         return this.onRefund(event.data.object as Stripe.Refund, account);
+
+      case "transfer.reversed":
+        return this.onTransferReversed(
+          event.data.object as Stripe.Transfer,
+          account,
+        );
+
+      case "account.updated":
+        return this.onAccountUpdated(
+          event.data.object as Stripe.Account,
+          account,
+        );
 
       case "charge.dispute.created":
 
@@ -409,6 +436,45 @@ export class StripeWebhookService {
       if (row) return { handled: true, tenantId };
     }
     return { handled: false, reason: "payment_not_found" };
+  }
+
+  /** Vendor payout transfer reversed on the sending (company/platform) account. */
+  private async onTransferReversed(
+    transfer: Stripe.Transfer,
+    account: WebhookAccount,
+  ): Promise<DispatchResult> {
+    if (transfer.metadata?.erp_scope !== VENDOR_PAYOUT_SCOPE) {
+      return { handled: false, reason: "not_an_erp_payout" };
+    }
+    const tenantId = this.tenantFor(transfer.metadata, account);
+    if (!tenantId) return { handled: false, reason: "tenant_mismatch" };
+    const row = await this.vendorPayouts.applyTransferReversed(
+      tenantId,
+      transfer,
+      account.accountRef,
+    );
+    return row
+      ? { handled: true, tenantId }
+      : { handled: false, reason: "payout_not_found" };
+  }
+
+  /** Connected vendor account changed (onboarding progress / capabilities). */
+  private async onAccountUpdated(
+    acct: Stripe.Account,
+    account: WebhookAccount,
+  ): Promise<DispatchResult> {
+    const row = await this.prisma.vendorPayoutAccount.findUnique({
+      where: { stripe_account_id: acct.id },
+    });
+    if (
+      !row ||
+      row.account_ref !== account.accountRef ||
+      (account.tenantId && row.tenant_id !== account.tenantId)
+    ) {
+      return { handled: false, reason: "unknown_connected_account" };
+    }
+    await this.vendorPayouts.updateAccountFromStripe(acct);
+    return { handled: true, tenantId: row.tenant_id };
   }
 
   /** Chargebacks carry no ERP metadata; the payment intent locates the row. */
