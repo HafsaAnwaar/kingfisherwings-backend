@@ -22,6 +22,7 @@ import {
 } from "./platform-billing.controller";
 import { PlatformBillingService } from "./platform-billing.service";
 import { PlatformLedgerService } from "./platform-ledger.service";
+import { TenantConnectService } from "./tenant-connect.service";
 import { VendorPayoutsService } from "./vendor-payouts.service";
 import { VendorPayoutsController } from "./vendor-payouts.controller";
 import { PlatformFinanceController } from "./platform-finance.controller";
@@ -73,6 +74,7 @@ import { StripeWebhookService } from "./stripe-webhook.service";
     PaymentReconciliationService,
     PlatformLedgerService,
     VendorPayoutsService,
+    TenantConnectService,
   ],
   exports: [
     InvoiceOnlinePaymentsService,
@@ -82,6 +84,7 @@ import { StripeWebhookService } from "./stripe-webhook.service";
     PaymentAuditService,
     StripeGatewayService,
     VendorPayoutsService,
+    TenantConnectService,
   ],
 })
 export class PaymentsModule {}

@@ -10,6 +10,7 @@ import { InvoiceOnlinePaymentsService } from "./invoice-online-payments.service"
 import { PlatformBillingService } from "./platform-billing.service";
 import { StripeGatewayService } from "./stripe-gateway.service";
 import { StripeWebhookService } from "./stripe-webhook.service";
+import { TenantConnectService } from "./tenant-connect.service";
 import { VendorPayoutsService } from "./vendor-payouts.service";
 
 /**
@@ -34,6 +35,7 @@ export class PaymentReconciliationService implements OnModuleInit {
     private readonly platformBilling: PlatformBillingService,
     private readonly webhooks: StripeWebhookService,
     private readonly vendorPayouts: VendorPayoutsService,
+    private readonly tenantConnect: TenantConnectService,
   ) {}
 
   onModuleInit() {
@@ -67,6 +69,23 @@ export class PaymentReconciliationService implements OnModuleInit {
       errors: 0,
     };
     try {
+      // Companies mid Stripe onboarding: catch up on a missed account.updated.
+      const onboarding = await this.prisma.tenantPaymentGateway.findMany({
+        where: {
+          connect_account_id: { not: null },
+          connect_charges_enabled: false,
+        },
+        select: { tenant_id: true },
+        take: 50,
+      });
+      for (const { tenant_id } of onboarding) {
+        await this.tenantConnect.reconcileTenant(tenant_id).catch((err) => {
+          summary.errors++;
+          this.logger.warn(
+            `Connect refresh failed for tenant ${tenant_id}: ${String(err)}`,
+          );
+        });
+      }
       const gateways = await this.prisma.tenantPaymentGateway.findMany({
         where: { is_enabled: true },
         select: { tenant_id: true },
@@ -164,6 +183,7 @@ export class PaymentReconciliationService implements OnModuleInit {
         where: {
           is_enabled: true,
           use_platform_account: false,
+          use_connect: false,
           webhook_secret_encrypted: null,
         },
       }),

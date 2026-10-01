@@ -8349,6 +8349,14 @@ model TenantPaymentGateway {
   auto_vendor_payouts         Boolean              @default(true)
   /// Signing secret of the company's Connect webhook endpoint (encrypted).
   connect_webhook_secret_encrypted String?         @db.Text
+  /// Stripe Connect collection: customer payments settle into the
+  /// company's own connected account (destination charges on the platform).
+  use_connect              Boolean                @default(false)
+  connect_account_id       String?                @unique @db.VarChar(255)
+  connect_charges_enabled  Boolean                @default(false)
+  connect_payouts_enabled  Boolean                @default(false)
+  connect_details_submitted Boolean               @default(false)
+  connect_requirements_due Json?
   created_at               DateTime               @default(now()) @db.Timestamptz
   updated_at               DateTime               @updatedAt @db.Timestamptz
   created_by               String?                @db.Uuid
@@ -8422,6 +8430,10 @@ model PaymentTransaction {
   stripe_dispute_id          String?                @db.VarChar(255)
   dispute_status             String?                @db.VarChar(40)
   disputed_at                DateTime?              @db.Timestamptz
+  /// Stripe Connect collection: the company's connected account that
+  /// received this destination charge, and the platform's application fee.
+  connect_destination_id     String?                @db.VarChar(255)
+  application_fee_minor      BigInt?
   created_at                 DateTime               @default(now()) @db.Timestamptz
   updated_at                 DateTime               @updatedAt @db.Timestamptz
 
@@ -8706,6 +8718,8 @@ model VendorPayout {
   account_ref        String               @db.VarChar(80)
   stripe_account_id  String               @db.VarChar(255)
   stripe_transfer_id String?              @unique @db.VarChar(255)
+  /// Connect-collecting company: account debit that funded this payout.
+  stripe_debit_transfer_id String?        @unique @db.VarChar(255)
   /// ERP AP payment (payment voucher) created for this payout.
   erp_payment_id     String?              @db.Uuid
   failure_message    String?              @db.Text

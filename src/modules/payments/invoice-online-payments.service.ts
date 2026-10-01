@@ -129,6 +129,7 @@ export class InvoiceOnlinePaymentsService {
       invoiceId,
       account.client,
       amountMinor,
+      { accountRef: account.accountRef, destination: account.connectAccountId },
     );
     if (reusable) {
       return { success: true, data: this.toCheckoutResponse(reusable, true) };
@@ -145,6 +146,16 @@ export class InvoiceOnlinePaymentsService {
         email: invoice.party.email,
       },
     );
+
+    // Stripe Connect collection: destination charge into the company's own
+    // account; the platform's optional fee is computed server-side only.
+    const connectAccountId = account.connectAccountId;
+    const feeBps = connectAccountId
+      ? this.stripe.connectApplicationFeeBps()
+      : 0;
+    const applicationFeeMinor = connectAccountId
+      ? (amountMinor * BigInt(feeBps)) / 10000n
+      : null;
 
     const txn = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const attempts = await tx.paymentTransaction.count({
@@ -166,6 +177,8 @@ export class InvoiceOnlinePaymentsService {
           initiated_by_type: opts.initiator.type,
           initiated_by_id: opts.initiator.id ?? null,
           payment_link_id: opts.paymentLinkId ?? null,
+          connect_destination_id: connectAccountId,
+          application_fee_minor: applicationFeeMinor,
         },
       });
     });
@@ -206,6 +219,15 @@ export class InvoiceOnlinePaymentsService {
           payment_intent_data: {
             metadata,
             description,
+            ...(connectAccountId
+              ? {
+                  on_behalf_of: connectAccountId,
+                  transfer_data: { destination: connectAccountId },
+                  ...(applicationFeeMinor && applicationFeeMinor > 0n
+                    ? { application_fee_amount: Number(applicationFeeMinor) }
+                    : {}),
+                }
+              : {}),
             ...(account.gateway.statement_descriptor
               ? {
                   statement_descriptor_suffix:
@@ -935,6 +957,11 @@ export class InvoiceOnlinePaymentsService {
           payment_intent: txn.stripe_payment_intent_id,
           amount: Number(toMinorUnits(amount, txn.currency_code)),
           reason: "requested_by_customer",
+          // Connect collection: the money is in the company's account —
+          // take the refund from there (and return the platform fee share).
+          ...(txn.connect_destination_id
+            ? { reverse_transfer: true, refund_application_fee: true }
+            : {}),
           metadata: {
             [STRIPE_METADATA.SCOPE]: METADATA_SCOPE.TENANT_INVOICE,
             [STRIPE_METADATA.TENANT_ID]: tenantId,
@@ -1253,14 +1280,18 @@ export class InvoiceOnlinePaymentsService {
 
     try {
       const txn = await this.requireTransaction(tenantId, transactionId);
-      const client = await this.settings.clientForAccountRef(
-        txn.account_ref,
-        tenantId,
-      );
-      const fee = await this.stripe.paymentIntentFee(
-        client,
-        txn.stripe_payment_intent_id!,
-      );
+      // Connect collection: Stripe's processing fee is paid by the platform;
+      // what the company gives up is the platform's application fee.
+      const fee = txn.connect_destination_id
+        ? {
+            chargeId: null,
+            fee: Number(txn.application_fee_minor ?? 0n),
+            currency: txn.currency_code.toLowerCase(),
+          }
+        : await this.stripe.paymentIntentFee(
+            await this.settings.clientForAccountRef(txn.account_ref, tenantId),
+            txn.stripe_payment_intent_id!,
+          );
       if (!fee) {
         await release(); // not settled yet — the reconciler retries
         return;
@@ -1294,7 +1325,7 @@ export class InvoiceOnlinePaymentsService {
             voucher_type: "JOURNAL",
             currency_code: txn.currency_code,
             exchange_rate: Number(erp.exchange_rate) || 1,
-            narration: `Stripe processing fee for receipt ${erp.payment_number}`,
+            narration: `${txn.connect_destination_id ? "Platform payment fee" : "Stripe processing fee"} for receipt ${erp.payment_number}`,
             reference_number: reference,
             company_id: erp.company_id ?? undefined,
             party_id: erp.party_id,
@@ -1418,6 +1449,9 @@ export class InvoiceOnlinePaymentsService {
         });
       });
       if (row) await this.applyRefundAccounting(tenantId, row.id);
+      if (row && txn.connect_destination_id) {
+        await this.recoverDisputeFromConnect(tenantId, txn, dispute, row);
+      }
     }
 
     await this.audit.log(tenantId, {
@@ -1451,6 +1485,47 @@ export class InvoiceOnlinePaymentsService {
       });
     }
     return txn;
+  }
+
+  /**
+   * Connect collection: Stripe debits the platform for a lost chargeback on
+   * a destination charge, so the same amount is pulled back from the
+   * company's account (transfer reversal, idempotent per dispute).
+   */
+  private async recoverDisputeFromConnect(
+    tenantId: string,
+    txn: PaymentTransaction,
+    dispute: Stripe.Dispute,
+    row: { amount: Prisma.Decimal },
+  ) {
+    try {
+      const client = await this.settings.clientForAccountRef(
+        txn.account_ref,
+        tenantId,
+      );
+      const transferId = await this.stripe.destinationTransferId(
+        client,
+        txn.stripe_payment_intent_id!,
+      );
+      if (!transferId) return;
+      await this.stripe.reverseTransfer(
+        client,
+        transferId,
+        {
+          amount: Number(toMinorUnits(row.amount, txn.currency_code)),
+          metadata: {
+            [STRIPE_METADATA.TENANT_ID]: tenantId,
+            [STRIPE_METADATA.PAYMENT_ID]: txn.id,
+            dispute_id: dispute.id,
+          },
+        },
+        `erp-dispute-reversal:${dispute.id}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Could not recover lost chargeback ${dispute.id} from connected account: ${String(err)}`,
+      );
+    }
   }
 
   /**
@@ -1797,6 +1872,7 @@ export class InvoiceOnlinePaymentsService {
     invoiceId: string,
     client: Stripe,
     amountMinor: bigint,
+    target?: { accountRef: string; destination: string | null },
   ): Promise<PaymentTransaction | null> {
     const open = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.paymentTransaction.findMany({
@@ -1824,15 +1900,29 @@ export class InvoiceOnlinePaymentsService {
         t.checkout_url &&
         t.checkout_expires_at &&
         t.checkout_expires_at.getTime() > now;
-      if (!reusable && live && t.amount_minor === amountMinor) {
+      // Collection mode may have changed since (own keys / platform /
+      // Connect): only a session on the same account and destination is reused.
+      const sameAccount =
+        !target ||
+        (t.account_ref === target.accountRef &&
+          (t.connect_destination_id ?? null) === (target.destination ?? null));
+      if (!reusable && live && sameAccount && t.amount_minor === amountMinor) {
         reusable = t;
         continue;
       }
       if (t.stripe_checkout_session_id) {
-        await this.stripe.expireCheckoutSession(
-          client,
-          t.stripe_checkout_session_id,
-        );
+        const sessionClient =
+          !target || t.account_ref === target.accountRef
+            ? client
+            : await this.settings
+                .clientForAccountRef(t.account_ref, tenantId)
+                .catch(() => null);
+        if (sessionClient) {
+          await this.stripe.expireCheckoutSession(
+            sessionClient,
+            t.stripe_checkout_session_id,
+          );
+        }
       }
       const expired =
         t.checkout_expires_at && t.checkout_expires_at.getTime() <= Date.now();

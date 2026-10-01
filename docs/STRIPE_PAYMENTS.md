@@ -13,7 +13,7 @@ Code: `src/modules/payments/` · Migration: `prisma/migrations/20260930120000_st
 
 | Flow | Who pays | Stripe account | Ledger |
 |---|---|---|---|
-| Customer invoice (Tenant → Customer) | Customer (portal, Pay Now link) or staff-initiated checkout | Tenant's own Stripe account, or the platform account if `use_platform_account` | ERP receipt via GL (`STRIPE:<payment_intent>`) |
+| Customer invoice (Tenant → Customer) | Customer (portal, Pay Now link) or staff-initiated checkout | Tenant's own Stripe account (API keys), the company's Stripe **Connect** account (destination charge, `use_connect`), or the platform account if `use_platform_account` | ERP receipt via GL (`STRIPE:<payment_intent>`) |
 | Platform invoice (Super Admin → Tenant) | Tenant admin | Platform account | `platform_invoices` (platform receivables) |
 | Manual payment / proof | Customer, vendor, staff, or tenant (platform) | — | Customer/vendor: proof **approve** posts an ERP receipt/payment (`PROOF:<proof id>`). Platform: Super Admin verifies |
 | Vendor (AP) | Tenant pays vendor | Stripe Connect transfer to the vendor's Express account (when `STRIPE_CONNECT_ENABLED=true`) | Approving a payment request pays automatically; AP payment via the existing `markPaid` / GL (`STRIPE:<transfer id>`) |
@@ -232,3 +232,39 @@ Tenants on their own Stripe account use `/payments/stripe/webhook/:token/connect
 Endpoints: staff `GET /vendor-payouts`, `GET /vendor-payouts/:id`,
 `GET /vendor-payouts/accounts/:partyId`, `POST /vendor-payouts/payment-requests/:id`;
 vendor portal `GET /vendor/payouts`, `GET /vendor/payouts/:id`, `GET /vendor/payouts/account`.
+
+## Customer payments into the company's Stripe Connect account
+
+The same automatic Connect model as vendor payouts, for collecting from customers. No API keys
+are pasted by the company.
+
+1. **Onboarding (once per company).** A Tenant Admin (`payments.manage_gateway`) calls
+   `POST /payments/stripe/connect/onboarding-link` and completes Stripe's hosted Express
+   onboarding. Status: `GET /payments/stripe/connect`; Stripe dashboard:
+   `POST /payments/stripe/connect/dashboard-link`.
+2. **Automatic switch-on.** When Stripe enables charges (Connect `account.updated` webhook, or the
+   15-minute reconciler), the gateway is set to `use_connect` and online payments are enabled —
+   unless the Super Admin set platform-account collection, which keeps precedence.
+3. **Customers pay exactly as before** — portal `POST /portal/invoices/:id/pay`, emailed Pay Now
+   links (`/pay/:token`), staff `POST /invoices/:id/pay`. The checkout is created on the platform
+   account as a destination charge (`transfer_data.destination` + `on_behalf_of` = the company's
+   account), so funds settle into the company's Stripe balance and the company is the merchant
+   of record. Amount always comes from the ERP balance.
+4. **Accounting is unchanged**: the platform webhook posts the ERP receipt (`STRIPE:<payment
+   intent>`), allocation and voucher through the existing GL flow. The company's cost booked as
+   the "fee" is the platform application fee (`STRIPE_CONNECT_APPLICATION_FEE_BPS`); Stripe's
+   processing fee on destination charges is the platform's.
+5. **Refunds** use `reverse_transfer` + `refund_application_fee`, so the refund comes out of the
+   company's account. A **lost chargeback** reverses the same amount from the company's
+   account (idempotent per dispute) in addition to the existing ERP reversal.
+6. **Vendor payouts** for a Connect-collecting company are funded from its own Stripe balance:
+   an account debit (connected account → platform) followed by the vendor transfer; if the
+   vendor transfer fails or is reversed, the debit is returned to the company.
+
+Precedence: `use_platform_account` → `use_connect` → company API keys. Existing tenants on
+API keys or the platform account are unaffected; attempts keep the Stripe account they were
+created on (refunds, reconciliation and webhooks still resolve by `account_ref`). Switching
+`use_connect` off requires the company's own keys (or platform collection) to stay enabled.
+
+Notes: vendors onboarded under a company's own API-key account must onboard again if the
+company moves to Connect collection (vendor accounts belong to the paying Stripe account).

@@ -255,6 +255,18 @@ export class VendorPayoutsService {
       if (!this.enabled()) return;
       const gw = await this.settings.find(tenantId);
       if (!gw?.is_enabled || !gw.auto_vendor_payouts) return;
+      // A payout Stripe reversed is not re-sent automatically; finance was
+      // alerted and can pay it again explicitly.
+      const reversed = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.vendorPayout.count({
+          where: {
+            tenant_id: tenantId,
+            payment_request_id: requestId,
+            status: "REFUNDED",
+          },
+        }),
+      );
+      if (reversed) return;
       await this.payPaymentRequest(tenantId, requestId, actor);
     } catch (err) {
       this.logger.warn(
@@ -434,8 +446,44 @@ export class VendorPayoutsService {
       throw err;
     }
 
+    const transferGroup =
+      input.paymentRequestId ?? input.invoiceId ?? payout.id;
+    const metadata = {
+      erp_scope: VENDOR_PAYOUT_SCOPE,
+      tenant_id: tenantId,
+      payout_id: payout.id,
+      party_id: input.partyId,
+      ...(input.paymentRequestId
+        ? { payment_request_id: input.paymentRequestId }
+        : {}),
+      ...(input.invoiceId ? { invoice_id: input.invoiceId } : {}),
+    };
+    let debitId: string | null = null;
     let transfer: Stripe.Transfer;
     try {
+      // A company collecting through its own connected account holds its
+      // money there: fund the payout from that balance first.
+      if (account.connectAccountId) {
+        const debit = await this.stripe.debitConnectedAccount(
+          account.client,
+          account.connectAccountId,
+          {
+            amount: Number(amountMinor),
+            currency: currency.toLowerCase(),
+            description: `Vendor payout — ${input.description}`,
+            transfer_group: transferGroup,
+            metadata,
+          },
+          `erp-payout-debit:${payout.id}`,
+        );
+        debitId = debit.id;
+        await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.vendorPayout.update({
+            where: { id: payout.id },
+            data: { stripe_debit_transfer_id: debit.id },
+          }),
+        );
+      }
       transfer = await this.stripe.createTransfer(
         account.client,
         {
@@ -443,22 +491,20 @@ export class VendorPayoutsService {
           currency: currency.toLowerCase(),
           destination: vendor.stripe_account_id,
           description: input.description,
-          transfer_group:
-            input.paymentRequestId ?? input.invoiceId ?? payout.id,
-          metadata: {
-            erp_scope: VENDOR_PAYOUT_SCOPE,
-            tenant_id: tenantId,
-            payout_id: payout.id,
-            party_id: input.partyId,
-            ...(input.paymentRequestId
-              ? { payment_request_id: input.paymentRequestId }
-              : {}),
-            ...(input.invoiceId ? { invoice_id: input.invoiceId } : {}),
-          },
+          transfer_group: transferGroup,
+          metadata,
         },
         `erp-payout:${payout.id}`,
       );
     } catch (err) {
+      if (debitId && account.connectAccountId) {
+        await this.returnDebit(
+          account.client,
+          account.connectAccountId,
+          debitId,
+          payout.id,
+        );
+      }
       const message = err instanceof Error ? err.message : String(err);
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.vendorPayout.update({
@@ -505,6 +551,31 @@ export class VendorPayoutsService {
   }
 
   /** AP payment for a direct bill payout (existing gl create + post). */
+  /** Puts an account debit back into the company's connected account. */
+  private async returnDebit(
+    client: Stripe,
+    connectAccountId: string,
+    debitId: string,
+    payoutId: string,
+    amountMinor?: number,
+  ) {
+    try {
+      await this.stripe.reverseTransfer(
+        client,
+        debitId,
+        amountMinor ? { amount: amountMinor } : {},
+        `erp-payout-debit-return:${payoutId}`,
+        connectAccountId,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Could not return funds for payout ${payoutId} to ${connectAccountId}: ${String(err)}`,
+      );
+      return false;
+    }
+    return true;
+  }
+
   private async postErpPayment(tenantId: string, payoutId: string) {
     const payout = await this.requirePayout(tenantId, payoutId);
     if (
@@ -652,6 +723,19 @@ export class VendorPayoutsService {
       );
       if (erp.status === "POSTED")
         await this.glPayments.cancel(tenantId, erp.id);
+    }
+    if (payout.stripe_debit_transfer_id) {
+      // Funded from the company's connected account → send it back there.
+      const gw = await this.settings.find(tenantId);
+      if (gw?.connect_account_id) {
+        await this.returnDebit(
+          await this.settings.clientForAccountRef(payout.account_ref, tenantId),
+          gw.connect_account_id,
+          payout.stripe_debit_transfer_id,
+          payout.id,
+          Math.min(transfer.amount_reversed, Number(payout.amount_minor)),
+        );
+      }
     }
     if (payout.payment_request_id) {
       await this.prisma.runWithTenant(tenantId, (tx) =>
