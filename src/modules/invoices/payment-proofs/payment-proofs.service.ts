@@ -1,15 +1,18 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
+  forwardRef,
 } from "@nestjs/common";
 import { PaymentProofDirection, PaymentProofStatus } from "@prisma/client";
 import * as fs from "fs/promises";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { StorageService } from "../../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../../notifications/notification-emitter.service";
+import { PaymentsService } from "../../gl/payments.service";
 
 export interface CreatePaymentProofInput {
   tenantId: string;
@@ -23,6 +26,11 @@ export interface CreatePaymentProofInput {
   submittedByUserId?: string;
   submittedByStaffId?: string;
   file?: Express.Multer.File;
+  /** When set, proof is stored as ACKNOWLEDGED and linked to a posted payment. */
+  linkedPaymentId?: string;
+  status?: PaymentProofStatus;
+  /** Allow create without a file (portal cash claim with optional proof). */
+  fileOptional?: boolean;
   actorId?: string;
 }
 
@@ -34,6 +42,8 @@ export class PaymentProofsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly notifications: NotificationEmitterService,
+    @Inject(forwardRef(() => PaymentsService))
+    private readonly payments: PaymentsService,
   ) {}
 
   async listForInvoice(tenantId: string, invoiceId: string) {
@@ -64,43 +74,53 @@ export class PaymentProofsService {
       }),
     );
     if (!invoice) throw new NotFoundException("Invoice not found.");
-    if (Number(invoice.balance_due) <= 0.0001) {
+    if (Number(invoice.balance_due) <= 0.0001 && !input.linkedPaymentId) {
       throw new BadRequestException("Invoice has no outstanding balance.");
     }
-
-    const buffer = await this.resolveUploadBuffer(input.file);
-    const originalName =
-      input.file?.originalname?.trim() || `payment-proof-${Date.now()}.bin`;
-    const mimeType =
-      input.file?.mimetype?.trim() || "application/octet-stream";
+    if (amount - Number(invoice.balance_due) > 0.0001 && !input.linkedPaymentId) {
+      throw new BadRequestException(
+        `amount_claimed exceeds balance due (${invoice.balance_due}).`,
+      );
+    }
 
     let fileMeta: {
       file_url?: string;
       s3_key?: string;
       mime_type?: string;
       file_size?: number;
-    };
-    try {
-      const saved = await this.storage.saveBuffer(
-        input.tenantId,
-        buffer,
-        originalName,
-        mimeType,
-      );
-      fileMeta = {
-        file_url: saved.fileUrl,
-        s3_key: saved.s3Key,
-        mime_type: saved.mimeType,
-        file_size: saved.fileSize,
-      };
-    } catch (err) {
-      this.logger.error(
-        `Payment proof storage failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      throw new ServiceUnavailableException(
-        "Could not store payment proof file. Check STORAGE_PATH / S3 configuration.",
-      );
+    } = {};
+
+    if (input.file || !input.fileOptional) {
+      const buffer = await this.resolveUploadBuffer(input.file);
+      const originalName =
+        input.file?.originalname?.trim() || `payment-proof-${Date.now()}.bin`;
+      const mimeType =
+        input.file?.mimetype?.trim() || "application/octet-stream";
+
+      try {
+        const saved = await this.storage.saveBuffer(
+          input.tenantId,
+          buffer,
+          originalName,
+          mimeType,
+        );
+        fileMeta = {
+          file_url: saved.fileUrl,
+          s3_key: saved.s3Key,
+          mime_type: saved.mimeType,
+          file_size: saved.fileSize,
+        };
+      } catch (err) {
+        this.logger.error(
+          `Payment proof storage failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        throw new ServiceUnavailableException(
+          "Could not store payment proof file. Check STORAGE_PATH / S3 configuration.",
+        );
+      }
     }
+
+    const status = input.status ?? (input.linkedPaymentId ? "ACKNOWLEDGED" : "SUBMITTED");
 
     let proof;
     try {
@@ -117,6 +137,9 @@ export class PaymentProofsService {
             payment_date: paymentDate,
             reference_number: input.referenceNumber,
             notes: input.notes,
+            linked_payment_id: input.linkedPaymentId,
+            status,
+            reviewed_at: status === "ACKNOWLEDGED" ? new Date() : undefined,
             ...fileMeta,
             created_by: input.actorId,
             updated_by: input.actorId,
@@ -132,14 +155,25 @@ export class PaymentProofsService {
       );
     }
 
-    await this.notifications.notifyFinanceStaff(input.tenantId, {
-      type: "PAYMENT_PROOF_SUBMITTED",
-      title: "Payment proof submitted",
-      message: `Payment proof submitted for invoice ${invoice.invoice_number}.`,
-      entity_type: "payment_proof",
-      entity_id: proof.id,
-      link_path: `/invoices/${invoice.id}`,
-    });
+    if (status === "SUBMITTED") {
+      await this.notifications.notifyFinanceStaff(input.tenantId, {
+        type: "PAYMENT_PROOF_SUBMITTED",
+        title: "Payment proof submitted",
+        message: `Payment proof submitted for invoice ${invoice.invoice_number}.`,
+        entity_type: "payment_proof",
+        entity_id: proof.id,
+        link_path: `/invoices/${invoice.id}`,
+      });
+    } else {
+      await this.notifications.notifyFinanceStaff(input.tenantId, {
+        type: "PAYMENT_PROOF_SUBMITTED",
+        title: "Portal payment recorded",
+        message: `Customer recorded payment of ${amount} for invoice ${invoice.invoice_number}. Balance updated.`,
+        entity_type: "payment_proof",
+        entity_id: proof.id,
+        link_path: `/invoices/${invoice.id}`,
+      });
+    }
 
     return { success: true, data: proof };
   }
@@ -157,8 +191,38 @@ export class PaymentProofsService {
       }),
     );
     if (!proof) throw new NotFoundException("Payment proof not found.");
-    if (proof.status !== "SUBMITTED") {
-      throw new BadRequestException("Only submitted proofs can be reviewed.");
+
+    // Portal auto-posted payments land as ACKNOWLEDGED; staff may still reject → cancel RECEIPT.
+    const reviewable =
+      proof.status === "SUBMITTED" ||
+      (proof.status === "ACKNOWLEDGED" &&
+        proof.linked_payment_id &&
+        status === "REJECTED");
+    if (!reviewable) {
+      throw new BadRequestException(
+        "Only submitted proofs (or acknowledged portal payments when rejecting) can be reviewed.",
+      );
+    }
+
+    if (status === "REJECTED" && proof.linked_payment_id) {
+      try {
+        await this.payments.cancel(tenantId, proof.linked_payment_id, actorId);
+      } catch (err) {
+        this.logger.warn(
+          `Could not cancel linked payment ${proof.linked_payment_id}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        throw new BadRequestException(
+          `Reject requires reversing linked payment: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    if (status === "ACKNOWLEDGED" && proof.status === "ACKNOWLEDGED") {
+      return { success: true, data: proof };
     }
 
     const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -183,7 +247,7 @@ export class PaymentProofsService {
           title:
             status === "ACKNOWLEDGED"
               ? "Payment proof acknowledged"
-              : "Payment proof rejected",
+              : "Payment rejected — balance restored",
           message: `Your payment proof for invoice was ${status.toLowerCase()}.`,
           entity_type: "payment_proof",
           entity_id: proof.id,

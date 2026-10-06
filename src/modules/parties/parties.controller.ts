@@ -97,9 +97,11 @@ export class PartiesController {
   })
   history(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.getHistory(tenantId, id);
+    return this.service.getHistory(tenantId, id, { role, permissions });
   }
 
   @Get(":id")

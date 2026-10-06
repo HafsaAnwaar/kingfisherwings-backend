@@ -79,7 +79,13 @@ SuperAdmin
 
 **LOCKED:** CRM never creates Jobs. Enquiry convert → quotation only. Vendor invoice submit → **DRAFT** `PURCHASE_INVOICE`; staff posts via `POST /purchase-invoices/:id/post`.
 
-**LOCKED (this phase):** Backend-only. No UI. No customer payment gateway. No WhatsApp CRM. No real TDS certificates (India Phase 3). Week 15 Air Import backend shipped (Ch.9).
+**EXCEPTION (portal AR 1B):** `POST /portal/invoices/:id/payments` may auto-create and **post** a `RECEIPT` via `PaymentsService` so `balance_due` drops immediately. Staff reject of the linked `PaymentProof` cancels that RECEIPT. Kill-switch: `PORTAL_SELF_PAYMENT_ENABLED=false`. Vendor portal still never posts.
+
+**LOCKED:** SuperAdmin sets `Tenant.enabled_modules` (matrix tree keys). Tenant Admin UI/grants/JWT are filtered to that set; empty array means all modules (legacy tenants).
+
+**LOCKED:** Ops-only staff do not see a customer’s quotations/jobs until that customer has ≥1 quotation with status `CONVERTED`; Sales / Tenant Admin / Finance always see them.
+
+**LOCKED (this phase):** Backend-only. No UI. No customer payment gateway (card PSP). No WhatsApp CRM. No real TDS certificates (India Phase 3). Week 15 Air Import backend shipped (Ch.9).
 
 ---
 
@@ -699,7 +705,9 @@ Stages (order):
 | NVOCC stages | Role→dept ownership; Admin override audit; payment gates original HBL | NVOCC workflow alignment |
 | Air freight stages | Export HAWB + import Delivery Order payment gates; ULD request on export | Air workflow alignment |
 | Sales invoices | Sales Manager/Executive create+send; Admin retained | NVOCC workflow alignment |
-| Money | Invoice post + GL auto-post; portals never post; WMS storage = DRAFT only | Weeks 10–14, 17 |
+| Money | Invoice post + GL auto-post; portal self-RECEIPT exception (`POST /portal/invoices/:id/payments`); WMS storage = DRAFT only | Weeks 10–14, 17 + AR 1B |
+| Tenant modules | SuperAdmin `enabled_modules` → filter matrix/JWT/reports | Platform |
+| Quote/job visibility | Sales-only until customer has CONVERTED quote; then Sales+Ops | Ops gate |
 | PDF | Puppeteer + queue | §1.10–1.11 |
 | Email | Nodemailer + EmailLog | §1.12 |
 | CRM | Staff only | Week 14 |

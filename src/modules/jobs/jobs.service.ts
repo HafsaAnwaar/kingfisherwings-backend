@@ -36,6 +36,7 @@ import {
   canWriteJobType,
   visibleJobTypes,
 } from "../../common/constants/module-permission-tree";
+import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
 import { MasterLabelService } from "../masters/master-label.service";
 
 import { CreateJobDto, UpdateJobDto } from "./dto/job.dto";
@@ -651,6 +652,7 @@ export class JobsService {
     tenantId: string,
     query: JobQueryDto,
     permissions?: string[],
+    actor?: { role?: string | null; permissions?: string[] | null },
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.JobWhereInput = {
@@ -683,6 +685,27 @@ export class JobsService {
       if (query.masters_only) where.parent_job_id = null;
 
       const andFilters: Prisma.JobWhereInput[] = [];
+
+      const opsActor = actor ?? { permissions };
+      if (isOpsOnlyActor(opsActor)) {
+        const converted = await tx.quotation.findMany({
+          where: {
+            tenant_id: tenantId,
+            status: "CONVERTED",
+            deleted_at: null,
+          },
+          distinct: ["customer_id"],
+          select: { customer_id: true },
+        });
+        const partyIds = converted.map((c) => c.customer_id);
+        andFilters.push({
+          OR: [
+            { shipper_id: { in: partyIds } },
+            { consignee_id: { in: partyIds } },
+            { billing_party_id: { in: partyIds } },
+          ],
+        });
+      }
 
       if (query.from_date || query.to_date) {
         const range = {
@@ -919,7 +942,12 @@ export class JobsService {
     });
   }
 
-  async findOne(tenantId: string, id: string, permissions?: string[]) {
+  async findOne(
+    tenantId: string,
+    id: string,
+    permissions?: string[],
+    actor?: { role?: string | null; permissions?: string[] | null },
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -1014,6 +1042,30 @@ export class JobsService {
         throw new ForbiddenException(
           `You do not have access to ${job.job_type} jobs.`,
         );
+      }
+
+      const opsActor = actor ?? { permissions };
+      if (isOpsOnlyActor(opsActor)) {
+        const partyIds = [
+          job.shipper_id,
+          job.consignee_id,
+          job.billing_party_id,
+        ].filter(Boolean) as string[];
+        if (partyIds.length) {
+          const converted = await tx.quotation.count({
+            where: {
+              tenant_id: tenantId,
+              customer_id: { in: partyIds },
+              status: "CONVERTED",
+              deleted_at: null,
+            },
+          });
+          if (converted === 0) {
+            throw new ForbiddenException(
+              "This job is Sales-only until a related customer quotation is converted.",
+            );
+          }
+        }
       }
 
       return this.enrichJobDetail(tenantId, job, tx);

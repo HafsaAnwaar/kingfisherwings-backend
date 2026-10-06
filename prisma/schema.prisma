@@ -761,6 +761,11 @@ model Tenant {
   /// SuperAdmin-gated: website Quote Requests bridge (KFPP-style pull).
   quote_requests_bridge_enabled Boolean @default(false)
 
+  /// SuperAdmin-gated product modules (keys from MODULE_PERMISSION_TREE).
+  /// Empty array is treated as "all modules" at runtime for backwards safety;
+  /// new tenants are seeded with the full set.
+  enabled_modules String[] @default([])
+
   // Audit
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz

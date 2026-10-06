@@ -643,6 +643,17 @@ GET /jobs/by-barcode/:code                  (staff JWT — full job card)
 POST /jobs/scan                             (staff JWT — scan event + full job card)
 ```
 
+### SuperAdmin tenant modules + portal AR + quote visibility
+
+```
+PATCH /tenants/:id/features  { enabled_modules?: string[], quote_requests_bridge?: boolean }
+GET  /users/permission-matrix              (filtered to enabled_modules)
+GET  /reports/templates                    (filtered by enabled_modules + user perms / family)
+POST /portal/invoices/:id/payments         (multipart: amount, payment_date, optional file → posts RECEIPT)
+PATCH /payment-proofs/:id/reject           (if linked_payment_id → cancel RECEIPT, restore balance_due)
+Quotations/Jobs list: ops-only actors see only customers with ≥1 CONVERTED quotation
+```
+
 Existing tenants: `POST /tenants/:id/sync-permissions` for `transport.view` / `transport.manage`.
 
 ### Week 20 — NVOCC (voyages, enquiries, bookings, load list, tariffs)

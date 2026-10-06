@@ -81,8 +81,8 @@ export class UsersController {
     summary:
       "Permission tree for the admin panel (modules → submodules → none/read/write).",
   })
-  permissionTree() {
-    return this.usersService.getPermissionTree();
+  permissionTree(@CurrentUser("tenantId") tenantId: string) {
+    return this.usersService.getPermissionTree(tenantId);
   }
 
   @Get("role-presets")
@@ -91,8 +91,8 @@ export class UsersController {
     summary:
       "Role cards with default permission_grants for the create-user wizard (Step 1 → Step 3).",
   })
-  rolePresets() {
-    return this.usersService.getRolePresets();
+  rolePresets(@CurrentUser("tenantId") tenantId: string) {
+    return this.usersService.getRolePresets(tenantId);
   }
 
   @Get(":id/permission-matrix")

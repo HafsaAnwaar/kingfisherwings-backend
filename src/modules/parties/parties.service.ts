@@ -10,6 +10,7 @@ import { parse } from "csv-parse/sync";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
+import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
 
 import { CreatePartyDto, UpdatePartyDto } from "./dto/party.dto";
 import { PartyQueryDto } from "./dto/party-query.dto";
@@ -600,10 +601,36 @@ export class PartiesService {
   // HISTORY + EXPORT (Week 2 / 6)
   // ============================================================
 
-  async getHistory(tenantId: string, partyId: string) {
+  async getHistory(
+    tenantId: string,
+    partyId: string,
+    actor?: { role?: string | null; permissions?: string[] | null },
+  ) {
     await this.findOne(tenantId, partyId);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const opsOnly = actor ? isOpsOnlyActor(actor) : false;
+      let allowQuotesAndJobs = true;
+      if (opsOnly) {
+        const converted = await tx.quotation.count({
+          where: {
+            tenant_id: tenantId,
+            customer_id: partyId,
+            status: "CONVERTED",
+            deleted_at: null,
+          },
+        });
+        allowQuotesAndJobs = converted > 0;
+      }
+
+      const emptyJobs: Array<{
+        id: string;
+        job_number: string;
+        job_type: string;
+        status: string;
+        created_at: Date;
+      }> = [];
+
       const [
         jobsAsShipper,
         jobsAsConsignee,
@@ -612,50 +639,60 @@ export class PartiesService {
         paymentRequests,
         audit,
       ] = await Promise.all([
-        tx.job.findMany({
-          where: { tenant_id: tenantId, shipper_id: partyId, deleted_at: null },
-          select: {
-            id: true,
-            job_number: true,
-            job_type: true,
-            status: true,
-            created_at: true,
-          },
-          take: 50,
-          orderBy: { created_at: "desc" },
-        }),
-        tx.job.findMany({
-          where: {
-            tenant_id: tenantId,
-            consignee_id: partyId,
-            deleted_at: null,
-          },
-          select: {
-            id: true,
-            job_number: true,
-            job_type: true,
-            status: true,
-            created_at: true,
-          },
-          take: 50,
-          orderBy: { created_at: "desc" },
-        }),
-        tx.quotation.findMany({
-          where: {
-            tenant_id: tenantId,
-            customer_id: partyId,
-            deleted_at: null,
-          },
-          select: {
-            id: true,
-            quotation_number: true,
-            status: true,
-            created_at: true,
-            revenue_total: true,
-          },
-          take: 50,
-          orderBy: { created_at: "desc" },
-        }),
+        allowQuotesAndJobs
+          ? tx.job.findMany({
+              where: {
+                tenant_id: tenantId,
+                shipper_id: partyId,
+                deleted_at: null,
+              },
+              select: {
+                id: true,
+                job_number: true,
+                job_type: true,
+                status: true,
+                created_at: true,
+              },
+              take: 50,
+              orderBy: { created_at: "desc" },
+            })
+          : Promise.resolve(emptyJobs),
+        allowQuotesAndJobs
+          ? tx.job.findMany({
+              where: {
+                tenant_id: tenantId,
+                consignee_id: partyId,
+                deleted_at: null,
+              },
+              select: {
+                id: true,
+                job_number: true,
+                job_type: true,
+                status: true,
+                created_at: true,
+              },
+              take: 50,
+              orderBy: { created_at: "desc" },
+            })
+          : Promise.resolve(emptyJobs),
+        allowQuotesAndJobs
+          ? tx.quotation.findMany({
+              where: {
+                tenant_id: tenantId,
+                customer_id: partyId,
+                deleted_at: null,
+              },
+              select: {
+                id: true,
+                quotation_number: true,
+                status: true,
+                created_at: true,
+                revenue_total: true,
+              },
+              take: 50,
+              orderBy: { created_at: "desc" },
+            })
+          : Promise.resolve([]),
         tx.invoice.findMany({
           where: { tenant_id: tenantId, party_id: partyId, deleted_at: null },
           select: {
