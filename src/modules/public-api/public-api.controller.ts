@@ -201,7 +201,7 @@ export class PublicApiAdminController {
 
   @Post("billing/checkout-session")
   @RequirePermissions(USERS_PERMISSIONS.CREATE)
-  checkoutSession() {
-    return this.billing.createCheckoutSession();
+  checkoutSession(@CurrentUser("tenantId") tenantId: string) {
+    return this.billing.createCheckoutSession(tenantId);
   }
 }

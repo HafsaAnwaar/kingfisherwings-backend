@@ -39,6 +39,8 @@ import { PublicApiModule } from "./modules/public-api/public-api.module";
 import { QuoteRequestsModule } from "./modules/integrations/quote-requests/quote-requests.module";
 import { TrackModule } from "./modules/track/track.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
+import { StaffActivityModule } from "./modules/notifications/staff-activity/staff-activity.module";
 
 import redisConfig from "./config/redis.config";
 import smtpConfig from "./config/smtp.config";
@@ -95,6 +97,8 @@ import { LocaleModule } from "./common/locale/locale.module";
     ReportsModule,
     PublicApiModule,
     QuoteRequestsModule,
+    PaymentsModule,
+    StaffActivityModule,
   ],
   providers: [
     AppThrottlerGuard,

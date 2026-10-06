@@ -492,6 +492,10 @@ enum EmailEventType {
   VENDOR_SHARE_PROOF
   VENDOR_SHARE_INVOICE
   VENDOR_SHARE_DISPUTE
+  PAYMENT_LINK
+  PAYMENT_RECEIPT
+  PLATFORM_INVOICE_SENT
+  STAFF_ACTIVITY
   OTHER
 }
 
@@ -750,6 +754,14 @@ model Tenant {
   trial_ends        DateTime?
   subscription_ends DateTime?
 
+  // Stripe Billing (platform SaaS subscription) — synced from webhooks.
+  billing_plan_id                   String?   @db.Uuid
+  stripe_subscription_id            String?   @unique @db.VarChar(255)
+  stripe_subscription_status        String?   @db.VarChar(40)
+  subscription_current_period_start DateTime? @db.Timestamptz
+  subscription_current_period_end   DateTime? @db.Timestamptz
+  subscription_cancel_at_period_end Boolean   @default(false)
+
   // Limits
   max_users      Int @default(10)
   max_branches   Int @default(1)
@@ -789,6 +801,10 @@ model Tenant {
   quote_request_connection ExternalQuoteRequestConnection?
   external_quote_requests  ExternalQuoteRequest[]
   quote_request_sync_runs  ExternalQuoteRequestSyncRun[]
+  billing_plan             PlatformBillingPlan? @relation(fields: [billing_plan_id], references: [id])
+  platform_invoices        PlatformInvoice[]
+  platform_payments        PlatformPayment[]
+  payment_gateway          TenantPaymentGateway?
 
   @@index([created_by_super_admin_id])
   @@map("tenants")
@@ -2383,6 +2399,7 @@ model Party {
   follow_ups               FollowUp[]
   enquiries                Enquiry[]
   crm_subscribers          CrmSubscriber[]
+  payment_transactions     PaymentTransaction[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -4394,6 +4411,8 @@ model Invoice {
   payment_proofs   PaymentProof[]
   vouchers         Voucher[]
   payment_allocations PaymentAllocation[]
+  payment_transactions PaymentTransaction[]
+  payment_links        PaymentLink[]
   air_import_storage_for AirJobDetail[] @relation("AirImportStorageInvoice")
   sea_lcl_import_storage_for SeaLclJobDetail[] @relation("SeaLclImportStorageInvoice")
   wms_storage_charges    WmsStorageCharge[] @relation("WmsStorageInvoice")
@@ -4491,6 +4510,7 @@ model PaymentProof {
   notes                 String?               @db.Text
   file_url              String?               @db.VarChar(500)
   s3_key                String?               @db.VarChar(500)
+  file_name             String?               @db.VarChar(255)
   mime_type             String?               @db.VarChar(100)
   file_size             Int?
   status                PaymentProofStatus    @default(SUBMITTED)
@@ -4693,6 +4713,7 @@ model Payment {
   voucher      Voucher?          @relation(fields: [voucher_id], references: [id])
   allocations  PaymentAllocation[]
   payment_requests PaymentRequest[]
+  payment_transactions PaymentTransaction[]
 
   @@unique([tenant_id, payment_number])
   @@index([tenant_id])
@@ -5103,6 +5124,12 @@ enum NotificationType {
   CUSTOMS_DEPOSIT_EXPIRING
   TIMESHEET_MISSING
   WMS_LOW_STOCK
+  PAYMENT_FAILED
+  PAYMENT_REFUNDED
+  PLATFORM_INVOICE_ISSUED
+  PLATFORM_PAYMENT_RECEIVED
+  PAYMENT_DISPUTED
+  PAYMENT_ACTION_REQUIRED
 }
 
 /// Customer → forwarder contact messages from the portal.
@@ -8224,4 +8251,494 @@ model ExternalQuoteRequestSyncRun {
   @@index([tenant_id, started_at])
   @@map("external_quote_request_sync_runs")
 }
+// =====================================================
+// ONLINE PAYMENTS — Stripe gateway (tenant invoices + platform billing)
+//
+// The ERP stays the source of truth: a successful Stripe payment on a
+// tenant invoice is materialised as a regular `Payment` (RECEIPT) created
+// and posted through gl/PaymentsService, so vouchers, allocations and
+// invoice balances follow the existing accounting flow. The models below
+// only track the gateway lifecycle (attempts, refunds, webhooks, links).
+// =====================================================
 
+/// Lifecycle of an online (gateway) or manually-submitted payment attempt.
+enum OnlinePaymentStatus {
+  PENDING
+  PROCESSING
+  REQUIRES_ACTION
+  PAID
+  PARTIALLY_PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  PENDING_VERIFICATION
+  REJECTED
+  /// Customer opened a chargeback; funds held by Stripe until resolved.
+  DISPUTED
+}
+
+enum PaymentGatewayProvider {
+  STRIPE
+  MANUAL
+}
+
+/// Who started a checkout — used for audit + return URLs.
+enum PaymentInitiatorType {
+  STAFF
+  PORTAL_USER
+  PAYMENT_LINK
+  TENANT_ADMIN
+  SUPER_ADMIN
+}
+
+enum PaymentRefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+/// Which ledger a transaction / link / refund settles.
+enum OnlinePaymentScope {
+  TENANT_INVOICE
+  PLATFORM_INVOICE
+}
+
+enum StripeWebhookEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+enum PlatformInvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+/// Per-tenant Stripe account used to collect customer invoice payments.
+/// Not under RLS: the webhook endpoint resolves it by `webhook_token`
+/// before a tenant context exists. Service code always filters tenant_id.
+model TenantPaymentGateway {
+  id                       String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id                String                 @unique @db.Uuid
+  provider                 PaymentGatewayProvider @default(STRIPE)
+  is_enabled               Boolean                @default(false)
+  /// When true, the platform's own Stripe account (env keys) collects for this tenant.
+  use_platform_account     Boolean                @default(false)
+  /// AES-256-GCM (see TwoFactorCrypto) — never returned by the API.
+  secret_key_encrypted     String?                @db.Text
+  webhook_secret_encrypted String?                @db.Text
+  publishable_key          String?                @db.VarChar(255)
+  /// Opaque path segment for POST /payments/stripe/webhook/:token.
+  webhook_token            String                 @unique @db.VarChar(64)
+  allow_partial_payments   Boolean                @default(false)
+  /// Optional TenantBankAccount whose GL account receives Stripe receipts.
+  bank_account_id          String?                @db.Uuid
+  statement_descriptor     String?                @db.VarChar(22)
+  /// Expense account for Stripe processing fees (journal Dr fees / Cr bank).
+  fee_gl_account_id        String?                @db.Uuid
+  /// Stripe Connect: pay approved vendor payment requests automatically.
+  auto_vendor_payouts         Boolean              @default(true)
+  /// Signing secret of the company's Connect webhook endpoint (encrypted).
+  connect_webhook_secret_encrypted String?         @db.Text
+  /// Stripe Connect collection: customer payments settle into the
+  /// company's own connected account (destination charges on the platform).
+  use_connect              Boolean                @default(false)
+  connect_account_id       String?                @unique @db.VarChar(255)
+  connect_charges_enabled  Boolean                @default(false)
+  connect_payouts_enabled  Boolean                @default(false)
+  connect_details_submitted Boolean               @default(false)
+  connect_requirements_due Json?
+  created_at               DateTime               @default(now()) @db.Timestamptz
+  updated_at               DateTime               @updatedAt @db.Timestamptz
+  created_by               String?                @db.Uuid
+  updated_by               String?                @db.Uuid
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@map("tenant_payment_gateways")
+}
+
+/// Maps an ERP subject (Party within a tenant, or the Tenant itself for
+/// platform billing) to a Stripe Customer on a given Stripe account.
+model StripeCustomer {
+  id                 String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String   @db.Uuid
+  /// "platform" or "tenant:<gateway id>" — customers are per Stripe account.
+  account_ref        String   @db.VarChar(80)
+  /// PARTY | TENANT
+  subject_type       String   @db.VarChar(20)
+  subject_id         String   @db.Uuid
+  stripe_customer_id String   @db.VarChar(255)
+  email              String?  @db.VarChar(255)
+  created_at         DateTime @default(now()) @db.Timestamptz
+  updated_at         DateTime @updatedAt @db.Timestamptz
+
+  @@unique([account_ref, subject_type, subject_id])
+  @@index([tenant_id])
+  @@index([stripe_customer_id])
+  @@map("stripe_customers")
+}
+
+/// One row per gateway checkout attempt on a tenant invoice. A single
+/// invoice can have many attempts (failed → retry); only a PAID attempt
+/// produces an ERP Payment (payment_id).
+model PaymentTransaction {
+  id                         String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id                  String                 @db.Uuid
+  invoice_id                 String                 @db.Uuid
+  party_id                   String                 @db.Uuid
+  provider                   PaymentGatewayProvider @default(STRIPE)
+  status                     OnlinePaymentStatus    @default(PENDING)
+  attempt_number             Int                    @default(1)
+  amount                     Decimal                @db.Decimal(18, 4)
+  currency_code              String                 @db.Char(3)
+  /// Amount sent to Stripe in the currency's minor unit.
+  amount_minor               BigInt
+  amount_refunded            Decimal                @default(0) @db.Decimal(18, 4)
+  account_ref                String                 @db.VarChar(80)
+  stripe_customer_id         String?                @db.VarChar(255)
+  stripe_checkout_session_id String?                @unique @db.VarChar(255)
+  stripe_payment_intent_id   String?                @unique @db.VarChar(255)
+  stripe_charge_id           String?                @db.VarChar(255)
+  checkout_url               String?                @db.Text
+  checkout_expires_at        DateTime?              @db.Timestamptz
+  /// ERP Payment (RECEIPT) created + posted when the gateway confirms success.
+  payment_id                 String?                @unique @db.Uuid
+  /// Claim marker so concurrent webhooks never post twice.
+  erp_posting_claimed_at     DateTime?              @db.Timestamptz
+  failure_code               String?                @db.VarChar(100)
+  failure_message            String?                @db.Text
+  paid_at                    DateTime?              @db.Timestamptz
+  payer_email                String?                @db.VarChar(255)
+  initiated_by_type          PaymentInitiatorType
+  initiated_by_id            String?                @db.Uuid
+  payment_link_id            String?                @db.Uuid
+  /// Stripe processing fee (settlement currency) and the journal that booked it.
+  stripe_fee_amount          Decimal?               @db.Decimal(18, 4)
+  stripe_fee_currency        String?                @db.Char(3)
+  fee_voucher_id             String?                @db.Uuid
+  fee_recorded_at            DateTime?              @db.Timestamptz
+  stripe_dispute_id          String?                @db.VarChar(255)
+  dispute_status             String?                @db.VarChar(40)
+  disputed_at                DateTime?              @db.Timestamptz
+  /// Stripe Connect collection: the company's connected account that
+  /// received this destination charge, and the platform's application fee.
+  connect_destination_id     String?                @db.VarChar(255)
+  application_fee_minor      BigInt?
+  created_at                 DateTime               @default(now()) @db.Timestamptz
+  updated_at                 DateTime               @updatedAt @db.Timestamptz
+
+  invoice Invoice         @relation(fields: [invoice_id], references: [id])
+  party   Party           @relation(fields: [party_id], references: [id])
+  payment Payment?        @relation(fields: [payment_id], references: [id])
+  refunds PaymentRefund[]
+
+  @@index([tenant_id])
+  @@index([tenant_id, invoice_id])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, status])
+  @@map("payment_transactions")
+}
+
+/// Refund of a gateway payment (tenant invoice attempt or platform payment).
+model PaymentRefund {
+  id                     String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id              String               @db.Uuid
+  scope                  OnlinePaymentScope
+  payment_transaction_id String?              @db.Uuid
+  platform_payment_id    String?              @db.Uuid
+  amount                 Decimal              @db.Decimal(18, 4)
+  currency_code          String               @db.Char(3)
+  reason                 String?              @db.VarChar(500)
+  status                 PaymentRefundStatus  @default(PENDING)
+  stripe_refund_id       String?              @unique @db.VarChar(255)
+  /// Set once the ERP ledger (voucher reversal / platform balance) reflects the refund.
+  accounting_applied_at  DateTime?            @db.Timestamptz
+  failure_reason         String?              @db.Text
+  requested_by           String?              @db.Uuid
+  requested_by_type      PaymentInitiatorType
+  processed_at           DateTime?            @db.Timestamptz
+  created_at             DateTime             @default(now()) @db.Timestamptz
+  updated_at             DateTime             @updatedAt @db.Timestamptz
+
+  payment_transaction PaymentTransaction? @relation(fields: [payment_transaction_id], references: [id])
+  platform_payment    PlatformPayment?    @relation(fields: [platform_payment_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([tenant_id, payment_transaction_id])
+  @@index([tenant_id, platform_payment_id])
+  @@map("payment_refunds")
+}
+
+/// Shareable "Pay Now" link. Only the SHA-256 of the token is stored.
+/// Not under RLS: resolved by token on a public route.
+model PaymentLink {
+  id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String             @db.Uuid
+  scope               OnlinePaymentScope
+  invoice_id          String?            @db.Uuid
+  platform_invoice_id String?            @db.Uuid
+  token_hash          String             @unique @db.VarChar(64)
+  expires_at          DateTime           @db.Timestamptz
+  revoked_at          DateTime?          @db.Timestamptz
+  last_used_at        DateTime?          @db.Timestamptz
+  use_count           Int                @default(0)
+  created_by          String?            @db.Uuid
+  created_at          DateTime           @default(now()) @db.Timestamptz
+
+  invoice          Invoice?         @relation(fields: [invoice_id], references: [id])
+  platform_invoice PlatformInvoice? @relation(fields: [platform_invoice_id], references: [id])
+
+  @@index([tenant_id, invoice_id])
+  @@index([platform_invoice_id])
+  @@map("payment_links")
+}
+
+/// Raw Stripe webhook deliveries — `stripe_event_id` makes processing idempotent.
+model StripeWebhookEvent {
+  id                    String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  stripe_event_id       String                   @db.VarChar(255)
+  event_type            String                   @db.VarChar(120)
+  account_ref           String                   @db.VarChar(80)
+  tenant_id             String?                  @db.Uuid
+  livemode              Boolean                  @default(false)
+  status                StripeWebhookEventStatus @default(RECEIVED)
+  attempts              Int                      @default(0)
+  payload               Json
+  error                 String?                  @db.Text
+  processing_started_at DateTime?                @db.Timestamptz
+  processed_at          DateTime?                @db.Timestamptz
+  created_at            DateTime                 @default(now()) @db.Timestamptz
+  updated_at            DateTime                 @updatedAt @db.Timestamptz
+
+  /// Event ids are unique per Stripe account; scoping by account stops one
+  /// account\'s (tenant-signed) events from shadowing another\'s.
+  @@unique([account_ref, stripe_event_id])
+  @@index([status])
+  @@index([tenant_id])
+  @@index([event_type])
+  @@map("stripe_webhook_events")
+}
+
+// ─── PLATFORM BILLING (Super Admin → Tenant) ────────────────
+// Platform-level ledger: not tenant ERP data, so not under RLS (like
+// `tenants`). Tenant-facing routes always filter by the JWT tenant.
+
+model PlatformBillingPlan {
+  id                String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code              String           @unique @db.VarChar(40)
+  name              String           @db.VarChar(120)
+  description       String?          @db.Text
+  subscription_plan SubscriptionPlan
+  amount            Decimal          @db.Decimal(18, 4)
+  currency_code     String           @db.Char(3)
+  interval          BillingInterval  @default(MONTH)
+  stripe_product_id String?          @db.VarChar(255)
+  stripe_price_id   String?          @db.VarChar(255)
+  max_users         Int?
+  max_branches      Int?
+  max_storage_gb    Int?
+  is_active         Boolean          @default(true)
+  created_at        DateTime         @default(now()) @db.Timestamptz
+  updated_at        DateTime         @updatedAt @db.Timestamptz
+  deleted_at        DateTime?        @db.Timestamptz
+
+  tenants Tenant[]
+
+  @@map("platform_billing_plans")
+}
+
+model PlatformInvoice {
+  id                        String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  invoice_number            String                @unique @db.VarChar(40)
+  tenant_id                 String                @db.Uuid
+  status                    PlatformInvoiceStatus @default(DRAFT)
+  currency_code             String                @db.Char(3)
+  issue_date                DateTime              @default(now()) @db.Date
+  due_date                  DateTime?             @db.Date
+  period_start              DateTime?             @db.Date
+  period_end                DateTime?             @db.Date
+  subtotal                  Decimal               @default(0) @db.Decimal(18, 4)
+  discount_amount           Decimal               @default(0) @db.Decimal(18, 4)
+  tax_rate                  Decimal               @default(0) @db.Decimal(6, 3)
+  tax_amount                Decimal               @default(0) @db.Decimal(18, 4)
+  total_amount              Decimal               @default(0) @db.Decimal(18, 4)
+  amount_paid               Decimal               @default(0) @db.Decimal(18, 4)
+  amount_refunded           Decimal               @default(0) @db.Decimal(18, 4)
+  balance_due               Decimal               @default(0) @db.Decimal(18, 4)
+  notes                     String?               @db.Text
+  sent_at                   DateTime?             @db.Timestamptz
+  last_emailed_at           DateTime?             @db.Timestamptz
+  last_emailed_to           String?               @db.VarChar(255)
+  cancelled_at              DateTime?             @db.Timestamptz
+  cancel_reason             String?               @db.VarChar(500)
+  created_by_super_admin_id String?               @db.Uuid
+  updated_by_super_admin_id String?               @db.Uuid
+  /// Mirror in the platform ledger company's books (existing Invoice model),
+  /// set when PLATFORM_LEDGER_TENANT_ID is configured.
+  erp_invoice_id            String?               @db.Uuid
+  erp_sync_claimed_at       DateTime?             @db.Timestamptz
+  created_at                DateTime              @default(now()) @db.Timestamptz
+  updated_at                DateTime              @updatedAt @db.Timestamptz
+  deleted_at                DateTime?             @db.Timestamptz
+
+  tenant   Tenant                @relation(fields: [tenant_id], references: [id])
+  lines    PlatformInvoiceLine[]
+  payments PlatformPayment[]
+  links    PaymentLink[]
+
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([status, due_date])
+  @@map("platform_invoices")
+}
+
+model PlatformInvoiceLine {
+  id                  String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  platform_invoice_id String   @db.Uuid
+  description         String   @db.VarChar(300)
+  quantity            Decimal  @default(1) @db.Decimal(10, 3)
+  unit_price          Decimal  @db.Decimal(18, 4)
+  amount              Decimal  @db.Decimal(18, 4)
+  sort_order          Int      @default(0)
+  created_at          DateTime @default(now()) @db.Timestamptz
+  updated_at          DateTime @updatedAt @db.Timestamptz
+
+  invoice PlatformInvoice @relation(fields: [platform_invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([platform_invoice_id])
+  @@map("platform_invoice_lines")
+}
+
+/// A payment against a platform invoice: a Stripe checkout attempt, a
+/// tenant-submitted manual payment awaiting verification (with proof file
+/// in object storage), or a manual payment recorded by the Super Admin.
+model PlatformPayment {
+  id                         String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  platform_invoice_id        String                 @db.Uuid
+  tenant_id                  String                 @db.Uuid
+  provider                   PaymentGatewayProvider
+  payment_method             PaymentMethod          @default(CREDIT_CARD)
+  status                     OnlinePaymentStatus    @default(PENDING)
+  attempt_number             Int                    @default(1)
+  amount                     Decimal                @db.Decimal(18, 4)
+  currency_code              String                 @db.Char(3)
+  amount_minor               BigInt?
+  amount_refunded            Decimal                @default(0) @db.Decimal(18, 4)
+  /// Set once the platform invoice balance reflects this payment.
+  applied_at                 DateTime?              @db.Timestamptz
+  stripe_customer_id         String?                @db.VarChar(255)
+  stripe_checkout_session_id String?                @unique @db.VarChar(255)
+  stripe_payment_intent_id   String?                @unique @db.VarChar(255)
+  stripe_charge_id           String?                @db.VarChar(255)
+  checkout_url               String?                @db.Text
+  checkout_expires_at        DateTime?              @db.Timestamptz
+  reference_number           String?                @db.VarChar(100)
+  payment_date               DateTime?              @db.Date
+  notes                      String?                @db.Text
+  failure_message            String?                @db.Text
+  paid_at                    DateTime?              @db.Timestamptz
+  proof_file_url             String?                @db.VarChar(500)
+  proof_s3_key               String?                @db.VarChar(500)
+  proof_file_name            String?                @db.VarChar(255)
+  proof_mime_type            String?                @db.VarChar(100)
+  proof_file_size            Int?
+  submitted_by_user_id       String?                @db.Uuid
+  initiated_by_type          PaymentInitiatorType
+  reviewed_by_super_admin_id String?                @db.Uuid
+  reviewed_at                DateTime?              @db.Timestamptz
+  rejection_reason           String?                @db.VarChar(1000)
+  /// Receipt in the platform ledger company's books and the net amount it covers.
+  erp_payment_id             String?                @db.Uuid
+  erp_synced_amount          Decimal                @default(0) @db.Decimal(18, 4)
+  erp_sync_claimed_at        DateTime?              @db.Timestamptz
+  stripe_fee_amount          Decimal?               @db.Decimal(18, 4)
+  stripe_fee_currency        String?                @db.Char(3)
+  stripe_dispute_id          String?                @db.VarChar(255)
+  dispute_status             String?                @db.VarChar(40)
+  disputed_at                DateTime?              @db.Timestamptz
+  created_at                 DateTime               @default(now()) @db.Timestamptz
+  updated_at                 DateTime               @updatedAt @db.Timestamptz
+
+  invoice PlatformInvoice @relation(fields: [platform_invoice_id], references: [id])
+  tenant  Tenant          @relation(fields: [tenant_id], references: [id])
+  refunds PaymentRefund[]
+
+  @@index([platform_invoice_id])
+  @@index([tenant_id, status])
+  @@map("platform_payments")
+}
+
+// ─── VENDOR PAYOUTS (Stripe Connect) ─────────────────────────
+// Tenant → vendor payments sent automatically as Stripe transfers to the
+// vendor's connected account. The ERP AP payment is still created and
+// posted through the existing payment-request / gl PaymentsService flow.
+
+/// Vendor's Stripe Express connected account. Not under RLS: Connect
+/// webhooks (account.updated) resolve it by stripe_account_id before a
+/// tenant context exists; service code always filters tenant_id.
+model VendorPayoutAccount {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String   @db.Uuid
+  party_id          String   @db.Uuid
+  /// Stripe account that sends the transfers ("platform" or "tenant:<gateway id>").
+  account_ref       String   @db.VarChar(80)
+  stripe_account_id String   @unique @db.VarChar(255)
+  details_submitted Boolean  @default(false)
+  payouts_enabled   Boolean  @default(false)
+  transfers_active  Boolean  @default(false)
+  requirements_due  Json?
+  created_at        DateTime @default(now()) @db.Timestamptz
+  updated_at        DateTime @updatedAt @db.Timestamptz
+
+  @@unique([tenant_id, party_id, account_ref])
+  @@index([tenant_id])
+  @@map("vendor_payout_accounts")
+}
+
+model VendorPayout {
+  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String               @db.Uuid
+  party_id           String               @db.Uuid
+  invoice_id         String?              @db.Uuid
+  payment_request_id String?              @db.Uuid
+  status             OnlinePaymentStatus  @default(PENDING)
+  amount             Decimal              @db.Decimal(18, 4)
+  currency_code      String               @db.Char(3)
+  amount_minor       BigInt
+  account_ref        String               @db.VarChar(80)
+  stripe_account_id  String               @db.VarChar(255)
+  stripe_transfer_id String?              @unique @db.VarChar(255)
+  /// Connect-collecting company: account debit that funded this payout.
+  stripe_debit_transfer_id String?        @unique @db.VarChar(255)
+  /// ERP AP payment (payment voucher) created for this payout.
+  erp_payment_id     String?              @db.Uuid
+  failure_message    String?              @db.Text
+  initiated_by_type  PaymentInitiatorType
+  initiated_by_id    String?              @db.Uuid
+  paid_at            DateTime?            @db.Timestamptz
+  reversed_at        DateTime?            @db.Timestamptz
+  created_at         DateTime             @default(now()) @db.Timestamptz
+  updated_at         DateTime             @updatedAt @db.Timestamptz
+
+  @@index([tenant_id])
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, payment_request_id])
+  @@index([tenant_id, invoice_id])
+  @@index([tenant_id, status])
+  @@map("vendor_payouts")
+}

@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { PdfModule } from "../../shared/pdf/pdf.module";
@@ -9,6 +9,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { PublicApiModule } from "../public-api/public-api.module";
 import { MastersModule } from "../masters/masters.module";
 import { ReportsModule } from "../reports/reports.module";
+import { PaymentsModule } from "../payments/payments.module";
 import { InvoicesController } from "./invoices.controller";
 import { CreditNotesController } from "./credit-notes.controller";
 import { DebitNotesController } from "./debit-notes.controller";
@@ -31,6 +32,7 @@ import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
     PublicApiModule,
     MastersModule,
     ReportsModule,
+    forwardRef(() => PaymentsModule),
   ],
   controllers: [
     InvoicesController,
