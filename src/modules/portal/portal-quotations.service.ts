@@ -9,6 +9,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { StorageService } from "../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { QuotationsService } from "../quotations/quotations.service";
+import { quotationActionFlags } from "../quotations/quotation-action-flags";
 import {
   PortalCostingOptionsDto,
   PortalQuotationAcceptDto,
@@ -429,6 +430,7 @@ export class PortalQuotationsService {
         negotiation_pricing: buildNegotiationPricingView(quotation),
         customer_pdf_url: quotation.customer_pdf_url,
         has_pdf: Boolean(quotation.customer_pdf_url),
+        actions: quotationActionFlags(quotation.status),
         created_at: quotation.created_at,
         updated_at: quotation.updated_at,
       },
@@ -491,14 +493,24 @@ export class PortalQuotationsService {
       dto?.message,
       { fromPortal: true },
     );
+
+    const job = await this.quotations.convertToJob(
+      user.tenantId,
+      quotationId,
+      user.id,
+    );
+
     return {
       success: true,
-      message: "Quotation accepted.",
+      message: "Quotation accepted and converted to job.",
       data: {
         id: updated.id,
         quotation_number: updated.quotation_number,
-        status: updated.status,
+        status: "CONVERTED",
         won_at: updated.won_at,
+        converted_job_id: job.jobId,
+        converted_job_number: job.jobNumber,
+        job: { id: job.jobId, job_number: job.jobNumber },
       },
     };
   }
@@ -516,14 +528,11 @@ export class PortalQuotationsService {
       quotationId,
       { reason: dto.reason, notes: dto.notes },
       user.id,
-      { allowRenegotiate: true, fromPortal: true },
+      { allowRenegotiate: false, fromPortal: true },
     );
     return {
       success: true,
-      message:
-        updated.status === "NEGOTIATING"
-          ? "Counter-offer submitted for review."
-          : "Quotation rejected.",
+      message: "Quotation rejected.",
       data: {
         id: updated.id,
         quotation_number: updated.quotation_number,

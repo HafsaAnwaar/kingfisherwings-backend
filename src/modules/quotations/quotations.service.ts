@@ -98,11 +98,10 @@ const EXPIRABLE_STATUSES: QuotationStatus[] = [
   "SUBMITTED",
 ];
 
-const CUSTOMER_OUTCOME_ALLOWED: QuotationStatus[] = [
-  "SENT",
-  "CUSTOMER_REVIEW",
-  "NEGOTIATING",
-];
+import {
+  CUSTOMER_OUTCOME_ALLOWED,
+  quotationActionFlags,
+} from "./quotation-action-flags";
 
 @Injectable()
 export class QuotationsService {
@@ -549,6 +548,7 @@ export class QuotationsService {
         tax_total: totals.tax_total,
         total_amount: totals.total_amount,
         negotiation_pricing: buildNegotiationPricingView(quotation),
+        actions: quotationActionFlags(quotation.status),
       };
     });
   }
@@ -1820,13 +1820,15 @@ export class QuotationsService {
     options?: { fromPortal?: boolean },
   ): Promise<Quotation> {
     const fromPortal = options?.fromPortal ?? false;
+    if (!fromPortal) {
+      throw new BadRequestException(
+        "Staff cannot accept a sent quotation. Wait for the customer to accept, reject, or negotiate; then use negotiation/accept if needed.",
+      );
+    }
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      const allowed = fromPortal
-        ? CUSTOMER_OUTCOME_ALLOWED
-        : (["SENT"] as QuotationStatus[]);
-      if (!allowed.includes(quotation.status)) {
+      if (!CUSTOMER_OUTCOME_ALLOWED.includes(quotation.status)) {
         throw new BadRequestException(
           "Quotation cannot be approved in its current status. Price and send it first.",
         );
@@ -1847,16 +1849,14 @@ export class QuotationsService {
         message,
       );
 
-      if (fromPortal) {
-        await this.negotiation.appendEvent(tx, tenantId, {
-          quotationId: id,
-          round: quotation.negotiation_round,
-          actor: "CUSTOMER",
-          action: "ACCEPT",
-          message,
-          createdBy: actorId,
-        });
-      }
+      await this.negotiation.appendEvent(tx, tenantId, {
+        quotationId: id,
+        round: quotation.negotiation_round,
+        actor: "CUSTOMER",
+        action: "ACCEPT",
+        message,
+        createdBy: actorId,
+      });
 
       return result;
     });
@@ -1866,15 +1866,13 @@ export class QuotationsService {
       "QUOTATION_APPROVED",
       "Quotation won",
     );
-    if (fromPortal) {
-      await this.notifyStaffQuotationCustomerAction(
-        tenantId,
-        updated,
-        "QUOTATION_CUSTOMER_ACCEPTED",
-        "Customer accepted quotation",
-        message,
-      );
-    }
+    await this.notifyStaffQuotationCustomerAction(
+      tenantId,
+      updated,
+      "QUOTATION_CUSTOMER_ACCEPTED",
+      "Customer accepted quotation",
+      message,
+    );
     return updated;
   }
 
@@ -1886,18 +1884,21 @@ export class QuotationsService {
     options?: { allowRenegotiate?: boolean; fromPortal?: boolean },
   ): Promise<Quotation> {
     const fromPortal = options?.fromPortal ?? false;
+    if (!fromPortal) {
+      throw new BadRequestException(
+        "Staff cannot reject a sent quotation. Wait for the customer to reject or negotiate; then use negotiation/reject if needed.",
+      );
+    }
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
 
-      const allowed = fromPortal
-        ? CUSTOMER_OUTCOME_ALLOWED
-        : (["SENT"] as QuotationStatus[]);
-      if (!allowed.includes(quotation.status)) {
+      if (!CUSTOMER_OUTCOME_ALLOWED.includes(quotation.status)) {
         throw new BadRequestException(
           "Quotation cannot be disapproved in its current status. Price and send it first.",
         );
       }
 
+      // Portal reject is terminal DISAPPROVED. Negotiate via counter-offer only.
       const renegotiate = (options?.allowRenegotiate ?? false) && fromPortal;
       const nextStatus: QuotationStatus = renegotiate
         ? "NEGOTIATING"
@@ -2241,7 +2242,20 @@ export class QuotationsService {
       "QUOTATION_APPROVED",
       "Quotation accepted",
     );
-    return { success: true, data: updated };
+    const job = await this.convertToJob(tenantId, id, actorId);
+    const refreshed = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+        include: {
+          lines: { where: { is_cost: false }, orderBy: { sort_order: "asc" } },
+        },
+      }),
+    );
+    return {
+      success: true,
+      data: refreshed ?? updated,
+      job: { jobId: job.jobId, jobNumber: job.jobNumber },
+    };
   }
 
   async tenantNegotiationReject(

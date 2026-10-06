@@ -7314,13 +7314,19 @@ model NvoccBookingForm {
   insurance_details     String?   @db.Text
   lc_bank_details       String?   @db.Text
   attach_commercial_invoice Boolean @default(false)
+  attach_packing_list   Boolean   @default(false)
+  attach_bill_of_lading Boolean   @default(false)
   attach_correspondence Boolean   @default(false)
   attach_cod_form       Boolean   @default(false)
   attach_licence        Boolean   @default(false)
+  attach_uat_tax_certificate Boolean @default(false)
   doc_commercial_invoice_key String? @db.VarChar(500)
+  doc_packing_list_key  String?   @db.VarChar(500)
+  doc_bill_of_lading_key String?  @db.VarChar(500)
   doc_correspondence_key String?  @db.VarChar(500)
   doc_cod_form_key      String?   @db.VarChar(500)
   doc_licence_key       String?   @db.VarChar(500)
+  doc_uat_tax_certificate_key String? @db.VarChar(500)
   booking_agent_line    String?   @db.VarChar(100)
   agent_requester_name  String?   @db.VarChar(200)
   sq_bl_booking_reference String? @db.VarChar(200)
@@ -7545,13 +7551,19 @@ model AirComplianceBookingForm {
   insurance_details     String?   @db.Text
   lc_bank_details       String?   @db.Text
   attach_commercial_invoice Boolean @default(false)
+  attach_packing_list   Boolean   @default(false)
+  attach_bill_of_lading Boolean   @default(false)
   attach_correspondence Boolean   @default(false)
   attach_cod_form       Boolean   @default(false)
   attach_licence        Boolean   @default(false)
+  attach_uat_tax_certificate Boolean @default(false)
   doc_commercial_invoice_key String? @db.VarChar(500)
+  doc_packing_list_key  String?   @db.VarChar(500)
+  doc_bill_of_lading_key String?  @db.VarChar(500)
   doc_correspondence_key String?  @db.VarChar(500)
   doc_cod_form_key      String?   @db.VarChar(500)
   doc_licence_key       String?   @db.VarChar(500)
+  doc_uat_tax_certificate_key String? @db.VarChar(500)
   booking_agent_line    String?   @db.VarChar(100)
   agent_requester_name  String?   @db.VarChar(200)
   sq_bl_booking_reference String? @db.VarChar(200)
@@ -7635,6 +7647,13 @@ model SeaFclBookingForm {
   attach_dangerous_goods_declaration   Boolean @default(false)
   attach_health_veterinary             Boolean @default(false)
   attach_fda_moh                       Boolean @default(false)
+  attach_licence                       Boolean @default(false)
+  attach_uat_tax_certificate           Boolean @default(false)
+  doc_commercial_invoice_key           String? @db.VarChar(500)
+  doc_packing_list_key                 String? @db.VarChar(500)
+  doc_bl_awb_copy_key                  String? @db.VarChar(500)
+  doc_licence_key                      String? @db.VarChar(500)
+  doc_uat_tax_certificate_key          String? @db.VarChar(500)
   consent_accepted_at   DateTime? @db.Timestamptz
   is_complete           Boolean   @default(false)
   completed_at          DateTime? @db.Timestamptz
@@ -7711,6 +7730,13 @@ model SeaLclBookingForm {
   attach_dangerous_goods_declaration   Boolean @default(false)
   attach_health_veterinary             Boolean @default(false)
   attach_fda_moh                       Boolean @default(false)
+  attach_licence                       Boolean @default(false)
+  attach_uat_tax_certificate           Boolean @default(false)
+  doc_commercial_invoice_key           String? @db.VarChar(500)
+  doc_packing_list_key                 String? @db.VarChar(500)
+  doc_bl_awb_copy_key                  String? @db.VarChar(500)
+  doc_licence_key                      String? @db.VarChar(500)
+  doc_uat_tax_certificate_key          String? @db.VarChar(500)
   consent_accepted_at   DateTime? @db.Timestamptz
   is_complete           Boolean   @default(false)
   completed_at          DateTime? @db.Timestamptz
@@ -7786,6 +7812,13 @@ model LandBookingForm {
   attach_dangerous_goods_declaration   Boolean @default(false)
   attach_health_veterinary             Boolean @default(false)
   attach_fda_moh                       Boolean @default(false)
+  attach_licence                       Boolean @default(false)
+  attach_uat_tax_certificate           Boolean @default(false)
+  doc_commercial_invoice_key           String? @db.VarChar(500)
+  doc_packing_list_key                 String? @db.VarChar(500)
+  doc_bl_awb_copy_key                  String? @db.VarChar(500)
+  doc_licence_key                      String? @db.VarChar(500)
+  doc_uat_tax_certificate_key          String? @db.VarChar(500)
   consent_accepted_at   DateTime? @db.Timestamptz
   is_complete           Boolean   @default(false)
   completed_at          DateTime? @db.Timestamptz
@@ -7862,6 +7895,13 @@ model RoadFreightBookingForm {
   attach_dangerous_goods_declaration   Boolean @default(false)
   attach_health_veterinary             Boolean @default(false)
   attach_fda_moh                       Boolean @default(false)
+  attach_licence                       Boolean @default(false)
+  attach_uat_tax_certificate           Boolean @default(false)
+  doc_commercial_invoice_key           String? @db.VarChar(500)
+  doc_packing_list_key                 String? @db.VarChar(500)
+  doc_bl_awb_copy_key                  String? @db.VarChar(500)
+  doc_licence_key                      String? @db.VarChar(500)
+  doc_uat_tax_certificate_key          String? @db.VarChar(500)
   consent_accepted_at   DateTime? @db.Timestamptz
   is_complete           Boolean   @default(false)
   completed_at          DateTime? @db.Timestamptz
@@ -7936,6 +7976,13 @@ model CourierBookingForm {
   attach_dangerous_goods_declaration   Boolean @default(false)
   attach_health_veterinary             Boolean @default(false)
   attach_fda_moh                       Boolean @default(false)
+  attach_licence                       Boolean @default(false)
+  attach_uat_tax_certificate           Boolean @default(false)
+  doc_commercial_invoice_key           String? @db.VarChar(500)
+  doc_packing_list_key                 String? @db.VarChar(500)
+  doc_bl_awb_copy_key                  String? @db.VarChar(500)
+  doc_licence_key                      String? @db.VarChar(500)
+  doc_uat_tax_certificate_key          String? @db.VarChar(500)
   consent_accepted_at   DateTime? @db.Timestamptz
   is_complete           Boolean   @default(false)
   completed_at          DateTime? @db.Timestamptz
@@ -8024,6 +8071,13 @@ model CustomsClearanceBookingForm {
   attach_dangerous_goods_declaration   Boolean @default(false)
   attach_health_veterinary             Boolean @default(false)
   attach_fda_moh                       Boolean @default(false)
+  attach_licence                       Boolean @default(false)
+  attach_uat_tax_certificate           Boolean @default(false)
+  doc_commercial_invoice_key           String? @db.VarChar(500)
+  doc_packing_list_key                 String? @db.VarChar(500)
+  doc_bl_awb_copy_key                  String? @db.VarChar(500)
+  doc_licence_key                      String? @db.VarChar(500)
+  doc_uat_tax_certificate_key          String? @db.VarChar(500)
   consent_accepted_at   DateTime? @db.Timestamptz
   is_complete           Boolean   @default(false)
   completed_at          DateTime? @db.Timestamptz
@@ -8104,6 +8158,13 @@ model WarehouseBookingForm {
   attach_dangerous_goods_declaration   Boolean @default(false)
   attach_health_veterinary             Boolean @default(false)
   attach_fda_moh                       Boolean @default(false)
+  attach_licence                       Boolean @default(false)
+  attach_uat_tax_certificate           Boolean @default(false)
+  doc_commercial_invoice_key           String? @db.VarChar(500)
+  doc_packing_list_key                 String? @db.VarChar(500)
+  doc_bl_awb_copy_key                  String? @db.VarChar(500)
+  doc_licence_key                      String? @db.VarChar(500)
+  doc_uat_tax_certificate_key          String? @db.VarChar(500)
   consent_accepted_at   DateTime? @db.Timestamptz
   is_complete           Boolean   @default(false)
   completed_at          DateTime? @db.Timestamptz

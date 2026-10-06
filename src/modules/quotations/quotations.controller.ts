@@ -343,7 +343,9 @@ export class QuotationsController {
 
   @Post(":id/mark-won")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
-  @ApiOperation({ summary: "SENT -> APPROVED (customer accepted)" })
+  @ApiOperation({
+    summary: "Deprecated for staff — customer accept only (use negotiation/accept after counter-offer)",
+  })
   markWon(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -354,7 +356,9 @@ export class QuotationsController {
 
   @Post(":id/mark-lost")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
-  @ApiOperation({ summary: "SENT -> DISAPPROVED, with a reason code" })
+  @ApiOperation({
+    summary: "Deprecated for staff — customer reject only (use negotiation/reject after counter-offer)",
+  })
   markLost(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -388,7 +392,9 @@ export class QuotationsController {
 
   @Post(":id/negotiation/accept")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
-  @ApiOperation({ summary: "Accept customer counter-offer" })
+  @ApiOperation({
+    summary: "Accept customer counter-offer and convert quotation to job",
+  })
   negotiationAccept(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,

@@ -6,9 +6,19 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
+import { memoryStorage } from "multer";
 import { RolesGuard } from "../../users/guards/roles.guard";
 import { PermissionsGuard } from "../../users/guards/permissions.guard";
 import { RequirePermissions } from "../../users/decorators/permissions.decorator";
@@ -31,6 +41,44 @@ import {
 @Controller("jobs")
 export class ModeBookingFormsController {
   constructor(private readonly forms: ModeBookingFormService) {}
+
+  @Post(":id/:mode/booking-form/documents/:kind")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({
+    summary:
+      "Upload a mandatory booking document (invoice, packing list, BL/AWB, licence, UAT/TAX)",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  uploadDocument(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("mode") mode: string,
+    @Param("kind") kind: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.forms.attachDocument(
+      this.forms.resolveKind(mode),
+      tenantId,
+      id,
+      kind,
+      file as Express.Multer.File,
+      actorId,
+    );
+  }
 
   @Get(":id/sea-fcl/booking-form")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)

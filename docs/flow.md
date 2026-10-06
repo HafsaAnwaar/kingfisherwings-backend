@@ -247,7 +247,7 @@ POST /quotations/:id/convert   (or equivalent convert-to-job)
 
 Public: `POST /quotations/online-quote` (throttled) creates a prospect quote for the tenant identified by `tenant_slug`, binds default (or validated) `company_id`, and — when the contact email has no portal login yet — provisions a `PortalUser` and returns `email` + `temporary_password` once for `POST /portal/auth/login`. Existing portal accounts are not password-reset. Response never includes GP/cost. Website embeds must use that tenant's slug; CORS allows `CORS_ORIGINS` plus matching `Tenant.domain` / `Tenant.website`.
 
-Portal: `GET /portal/quotations`, accept/reject when status allows (`markWon` / `markLost` on existing service).
+Portal: `GET /portal/quotations`, accept/reject/counter-offer when status allows. After staff send (`SENT`), only the customer may accept/reject/negotiate; staff mark-won/lost on SENT are blocked. Accept (portal or staff negotiation/accept) auto-converts to job.
 
 ### 5.3 Job operations (Air Export / Sea FCL)
 
@@ -758,6 +758,8 @@ Existing NVOCC document routes (`/nvocc/jobs/:id/documents/hbl-draft`, `hbl-orig
 | `POST` | `/portal/bookings/:id/compliance-form/submit` |
 | `POST` | `/portal/bookings/:id/compliance-form/documents/:kind` |
 
+Required document kinds (must upload before submit): `commercial_invoice`, `packing_list`, `bill_of_lading`, `licence`, `uat_tax_certificate`. Optional: `correspondence`, `cod_form`. Same kinds on air: `POST /portal/shipments/:id/compliance-form/documents/:kind`.
+
 **Portal — customer (`/portal/shipments`)**
 
 | Method | Path |
@@ -792,6 +794,9 @@ Existing NVOCC document routes (`/nvocc/jobs/:id/documents/hbl-draft`, `hbl-orig
 | Method | Path | Job types |
 |--------|------|-----------|
 | `GET`/`PUT` | `/jobs/:id/sea-fcl/booking-form` | SEA_FCL_* |
+| `POST` | `/jobs/:id/{sea-fcl\|sea-lcl\|land\|road-freight\|courier\|customs-clearance\|warehouse}/booking-form/documents/:kind` | same five mandatory kinds |
+
+Complete requires uploaded files for invoice, packing list, BL/AWB, licence, UAT/TAX (plus any cargo-category extras).
 | `POST` | `/jobs/:id/sea-fcl/booking-form/complete` | |
 | `GET`/`PUT` | `/jobs/:id/sea-lcl/booking-form` | SEA_LCL_* |
 | `POST` | `/jobs/:id/sea-lcl/booking-form/complete` | |
@@ -974,13 +979,14 @@ Tenant staff maintains `GET/POST/PATCH /quotations/service-catalog`.
 ### Negotiation loop
 
 ```
-Staff: POST /quotations/:id/revise-and-send  → CUSTOMER_REVIEW + QuotationNegotiationEvent
+Staff: POST /quotations/:id/send → SENT (customer sees quote; no staff accept/reject yet)
+Portal: POST /portal/quotations/:id/accept → APPROVED → auto convertToJob → CONVERTED
+Portal: POST /portal/quotations/:id/reject → DISAPPROVED
 Portal: POST /portal/quotations/:id/counter-offer → NEGOTIATING
-  (quotation revenue_total + revenue lines jump immediately to proposed_total)
-Staff: POST /quotations/:id/negotiation/accept|reject
-Portal: POST /portal/quotations/:id/accept|reject
-GET  */quotations/:id/negotiation (staff + portal)
-APPROVED → staff POST /quotations/:id/convert-to-job
+Staff: POST /quotations/:id/revise-and-send → CUSTOMER_REVIEW
+Staff: POST /quotations/:id/negotiation/accept → APPROVED → auto convertToJob
+Staff: POST /quotations/:id/negotiation/reject → DISAPPROVED or CUSTOMER_REVIEW
+GET  */quotations/:id exposes actions { can_accept, can_reject, can_negotiate, can_admin_accept, can_admin_reject }
 ```
 
 ### Partial payments & proofs
