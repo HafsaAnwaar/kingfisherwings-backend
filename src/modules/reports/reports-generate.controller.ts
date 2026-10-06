@@ -52,8 +52,9 @@ export class ReportsGenerateController {
   generate(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") userId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Body() dto: ReportGenerateDto,
   ) {
-    return this.service.generate(tenantId, userId, dto);
+    return this.service.generate(tenantId, userId, dto, permissions);
   }
 }

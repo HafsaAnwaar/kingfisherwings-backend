@@ -31,6 +31,7 @@ import {
   PortalInvoiceQueryDto,
   PortalPaymentQueryDto,
   UploadPortalPaymentProofDto,
+  RecordPortalPaymentDto,
 } from "./dto/portal-finance.dto";
 import { PortalAuthGuard } from "./guards/portal-auth.guard";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
@@ -130,6 +131,45 @@ export class PortalInvoicesController {
     return this.finance.downloadInvoicePdf(user, id, res);
   }
 
+  @Post(":id/payments")
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({
+    summary:
+      "Record a customer payment (posts RECEIPT immediately; optional proof file). Staff may reject later to reverse.",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["amount", "payment_date"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        amount: { type: "string", example: "100.00" },
+        payment_date: { type: "string", example: "2026-09-14" },
+        reference_number: { type: "string" },
+        notes: { type: "string" },
+      },
+    },
+  })
+  @UseInterceptors(portalPaymentProofInterceptor())
+  recordPayment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: RecordPortalPaymentDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.finance.recordCustomerPayment(
+      user,
+      id,
+      {
+        amount: body.amount,
+        payment_date: body.payment_date,
+        reference_number: body.reference_number,
+        notes: body.notes,
+      },
+      file,
+    );
+  }
+
   @Get(":id/payment-proofs")
   @ApiOperation({ summary: "List payment proofs for an invoice" })
   listPaymentProofs(
@@ -141,7 +181,7 @@ export class PortalInvoicesController {
 
   @Post(":id/payment-proofs")
   @ApiConsumes("multipart/form-data")
-  @ApiOperation({ summary: "Upload payment proof for an invoice" })
+  @ApiOperation({ summary: "Upload payment proof for an invoice (no balance change until staff posts RECEIPT, or use POST .../payments)" })
   @ApiBody({
     schema: {
       type: "object",

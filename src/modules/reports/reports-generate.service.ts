@@ -46,6 +46,7 @@ export class ReportsGenerateService {
     tenantId: string,
     userId: string,
     dto: ReportGenerateDto,
+    permissions: string[] = [],
   ) {
     if (!dto.template_id && !dto.code) {
       throw new BadRequestException("template_id or code is required");
@@ -58,6 +59,12 @@ export class ReportsGenerateService {
     if (!template?.is_active) {
       throw new NotFoundException("Report template not found or inactive");
     }
+
+    await this.templates.assertFamilyAccess(
+      tenantId,
+      template.family,
+      permissions.length ? permissions : ["reports.generate", "reports.read"],
+    );
 
     if (!template.formats.includes(dto.format)) {
       throw new BadRequestException(

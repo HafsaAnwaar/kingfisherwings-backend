@@ -23,6 +23,12 @@ import { TenantQueryDto } from "./dto/tenant-query.dto";
 import { CountryLocaleService } from "../../common/locale/country-locale.service";
 import { WorldPortsSeedService } from "../masters/world-ports-seed.service";
 import { FreightSpecsSeedService } from "../masters/freight-specs-seed.service";
+import {
+  defaultEnabledModules,
+  isValidProductModuleKey,
+  normalizeEnabledModules,
+  productModuleForPermissionCode,
+} from "../../common/constants/tenant-enabled-modules";
 
 const OWNER_ROLE_CODE = "TENANT_ADMIN";
 
@@ -82,6 +88,7 @@ export class TenantsService {
           ...tenantData,
           password_hash: passwordHash,
           created_by_super_admin_id: createdBySuperAdminId,
+          enabled_modules: defaultEnabledModules(),
         };
 
         const tenant = await tx.tenant.create({
@@ -749,26 +756,61 @@ export class TenantsService {
 
   async updateFeatures(
     id: string,
-    body: { quote_requests_bridge?: boolean },
+    body: {
+      quote_requests_bridge?: boolean;
+      enabled_modules?: string[];
+    },
   ) {
     await this.ensureTenantExists(id);
-    const data: { quote_requests_bridge_enabled?: boolean } = {};
+    const data: {
+      quote_requests_bridge_enabled?: boolean;
+      enabled_modules?: string[];
+    } = {};
     if (typeof body.quote_requests_bridge === "boolean") {
       data.quote_requests_bridge_enabled = body.quote_requests_bridge;
+    }
+    if (body.enabled_modules !== undefined) {
+      if (!Array.isArray(body.enabled_modules)) {
+        throw new BadRequestException("enabled_modules must be a string array.");
+      }
+      const invalid = body.enabled_modules.filter(
+        (k) => !isValidProductModuleKey(k),
+      );
+      if (invalid.length) {
+        throw new BadRequestException(
+          `Unknown module key(s): ${invalid.join(", ")}. Valid: ${defaultEnabledModules().join(", ")}`,
+        );
+      }
+      data.enabled_modules = normalizeEnabledModules(body.enabled_modules);
     }
     if (Object.keys(data).length === 0) {
       throw new BadRequestException("No feature flags provided.");
     }
+
+    const previous = await this.prisma.tenant.findUnique({ where: { id } });
     const tenant = await this.prisma.tenant.update({
       where: { id },
       data,
     });
+
     if (data.quote_requests_bridge_enabled === false) {
       await this.prisma.externalQuoteRequestConnection.updateMany({
         where: { tenant_id: id },
         data: { is_active: false },
       });
     }
+
+    // When modules are removed, strip direct UserPermission grants that
+    // belong to disabled product modules (role packs filtered at JWT).
+    if (data.enabled_modules) {
+      const enabled = new Set(data.enabled_modules);
+      const prevNorm = normalizeEnabledModules(previous?.enabled_modules);
+      const removed = prevNorm.filter((k) => !enabled.has(k));
+      if (removed.length) {
+        await this.stripDirectGrantsForModules(id, removed);
+      }
+    }
+
     return {
       success: true,
       message: "Tenant features updated.",
@@ -776,8 +818,38 @@ export class TenantsService {
         id: tenant.id,
         slug: tenant.slug,
         quote_requests_bridge_enabled: tenant.quote_requests_bridge_enabled,
+        enabled_modules: normalizeEnabledModules(tenant.enabled_modules),
       },
     };
+  }
+
+  /**
+   * Remove direct matrix (+ bridged classic) user grants for disabled modules.
+   * Does not delete Permission catalog rows or RolePermission packs.
+   */
+  private async stripDirectGrantsForModules(
+    tenantId: string,
+    removedModuleKeys: string[],
+  ) {
+    if (!removedModuleKeys.length) return;
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const perms = await tx.permission.findMany({
+        where: { tenant_id: tenantId, deleted_at: null },
+        select: { id: true, module: true, action: true },
+      });
+      const toStrip = perms.filter((p) => {
+        const code = `${p.module}.${p.action}`;
+        const product = productModuleForPermissionCode(code);
+        return product != null && removedModuleKeys.includes(product);
+      });
+      if (!toStrip.length) return;
+      await tx.userPermission.deleteMany({
+        where: {
+          tenant_id: tenantId,
+          permission_id: { in: toStrip.map((p) => p.id) },
+        },
+      });
+    });
   }
 
   // =====================================================
@@ -838,9 +910,14 @@ export class TenantsService {
   // =====================================================
 
   /** Never return password_hash — applied to every response that includes a tenant. */
-  private sanitizeTenant(tenant: Tenant): Omit<Tenant, "password_hash"> {
+  private sanitizeTenant(tenant: Tenant): Omit<Tenant, "password_hash"> & {
+    enabled_modules: string[];
+  } {
     const { password_hash, ...safe } = tenant;
-    return safe;
+    return {
+      ...safe,
+      enabled_modules: normalizeEnabledModules(tenant.enabled_modules),
+    };
   }
 
   private async validateUniqueFields(dto: CreateTenantDto): Promise<void> {

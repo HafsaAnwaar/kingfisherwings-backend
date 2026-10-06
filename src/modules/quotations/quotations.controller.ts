@@ -64,9 +64,11 @@ export class QuotationsController {
   @ApiOperation({ summary: "List quotations" })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: QuotationQueryDto,
   ) {
-    return this.service.findAll(tenantId, query);
+    return this.service.findAll(tenantId, query, { role, permissions });
   }
 
   @Get("dashboard-stats")
@@ -90,9 +92,14 @@ export class QuotationsController {
   })
   findAllChargewise(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: QuotationQueryDto,
   ) {
-    return this.service.findAllChargewise(tenantId, query);
+    return this.service.findAllChargewise(tenantId, query, {
+      role,
+      permissions,
+    });
   }
 
   @Get("reports/analytics")
@@ -176,9 +183,11 @@ export class QuotationsController {
   })
   findOne(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id);
+    return this.service.findOne(tenantId, id, { role, permissions });
   }
 
   @Get(":id/revisions")

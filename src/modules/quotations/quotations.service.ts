@@ -14,6 +14,7 @@ import {
   QuotationStatus,
   JobType,
   QuotationPdfMode,
+  UserRole,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
@@ -49,6 +50,7 @@ import {
   GenerateQuotationPdfDto,
   SendQuotationEmailDto,
 } from "./dto/quotation-pdf.dto";
+import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
 import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
 import { PortalService } from "../portal/portal.service";
 import { EmailService } from "../../shared/email/email.service";
@@ -204,6 +206,7 @@ export class QuotationsService {
   private buildListWhere(
     tenantId: string,
     query: QuotationQueryDto,
+    opts?: { restrictToConvertedCustomers?: boolean; convertedCustomerIds?: string[] },
   ): Prisma.QuotationWhereInput {
     const where: Prisma.QuotationWhereInput = {
       tenant_id: tenantId,
@@ -239,12 +242,70 @@ export class QuotationsService {
       ];
     }
 
+    if (opts?.restrictToConvertedCustomers) {
+      const ids = opts.convertedCustomerIds ?? [];
+      where.customer_id = query.customer_id
+        ? ids.includes(query.customer_id)
+          ? query.customer_id
+          : { in: [] }
+        : { in: ids };
+    }
+
     return where;
   }
 
-  async findAll(tenantId: string, query: QuotationQueryDto) {
+  private async loadConvertedCustomerIds(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+  ): Promise<string[]> {
+    const rows = await tx.quotation.findMany({
+      where: {
+        tenant_id: tenantId,
+        status: "CONVERTED",
+        deleted_at: null,
+      },
+      distinct: ["customer_id"],
+      select: { customer_id: true },
+    });
+    return rows.map((r) => r.customer_id);
+  }
+
+  private async assertOpsMayViewCustomer(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    customerId: string,
+    actor?: { role?: string | null; permissions?: string[] | null },
+  ) {
+    if (!actor || !isOpsOnlyActor(actor)) return;
+    const converted = await tx.quotation.count({
+      where: {
+        tenant_id: tenantId,
+        customer_id: customerId,
+        status: "CONVERTED",
+        deleted_at: null,
+      },
+    });
+    if (converted === 0) {
+      throw new ForbiddenException(
+        "Quotations for this customer are Sales-only until a quotation is converted to a job.",
+      );
+    }
+  }
+
+  async findAll(
+    tenantId: string,
+    query: QuotationQueryDto,
+    actor?: { role?: string | null; permissions?: string[] | null },
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const where = this.buildListWhere(tenantId, query);
+      const opsOnly = actor ? isOpsOnlyActor(actor) : false;
+      const convertedCustomerIds = opsOnly
+        ? await this.loadConvertedCustomerIds(tx, tenantId)
+        : undefined;
+      const where = this.buildListWhere(tenantId, query, {
+        restrictToConvertedCustomers: opsOnly,
+        convertedCustomerIds,
+      });
 
       const [data, total] = await Promise.all([
         tx.quotation.findMany({
@@ -273,9 +334,20 @@ export class QuotationsService {
    * returns each quotation with its full charge-line breakdown instead
    * of just the header.
    */
-  async findAllChargewise(tenantId: string, query: QuotationQueryDto) {
+  async findAllChargewise(
+    tenantId: string,
+    query: QuotationQueryDto,
+    actor?: { role?: string | null; permissions?: string[] | null },
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const where = this.buildListWhere(tenantId, query);
+      const opsOnly = actor ? isOpsOnlyActor(actor) : false;
+      const convertedCustomerIds = opsOnly
+        ? await this.loadConvertedCustomerIds(tx, tenantId)
+        : undefined;
+      const where = this.buildListWhere(tenantId, query, {
+        restrictToConvertedCustomers: opsOnly,
+        convertedCustomerIds,
+      });
 
       const [data, total] = await Promise.all([
         tx.quotation.findMany({
@@ -340,7 +412,11 @@ export class QuotationsService {
     });
   }
 
-  async findOne(tenantId: string, id: string) {
+  async findOne(
+    tenantId: string,
+    id: string,
+    actor?: { role?: string | null; permissions?: string[] | null },
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await tx.quotation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -355,6 +431,13 @@ export class QuotationsService {
       if (!quotation) {
         throw new NotFoundException("Quotation not found.");
       }
+
+      await this.assertOpsMayViewCustomer(
+        tx,
+        tenantId,
+        quotation.customer_id,
+        actor,
+      );
 
       const [parties, ports, containerTypes, chargeCodes, taxRates] =
         await Promise.all([

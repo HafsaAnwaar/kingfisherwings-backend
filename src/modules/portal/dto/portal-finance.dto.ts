@@ -95,6 +95,41 @@ export class PortalCreditAgingQueryDto {
   as_of?: string;
 }
 
+/** Multipart/JSON body for POST /portal/invoices/:id/payments (immediate balance update) */
+export class RecordPortalPaymentDto {
+  @ApiProperty({
+    description: "Payment amount (multipart fields arrive as strings)",
+    example: "100.00",
+  })
+  @Transform(({ value }) => {
+    if (value == null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : value;
+  })
+  @IsNumber(
+    { maxDecimalPlaces: 4 },
+    { message: "amount must be a valid number" },
+  )
+  @Min(0.0001, { message: "amount must be positive" })
+  amount!: number;
+
+  @ApiProperty({ description: "Payment date YYYY-MM-DD", example: "2026-09-14" })
+  @IsDateString({}, { message: "payment_date must be a valid ISO date" })
+  payment_date!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  reference_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+}
+
 /** Multipart body for POST /portal/invoices/:id/payment-proofs */
 export class UploadPortalPaymentProofDto {
   @ApiProperty({

@@ -157,9 +157,13 @@ export class JobsController {
   findAll(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Query() query: JobQueryDto,
   ) {
-    return this.service.findAll(tenantId, query, permissions);
+    return this.service.findAll(tenantId, query, permissions, {
+      role,
+      permissions,
+    });
   }
 
   @Get("dashboard-counts")
@@ -286,9 +290,13 @@ export class JobsController {
   findOne(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id, permissions);
+    return this.service.findOne(tenantId, id, permissions, {
+      role,
+      permissions,
+    });
   }
 
   @Get(":id/house-jobs")

@@ -914,4 +914,76 @@ export class PaymentsService {
 
     return this.post(tenantId, payment.id, actorId);
   }
+
+  /**
+   * Portal customer self-payment (1B): create RECEIPT + allocate + post
+   * so balance_due drops immediately. Linked PaymentProof should be
+   * created by the caller with linked_payment_id.
+   */
+  async createAndPostForPortalCustomer(
+    tenantId: string,
+    input: {
+      partyId: string;
+      invoiceId: string;
+      amount: number;
+      currencyCode: string;
+      paymentMethod?: string;
+      referenceNumber?: string;
+      narration?: string;
+      paymentDate?: string;
+    },
+    actorId?: string,
+  ) {
+    const invoice = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.findFirst({
+        where: {
+          id: input.invoiceId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
+      }),
+    );
+    if (!invoice) {
+      throw new BadRequestException("Linked invoice not found.");
+    }
+    if (invoice.invoice_type !== "CUSTOMER_INVOICE" && invoice.invoice_type !== "DEBIT_NOTE") {
+      throw new BadRequestException(
+        "Only customer invoices / debit notes accept portal payments.",
+      );
+    }
+
+    const due = Number(invoice.balance_due);
+    if (due <= 0.0001) {
+      throw new BadRequestException("Invoice has no outstanding balance.");
+    }
+    const amount = Number(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException("amount must be a positive number.");
+    }
+    if (amount - due > 0.0001) {
+      throw new BadRequestException(
+        `Payment amount exceeds balance due (${due}).`,
+      );
+    }
+
+    const payment = await this.create(
+      tenantId,
+      {
+        direction: "RECEIPT",
+        party_id: input.partyId,
+        amount,
+        currency_code: input.currencyCode || invoice.currency_code,
+        payment_method: (input.paymentMethod as any) || "BANK_TRANSFER",
+        payment_date: input.paymentDate,
+        reference_number: input.referenceNumber,
+        narration:
+          input.narration ??
+          `Portal customer payment for invoice ${invoice.invoice_number}`,
+        allocations: [{ invoice_id: input.invoiceId, amount }],
+      },
+      actorId,
+    );
+
+    return this.post(tenantId, payment.id, actorId);
+  }
 }

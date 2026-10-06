@@ -27,6 +27,10 @@ import { AuditHelper } from "./helpers/audit.helper";
 
 import { MODULE_ACCESS_LEVELS, MODULE_PERMISSION_TREE, matrixPermissionCode, matrixPermissionModule } from "../../common/constants/module-permission-tree";
 import {
+  filterPermissionTree,
+  normalizeEnabledModules,
+} from "../../common/constants/tenant-enabled-modules";
+import {
   accessFromFlags,
   normalizeMatrixGrantFlags,
 } from "../../common/constants/matrix-access";
@@ -1092,21 +1096,55 @@ export class UsersService {
     this.log("RESET_PASSWORD", `Password reset via token for user ${user.id}`);
   }
 
-  getPermissionTree() {
+  async getPermissionTree(tenantId?: string) {
+    if (!tenantId) {
+      return {
+        success: true,
+        data: MODULE_PERMISSION_TREE,
+        access_levels: ["none", "read", "write"] as const,
+        note: "write means Read & Write (see+read+write). Use access on grants or legacy see/read/write booleans.",
+      };
+    }
+    const enabled = await this.loadEnabledModules(tenantId);
     return {
       success: true,
-      data: MODULE_PERMISSION_TREE,
+      data: filterPermissionTree(enabled),
+      enabled_modules: normalizeEnabledModules(enabled),
       access_levels: ["none", "read", "write"] as const,
-      note: "write means Read & Write (see+read+write). Use access on grants or legacy see/read/write booleans.",
+      note: "Tree filtered to SuperAdmin-enabled modules for this tenant.",
     };
   }
 
-  getRolePresets() {
+  async getRolePresets(tenantId?: string) {
+    const payloads = listRolePresetPayloads();
+    if (!tenantId) {
+      return {
+        success: true,
+        data: payloads,
+        note: "Use default_grants as Step 3 defaults after picking a role. Override with permission_grants on POST /users.",
+      };
+    }
+    const enabled = new Set(await this.loadEnabledModules(tenantId));
+    const filtered = payloads.map((p) => ({
+      ...p,
+      default_grants: (p.default_grants ?? []).filter((g: { module: string }) =>
+        enabled.has(g.module),
+      ),
+    }));
     return {
       success: true,
-      data: listRolePresetPayloads(),
-      note: "Use default_grants as Step 3 defaults after picking a role. Override with permission_grants on POST /users.",
+      data: filtered,
+      enabled_modules: [...enabled],
+      note: "Grants limited to tenant enabled_modules.",
     };
+  }
+
+  private async loadEnabledModules(tenantId: string): Promise<string[]> {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId },
+      select: { enabled_modules: true },
+    });
+    return normalizeEnabledModules(tenant?.enabled_modules);
   }
 
   async getUserPermissionMatrix(tenantId: string, userId: string) {
@@ -1218,8 +1256,14 @@ export class UsersService {
     );
 
     const classicNeeded = new Set<string>();
+    const enabledModules = await this.loadEnabledModules(tenantId);
 
     for (const grant of grants) {
+      if (!enabledModules.includes(grant.module)) {
+        throw new BadRequestException(
+          `Module "${grant.module}" is not enabled for this tenant by SuperAdmin.`,
+        );
+      }
       const flags = normalizeMatrixGrantFlags(grant);
       const levels: Array<["see" | "read" | "write", boolean]> = [
         ["see", flags.see],
@@ -1295,8 +1339,9 @@ export class UsersService {
 
   async buildPermissionMatrixSummary(tenantId: string, userId: string) {
     const effective = await this.loadEffectivePermissionCodes(tenantId, userId);
+    const tree = filterPermissionTree(await this.loadEnabledModules(tenantId));
 
-    return MODULE_PERMISSION_TREE.map((mod) => ({
+    return tree.map((mod) => ({
       key: mod.key,
       label: mod.label,
       submodules: mod.submodules.map((sub) => {

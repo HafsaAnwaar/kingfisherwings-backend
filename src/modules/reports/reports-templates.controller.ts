@@ -37,8 +37,12 @@ export class ReportsTemplatesController {
   @ApiOperation({
     summary: "List active report templates (paginated, tenant catalog)",
   })
-  list(@Query() query: ReportTemplatesQueryDto) {
-    return this.service.list(query);
+  list(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Query() query: ReportTemplatesQueryDto,
+  ) {
+    return this.service.list(query, { tenantId, permissions });
   }
 
   @Get("renderers")

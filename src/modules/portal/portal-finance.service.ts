@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import {
   InvoiceStatus,
@@ -666,6 +668,82 @@ export class PortalFinanceService {
       file,
       actorId: user.id,
     });
+  }
+
+  /**
+   * Portal self-payment (1B): posts a RECEIPT immediately so balance_due
+   * decreases; creates an ACKNOWLEDGED PaymentProof linked to that payment.
+   * Staff may later reject the proof to cancel the RECEIPT.
+   */
+  async recordCustomerPayment(
+    user: CurrentPortalUser,
+    invoiceId: string,
+    body: {
+      amount: number;
+      payment_date: string;
+      reference_number?: string;
+      notes?: string;
+    },
+    file?: Express.Multer.File,
+  ) {
+    if (process.env.PORTAL_SELF_PAYMENT_ENABLED === "false") {
+      throw new ServiceUnavailableException(
+        "Portal self-payment is disabled. Upload a payment proof instead.",
+      );
+    }
+
+    const invoiceWrap = await this.getInvoice(user, invoiceId);
+    const inv = invoiceWrap.data as {
+      id: string;
+      currency_code: string;
+      invoice_number: string;
+      balance_due: unknown;
+    };
+
+    const posted = await this.payments.createAndPostForPortalCustomer(
+      user.tenantId,
+      {
+        partyId: user.partyId,
+        invoiceId: inv.id,
+        amount: Number(body.amount),
+        currencyCode: inv.currency_code,
+        referenceNumber: body.reference_number,
+        narration: body.notes,
+        paymentDate: body.payment_date,
+      },
+      user.id,
+    );
+
+    const paymentId = (posted as { id: string }).id;
+
+    const proof = await this.paymentProofs.create({
+      tenantId: user.tenantId,
+      direction: "CUSTOMER_TO_TENANT",
+      invoiceId: inv.id,
+      amountClaimed: Number(body.amount),
+      paymentDate: body.payment_date,
+      referenceNumber: body.reference_number,
+      notes: body.notes,
+      submittedByPartyId: user.partyId,
+      submittedByUserId: user.id,
+      file,
+      fileOptional: true,
+      linkedPaymentId: paymentId,
+      status: "ACKNOWLEDGED",
+      actorId: user.id,
+    });
+
+    const refreshed = await this.getInvoice(user, invoiceId);
+
+    return {
+      success: true,
+      message: "Payment recorded. Outstanding balance updated.",
+      data: {
+        payment: posted,
+        proof: proof.data,
+        invoice: refreshed.data,
+      },
+    };
   }
 
   async listPaymentProofs(user: CurrentPortalUser, invoiceId: string) {

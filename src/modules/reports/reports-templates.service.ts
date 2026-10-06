@@ -13,6 +13,8 @@ import { OPS_LIST_PHASE1_SEED } from "./seed/ops-list-phase1.seed";
 import { SEA_DOCS_PHASE2_SEED } from "./seed/sea-docs-phase2.seed";
 import { PRIORITY_PACKS_SEED } from "./seed/priority-packs.seed";
 import { resolveRendererKeyForCode } from "./constants/renderer-bind-map";
+import { canAccessReportFamily } from "./constants/report-family-module-map";
+import { normalizeEnabledModules } from "../../common/constants/tenant-enabled-modules";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -37,7 +39,13 @@ export class ReportsTemplatesService {
     private readonly dataPacks: ReportDataPackRegistry,
   ) {}
 
-  async list(query: ReportTemplatesQueryDto) {
+  async list(
+    query: ReportTemplatesQueryDto,
+    opts?: {
+      tenantId?: string;
+      permissions?: string[];
+    },
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
     const tokens = String(query.search ?? "")
@@ -72,15 +80,33 @@ export class ReportsTemplatesService {
       ...(searchWhere ?? {}),
     };
 
-    const [rows, total] = await Promise.all([
+    let enabledModules: string[] = [];
+    if (opts?.tenantId) {
+      const tenant = await this.prisma.tenant.findFirst({
+        where: { id: opts.tenantId },
+        select: { enabled_modules: true },
+      });
+      enabledModules = normalizeEnabledModules(tenant?.enabled_modules);
+    } else {
+      enabledModules = normalizeEnabledModules([]);
+    }
+
+    const [allRows] = await Promise.all([
       this.prisma.reportTemplate.findMany({
         where,
         orderBy: [{ sort_order: "asc" }, { name: "asc" }],
-        skip: (page - 1) * limit,
-        take: limit,
       }),
-      this.prisma.reportTemplate.count({ where }),
     ]);
+
+    const permissions = opts?.permissions ?? ["reports.read"];
+    const filtered = allRows.filter((t) =>
+      canAccessReportFamily(t.family, {
+        enabledModules,
+        permissions,
+      }),
+    );
+    const total = filtered.length;
+    const rows = filtered.slice((page - 1) * limit, page * limit);
 
     return {
       data: rows.map((t) => this.toListItem(t)),
@@ -91,6 +117,27 @@ export class ReportsTemplatesService {
         totalPages: total === 0 ? 0 : Math.max(1, Math.ceil(total / limit)),
       },
     };
+  }
+
+  async assertFamilyAccess(
+    tenantId: string,
+    family: string,
+    permissions: string[],
+  ) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId },
+      select: { enabled_modules: true },
+    });
+    if (
+      !canAccessReportFamily(family, {
+        enabledModules: tenant?.enabled_modules,
+        permissions,
+      })
+    ) {
+      throw new BadRequestException(
+        `You do not have access to report family "${family}" (module not enabled or missing permission).`,
+      );
+    }
   }
 
   listRenderers() {

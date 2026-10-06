@@ -212,12 +212,13 @@ export class TenantsController {
 
   @Patch(":id/features")
   @ApiOperation({
-    summary: "Enable/disable tenant feature flags (quote requests bridge)",
+    summary:
+      "Enable/disable tenant feature flags (quote requests bridge, enabled_modules)",
   })
   updateFeatures(
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body()
-    body: { quote_requests_bridge?: boolean },
+    body: { quote_requests_bridge?: boolean; enabled_modules?: string[] },
   ) {
     return this.tenantsService.updateFeatures(id, body);
   }
