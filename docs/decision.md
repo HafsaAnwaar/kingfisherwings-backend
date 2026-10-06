@@ -85,7 +85,11 @@ SuperAdmin
 
 **LOCKED:** Ops-only staff do not see a customer’s quotations/jobs until that customer has ≥1 quotation with status `CONVERTED`; Sales / Tenant Admin / Finance always see them.
 
-**LOCKED (this phase):** Backend-only. No UI. No customer payment gateway (card PSP). No WhatsApp CRM. No real TDS certificates (India Phase 3). Week 15 Air Import backend shipped (Ch.9).
+**LOCKED:** After staff **send** (`SENT`), only the **customer** may accept, reject, or negotiate. Staff `mark-won` / `mark-lost` on `SENT` are blocked. Portal reject → `DISAPPROVED`. Counter-offer → `NEGOTIATING` (then staff `negotiation/accept|reject`). Customer accept and staff negotiation accept both **auto-convert to job** (`CONVERTED`).
+
+**LOCKED:** Booking-form document section requires file uploads for: commercial invoice, packing list, bill of lading (BL/AWB), licence, UAT/TAX certificate — on NVOCC, air compliance, and all mode booking forms. Correspondence/COD remain optional on compliance forms.
+
+**LOCKED (this phase):** Backend-only. No UI. No WhatsApp CRM. No real TDS certificates (India Phase 3). Week 15 Air Import backend shipped (Ch.9).
 
 ---
 

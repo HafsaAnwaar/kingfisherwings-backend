@@ -14,6 +14,11 @@ import { NvoccWorkflowService } from "./nvocc-workflow.service";
 import { UpsertNvoccBookingFormDto } from "./dto/nvocc-booking-form.dto";
 import { departmentsForRole } from "../../common/workflow/workflow-dept";
 import { validateComplianceFormSubmit } from "../../common/workflow/compliance-form-validate";
+import {
+  ComplianceDocKind,
+  bookingDocsStatus,
+  complianceDocAttachPatch,
+} from "../../common/constants/mandatory-booking-docs";
 
 @Injectable()
 export class NvoccBookingFormService {
@@ -29,7 +34,7 @@ export class NvoccBookingFormService {
         include: { parties: true },
       });
       if (!form) throw new NotFoundException("Booking form not found.");
-      return form;
+      return { ...form, documents: bookingDocsStatus(form) };
     });
   }
 
@@ -39,7 +44,8 @@ export class NvoccBookingFormService {
         where: { booking_id: bookingId, tenant_id: tenantId, deleted_at: null },
         include: { parties: true },
       });
-      return form;
+      if (!form) return form;
+      return { ...form, documents: bookingDocsStatus(form) };
     });
   }
 
@@ -68,7 +74,12 @@ export class NvoccBookingFormService {
     }
 
     if (markComplete) {
-      this.validateSubmit(dto);
+      const stored = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.nvoccBookingForm.findFirst({
+          where: { booking_id: bookingId, tenant_id: tenantId, deleted_at: null },
+        }),
+      );
+      this.validateSubmit(dto, stored ?? undefined);
     }
 
     return this.persist(tenantId, bookingId, dto, {
@@ -109,7 +120,12 @@ export class NvoccBookingFormService {
         "Consent confirmation is required to submit the compliance booking form.",
       );
     }
-    this.validateSubmit(dto);
+    const stored = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.nvoccBookingForm.findFirst({
+        where: { booking_id: bookingId, tenant_id: tenantId, deleted_at: null },
+      }),
+    );
+    this.validateSubmit(dto, stored ?? undefined);
     return this.persist(tenantId, bookingId, dto, {
       actorId,
       markComplete: true,
@@ -121,11 +137,7 @@ export class NvoccBookingFormService {
   async attachDocument(
     tenantId: string,
     bookingId: string,
-    kind:
-      | "commercial_invoice"
-      | "correspondence"
-      | "cod_form"
-      | "licence",
+    kind: ComplianceDocKind,
     s3Key: string,
     actorId: string,
   ) {
@@ -150,20 +162,10 @@ export class NvoccBookingFormService {
         });
       }
 
-      const patch: Record<string, unknown> = { updated_by: actorId };
-      if (kind === "commercial_invoice") {
-        patch.doc_commercial_invoice_key = s3Key;
-        patch.attach_commercial_invoice = true;
-      } else if (kind === "correspondence") {
-        patch.doc_correspondence_key = s3Key;
-        patch.attach_correspondence = true;
-      } else if (kind === "cod_form") {
-        patch.doc_cod_form_key = s3Key;
-        patch.attach_cod_form = true;
-      } else {
-        patch.doc_licence_key = s3Key;
-        patch.attach_licence = true;
-      }
+      const patch = {
+        updated_by: actorId,
+        ...complianceDocAttachPatch(kind, s3Key),
+      };
 
       return tx.nvoccBookingForm.update({
         where: { id: form.id },
@@ -284,6 +286,10 @@ export class NvoccBookingFormService {
           dto.attach_commercial_invoice ??
           existing?.attach_commercial_invoice ??
           false,
+        attach_packing_list:
+          dto.attach_packing_list ?? existing?.attach_packing_list ?? false,
+        attach_bill_of_lading:
+          dto.attach_bill_of_lading ?? existing?.attach_bill_of_lading ?? false,
         attach_correspondence:
           dto.attach_correspondence ??
           existing?.attach_correspondence ??
@@ -291,6 +297,10 @@ export class NvoccBookingFormService {
         attach_cod_form:
           dto.attach_cod_form ?? existing?.attach_cod_form ?? false,
         attach_licence: dto.attach_licence ?? existing?.attach_licence ?? false,
+        attach_uat_tax_certificate:
+          dto.attach_uat_tax_certificate ??
+          existing?.attach_uat_tax_certificate ??
+          false,
         booking_agent_line:
           dto.booking_agent_line ??
           existing?.booking_agent_line ??
@@ -390,7 +400,10 @@ export class NvoccBookingFormService {
     });
   }
 
-  validateSubmit(dto: UpsertNvoccBookingFormDto) {
-    validateComplianceFormSubmit(dto);
+  validateSubmit(
+    dto: UpsertNvoccBookingFormDto,
+    stored?: Parameters<typeof validateComplianceFormSubmit>[1],
+  ) {
+    validateComplianceFormSubmit(dto, stored);
   }
 }

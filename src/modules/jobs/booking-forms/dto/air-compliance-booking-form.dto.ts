@@ -191,6 +191,16 @@ export class UpsertAirComplianceBookingFormDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
+  attach_packing_list?: boolean;
+
+  @ApiPropertyOptional({ description: "Bill of lading / AWB copy" })
+  @IsOptional()
+  @IsBoolean()
+  attach_bill_of_lading?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   attach_correspondence?: boolean;
 
   @ApiPropertyOptional()
@@ -202,6 +212,11 @@ export class UpsertAirComplianceBookingFormDto {
   @IsOptional()
   @IsBoolean()
   attach_licence?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  attach_uat_tax_certificate?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -260,11 +275,7 @@ export class SubmitAirComplianceFormDto extends UpsertAirComplianceBookingFormDt
   consent_accepted!: boolean;
 }
 
-export const COMPLIANCE_DOC_KINDS = [
-  "commercial_invoice",
-  "correspondence",
-  "cod_form",
-  "licence",
-] as const;
-
-export type ComplianceDocKind = (typeof COMPLIANCE_DOC_KINDS)[number];
+export {
+  COMPLIANCE_DOC_KINDS,
+  type ComplianceDocKind,
+} from "../../../../common/constants/mandatory-booking-docs";

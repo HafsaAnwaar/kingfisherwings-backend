@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { CargoCategory, ServiceScope } from "@prisma/client";
+import { missingMandatoryBookingDocs } from "../../../common/constants/mandatory-booking-docs";
 
 export type BookingPartyInput = {
   party_kind: string;
@@ -75,9 +76,17 @@ export function missingCargoDocs(form: {
   attach_health_veterinary?: boolean | null;
   attach_fda_moh?: boolean | null;
   attach_commercial_invoice?: boolean | null;
+  attach_packing_list?: boolean | null;
+  attach_bl_awb_copy?: boolean | null;
+  attach_licence?: boolean | null;
+  attach_uat_tax_certificate?: boolean | null;
+  doc_commercial_invoice_key?: string | null;
+  doc_packing_list_key?: string | null;
+  doc_bl_awb_copy_key?: string | null;
+  doc_licence_key?: string | null;
+  doc_uat_tax_certificate_key?: string | null;
 }): string[] {
-  const missing: string[] = [];
-  if (!form.attach_commercial_invoice) missing.push("commercial_invoice");
+  const missing = missingMandatoryBookingDocs(form);
   const cat = form.cargo_category;
   if (cat === "VEHICLES") {
     if (!form.attach_carnet) missing.push("carnet");

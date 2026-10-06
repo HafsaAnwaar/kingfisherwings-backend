@@ -5,7 +5,14 @@ import {
 } from "@nestjs/common";
 import { CcDirection, JobType, Prisma, ServiceScope } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { StorageService } from "../../../shared/storage/storage.service";
 import { markJobMilestoneIfPresent } from "../utils/mark-milestone.util";
+import {
+  bookingDocsStatus,
+  MODE_BOOKING_DOC_KINDS,
+  ModeBookingDocKind,
+  modeDocAttachPatch,
+} from "../../../common/constants/mandatory-booking-docs";
 import {
   assertCargoDocs,
   assertCcCargoLines,
@@ -59,9 +66,32 @@ const DEFAULT_SCOPE: Record<FormKind, ServiceScope | null> = {
   warehouse: null,
 };
 
+const MODE_PATH_TO_KIND: Record<string, FormKind> = {
+  "sea-fcl": "sea_fcl",
+  "sea-lcl": "sea_lcl",
+  land: "land",
+  "road-freight": "road_freight",
+  courier: "courier",
+  "customs-clearance": "customs_clearance",
+  warehouse: "warehouse",
+};
+
 @Injectable()
 export class ModeBookingFormService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
+
+  resolveKind(modePath: string): FormKind {
+    const kind = MODE_PATH_TO_KIND[modePath];
+    if (!kind) {
+      throw new BadRequestException(
+        `Unknown booking form mode. Use: ${Object.keys(MODE_PATH_TO_KIND).join(", ")}`,
+      );
+    }
+    return kind;
+  }
 
   async get(kind: FormKind, tenantId: string, jobId: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -70,7 +100,60 @@ export class ModeBookingFormService {
       if (!form) {
         form = await this.createEmpty(tx, kind, tenantId, jobId);
       }
-      return form;
+      return {
+        ...form,
+        documents: bookingDocsStatus(form as never),
+      };
+    });
+  }
+
+  async attachDocument(
+    kind: FormKind,
+    tenantId: string,
+    jobId: string,
+    docKind: string,
+    file: Express.Multer.File,
+    actorId?: string,
+  ) {
+    if (!MODE_BOOKING_DOC_KINDS.includes(docKind as ModeBookingDocKind)) {
+      throw new BadRequestException(
+        `Invalid document kind. Use: ${MODE_BOOKING_DOC_KINDS.join(", ")}`,
+      );
+    }
+    if (!file?.buffer?.length) {
+      throw new BadRequestException(
+        "File is required (multipart field name: file).",
+      );
+    }
+
+    const stored = await this.storage.saveBuffer(
+      tenantId,
+      file.buffer,
+      file.originalname || `${docKind}.bin`,
+      file.mimetype || "application/octet-stream",
+    );
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.assertJob(tx, tenantId, jobId, kind);
+      let form = await this.findForm(tx, kind, tenantId, jobId);
+      if (!form) {
+        form = await this.createEmpty(tx, kind, tenantId, jobId, actorId);
+      }
+      const patch = {
+        updated_by: actorId,
+        ...modeDocAttachPatch(docKind as ModeBookingDocKind, stored.s3Key),
+      };
+      await this.updateForm(tx, kind, (form as { id: string }).id, patch);
+      const updated = await this.findForm(tx, kind, tenantId, jobId);
+      return {
+        kind: docKind,
+        s3_key: stored.s3Key,
+        file_url: stored.fileUrl,
+        form: {
+          ...updated,
+          documents: bookingDocsStatus(updated as never),
+        },
+      };
     });
   }
 
@@ -82,13 +165,10 @@ export class ModeBookingFormService {
     actorId?: string,
   ) {
     const markComplete = dto.mark_complete === true;
-    if (markComplete) {
-      this.validateComplete(kind, dto as unknown as Record<string, unknown>);
-      if (!dto.consent_accepted) {
-        throw new BadRequestException(
-          "Consent confirmation is required to complete the booking form.",
-        );
-      }
+    if (markComplete && !dto.consent_accepted) {
+      throw new BadRequestException(
+        "Consent confirmation is required to complete the booking form.",
+      );
     }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -96,6 +176,13 @@ export class ModeBookingFormService {
       let form = await this.findForm(tx, kind, tenantId, jobId);
       if (!form) {
         form = await this.createEmpty(tx, kind, tenantId, jobId, actorId);
+      }
+
+      if (markComplete) {
+        this.validateComplete(kind, {
+          ...(form as unknown as Record<string, unknown>),
+          ...(dto as unknown as Record<string, unknown>),
+        });
       }
 
       const data = this.toUpdateData(
@@ -196,6 +283,19 @@ export class ModeBookingFormService {
         cargo_category: dto.cargo_category as never,
         is_dg: dto.is_dg as boolean,
         attach_commercial_invoice: dto.attach_commercial_invoice as boolean,
+        attach_packing_list: dto.attach_packing_list as boolean,
+        attach_bl_awb_copy: dto.attach_bl_awb_copy as boolean,
+        attach_licence: dto.attach_licence as boolean,
+        attach_uat_tax_certificate: dto.attach_uat_tax_certificate as boolean,
+        doc_commercial_invoice_key: dto.doc_commercial_invoice_key as
+          | string
+          | null,
+        doc_packing_list_key: dto.doc_packing_list_key as string | null,
+        doc_bl_awb_copy_key: dto.doc_bl_awb_copy_key as string | null,
+        doc_licence_key: dto.doc_licence_key as string | null,
+        doc_uat_tax_certificate_key: dto.doc_uat_tax_certificate_key as
+          | string
+          | null,
         attach_carnet: dto.attach_carnet as boolean,
         attach_vehicle_title: dto.attach_vehicle_title as boolean,
         attach_msds: dto.attach_msds as boolean,
@@ -275,6 +375,19 @@ export class ModeBookingFormService {
         cargo_category: dto.cargo_category as never,
         is_dg: dto.is_dg as boolean,
         attach_commercial_invoice: dto.attach_commercial_invoice as boolean,
+        attach_packing_list: dto.attach_packing_list as boolean,
+        attach_bl_awb_copy: dto.attach_bl_awb_copy as boolean,
+        attach_licence: dto.attach_licence as boolean,
+        attach_uat_tax_certificate: dto.attach_uat_tax_certificate as boolean,
+        doc_commercial_invoice_key: dto.doc_commercial_invoice_key as
+          | string
+          | null,
+        doc_packing_list_key: dto.doc_packing_list_key as string | null,
+        doc_bl_awb_copy_key: dto.doc_bl_awb_copy_key as string | null,
+        doc_licence_key: dto.doc_licence_key as string | null,
+        doc_uat_tax_certificate_key: dto.doc_uat_tax_certificate_key as
+          | string
+          | null,
         attach_carnet: dto.attach_carnet as boolean,
         attach_vehicle_title: dto.attach_vehicle_title as boolean,
         attach_msds: dto.attach_msds as boolean,
@@ -332,6 +445,19 @@ export class ModeBookingFormService {
       cargo_category: dto.cargo_category as never,
       is_dg: dto.is_dg as boolean,
       attach_commercial_invoice: dto.attach_commercial_invoice as boolean,
+      attach_packing_list: dto.attach_packing_list as boolean,
+      attach_bl_awb_copy: dto.attach_bl_awb_copy as boolean,
+      attach_licence: dto.attach_licence as boolean,
+      attach_uat_tax_certificate: dto.attach_uat_tax_certificate as boolean,
+      doc_commercial_invoice_key: dto.doc_commercial_invoice_key as
+        | string
+        | null,
+      doc_packing_list_key: dto.doc_packing_list_key as string | null,
+      doc_bl_awb_copy_key: dto.doc_bl_awb_copy_key as string | null,
+      doc_licence_key: dto.doc_licence_key as string | null,
+      doc_uat_tax_certificate_key: dto.doc_uat_tax_certificate_key as
+        | string
+        | null,
       attach_carnet: dto.attach_carnet as boolean,
       attach_vehicle_title: dto.attach_vehicle_title as boolean,
       attach_msds: dto.attach_msds as boolean,

@@ -199,6 +199,19 @@ export class UpsertNvoccBookingFormDto {
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
+  attach_packing_list?: boolean;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: "Bill of lading (sea) or AWB copy (air)",
+  })
+  @IsOptional()
+  @IsBoolean()
+  attach_bill_of_lading?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
   attach_correspondence?: boolean;
 
   @ApiPropertyOptional({ default: false })
@@ -210,6 +223,11 @@ export class UpsertNvoccBookingFormDto {
   @IsOptional()
   @IsBoolean()
   attach_licence?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  attach_uat_tax_certificate?: boolean;
 
   @ApiPropertyOptional({ example: "KINGFISHER" })
   @IsOptional()
@@ -286,11 +304,7 @@ export class WorkflowStageOverrideDto {
   stage_override_reason?: string;
 }
 
-export const COMPLIANCE_DOC_KINDS = [
-  "commercial_invoice",
-  "correspondence",
-  "cod_form",
-  "licence",
-] as const;
-
-export type ComplianceDocKind = (typeof COMPLIANCE_DOC_KINDS)[number];
+export {
+  COMPLIANCE_DOC_KINDS,
+  type ComplianceDocKind,
+} from "../../../common/constants/mandatory-booking-docs";
