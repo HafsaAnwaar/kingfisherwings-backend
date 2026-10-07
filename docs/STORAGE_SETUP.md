@@ -1,5 +1,20 @@
 # Durable file storage setup (Cloudflare R2 recommended)
 
+## Status in this codebase
+
+**Ready.** Payment proofs, invoice/quotation PDFs, report downloads, booking-form
+docs, documentation uploads, and HR PDFs all go through `StorageService`
+(`src/shared/storage/storage.service.ts`). On Render you must use **Cloudflare R2**
+(or S3/Supabase). Local disk is wiped on every redeploy.
+
+| Check | How |
+|-------|-----|
+| Config resolves to R2 | `npm run storage:check` (loads `.env`) |
+| App healthy + durable | `GET /health` → `storage.durable: true` |
+| Boot log | `Storage: durable provider=r2 bucket=...` |
+
+---
+
 ## Why this matters
 
 On **Render**, the container disk is **ephemeral**. Files under `/app/storage` are wiped on every redeploy/restart.
@@ -10,6 +25,7 @@ That breaks:
 - Report catalog downloads
 - Payment proofs
 - Documentation uploads
+- Booking-form document uploads
 - HR letters / payroll PDFs
 
 **Object storage** keeps file **bytes** in a bucket. Postgres only stores keys/URLs/metadata.
@@ -24,6 +40,73 @@ That breaks:
 | Files in Postgres | Avoid — bloated DB |
 
 This app already speaks the **S3 API**. R2 / S3 / Supabase all work through the same `StorageService`.
+
+---
+
+## Your checklist (do in order)
+
+### A) Cloudflare (one-time)
+
+1. Open [Cloudflare Dashboard](https://dash.cloudflare.com/) → **R2 Object Storage**.
+2. **Create bucket** named `kingfisher-files` (private).
+3. Copy **Account ID** (shown on R2 overview) → this is `R2_ACCOUNT_ID`.
+4. **Manage R2 API Tokens** → **Create API token**:
+   - Permission: **Object Read & Write** on `kingfisher-files`
+   - Copy **Access Key ID** → `R2_ACCESS_KEY_ID`
+   - Copy **Secret Access Key** → `R2_SECRET_ACCESS_KEY` (shown once)
+
+### B) Local verify (optional but recommended)
+
+In your local `.env` (never commit secrets):
+
+```env
+STORAGE_PROVIDER=r2
+R2_ACCOUNT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+R2_ACCESS_KEY_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+R2_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+R2_BUCKET=kingfisher-files
+```
+
+Then:
+
+```bash
+npm run storage:check
+```
+
+Expect `"durable": true` and `"provider": "r2"`. Exit code 0.
+
+### C) Render (production)
+
+1. [Render](https://dashboard.render.com/) → your web service → **Environment**.
+2. Add / update:
+
+| Key | Value |
+|-----|--------|
+| `STORAGE_PROVIDER` | `r2` |
+| `R2_ACCOUNT_ID` | Cloudflare Account ID |
+| `R2_ACCESS_KEY_ID` | R2 token Access Key ID |
+| `R2_SECRET_ACCESS_KEY` | R2 token Secret |
+| `R2_BUCKET` | `kingfisher-files` |
+
+Optional: `R2_REGION=auto`, `STORAGE_PRESIGNED_URL_EXPIRES=3600`, `R2_PUBLIC_BASE_URL` (only if you attach a custom domain).
+
+3. **Save** → **Manual Deploy** → Deploy latest.
+4. Logs should show:
+   ```text
+   Storage: durable provider=r2 bucket=kingfisher-files endpoint=https://....r2.cloudflarestorage.com
+   Storage: bucket reachable (kingfisher-files)
+   ```
+5. Call `GET https://<your-host>/health` and confirm:
+   ```json
+   "storage": { "provider": "r2", "durable": true, "missing_env": [] }
+   ```
+
+### D) After switch
+
+- Upload a **payment proof** or generate an invoice PDF.
+- In Cloudflare R2 → Objects, you should see keys like `{tenantId}/{timestamp}-filename`.
+- Redeploy once — the file should **still** download.
+- Anything created **before** R2 lived on ephemeral disk and is gone — regenerate those PDFs/reports.
 
 ---
 
@@ -183,18 +266,21 @@ Expect JSON similar to:
   "success": true,
   "storage": {
     "provider": "r2",
+    "requested_provider": "r2",
     "durable": true,
     "bucket": "kingfisher-files",
     "region": "auto",
     "endpoint": "https://<account_id>.r2.cloudflarestorage.com",
-    "local_root": null
+    "local_root": null,
+    "missing_env": [],
+    "hint": null
   }
 }
 ```
 
 **Success = `storage.durable: true`.**
 
-If `durable: false` and `provider: "local"`, credentials are incomplete — the app intentionally falls back to disk.
+If `durable: false`, read `storage.missing_env` / `storage.hint` — credentials are incomplete and the app fell back to disk.
 
 ### 3.3 Functional smoke
 

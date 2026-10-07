@@ -41,26 +41,42 @@ export function resolveStorageSettings() {
     trim("AWS_S3_ENDPOINT") ??
     trim("SUPABASE_STORAGE_ENDPOINT");
 
-  let provider: StorageProvider = "local";
-  if (forced === "local" || forced === "s3" || forced === "r2" || forced === "supabase") {
-    provider = forced;
+  let requested: StorageProvider | "auto" = "auto";
+  if (
+    forced === "local" ||
+    forced === "s3" ||
+    forced === "r2" ||
+    forced === "supabase"
+  ) {
+    requested = forced;
   } else if (r2AccountId && accessKeyId && secretAccessKey && bucket) {
-    provider = "r2";
+    requested = "r2";
   } else if (
     explicitEndpoint?.includes("supabase") &&
     accessKeyId &&
     secretAccessKey &&
     bucket
   ) {
-    provider = "supabase";
+    requested = "supabase";
   } else if (
-    (truthy(trim("STORAGE_USE_S3")) || (accessKeyId && secretAccessKey && bucket)) &&
+    (truthy(trim("STORAGE_USE_S3")) ||
+      (accessKeyId && secretAccessKey && bucket)) &&
     accessKeyId &&
     secretAccessKey &&
     bucket
   ) {
-    provider = explicitEndpoint ? "s3" : "s3";
+    requested = "s3";
+  } else {
+    requested = "local";
   }
+
+  const provider: StorageProvider =
+    requested === "s3" ||
+    requested === "r2" ||
+    requested === "supabase" ||
+    requested === "local"
+      ? requested
+      : "local";
 
   let endpoint: string | undefined = explicitEndpoint;
   let region =
@@ -74,7 +90,10 @@ export function resolveStorageSettings() {
     if (!endpoint && r2AccountId) {
       endpoint = `https://${r2AccountId}.r2.cloudflarestorage.com`;
     }
-    region = region === "me-south-1" ? "auto" : region;
+    // R2 rejects AWS regional names; keep auto unless explicitly set to something else.
+    if (!trim("R2_REGION") && !trim("STORAGE_REGION")) {
+      region = "auto";
+    }
     forcePathStyle = true;
   }
 
@@ -83,8 +102,31 @@ export function resolveStorageSettings() {
     if (!region || region === "auto") region = "us-east-1";
   }
 
+  const missingEnv: string[] = [];
+  if (provider === "r2") {
+    if (!r2AccountId && !endpoint) missingEnv.push("R2_ACCOUNT_ID");
+    if (!accessKeyId) missingEnv.push("R2_ACCESS_KEY_ID");
+    if (!secretAccessKey) missingEnv.push("R2_SECRET_ACCESS_KEY");
+    if (!bucket) missingEnv.push("R2_BUCKET");
+  } else if (provider === "s3" || provider === "supabase") {
+    if (!accessKeyId) {
+      missingEnv.push("STORAGE_ACCESS_KEY_ID|AWS_ACCESS_KEY_ID");
+    }
+    if (!secretAccessKey) {
+      missingEnv.push("STORAGE_SECRET_ACCESS_KEY|AWS_SECRET_ACCESS_KEY");
+    }
+    if (!bucket) missingEnv.push("STORAGE_BUCKET|AWS_S3_BUCKET");
+    if (provider === "supabase" && !endpoint) {
+      missingEnv.push("STORAGE_S3_ENDPOINT");
+    }
+  }
+
   const useObjectStorage =
-    provider !== "local" && !!accessKeyId && !!secretAccessKey && !!bucket;
+    provider !== "local" &&
+    !!accessKeyId &&
+    !!secretAccessKey &&
+    !!bucket &&
+    (provider !== "r2" || !!endpoint);
 
   // If user asked for r2/s3/supabase but creds incomplete, fall back to local
   const effectiveProvider: StorageProvider = useObjectStorage
@@ -93,6 +135,8 @@ export function resolveStorageSettings() {
 
   return {
     provider: effectiveProvider,
+    requestedProvider: provider,
+    missingEnv,
     root:
       trim("STORAGE_PATH") ?? path.join(process.cwd(), "storage", "uploads"),
     publicBaseUrl: trim("STORAGE_PUBLIC_BASE_URL") ?? "/files",
