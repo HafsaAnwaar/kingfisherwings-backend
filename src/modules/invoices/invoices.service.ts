@@ -278,6 +278,7 @@ export class InvoicesService {
           status: "DRAFT",
           job_id: dto.job_id,
           party_id: dto.party_id,
+          vendor_quote_id: dto.vendor_quote_id,
           branch_id: dto.branch_id,
           department_id: dto.department_id,
           invoice_date: dto.invoice_date
@@ -761,6 +762,94 @@ export class InvoicesService {
     actorId?: string,
   ) {
     return this.create(tenantId, dto, actorId, "PURCHASE_INVOICE");
+  }
+
+  /**
+   * After a vendor job offer is APPROVED — create + post a purchase invoice
+   * from negotiated cost lines so admin can upload payment proofs (same as
+   * customer↔admin remittance flow, opposite money direction).
+   */
+  async createFromVendorQuote(
+    tenantId: string,
+    vendorQuoteId: string,
+    actorId?: string,
+  ) {
+    const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.findFirst({
+        where: {
+          tenant_id: tenantId,
+          vendor_quote_id: vendorQuoteId,
+          deleted_at: null,
+        },
+        include: { lines: { where: { deleted_at: null } }, party: true },
+      }),
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const quote = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.vendorQuote.findFirst({
+        where: {
+          id: vendorQuoteId,
+          tenant_id: tenantId,
+          deleted_at: null,
+          status: "APPROVED",
+        },
+        include: {
+          lines: { orderBy: { sort_order: "asc" } },
+          job: {
+            select: {
+              id: true,
+              company_id: true,
+              branch_id: true,
+              department_id: true,
+            },
+          },
+        },
+      }),
+    );
+
+    if (!quote) {
+      throw new NotFoundException(
+        "Approved vendor quote not found for purchase invoice.",
+      );
+    }
+
+    const lines =
+      quote.lines.length > 0
+        ? quote.lines.map((line) => ({
+            description: line.description,
+            quantity: Number(line.quantity),
+            unit_price: Number(line.unit_price),
+          }))
+        : [
+            {
+              description: "Vendor job offer cost",
+              quantity: 1,
+              unit_price: Number(quote.cost_total),
+            },
+          ];
+
+    const draft = await this.createPurchaseInvoice(
+      tenantId,
+      {
+        party_id: quote.vendor_party_id,
+        job_id: quote.job_id,
+        vendor_quote_id: quote.id,
+        company_id: quote.job?.company_id ?? undefined,
+        branch_id: quote.job?.branch_id ?? undefined,
+        department_id: quote.job?.department_id ?? undefined,
+        currency_code: quote.currency_code,
+        remarks: `Auto-generated from approved vendor job offer ${quote.id}.`,
+        internal_notes: `vendor_quote_id=${quote.id}`,
+        lines,
+      },
+      actorId,
+    );
+
+    // Post so balance_due is live and payment proofs can be uploaded.
+    return this.post(tenantId, draft.id, actorId);
   }
 
   async update(

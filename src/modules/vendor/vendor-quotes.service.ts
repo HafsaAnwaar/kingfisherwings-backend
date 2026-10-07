@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { InvoicesService } from "../invoices/invoices.service";
 import { VENDOR_ELIGIBLE_PARTY_TYPES } from "./constants/vendor-permission.constants";
 import {
   PriceVendorQuoteDto,
@@ -27,6 +29,7 @@ import {
   buildVendorNegotiationPricingView,
   normalizeVendorLines,
 } from "./vendor-quote-negotiation-pricing.util";
+import { vendorQuoteActionFlags } from "./vendor-quote-action-flags";
 
 const VENDOR_ACTIONABLE: VendorQuoteStatus[] = [
   "SENT",
@@ -63,9 +66,12 @@ const JOB_SELECT = {
 
 @Injectable()
 export class VendorQuotesService {
+  private readonly logger = new Logger(VendorQuotesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationEmitterService,
+    private readonly invoices: InvoicesService,
   ) {}
 
   resolveVendorPartyId(dto: SendJobToVendorDto): string {
@@ -243,7 +249,12 @@ export class VendorQuotesService {
 
   async getForTenant(tenantId: string, quoteId: string) {
     const row = await this.loadQuote(tenantId, quoteId);
-    return { success: true, data: this.toSharedView(row) };
+    const purchaseInvoice = await this.attachPurchaseInvoiceSummary(
+      tenantId,
+      quoteId,
+      row.status,
+    );
+    return { success: true, data: this.toSharedView(row, purchaseInvoice) };
   }
 
   async listForVendor(
@@ -287,7 +298,12 @@ export class VendorQuotesService {
 
   async getForVendor(tenantId: string, vendorPartyId: string, quoteId: string) {
     const row = await this.loadQuote(tenantId, quoteId, vendorPartyId);
-    return { success: true, data: this.toSharedView(row) };
+    const purchaseInvoice = await this.attachPurchaseInvoiceSummary(
+      tenantId,
+      quoteId,
+      row.status,
+    );
+    return { success: true, data: this.toSharedView(row, purchaseInvoice) };
   }
 
   /** Tenant revises cost offer and sends back to vendor (like revise-and-send). */
@@ -441,14 +457,42 @@ export class VendorQuotesService {
       {
         type: "VENDOR_QUOTE_SENT",
         title: "Offer accepted",
-        message: "Your cost offer was accepted.",
+        message: "Your cost offer was accepted. Purchase invoice generated.",
         entity_type: "VendorQuote",
         entity_id: updated.id,
         link_path: `/vendor/job-offers/${updated.id}`,
       },
     );
 
-    return { success: true, data: this.toSharedView(updated) };
+    const purchaseInvoice = await this.ensurePurchaseInvoiceFromApproval(
+      tenantId,
+      updated.id,
+      actorId,
+    );
+
+    if (purchaseInvoice) {
+      await this.notifications.notifyFinanceStaff(tenantId, {
+        type: "VENDOR_INVOICE_SUBMITTED",
+        title: "Vendor offer approved — purchase invoice ready",
+        message: `Admin accepted vendor counter. Purchase invoice ${purchaseInvoice.invoice_number} is ready for payment proof.`,
+        entity_type: "invoice",
+        entity_id: purchaseInvoice.id,
+        link_path: `/purchase-invoices/${purchaseInvoice.id}`,
+      });
+    }
+
+    return {
+      success: true,
+      data: this.toSharedView(updated, purchaseInvoice),
+      purchase_invoice: purchaseInvoice
+        ? {
+            id: purchaseInvoice.id,
+            invoice_number: purchaseInvoice.invoice_number,
+            status: purchaseInvoice.status,
+            total_amount: purchaseInvoice.total_amount,
+          }
+        : null,
+    };
   }
 
   async tenantRejectCounter(
@@ -566,7 +610,36 @@ export class VendorQuotesService {
       return result;
     });
 
-    return { success: true, data: this.toSharedView(updated) };
+    const purchaseInvoice = await this.ensurePurchaseInvoiceFromApproval(
+      tenantId,
+      updated.id,
+    );
+
+    await this.notifications.notifyFinanceStaff(tenantId, {
+      type: "VENDOR_INVOICE_SUBMITTED",
+      title: "Vendor offer approved — purchase invoice ready",
+      message: `Vendor approved job offer. Purchase invoice ${purchaseInvoice?.invoice_number ?? ""} is ready for payment proof.`,
+      entity_type: "invoice",
+      entity_id: purchaseInvoice?.id ?? updated.id,
+      link_path: purchaseInvoice
+        ? `/purchase-invoices/${purchaseInvoice.id}`
+        : `/job-offers/${updated.id}`,
+    });
+
+    return {
+      success: true,
+      data: this.toSharedView(updated, purchaseInvoice),
+      purchase_invoice: purchaseInvoice
+        ? {
+            id: purchaseInvoice.id,
+            invoice_number: purchaseInvoice.invoice_number,
+            status: purchaseInvoice.status,
+            total_amount: purchaseInvoice.total_amount,
+          }
+        : null,
+      message:
+        "Offer approved. Purchase invoice generated — share it with admin or wait for payment proof.",
+    };
   }
 
   async vendorReject(
@@ -810,22 +883,79 @@ export class VendorQuotesService {
     });
   }
 
-  private toSharedView(row: {
-    lines?: Array<{
-      description: string;
-      quantity: unknown;
-      unit_price: unknown;
-      amount: unknown;
-    }>;
-    cost_total: unknown;
-    vendor_proposed_total: unknown;
-    vendor_proposed_lines: unknown;
-    vendor_proposed_at: Date | null;
-    negotiation_round: number;
-    job?: Record<string, unknown> | null;
-    [key: string]: unknown;
-  }) {
+  private async ensurePurchaseInvoiceFromApproval(
+    tenantId: string,
+    quoteId: string,
+    actorId?: string,
+  ) {
+    try {
+      return await this.invoices.createFromVendorQuote(
+        tenantId,
+        quoteId,
+        actorId,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to auto-create purchase invoice for vendor quote ${quoteId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  private async attachPurchaseInvoiceSummary(
+    tenantId: string,
+    quoteId: string,
+    status: VendorQuoteStatus,
+  ) {
+    if (status !== "APPROVED") return null;
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.findFirst({
+        where: {
+          tenant_id: tenantId,
+          vendor_quote_id: quoteId,
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          invoice_number: true,
+          status: true,
+          total_amount: true,
+          balance_due: true,
+        },
+      }),
+    );
+  }
+
+  private toSharedView(
+    row: {
+      id?: string;
+      status?: VendorQuoteStatus;
+      lines?: Array<{
+        description: string;
+        quantity: unknown;
+        unit_price: unknown;
+        amount: unknown;
+      }>;
+      cost_total: unknown;
+      vendor_proposed_total: unknown;
+      vendor_proposed_lines: unknown;
+      vendor_proposed_at: Date | null;
+      negotiation_round: number;
+      job?: Record<string, unknown> | null;
+      [key: string]: unknown;
+    },
+    purchaseInvoice?: {
+      id: string;
+      invoice_number: string;
+      status: string;
+      total_amount: unknown;
+      balance_due?: unknown;
+    } | null,
+  ) {
     const { job, lines, ...quote } = row;
+    const status = (row.status ?? "SENT") as VendorQuoteStatus;
     return {
       ...quote,
       lines: lines ?? [],
@@ -838,6 +968,16 @@ export class VendorQuotesService {
         negotiation_round: row.negotiation_round,
         lines,
       }),
+      actions: vendorQuoteActionFlags(status),
+      purchase_invoice: purchaseInvoice
+        ? {
+            id: purchaseInvoice.id,
+            invoice_number: purchaseInvoice.invoice_number,
+            status: purchaseInvoice.status,
+            total_amount: purchaseInvoice.total_amount,
+            balance_due: purchaseInvoice.balance_due ?? null,
+          }
+        : null,
     };
   }
 }

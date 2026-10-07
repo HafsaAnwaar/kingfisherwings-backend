@@ -15,7 +15,11 @@ import { CreditNotesController } from "./credit-notes.controller";
 import { DebitNotesController } from "./debit-notes.controller";
 import { PurchaseInvoicesController } from "./purchase-invoices.controller";
 import { PaymentRequestsController } from "./payment-requests.controller";
-import { PaymentProofsController, InvoicePaymentProofsController } from "./payment-proofs/payment-proofs.controller";
+import {
+  PaymentProofsController,
+  InvoicePaymentProofsController,
+  PurchaseInvoicePaymentProofsController,
+} from "./payment-proofs/payment-proofs.controller";
 import { InvoicesService } from "./invoices.service";
 import { PaymentRequestsService } from "./payment-requests.service";
 import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
@@ -39,6 +43,7 @@ import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
     CreditNotesController,
     DebitNotesController,
     PurchaseInvoicesController,
+    PurchaseInvoicePaymentProofsController,
     PaymentRequestsController,
     PaymentProofsController,
     InvoicePaymentProofsController,

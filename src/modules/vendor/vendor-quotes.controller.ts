@@ -65,8 +65,11 @@ export class VendorQuotesController {
     );
   }
 
-  @Post(":id/accept")
-  @ApiOperation({ summary: "Accept the tenant cost offer as-is" })
+  @Post([":id/accept", ":id/approve"])
+  @ApiOperation({
+    summary:
+      "Accept / approve the tenant cost offer as-is (after admin revise, or initial SENT offer). Auto-generates purchase invoice.",
+  })
   accept(
     @CurrentVendor() user: CurrentVendorUser,
     @Param("id", ParseUUIDPipe) id: string,

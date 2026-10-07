@@ -75,6 +75,14 @@ export class CreateInvoiceDto {
   @IsUUID()
   job_id?: string;
 
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Source vendor job offer when auto-creating a purchase invoice",
+  })
+  @IsOptional()
+  @IsUUID()
+  vendor_quote_id?: string;
+
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
