@@ -317,18 +317,24 @@ export class VendorService {
     );
 
     if (dto.send_email !== false) {
-      await this.email.send({
-        tenantId,
-        eventType: inviteMode ? "VENDOR_INVITE" : "VENDOR_CREDENTIALS",
-        to: email,
-        subject: inviteMode
-          ? "Vendor portal invite"
-          : "Vendor portal credentials",
-        body: inviteMode
-          ? `<p>Hello ${created.full_name},</p><p>Accept your vendor portal invite with token: ${inviteToken}</p>`
-          : `<p>Hello ${created.full_name},</p><p>Your vendor portal password is: ${plainPassword}</p>`,
-        createdBy: actorId,
-      });
+      if (inviteMode) {
+        await this.sendInviteEmail(tenantId, {
+          to: email,
+          fullName: created.full_name,
+          partyName: party.name,
+          token: inviteToken!,
+          expiresAt: inviteExpiresAt!,
+          actorId,
+        });
+      } else {
+        await this.sendCredentialsEmail(tenantId, {
+          to: email,
+          fullName: created.full_name,
+          password: plainPassword,
+          partyName: party.name,
+          actorId,
+        });
+      }
     }
 
     return {
@@ -512,10 +518,13 @@ export class VendorService {
     const user = await this.requireVendorUser(tenantId, vendorUserId, partyId);
     const plainPassword =
       dto.password?.trim() || PasswordUtil.generateTemporaryPassword();
+    const generated = !dto.password;
+    const passwordHash = await PasswordUtil.hash(plainPassword);
+
     await this.prisma.vendorUser.update({
       where: { id: user.id },
       data: {
-        password_hash: await PasswordUtil.hash(plainPassword),
+        password_hash: passwordHash,
         updated_by: actorId,
         status: VendorUserStatus.ACTIVE,
       },
@@ -528,9 +537,32 @@ export class VendorService {
         revoked_reason: "PASSWORD_RESET",
       },
     });
+
+    const party = await this.prisma.party.findFirst({
+      where: { id: user.party_id },
+      select: { name: true },
+    });
+
+    const shouldEmail = dto.send_email !== false;
+    if (shouldEmail) {
+      await this.sendCredentialsEmail(tenantId, {
+        to: user.email,
+        fullName: user.full_name,
+        password: plainPassword,
+        partyName: party?.name ?? "Vendor",
+        actorId,
+      });
+    }
+
     return {
       success: true,
-      data: { id: user.id, email: user.email, initial_password: plainPassword },
+      message: "Vendor password reset. Existing sessions were revoked.",
+      data: {
+        id: user.id,
+        email: user.email,
+        initial_password: plainPassword,
+        password_generated: generated,
+      },
     };
   }
 
@@ -598,6 +630,72 @@ export class VendorService {
     });
 
     return { access_token, refresh_token };
+  }
+
+  private async sendInviteEmail(
+    tenantId: string,
+    opts: {
+      to: string;
+      fullName: string;
+      partyName: string;
+      token: string;
+      expiresAt: Date;
+      actorId?: string;
+    },
+  ) {
+    const appUrl =
+      this.config.get<string>("VENDOR_APP_URL") ??
+      this.config.get<string>("APP_URL") ??
+      this.config.get<string>("PUBLIC_API_URL") ??
+      "http://localhost:3000";
+    const link = `${appUrl.replace(/\/$/, "")}/vendor/accept-invite?token=${opts.token}`;
+
+    await this.email.send({
+      tenantId,
+      eventType: "VENDOR_INVITE",
+      to: opts.to,
+      subject: `Activate your vendor portal — ${opts.partyName}`,
+      body: `
+        <p>Hello ${opts.fullName},</p>
+        <p>You have been invited to the vendor portal for <strong>${opts.partyName}</strong>.</p>
+        <p><a href="${link}">Set your password and activate your account</a></p>
+        <p>This link expires at ${opts.expiresAt.toISOString()}.</p>
+      `,
+      createdBy: opts.actorId,
+    });
+  }
+
+  /** Same layout as customer portal credentials email. */
+  private async sendCredentialsEmail(
+    tenantId: string,
+    opts: {
+      to: string;
+      fullName: string;
+      password: string;
+      partyName: string;
+      actorId?: string;
+    },
+  ) {
+    const appUrl =
+      this.config.get<string>("APP_URL") ??
+      this.config.get<string>("PUBLIC_API_URL") ??
+      "";
+    await this.email.send({
+      tenantId,
+      eventType: "VENDOR_CREDENTIALS",
+      to: opts.to,
+      subject: `Your vendor portal login — ${opts.partyName}`,
+      body: `
+        <p>Hello ${opts.fullName},</p>
+        <p>Your vendor portal account credentials for <strong>${opts.partyName}</strong>.</p>
+        <p><strong>Email:</strong> ${opts.to}<br/>
+        <strong>Temporary password:</strong> ${opts.password}</p>
+        <p>Use your forwarder's vendor portal login with this tenant's credentials to sign in.</p>
+        ${appUrl ? `<p>API base: ${appUrl}</p>` : ""}
+        <p>Please change your password after first login if prompted by your forwarder.</p>
+      `,
+      createdBy: opts.actorId,
+    });
   }
 
   private accessSecret(): string {

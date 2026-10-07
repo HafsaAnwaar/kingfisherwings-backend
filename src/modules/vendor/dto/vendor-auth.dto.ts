@@ -95,13 +95,19 @@ export class UpdateVendorUserStatusDto {
 }
 
 export class ResetVendorPasswordDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      "If omitted, a temporary password is generated and returned once.",
+  })
   @IsOptional()
   @IsString()
   @MinLength(8)
   password?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      "When true (default), email the new password when SMTP is configured.",
+  })
   @IsOptional()
   @IsBoolean()
   send_email?: boolean;
