@@ -2650,6 +2650,7 @@ model VendorQuote {
   vendor_party Party             @relation(fields: [vendor_party_id], references: [id], onDelete: Restrict)
   lines        VendorQuoteLine[]
   negotiation_events VendorQuoteNegotiationEvent[]
+  purchase_invoices  Invoice[]
 
   @@index([tenant_id, vendor_party_id])
   @@index([tenant_id, job_id])
@@ -4388,6 +4389,8 @@ model Invoice {
   lpo_number           String?       @db.VarChar(100)
   remarks              String?       @db.Text
   internal_notes       String?       @db.Text
+  /// When set, this purchase invoice was auto-created from an approved vendor job offer.
+  vendor_quote_id      String?       @db.Uuid
   pdf_url              String?       @db.Text
   pdf_s3_key           String?       @db.Text
   pdf_generated_at     DateTime?     @db.Timestamptz
@@ -4404,6 +4407,7 @@ model Invoice {
   company          Company?  @relation(fields: [company_id], references: [id])
   job              Job?      @relation(fields: [job_id], references: [id])
   party            Party     @relation(fields: [party_id], references: [id])
+  vendor_quote     VendorQuote? @relation(fields: [vendor_quote_id], references: [id], onDelete: SetNull)
   credited_invoice Invoice?  @relation("InvoiceCreditNotes", fields: [credited_invoice_id], references: [id])
   credit_notes     Invoice[] @relation("InvoiceCreditNotes")
   lines            InvoiceLine[]
@@ -4418,11 +4422,13 @@ model Invoice {
   wms_storage_charges    WmsStorageCharge[] @relation("WmsStorageInvoice")
 
   @@unique([tenant_id, invoice_number])
+  @@unique([tenant_id, vendor_quote_id])
   @@index([tenant_id])
   @@index([tenant_id, invoice_type])
   @@index([tenant_id, status])
   @@index([tenant_id, party_id])
   @@index([tenant_id, job_id])
+  @@index([tenant_id, vendor_quote_id])
   @@index([tenant_id, invoice_date])
   @@index([tenant_id, due_date])
   @@map("invoices")

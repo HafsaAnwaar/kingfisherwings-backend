@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -494,6 +495,44 @@ export class PortalQuotationsService {
       { fromPortal: true },
     );
 
+    // Provisional job so booking forms have a job_id; status stays APPROVED
+    // until POST /portal/quotations/:id/convert-to-job after form submit.
+    const job = await this.quotations.ensureProvisionalJob(
+      user.tenantId,
+      quotationId,
+      user.id,
+    );
+
+    return {
+      success: true,
+      message:
+        "Quotation accepted. Complete the booking form, then convert to job.",
+      data: {
+        id: updated.id,
+        quotation_number: updated.quotation_number,
+        status: "APPROVED",
+        won_at: updated.won_at,
+        converted_job_id: job.jobId,
+        converted_job_number: job.jobNumber,
+        job: { id: job.jobId, job_number: job.jobNumber },
+      },
+    };
+  }
+
+  async convertToJob(user: CurrentPortalUser, quotationId: string) {
+    const quotation = await this.getOwnedOrThrow(user, quotationId);
+
+    if (quotation.status === "CONVERTED") {
+      throw new BadRequestException(
+        "This quotation has already been converted to a job.",
+      );
+    }
+    if (quotation.status !== "APPROVED") {
+      throw new BadRequestException(
+        "Accept the quotation and submit the booking form before converting to a job.",
+      );
+    }
+
     const job = await this.quotations.convertToJob(
       user.tenantId,
       quotationId,
@@ -502,12 +541,11 @@ export class PortalQuotationsService {
 
     return {
       success: true,
-      message: "Quotation accepted and converted to job.",
+      message: "Quotation converted to job.",
       data: {
-        id: updated.id,
-        quotation_number: updated.quotation_number,
+        id: quotation.id,
+        quotation_number: quotation.quotation_number,
         status: "CONVERTED",
-        won_at: updated.won_at,
         converted_job_id: job.jobId,
         converted_job_number: job.jobNumber,
         job: { id: job.jobId, job_number: job.jobNumber },

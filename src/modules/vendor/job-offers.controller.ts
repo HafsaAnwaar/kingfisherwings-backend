@@ -81,9 +81,12 @@ export class JobOffersController {
     return this.quotes.getNegotiationTimeline(tenantId, id);
   }
 
-  @Post(":id/revise-and-send")
+  @Post([":id/revise-and-send", ":id/negotiate", ":id/counter-offer"])
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Revise cost offer and send back to vendor" })
+  @ApiOperation({
+    summary:
+      "Negotiate / revise cost offer and send back to vendor (vendor can then approve)",
+  })
   reviseAndSend(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -93,9 +96,12 @@ export class JobOffersController {
     return this.quotes.reviseAndSend(tenantId, id, dto, actorId);
   }
 
-  @Post(":id/negotiation/accept")
+  @Post([":id/negotiation/accept", ":id/accept"])
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Accept vendor counter-offer" })
+  @ApiOperation({
+    summary:
+      "Accept vendor counter-offer (after vendor negotiates). Auto-generates purchase invoice.",
+  })
   negotiationAccept(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,

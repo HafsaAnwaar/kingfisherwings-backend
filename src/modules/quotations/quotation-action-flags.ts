@@ -15,6 +15,8 @@ export function quotationActionFlags(status: QuotationStatus) {
     can_negotiate: customerCanAct,
     can_admin_accept: status === "NEGOTIATING",
     can_admin_reject: status === "NEGOTIATING",
+    /** Convert only after accept (APPROVED) + booking form submit. */
+    can_convert_to_job: status === "APPROVED",
   };
 }
 

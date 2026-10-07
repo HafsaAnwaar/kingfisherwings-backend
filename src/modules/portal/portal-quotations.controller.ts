@@ -104,7 +104,7 @@ export class PortalQuotationsController {
   @ApiOperation({
     summary: "Accept a sent quotation",
     description:
-      "Marks the quote APPROVED (customer accepted). Only SENT, CUSTOMER_REVIEW, or NEGOTIATING quotes can be accepted — not a new portal enquiry.",
+      "Marks the quote APPROVED and creates a provisional job for the booking form. Does not convert to CONVERTED until POST .../convert-to-job after the booking form is submitted.",
   })
   accept(
     @CurrentPortal() user: CurrentPortalUser,
@@ -112,6 +112,19 @@ export class PortalQuotationsController {
     @Body() dto: PortalQuotationAcceptDto,
   ) {
     return this.quotations.accept(user, id, dto);
+  }
+
+  @Post(":id/convert-to-job")
+  @ApiOperation({
+    summary: "Convert an accepted quotation to a job",
+    description:
+      "Requires APPROVED status and a completed mode/compliance booking form on the provisional job. Sets quotation status to CONVERTED.",
+  })
+  convertToJob(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.quotations.convertToJob(user, id);
   }
 
   @Post(":id/reject")
