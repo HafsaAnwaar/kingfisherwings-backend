@@ -34,7 +34,8 @@
     "seed:world-ports:build": "node scripts/build-world-ports-seed.cjs",
     "seed:world-ports": "node scripts/seed-world-ports-all-tenants.cjs",
     "seed:freight-specs": "node scripts/seed-freight-specs-all-tenants.cjs",
-    "email:gmail-oauth": "node scripts/gmail-oauth-setup.cjs"
+    "email:gmail-oauth": "node scripts/gmail-oauth-setup.cjs",
+    "storage:check": "ts-node -r dotenv/config scripts/check-storage.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",

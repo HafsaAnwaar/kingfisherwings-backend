@@ -57,11 +57,18 @@ export class StorageService implements OnModuleInit {
   getStatus() {
     return {
       provider: this.settings.provider,
+      requested_provider: this.settings.requestedProvider,
       durable: this.isDurable(),
       bucket: this.settings.bucket ?? null,
       region: this.settings.region,
       endpoint: this.settings.endpoint ?? null,
       local_root: this.isDurable() ? null : this.settings.root,
+      missing_env: this.settings.missingEnv,
+      hint: this.isDurable()
+        ? null
+        : this.settings.missingEnv.length
+          ? `Set missing env: ${this.settings.missingEnv.join(", ")} (see docs/STORAGE_SETUP.md)`
+          : "Set STORAGE_PROVIDER=r2 and R2_* vars for durable storage on Render",
     };
   }
 
@@ -84,6 +91,17 @@ export class StorageService implements OnModuleInit {
         );
       }
       return;
+    }
+
+    if (
+      this.settings.requestedProvider !== "local" &&
+      this.settings.missingEnv.length
+    ) {
+      this.logger.warn(
+        `Storage: requested ${this.settings.requestedProvider} but incomplete config ` +
+          `(missing ${this.settings.missingEnv.join(", ")}). Falling back to local. ` +
+          `See docs/STORAGE_SETUP.md.`,
+      );
     }
 
     try {
