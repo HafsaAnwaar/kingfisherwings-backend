@@ -206,6 +206,24 @@ export class SendInvoiceEmailDto {
   @IsOptional()
   @IsBoolean()
   include_payment_link?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      "Client PDF as base64. When set (or multipart `file`), that PDF is emailed — server does not regenerate a template.",
+  })
+  @IsOptional()
+  @IsString()
+  pdf_base64?: string;
+}
+
+export class StoreInvoicePdfDto {
+  @ApiPropertyOptional({
+    description:
+      "Client-rendered KingFisher PDF as base64. Prefer multipart field `file`.",
+  })
+  @IsOptional()
+  @IsString()
+  pdf_base64?: string;
 }
 
 export class InvoiceQueryDto {

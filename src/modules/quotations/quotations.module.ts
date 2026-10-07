@@ -18,6 +18,7 @@ import { ServiceCatalogService } from "./service-catalog/service-catalog.service
 import { QuotationNegotiationService } from "./quotation-negotiation.service";
 import { ZipDistancesController } from "./zip-distances/zip-distances.controller";
 import { ZipDistancesService } from "./zip-distances/zip-distances.service";
+import { BookingFormGateService } from "../../common/services/booking-form-gate.service";
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ZipDistancesService } from "./zip-distances/zip-distances.service";
     ServiceCatalogService,
     QuotationNegotiationService,
     ZipDistancesService,
+    BookingFormGateService,
     CronSecretGuard,
   ],
   exports: [
@@ -52,6 +54,7 @@ import { ZipDistancesService } from "./zip-distances/zip-distances.service";
     TariffsService,
     ServiceCatalogService,
     QuotationNegotiationService,
+    BookingFormGateService,
   ],
 })
 export class QuotationsModule {}

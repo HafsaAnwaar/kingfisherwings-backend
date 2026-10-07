@@ -29,6 +29,7 @@ import {
   lineTotal,
   MasterLabelService,
 } from "../masters/master-label.service";
+import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
 import {
   CreateCreditNoteDto,
   CreateDebitNoteDto,
@@ -37,6 +38,7 @@ import {
   CreatePurchaseInvoiceDto,
   InvoiceQueryDto,
   SendInvoiceEmailDto,
+  StoreInvoicePdfDto,
   UpdateInvoiceDto,
   UpdateInvoiceLineDto,
 } from "./dto/invoice.dto";
@@ -1154,6 +1156,7 @@ export class InvoicesService {
     id: string,
     dto: SendInvoiceEmailDto,
     actorId?: string,
+    file?: Express.Multer.File,
   ) {
     const invoice = await this.findOne(tenantId, id);
 
@@ -1163,29 +1166,45 @@ export class InvoicesService {
 
     let pdfBuffer: Buffer | undefined;
     let pdfWarning: string | undefined;
-    try {
-      if (invoice.pdf_url || invoice.pdf_s3_key) {
-        const file = await this.storage.readByStoredFile(tenantId, {
-          file_name: `${invoice.invoice_number}.pdf`,
-          file_url: invoice.pdf_url ?? "",
-          s3_key: invoice.pdf_s3_key,
-          mime_type: "application/pdf",
-        });
-        pdfBuffer = file.buffer;
-      } else {
-        const generated = await this.generatePdf(tenantId, id, actorId);
-        pdfBuffer = generated.buffer;
-      }
-    } catch (err) {
-      pdfWarning =
-        err instanceof Error ? err.message : "PDF generation failed";
+    const clientPdf = resolveClientPdfBuffer({
+      file,
+      pdf_base64: dto.pdf_base64,
+    });
+
+    if (clientPdf) {
+      const stored = await this.storeClientPdf(
+        tenantId,
+        id,
+        invoice.invoice_number,
+        clientPdf,
+        actorId,
+      );
+      pdfBuffer = stored.buffer;
+    } else {
       try {
-        const generated = await this.generatePdf(tenantId, id, actorId);
-        pdfBuffer = generated.buffer;
-        pdfWarning = undefined;
-      } catch (err2) {
+        if (invoice.pdf_url || invoice.pdf_s3_key) {
+          const storedFile = await this.storage.readByStoredFile(tenantId, {
+            file_name: `${invoice.invoice_number}.pdf`,
+            file_url: invoice.pdf_url ?? "",
+            s3_key: invoice.pdf_s3_key,
+            mime_type: "application/pdf",
+          });
+          pdfBuffer = storedFile.buffer;
+        } else {
+          const generated = await this.generatePdf(tenantId, id, actorId);
+          pdfBuffer = generated.buffer;
+        }
+      } catch (err) {
         pdfWarning =
-          err2 instanceof Error ? err2.message : "PDF generation failed";
+          err instanceof Error ? err.message : "PDF generation failed";
+        try {
+          const generated = await this.generatePdf(tenantId, id, actorId);
+          pdfBuffer = generated.buffer;
+          pdfWarning = undefined;
+        } catch (err2) {
+          pdfWarning =
+            err2 instanceof Error ? err2.message : "PDF generation failed";
+        }
       }
     }
 
@@ -1327,8 +1346,59 @@ export class InvoicesService {
     return { ...cancelled, gl_reversal: gl };
   }
 
-  async generatePdf(tenantId: string, id: string, actorId?: string) {
+  async storeClientPdf(
+    tenantId: string,
+    id: string,
+    invoiceNumber: string,
+    buffer: Buffer,
+    actorId?: string,
+  ) {
+    const filename = `${invoiceNumber}.pdf`;
+    const stored = await this.storage.saveBuffer(
+      tenantId,
+      buffer,
+      filename,
+      "application/pdf",
+    );
+
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.update({
+        where: { id },
+        data: {
+          pdf_url: stored.fileUrl,
+          pdf_s3_key: stored.s3Key,
+          pdf_generated_at: new Date(),
+          updated_by: actorId,
+        },
+      }),
+    );
+
+    return { ...stored, buffer, filename };
+  }
+
+  async generatePdf(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    file?: Express.Multer.File,
+    dto?: StoreInvoicePdfDto,
+  ) {
     const invoice = await this.findOne(tenantId, id);
+    const clientPdf = resolveClientPdfBuffer({
+      file,
+      pdf_base64: dto?.pdf_base64,
+    });
+
+    if (clientPdf) {
+      return this.storeClientPdf(
+        tenantId,
+        id,
+        invoice.invoice_number,
+        clientPdf,
+        actorId,
+      );
+    }
+
     const buffer = await this.pdfService.generateInvoicePdf({
       invoice_number: invoice.invoice_number,
       invoice_type: invoice.invoice_type,
@@ -1354,22 +1424,13 @@ export class InvoicesService {
       })),
     });
 
-    const filename = `${invoice.invoice_number}.pdf`;
-    const stored = await this.storage.saveBuffer(tenantId, buffer, filename);
-
-    await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.invoice.update({
-        where: { id },
-        data: {
-          pdf_url: stored.fileUrl,
-          pdf_s3_key: stored.s3Key,
-          pdf_generated_at: new Date(),
-          updated_by: actorId,
-        },
-      }),
+    return this.storeClientPdf(
+      tenantId,
+      id,
+      invoice.invoice_number,
+      buffer,
+      actorId,
     );
-
-    return { ...stored, buffer, filename };
   }
 
   async getOverdueReport(tenantId: string) {

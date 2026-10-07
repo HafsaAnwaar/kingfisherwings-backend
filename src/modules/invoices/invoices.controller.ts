@@ -1,5 +1,27 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
 
 import { InvoicesService } from "./invoices.service";
 import {
@@ -7,9 +29,11 @@ import {
   CreateInvoiceLineDto,
   InvoiceQueryDto,
   SendInvoiceEmailDto,
+  StoreInvoicePdfDto,
   UpdateInvoiceDto,
   UpdateInvoiceLineDto,
 } from "./dto/invoice.dto";
+import { optionalPdfUploadInterceptor } from "../../common/utils/client-pdf.util";
 
 import { RolesGuard } from "../users/guards/roles.guard";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
@@ -156,14 +180,33 @@ export class InvoicesController {
 
   @Post(":id/send")
   @RequirePermissions(INVOICES_PERMISSIONS.SEND)
-  @ApiOperation({ summary: "Email invoice PDF to customer" })
+  @ApiConsumes("multipart/form-data", "application/json")
+  @ApiOperation({
+    summary:
+      "Email invoice PDF (attach client multipart/pdf_base64 when provided; otherwise stored or generated PDF)",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["to_email"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        pdf_base64: { type: "string" },
+        to_email: { type: "string" },
+        message: { type: "string" },
+        include_payment_link: { type: "boolean" },
+      },
+    },
+  })
+  @UseInterceptors(optionalPdfUploadInterceptor())
   send(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: SendInvoiceEmailDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.service.send(tenantId, id, dto, actorId);
+    return this.service.send(tenantId, id, dto, actorId, file);
   }
 
   @Get(":id/format-payload")
@@ -200,13 +243,35 @@ export class InvoicesController {
 
   @Post(":id/pdf")
   @RequirePermissions(INVOICES_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Generate invoice PDF" })
+  @ApiConsumes("multipart/form-data", "application/json")
+  @ApiOperation({
+    summary:
+      "Store client KingFisher PDF (multipart file / pdf_base64) or generate server PDF",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+        pdf_base64: { type: "string" },
+      },
+    },
+  })
+  @UseInterceptors(optionalPdfUploadInterceptor())
   async generatePdf(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: StoreInvoicePdfDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    const result = await this.service.generatePdf(tenantId, id, actorId);
+    const result = await this.service.generatePdf(
+      tenantId,
+      id,
+      actorId,
+      file,
+      dto,
+    );
     return {
       file_url: result.fileUrl,
       file_name: result.filename,

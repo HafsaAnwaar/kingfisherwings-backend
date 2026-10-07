@@ -11,10 +11,14 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiHeader,
   ApiOperation,
   ApiSecurity,
@@ -39,6 +43,7 @@ import {
   GenerateQuotationPdfDto,
   SendQuotationEmailDto,
 } from "./dto/quotation-pdf.dto";
+import { optionalPdfUploadInterceptor } from "../../common/utils/client-pdf.util";
 
 import { Public } from "../auth/decorators/public.decorator";
 import { CronSecretGuard } from "../../common/guards/cron-secret.guard";
@@ -445,13 +450,18 @@ export class QuotationsController {
     const quotation = await this.service.findOne(tenantId, id);
     let jobId = quotation.converted_job_id;
     if (!jobId) {
-      if (quotation.status !== "APPROVED") {
+      if (quotation.status !== "APPROVED" && quotation.status !== "CONVERTED") {
         throw new BadRequestException(
           "Only an APPROVED quotation can be passed to a vendor. Convert or approve it first.",
         );
       }
-      const converted = await this.service.convertToJob(tenantId, id, actorId);
-      jobId = converted.jobId;
+      // Provisional job is enough for vendor pricing — do not force CONVERTED.
+      const provisional = await this.service.ensureProvisionalJob(
+        tenantId,
+        id,
+        actorId,
+      );
+      jobId = provisional.jobId;
     }
     return this.vendorQuotes.sendJobToVendor(tenantId, jobId, dto, actorId);
   }
@@ -474,7 +484,7 @@ export class QuotationsController {
   @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
   @ApiOperation({
     summary:
-      "APPROVED -> CONVERTED. Creates a minimal Job + carries charge lines over. Full job management (milestones, documents) is a separate module.",
+      "APPROVED -> CONVERTED after booking form is submitted. Creates a provisional job if missing; refuses until the mode booking form is complete.",
   })
   convertToJob(
     @CurrentUser("tenantId") tenantId: string,
@@ -511,16 +521,31 @@ export class QuotationsController {
 
   @Post(":id/pdf")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
+  @ApiConsumes("multipart/form-data", "application/json")
   @ApiOperation({
-    summary: "Queue PDF generation for a quotation (customer or internal mode)",
+    summary:
+      "Store client KingFisher PDF (multipart file / pdf_base64) or queue server PDF generation",
   })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+        pdf_base64: { type: "string" },
+        mode: { type: "string", enum: ["CUSTOMER", "INTERNAL"] },
+        layout_variant: { type: "string" },
+      },
+    },
+  })
+  @UseInterceptors(optionalPdfUploadInterceptor())
   generatePdf(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: GenerateQuotationPdfDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.service.generatePdf(tenantId, id, dto, actorId);
+    return this.service.generatePdf(tenantId, id, dto, actorId, file);
   }
 
   @Get(":id/pdf")
@@ -547,16 +572,33 @@ export class QuotationsController {
 
   @Post(":id/send-email")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
+  @ApiConsumes("multipart/form-data", "application/json")
   @ApiOperation({
     summary:
-      "Email quotation PDF to customer (generates PDF if not yet available)",
+      "Email quotation PDF (attach client multipart/pdf_base64 when provided; otherwise stored or generated PDF)",
   })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["to_email"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        pdf_base64: { type: "string" },
+        to_email: { type: "string" },
+        cc_email: { type: "string" },
+        pdf_mode: { type: "string", enum: ["CUSTOMER", "INTERNAL"] },
+        message: { type: "string" },
+      },
+    },
+  })
+  @UseInterceptors(optionalPdfUploadInterceptor())
   sendEmail(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: SendQuotationEmailDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.service.sendEmail(tenantId, id, dto, actorId);
+    return this.service.sendEmail(tenantId, id, dto, actorId, file);
   }
 }

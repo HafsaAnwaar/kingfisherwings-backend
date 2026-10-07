@@ -61,6 +61,8 @@ import {
   MasterLabelService,
   sumLineTotals,
 } from "../masters/master-label.service";
+import { BookingFormGateService } from "../../common/services/booking-form-gate.service";
+import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -117,6 +119,7 @@ export class QuotationsService {
     private readonly notifications: NotificationEmitterService,
     private readonly negotiation: QuotationNegotiationService,
     private readonly masterLabels: MasterLabelService,
+    private readonly bookingFormGate: BookingFormGateService,
     @Inject(forwardRef(() => PortalService))
     private readonly portal: PortalService,
   ) {}
@@ -944,13 +947,30 @@ export class QuotationsService {
     quotationId: string,
     dto: GenerateQuotationPdfDto,
     actorId?: string,
+    file?: Express.Multer.File,
   ) {
-    await this.findOne(tenantId, quotationId);
+    const quotation = await this.findOne(tenantId, quotationId);
+    const mode = dto.mode ?? QuotationPdfMode.CUSTOMER;
+    const clientPdf = resolveClientPdfBuffer({
+      file,
+      pdf_base64: dto.pdf_base64,
+    });
+
+    if (clientPdf) {
+      return this.storeClientPdf(
+        tenantId,
+        quotationId,
+        quotation.quotation_number,
+        mode,
+        clientPdf,
+        actorId,
+      );
+    }
 
     const task = await this.documentGeneration.enqueueQuotationPdf(
       tenantId,
       quotationId,
-      dto.mode,
+      mode,
       actorId,
       dto.layout_variant,
     );
@@ -958,8 +978,59 @@ export class QuotationsService {
     return {
       task_id: task.id,
       status: task.status,
-      mode: dto.mode,
+      mode,
       message: "PDF generation queued.",
+    };
+  }
+
+  /**
+   * Persist a client-rendered KingFisher PDF for portal/email reuse.
+   */
+  async storeClientPdf(
+    tenantId: string,
+    quotationId: string,
+    quotationNumber: string,
+    mode: QuotationPdfMode,
+    buffer: Buffer,
+    actorId?: string,
+  ) {
+    const filename = `${quotationNumber}-${mode.toLowerCase()}.pdf`;
+    const stored = await this.storage.saveBuffer(
+      tenantId,
+      buffer,
+      filename,
+      "application/pdf",
+    );
+
+    const pdfData =
+      mode === QuotationPdfMode.CUSTOMER
+        ? {
+            customer_pdf_url: stored.fileUrl,
+            customer_pdf_s3_key: stored.s3Key,
+            customer_pdf_generated_at: new Date(),
+          }
+        : {
+            internal_pdf_url: stored.fileUrl,
+            internal_pdf_s3_key: stored.s3Key,
+            internal_pdf_generated_at: new Date(),
+          };
+
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.update({
+        where: { id: quotationId },
+        data: { ...pdfData, updated_by: actorId },
+      }),
+    );
+
+    return {
+      task_id: null,
+      status: "COMPLETED" as const,
+      mode,
+      message: "Client PDF stored.",
+      file_url: stored.fileUrl,
+      s3_key: stored.s3Key,
+      file_name: filename,
+      file_size: stored.fileSize,
     };
   }
 
@@ -1001,6 +1072,7 @@ export class QuotationsService {
     quotationId: string,
     dto: SendQuotationEmailDto,
     actorId?: string,
+    file?: Express.Multer.File,
   ) {
     const quotation = await this.findOne(tenantId, quotationId);
     const mode = dto.pdf_mode ?? QuotationPdfMode.CUSTOMER;
@@ -1013,45 +1085,64 @@ export class QuotationsService {
     let attachmentBuffer: Buffer | undefined;
     let attachmentName: string | undefined;
 
-    if (!pdfUrl) {
-      const task = await this.documentGeneration.enqueueQuotationPdf(
+    const clientPdf = resolveClientPdfBuffer({
+      file,
+      pdf_base64: dto.pdf_base64,
+    });
+
+    if (clientPdf) {
+      const stored = await this.storeClientPdf(
         tenantId,
         quotationId,
+        quotation.quotation_number,
         mode,
+        clientPdf,
         actorId,
       );
-      await this.documentGeneration.processTask(task.id, tenantId);
+      attachmentBuffer = clientPdf;
+      attachmentName = `${quotation.quotation_number}.pdf`;
+      pdfUrl = stored.file_url;
+    } else {
+      if (!pdfUrl) {
+        const task = await this.documentGeneration.enqueueQuotationPdf(
+          tenantId,
+          quotationId,
+          mode,
+          actorId,
+        );
+        await this.documentGeneration.processTask(task.id, tenantId);
 
-      const refreshed = await this.findOne(tenantId, quotationId);
-      pdfUrl =
-        mode === QuotationPdfMode.CUSTOMER
-          ? refreshed.customer_pdf_url
-          : refreshed.internal_pdf_url;
-    }
-
-    if (pdfUrl) {
-      try {
         const refreshed = await this.findOne(tenantId, quotationId);
-        const file = await this.storage.readByStoredFile(tenantId, {
-          file_name:
-            pdfUrl.split("/").pop() ?? `${quotation.quotation_number}.pdf`,
-          file_url: pdfUrl,
-          s3_key:
-            mode === QuotationPdfMode.CUSTOMER
-              ? refreshed.customer_pdf_s3_key
-              : refreshed.internal_pdf_s3_key,
-          mime_type: "application/pdf",
-        });
-        attachmentBuffer = file.buffer;
-        attachmentName = file.fileName;
-      } catch {
-        const filename = pdfUrl.split("/").pop();
-        if (filename && !pdfUrl.startsWith("http")) {
-          attachmentBuffer = await this.storage.readBuffer(
-            tenantId,
-            decodeURIComponent(filename),
-          );
-          attachmentName = decodeURIComponent(filename);
+        pdfUrl =
+          mode === QuotationPdfMode.CUSTOMER
+            ? refreshed.customer_pdf_url
+            : refreshed.internal_pdf_url;
+      }
+
+      if (pdfUrl) {
+        try {
+          const refreshed = await this.findOne(tenantId, quotationId);
+          const storedFile = await this.storage.readByStoredFile(tenantId, {
+            file_name:
+              pdfUrl.split("/").pop() ?? `${quotation.quotation_number}.pdf`,
+            file_url: pdfUrl,
+            s3_key:
+              mode === QuotationPdfMode.CUSTOMER
+                ? refreshed.customer_pdf_s3_key
+                : refreshed.internal_pdf_s3_key,
+            mime_type: "application/pdf",
+          });
+          attachmentBuffer = storedFile.buffer;
+          attachmentName = storedFile.fileName;
+        } catch {
+          const filename = pdfUrl.split("/").pop();
+          if (filename && !pdfUrl.startsWith("http")) {
+            attachmentBuffer = await this.storage.readBuffer(
+              tenantId,
+              decodeURIComponent(filename),
+            );
+            attachmentName = decodeURIComponent(filename);
+          }
         }
       }
     }
@@ -2242,7 +2333,8 @@ export class QuotationsService {
       "QUOTATION_APPROVED",
       "Quotation accepted",
     );
-    const job = await this.convertToJob(tenantId, id, actorId);
+    // Provisional job for booking forms — CONVERTED only after form submit.
+    const job = await this.ensureProvisionalJob(tenantId, id, actorId);
     const refreshed = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -2255,6 +2347,8 @@ export class QuotationsService {
       success: true,
       data: refreshed ?? updated,
       job: { jobId: job.jobId, jobNumber: job.jobNumber },
+      message:
+        "Quotation approved. Complete the booking form, then convert to job.",
     };
   }
 
@@ -2496,20 +2590,21 @@ export class QuotationsService {
   // ============================================================
   // CONVERT TO JOB
   //
-  // Deliberately minimal: creates the Job row + carries revenue/cost
-  // lines over as JobCharge rows, and links back via
-  // Quotation.converted_job_id. Full job management — milestones,
-  // documents, HAWB/MAWB, pre-alerts — is its own module, not built
-  // yet. This is enough to prove the quote-to-job handoff works, not
-  // a substitute for that module.
+  // Accept / negotiation-accept create a *provisional* job (linked via
+  // converted_job_id) while the quotation stays APPROVED so the customer
+  // can complete the mode booking form. CONVERTED is set only after
+  // convertToJob confirms the booking form is submitted.
   // ============================================================
 
-  async convertToJob(
+  /**
+   * Create (or return) the job linked to an APPROVED quotation without
+   * flipping status to CONVERTED. Booking forms attach to this job.
+   */
+  async ensureProvisionalJob(
     tenantId: string,
     id: string,
     actorId?: string,
   ): Promise<{ jobId: string; jobNumber: string }> {
-    // Phase 1: read + validate (own transaction).
     const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -2521,19 +2616,44 @@ export class QuotationsService {
       throw new NotFoundException("Quotation not found.");
     }
 
+    if (quotation.status === "CONVERTED" && quotation.converted_job_id) {
+      const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.findFirst({
+          where: {
+            id: quotation.converted_job_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { id: true, job_number: true },
+        }),
+      );
+      if (existing) {
+        return { jobId: existing.id, jobNumber: existing.job_number };
+      }
+    }
+
     if (quotation.status !== "APPROVED") {
       throw new BadRequestException(
-        "Only an APPROVED quotation can be converted to a job.",
+        "Only an APPROVED quotation can receive a provisional job.",
       );
     }
 
     if (quotation.converted_job_id) {
-      throw new ConflictException(
-        "This quotation has already been converted to a job.",
+      const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.findFirst({
+          where: {
+            id: quotation.converted_job_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { id: true, job_number: true },
+        }),
       );
+      if (existing) {
+        return { jobId: existing.id, jobNumber: existing.job_number };
+      }
     }
 
-    // Phase 2: mint the job number — not nested inside the write transaction.
     const branchCode = await this.resolveBranchCode(
       tenantId,
       quotation.branch_id ?? undefined,
@@ -2547,7 +2667,6 @@ export class QuotationsService {
       },
     );
 
-    // Phase 3: write everything atomically.
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.create({
         data: {
@@ -2612,16 +2731,98 @@ export class QuotationsService {
         actorId,
       );
 
-      // Re-fetch inside this transaction
-      // Phase 1 came from a different (already-closed) transaction, and
-      // Prisma requires status_history's FK write to target a row
-      // visible in *this* one (it is — same committed row — but we
-      // re-derive from-status from it explicitly for clarity).
+      // Link job but keep APPROVED — CONVERTED waits for booking form.
+      await tx.quotation.update({
+        where: { id },
+        data: {
+          converted_job_id: job.id,
+          updated_by: actorId,
+        },
+      });
+
+      this.logger.log(
+        `[PROVISIONAL_JOB] Quotation ${quotation.quotation_number} -> Job ${jobNumber} (still APPROVED)`,
+      );
+
+      return { jobId: job.id, jobNumber };
+    });
+  }
+
+  /**
+   * Finalize APPROVED → CONVERTED. Requires booking form complete on the
+   * provisional job (created at accept). Creates the job if missing, then
+   * gates on form completion.
+   */
+  async convertToJob(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ): Promise<{ jobId: string; jobNumber: string }> {
+    const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+        select: {
+          id: true,
+          status: true,
+          converted_job_id: true,
+          job_type: true,
+          quotation_number: true,
+        },
+      }),
+    );
+
+    if (!quotation) {
+      throw new NotFoundException("Quotation not found.");
+    }
+
+    if (quotation.status === "CONVERTED") {
+      if (quotation.converted_job_id) {
+        const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.job.findFirst({
+            where: {
+              id: quotation.converted_job_id!,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
+            select: { id: true, job_number: true },
+          }),
+        );
+        if (existing) {
+          throw new ConflictException(
+            "This quotation has already been converted to a job.",
+          );
+        }
+      }
+      throw new ConflictException(
+        "This quotation has already been converted to a job.",
+      );
+    }
+
+    if (quotation.status !== "APPROVED") {
+      throw new BadRequestException(
+        "Only an APPROVED quotation can be converted to a job.",
+      );
+    }
+
+    const provisional = await this.ensureProvisionalJob(
+      tenantId,
+      id,
+      actorId,
+    );
+
+    const formGate = await this.bookingFormGate.isComplete(
+      tenantId,
+      provisional.jobId,
+      quotation.job_type,
+    );
+    this.bookingFormGate.assertComplete(formGate);
+
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
       await tx.quotation.update({
         where: { id },
         data: {
           status: "CONVERTED",
-          converted_job_id: job.id,
+          converted_job_id: provisional.jobId,
           updated_by: actorId,
         },
       });
@@ -2634,13 +2835,13 @@ export class QuotationsService {
         "CONVERTED",
         actorId,
       );
-
-      this.logger.log(
-        `[CONVERT_TO_JOB] Quotation ${quotation.quotation_number} -> Job ${jobNumber}`,
-      );
-
-      return { jobId: job.id, jobNumber };
     });
+
+    this.logger.log(
+      `[CONVERT_TO_JOB] Quotation ${quotation.quotation_number} -> Job ${provisional.jobNumber} (booking form complete: ${formGate.formKind})`,
+    );
+
+    return provisional;
   }
 
   // ============================================================

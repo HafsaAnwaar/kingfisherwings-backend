@@ -4,15 +4,27 @@ import { QuotationPdfMode } from "@prisma/client";
 import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
 export class GenerateQuotationPdfDto {
-  @ApiProperty({ enum: QuotationPdfMode, default: QuotationPdfMode.CUSTOMER })
+  @ApiPropertyOptional({
+    enum: QuotationPdfMode,
+    default: QuotationPdfMode.CUSTOMER,
+  })
+  @IsOptional()
   @IsEnum(QuotationPdfMode)
-  mode!: QuotationPdfMode;
+  mode?: QuotationPdfMode;
 
   @ApiPropertyOptional({ description: "Template layout variant identifier" })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   layout_variant?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Client-rendered KingFisher PDF as base64 (or data:application/pdf;base64,...). Prefer multipart field `file`.",
+  })
+  @IsOptional()
+  @IsString()
+  pdf_base64?: string;
 }
 
 export class SendQuotationEmailDto {
@@ -38,4 +50,12 @@ export class SendQuotationEmailDto {
   @IsString()
   @MaxLength(500)
   message?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Client PDF as base64. When set (or multipart `file`), that PDF is emailed — server does not regenerate a template.",
+  })
+  @IsOptional()
+  @IsString()
+  pdf_base64?: string;
 }
