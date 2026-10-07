@@ -73,7 +73,8 @@ export class PartyVendorUsersController {
   @Post(":partyId/vendor-users/:id/reset-password")
   @RequirePermissions(VENDOR_PERMISSIONS.MANAGE_USERS)
   @ApiOperation({
-    summary: "Reset vendor portal password for this Party’s user",
+    summary:
+      "Reset vendor portal password (returns initial_password; emails credentials by default, same as customer portal)",
   })
   resetPassword(
     @CurrentUser("tenantId") tenantId: string,
