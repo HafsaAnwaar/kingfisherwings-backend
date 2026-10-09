@@ -183,6 +183,8 @@ enum QuotationStatus {
   SENT
   NEGOTIATING
   CUSTOMER_REVIEW
+  /// Staff verified quote (Fresa Verified) before Approved / Generate Shipment.
+  VERIFIED
   /// Customer accepted the quote (formerly WON).
   APPROVED
   /// Customer rejected the quote (formerly LOST).
@@ -192,6 +194,24 @@ enum QuotationStatus {
   /// Deprecated DB values kept so PostgreSQL enum drop is not required.
   WON
   LOST
+}
+
+/// Fresa Shipment (booking / HBL) lifecycle — distinct from Job (MBL / confirmation).
+enum ShipmentStatus {
+  BOOKED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum BlDocumentStatus {
+  DRAFT
+  ORIGINAL
+  SURRENDERED
+  TELEX_RELEASE
+  SEAWAY
+  CANCELLED
 }
 
 enum ServicePricingBasis {
@@ -911,6 +931,7 @@ model TenantBankAccount {
 enum DocumentNumberType {
   JOB_NUMBER
   QUOTATION
+  SHIPMENT
   INVOICE
   CREDIT_NOTE
   DEBIT_NOTE
@@ -2578,6 +2599,7 @@ model Job {
   nvocc_details        NvoccJobDetail?
   vendor_quotes        VendorQuote[]
   job_scan_events      JobScanEvent[]
+  shipments            Shipment[]
 
   @@unique([tenant_id, job_number])
   @@unique([tenant_id, barcode_value])
@@ -3906,6 +3928,147 @@ model JobNote {
 }
 
 // =====================================================
+// SHIPMENTS (Fresa Customer Service) — booking / HBL layer.
+// Distinct from Job (MBL / confirmation). A Master Job may
+// attach many Shipments; Generate Job from Shipment is house|direct.
+// =====================================================
+
+model Shipment {
+  id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id        String         @db.Uuid
+  shipment_number  String         @db.VarChar(40)
+  job_type         JobType
+  status           ShipmentStatus @default(BOOKED)
+
+  company_id     String? @db.Uuid
+  branch_id      String? @db.Uuid
+  department_id  String? @db.Uuid
+
+  quotation_id String? @db.Uuid
+  enquiry_id   String? @db.Uuid
+  /// Master / confirmation job once generated or attached (console).
+  job_id       String? @db.Uuid
+
+  customer_id       String  @db.Uuid
+  shipper_id        String? @db.Uuid
+  consignee_id      String? @db.Uuid
+  notify_party_id   String? @db.Uuid
+  delivery_agent_id String? @db.Uuid
+  carrier_agent_id  String? @db.Uuid
+  salesperson_id    String? @db.Uuid
+  carrier_id        String? @db.Uuid
+
+  origin_port_id String? @db.Uuid
+  dest_port_id   String? @db.Uuid
+  por_port_id    String? @db.Uuid
+  etd            DateTime? @db.Date
+  eta            DateTime? @db.Date
+  atd            DateTime? @db.Date
+  ata            DateTime? @db.Date
+  onboard_date   DateTime? @db.Date
+
+  vessel_name    String? @db.VarChar(200)
+  voyage_number  String? @db.VarChar(50)
+  flight_number  String? @db.VarChar(50)
+
+  commodity         String?  @db.VarChar(500)
+  hs_code           String?  @db.VarChar(12)
+  gross_weight      Decimal? @db.Decimal(12, 3)
+  chargeable_weight Decimal? @db.Decimal(12, 3)
+  volume_cbm        Decimal? @db.Decimal(10, 3)
+  pieces            Int?
+  container_type_id String?  @db.Uuid
+  container_count   Int?
+  container_numbers String?  @db.Text
+  seal_numbers      String?  @db.Text
+  incoterms         String?  @db.VarChar(10)
+  is_dg             Boolean  @default(false)
+  dg_class          String?  @db.VarChar(20)
+  notes             String?  @db.Text
+
+  hbl_number String?          @db.VarChar(50)
+  hbl_date   DateTime?        @db.Date
+  bl_status  BlDocumentStatus @default(DRAFT)
+
+  revenue_total Decimal @default(0) @db.Decimal(18, 4)
+  cost_total    Decimal @default(0) @db.Decimal(18, 4)
+  gp_amount     Decimal @default(0) @db.Decimal(18, 4)
+  gp_percent    Decimal @default(0) @db.Decimal(7, 4)
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  updated_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  job       Job?            @relation(fields: [job_id], references: [id], onDelete: SetNull)
+  quotation Quotation?      @relation(fields: [quotation_id], references: [id], onDelete: SetNull)
+  enquiry   Enquiry?        @relation(fields: [enquiry_id], references: [id], onDelete: SetNull)
+  charges   ShipmentCharge[]
+
+  @@unique([tenant_id, shipment_number])
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([tenant_id, job_type])
+  @@index([tenant_id, customer_id])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, quotation_id])
+  @@index([tenant_id, enquiry_id])
+  @@index([tenant_id, etd])
+  @@map("shipments")
+}
+
+model ShipmentCharge {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  shipment_id          String    @db.Uuid
+  charge_code_id       String?   @db.Uuid
+  description          String    @db.VarChar(300)
+  quantity             Decimal   @default(1) @db.Decimal(10, 3)
+  unit_price           Decimal   @db.Decimal(18, 4)
+  currency_code        String    @db.Char(3)
+  exchange_rate        Decimal   @default(1) @db.Decimal(20, 8)
+  amount               Decimal   @db.Decimal(18, 4)
+  amount_base_currency Decimal   @db.Decimal(18, 4)
+  tax_rate_id          String?   @db.Uuid
+  tax_amount           Decimal   @default(0) @db.Decimal(18, 4)
+  is_billable          Boolean   @default(true)
+  is_cost              Boolean   @default(false)
+  is_provisional       Boolean   @default(false)
+  party_id             String?   @db.Uuid
+  is_invoiced          Boolean   @default(false)
+  /// When prorated from a master job charge.
+  prorated_from_job_charge_id String? @db.Uuid
+  sort_order           Int       @default(0)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+  created_by           String?   @db.Uuid
+  updated_by           String?   @db.Uuid
+  deleted_at           DateTime? @db.Timestamptz
+
+  shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, shipment_id])
+  @@map("shipment_charges")
+}
+
+/// Staff favourites for menus / reports (Fresa bookmarks).
+model UserFavourite {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String   @db.Uuid
+  user_id     String   @db.Uuid
+  kind        String   @db.VarChar(40)
+  target_key  String   @db.VarChar(200)
+  label       String?  @db.VarChar(200)
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  @@unique([tenant_id, user_id, kind, target_key])
+  @@index([tenant_id, user_id])
+  @@map("user_favourites")
+}
+
+// =====================================================
 // QUOTATIONS (spec Ch.7) — full lifecycle, GP calc, revisions,
 // approval workflow. Converts to a Job (above) once won.
 // =====================================================
@@ -3950,6 +4113,9 @@ model Quotation {
   routing_notes      String?   @db.Text
   remarks            String?   @db.Text
   internal_notes     String?   @db.Text
+  /// Fresa quotation T&Cs shown on customer PDF.
+  terms_and_conditions String? @db.Text
+  valid_from         DateTime? @db.Date
   valid_until        DateTime? @db.Date
 
   // Money — currency_code/exchange_rate follow the same convention as
@@ -3989,6 +4155,8 @@ model Quotation {
   // Set once converted to a Job (post-WON) — Job itself doesn't need
   // to know its origin quotation, but reporting needs the reverse link.
   converted_job_id String? @db.Uuid
+  /// First (or primary) shipment generated from this quotation (Fresa Generate Shipment).
+  converted_shipment_id String? @db.Uuid
 
   // PDF generation (Ch.7.4) — customer-facing vs internal-with-GP
   customer_pdf_url          String?   @db.Text
@@ -4014,6 +4182,7 @@ model Quotation {
   approvals             QuotationApproval[]
   document_gen_tasks    DocumentGenerationTask[]     @relation("QuotationDocumentTasks")
   email_logs            EmailLog[]                   @relation("QuotationEmailLogs")
+  shipments             Shipment[]
 
   @@unique([tenant_id, quotation_number])
   @@index([tenant_id])
@@ -4023,6 +4192,7 @@ model Quotation {
   @@index([tenant_id, department_id])
   @@index([tenant_id, carrier_id])
   @@index([tenant_id, company_id])
+  @@index([tenant_id, converted_shipment_id])
   @@map("quotations")
 }
 
@@ -5541,6 +5711,10 @@ model FollowUp {
   lead_id      String?        @db.Uuid
   party_id     String?        @db.Uuid
   enquiry_id   String?        @db.Uuid
+  /// Continuum: also attach follow-ups on quote / shipment / job.
+  quotation_id String?        @db.Uuid
+  shipment_id  String?        @db.Uuid
+  job_id       String?        @db.Uuid
   due_date     DateTime       @db.Date
   subject      String         @db.VarChar(200)
   notes        String?        @db.Text
@@ -5559,22 +5733,72 @@ model FollowUp {
 
   @@index([tenant_id, owner_id, due_date])
   @@index([tenant_id, status, due_date])
+  @@index([tenant_id, quotation_id])
+  @@index([tenant_id, shipment_id])
+  @@index([tenant_id, job_id])
   @@map("follow_ups")
+}
+
+/// Ops continuum entity types shared by Enquiry → Quotation → Shipment → Job side panels.
+enum OpsEntityType {
+  ENQUIRY
+  QUOTATION
+  SHIPMENT
+  JOB
 }
 
 model Enquiry {
   id                    String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id             String        @db.Uuid
   lead_id               String?       @db.Uuid
+  /// Customer (billing client).
   party_id              String?       @db.Uuid
   quotation_id          String?       @db.Uuid
+  shipment_id           String?       @db.Uuid
+  job_id                String?       @db.Uuid
   salesperson_id        String?       @db.Uuid
+  sales_coordinator_id  String?       @db.Uuid
+  price_coordinator_id  String?       @db.Uuid
+  company_id            String?       @db.Uuid
+  branch_id             String?       @db.Uuid
+  department_id         String?       @db.Uuid
   service_type          JobType
+  enquiry_date          DateTime?     @db.Date
+  shipper_id            String?       @db.Uuid
+  consignee_id          String?       @db.Uuid
+  shipper_address       String?       @db.Text
+  consignee_address     String?       @db.Text
+  customer_address      String?       @db.Text
   origin_port_id        String?       @db.Uuid
   dest_port_id          String?       @db.Uuid
+  /// Port of receipt (Fresa POR) — may differ from POL.
+  por_port_id           String?       @db.Uuid
+  etd                   DateTime?     @db.Date
+  eta                   DateTime?     @db.Date
+  payable_at            String?       @db.VarChar(200)
+  dispatch_at           String?       @db.VarChar(200)
+  carrier_id            String?       @db.Uuid
+  voyage_number         String?       @db.VarChar(50)
+  vessel_name           String?       @db.VarChar(200)
+  pieces                Int?
+  unit_price            Decimal?      @db.Decimal(18, 4)
+  gross_weight          Decimal?      @db.Decimal(12, 3)
+  chargeable_weight     Decimal?      @db.Decimal(12, 3)
+  net_weight            Decimal?      @db.Decimal(12, 3)
+  weight_unit           String?       @db.VarChar(10)
+  volume_cbm            Decimal?      @db.Decimal(10, 3)
+  cbm_unit              String?       @db.VarChar(10)
+  hs_code               String?       @db.VarChar(12)
+  container_type_id     String?       @db.Uuid
+  container_count       Int?
   cargo_details         String?       @db.Text
+  commodity             String?       @db.VarChar(500)
   incoterms             String?       @db.VarChar(10)
   special_requirements  String?       @db.Text
+  /// Snapshot of selected standard charge codes / amounts at enquiry create.
+  standard_charges_snapshot Json?
+  cancel_reason         String?       @db.VarChar(500)
+  cancelled_at          DateTime?     @db.Timestamptz
   currency_code         String        @db.Char(3)
   status                EnquiryStatus @default(NEW)
   created_at            DateTime      @default(now()) @db.Timestamptz
@@ -5586,11 +5810,154 @@ model Enquiry {
   lead      Lead?     @relation(fields: [lead_id], references: [id], onDelete: SetNull)
   party     Party?    @relation(fields: [party_id], references: [id], onDelete: SetNull)
   follow_ups FollowUp[]
+  shipments Shipment[]
+  charges   EnquiryCharge[]
 
   @@index([tenant_id, status])
   @@index([tenant_id, salesperson_id])
   @@index([tenant_id, quotation_id])
+  @@index([tenant_id, shipment_id])
+  @@index([tenant_id, job_id])
   @@map("enquiries")
+}
+
+/// Step 4 — charge details on enquiry (client / department / amount).
+model EnquiryCharge {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  enquiry_id     String    @db.Uuid
+  party_id       String?   @db.Uuid
+  department_id  String?   @db.Uuid
+  charge_code_id String?   @db.Uuid
+  description    String    @db.VarChar(300)
+  quantity       Decimal   @default(1) @db.Decimal(10, 3)
+  unit_price     Decimal   @default(0) @db.Decimal(18, 4)
+  amount         Decimal   @db.Decimal(18, 4)
+  currency_code  String    @db.Char(3)
+  is_cost        Boolean   @default(false)
+  sort_order     Int       @default(0)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  created_by     String?   @db.Uuid
+  updated_by     String?   @db.Uuid
+  deleted_at     DateTime? @db.Timestamptz
+
+  enquiry Enquiry @relation(fields: [enquiry_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, enquiry_id])
+  @@map("enquiry_charges")
+}
+
+enum OpsUploaderSide {
+  STAFF
+  CUSTOMER
+  VENDOR
+}
+
+/// Shared side-panel attachments for Enquiry / Quotation / Shipment / Job.
+/// Stored on Cloudflare R2 (via StorageService). Bidirectional: staff uploads
+/// visible to customer/vendor (when flags allow); portal/vendor uploads visible to staff.
+model OpsEntityAttachment {
+  id                   String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String          @db.Uuid
+  entity_type          OpsEntityType
+  entity_id            String          @db.Uuid
+  file_name            String          @db.VarChar(255)
+  storage_key          String          @db.VarChar(500)
+  file_url             String?         @db.VarChar(1000)
+  mime_type            String?         @db.VarChar(120)
+  size_bytes           Int?
+  notes                String?         @db.Text
+  uploader_side        OpsUploaderSide @default(STAFF)
+  uploaded_by_party_id String?         @db.Uuid
+  /// When true, customer portal users who own the entity can list/download.
+  visible_to_customer  Boolean         @default(true)
+  /// When true, vendor portal users linked to the job can list/download.
+  visible_to_vendor    Boolean         @default(true)
+  created_at           DateTime        @default(now()) @db.Timestamptz
+  created_by           String?         @db.Uuid
+  deleted_at           DateTime?       @db.Timestamptz
+
+  @@index([tenant_id, entity_type, entity_id])
+  @@index([tenant_id, uploaded_by_party_id])
+  @@map("ops_entity_attachments")
+}
+
+model OpsEntityReference {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String        @db.Uuid
+  entity_type OpsEntityType
+  entity_id   String        @db.Uuid
+  ref_type    String        @db.VarChar(80)
+  ref_value   String        @db.VarChar(300)
+  notes       String?       @db.Text
+  created_at  DateTime      @default(now()) @db.Timestamptz
+  created_by  String?       @db.Uuid
+  deleted_at  DateTime?     @db.Timestamptz
+
+  @@index([tenant_id, entity_type, entity_id])
+  @@map("ops_entity_references")
+}
+
+model OpsEntityTag {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String        @db.Uuid
+  entity_type OpsEntityType
+  entity_id   String        @db.Uuid
+  tag         String        @db.VarChar(100)
+  created_at  DateTime      @default(now()) @db.Timestamptz
+  created_by  String?       @db.Uuid
+  deleted_at  DateTime?     @db.Timestamptz
+
+  @@unique([tenant_id, entity_type, entity_id, tag])
+  @@index([tenant_id, entity_type, entity_id])
+  @@map("ops_entity_tags")
+}
+
+model OpsEntityLink {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String        @db.Uuid
+  entity_type OpsEntityType
+  entity_id   String        @db.Uuid
+  title       String        @db.VarChar(200)
+  url         String        @db.VarChar(1000)
+  created_at  DateTime      @default(now()) @db.Timestamptz
+  created_by  String?       @db.Uuid
+  deleted_at  DateTime?     @db.Timestamptz
+
+  @@index([tenant_id, entity_type, entity_id])
+  @@map("ops_entity_links")
+}
+
+model OpsEntityLike {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String        @db.Uuid
+  entity_type OpsEntityType
+  entity_id   String        @db.Uuid
+  user_id     String        @db.Uuid
+  created_at  DateTime      @default(now()) @db.Timestamptz
+
+  @@unique([tenant_id, entity_type, entity_id, user_id])
+  @@index([tenant_id, entity_type, entity_id])
+  @@map("ops_entity_likes")
+}
+
+model OpsEntityComplaint {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String        @db.Uuid
+  entity_type OpsEntityType
+  entity_id   String        @db.Uuid
+  subject     String        @db.VarChar(200)
+  body        String        @db.Text
+  status      String        @default("OPEN") @db.VarChar(40)
+  created_at  DateTime      @default(now()) @db.Timestamptz
+  updated_at  DateTime      @updatedAt @db.Timestamptz
+  created_by  String?       @db.Uuid
+  closed_at   DateTime?     @db.Timestamptz
+  deleted_at  DateTime?     @db.Timestamptz
+
+  @@index([tenant_id, entity_type, entity_id])
+  @@map("ops_entity_complaints")
 }
 
 model SalespersonBudget {

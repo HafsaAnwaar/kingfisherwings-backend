@@ -1013,7 +1013,7 @@ export class PortalService {
         <p><strong>Email:</strong> ${opts.to}<br/>
         <strong>Temporary password:</strong> ${opts.password}</p>
         <p>Use your forwarder's website (or portal login API) with this tenant's credentials to sign in.</p>
-        ${appUrl ? `<p>API base: ${appUrl}</p>` : ""}
+        ${appUrl ? `<p>Direct Link: ${appUrl}</p>` : ""}
         <p>Please change your password after first login if prompted by your forwarder.</p>
       `,
       createdBy: opts.actorId,

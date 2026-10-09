@@ -109,6 +109,7 @@ export class NumberGeneratorService {
       DEBIT_NOTE: "DN",
       PURCHASE_INVOICE: "PI",
       QUOTATION: "Q",
+      SHIPMENT: "SHP",
       JOB_NUMBER: "JOB",
       VOUCHER: "JV",
       PAYMENT: "PAY",

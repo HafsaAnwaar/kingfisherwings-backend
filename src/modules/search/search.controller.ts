@@ -20,7 +20,8 @@ export class SearchController {
   @Get()
   @RequirePermissions(SEARCH_PERMISSIONS.VIEW)
   @ApiOperation({
-    summary: "Global search across jobs, quotations, and parties",
+    summary:
+      "Global search across jobs, quotations, parties, invoices, enquiries, shipments",
   })
   search(
     @CurrentUser("tenantId") tenantId: string,

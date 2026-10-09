@@ -60,6 +60,7 @@ import { PortalCcController } from "./portal-cc.controller";
 import { ToolsModule } from "../tools/tools.module";
 import { NvoccModule } from "../nvocc/nvocc.module";
 import { JobsModule } from "../jobs/jobs.module";
+import { ShipmentsModule } from "../shipments/shipments.module";
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { JobsModule } from "../jobs/jobs.module";
     NotificationsModule,
     NvoccModule,
     JobsModule,
+    ShipmentsModule,
     JwtModule.register({}),
   ],
   controllers: [

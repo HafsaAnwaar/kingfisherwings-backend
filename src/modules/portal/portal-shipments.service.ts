@@ -1,47 +1,220 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { Job, JobMilestone, JobStatus, Prisma } from "@prisma/client";
+import {
+  Job,
+  JobMilestone,
+  JobStatus,
+  JobType,
+  Prisma,
+  Shipment,
+  ShipmentStatus,
+} from "@prisma/client";
 import { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PortalShipmentQueryDto } from "./dto/portal-shipment-query.dto";
 import { PORTAL_CSV_EXPORT_MAX_ROWS, toCsv } from "./helpers/portal-csv.helper";
-import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
+import {
+  portalJobOwnershipWhere,
+  portalShipmentOwnershipWhere,
+} from "./helpers/portal-ownership.helper";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 
-type PortalJobRow = Job & {
+const JOB_DETAIL_INCLUDE = {
   air_details: {
-    hawb_number: string | null;
-    mawb_number: string | null;
-    flight_number: string | null;
-    flight_date: Date | null;
-    airline_id: string | null;
-    origin_airport_id: string | null;
-    dest_airport_id: string | null;
-    awb_type: string | null;
-    freight_type: string | null;
-  } | null;
+    select: {
+      hawb_number: true,
+      mawb_number: true,
+      flight_number: true,
+      flight_date: true,
+      airline_id: true,
+      origin_airport_id: true,
+      dest_airport_id: true,
+      awb_type: true,
+      freight_type: true,
+    },
+  },
   sea_fcl_details: {
-    voyage_number: string | null;
-    hbl_number: string | null;
-    mbl_number: string | null;
-    booking_number: string | null;
-    vessel_id: string | null;
-    shipping_line_id: string | null;
-    etd: Date | null;
-    eta: Date | null;
-    sailed_at: Date | null;
-    place_of_receipt: string | null;
-    place_of_delivery: string | null;
-    freight_terms: string | null;
-    transhipment_port: string | null;
-    containers: Array<{
-      id: string;
-      container_number: string | null;
-      seal_number: string | null;
-      status: string;
-      gross_weight: Prisma.Decimal | null;
-      cbm: Prisma.Decimal | null;
-    }>;
+    select: {
+      voyage_number: true,
+      hbl_number: true,
+      mbl_number: true,
+      booking_number: true,
+      vessel_id: true,
+      shipping_line_id: true,
+      etd: true,
+      eta: true,
+      sailed_at: true,
+      place_of_receipt: true,
+      place_of_delivery: true,
+      freight_terms: true,
+      transhipment_port: true,
+      containers: {
+        where: { deleted_at: null },
+        select: {
+          id: true,
+          container_number: true,
+          seal_number: true,
+          status: true,
+          gross_weight: true,
+          cbm: true,
+        },
+      },
+    },
+  },
+} as const;
+
+const JOB_LIST_INCLUDE = {
+  air_details: {
+    select: {
+      hawb_number: true,
+      mawb_number: true,
+      flight_number: true,
+      flight_date: true,
+      origin_airport_id: true,
+      dest_airport_id: true,
+      awb_type: true,
+      freight_type: true,
+    },
+  },
+  sea_fcl_details: {
+    select: {
+      voyage_number: true,
+      hbl_number: true,
+      mbl_number: true,
+      booking_number: true,
+      vessel_id: true,
+      etd: true,
+      eta: true,
+      sailed_at: true,
+      place_of_receipt: true,
+      place_of_delivery: true,
+      freight_terms: true,
+      transhipment_port: true,
+      containers: {
+        where: { deleted_at: null },
+        select: {
+          id: true,
+          container_number: true,
+          seal_number: true,
+          status: true,
+          gross_weight: true,
+          cbm: true,
+        },
+      },
+    },
+  },
+} as const;
+
+type JobDetailSlice = {
+  hawb_number: string | null;
+  mawb_number: string | null;
+  flight_number: string | null;
+  flight_date: Date | null;
+  airline_id?: string | null;
+  origin_airport_id: string | null;
+  dest_airport_id: string | null;
+  awb_type: string | null;
+  freight_type: string | null;
+} | null;
+
+type SeaFclSlice = {
+  voyage_number: string | null;
+  hbl_number: string | null;
+  mbl_number: string | null;
+  booking_number: string | null;
+  vessel_id: string | null;
+  shipping_line_id?: string | null;
+  etd: Date | null;
+  eta: Date | null;
+  sailed_at: Date | null;
+  place_of_receipt: string | null;
+  place_of_delivery: string | null;
+  freight_terms: string | null;
+  transhipment_port: string | null;
+  containers: Array<{
+    id: string;
+    container_number: string | null;
+    seal_number: string | null;
+    status: string;
+    gross_weight: Prisma.Decimal | null;
+    cbm: Prisma.Decimal | null;
+  }>;
+} | null;
+
+/** Normalized row used for list/detail (Shipment primary or legacy Job). */
+type PortalRow = {
+  id: string;
+  shipment_id: string | null;
+  shipment_number: string | null;
+  job_id: string | null;
+  job_number: string | null;
+  job_type: JobType;
+  status: string;
+  etd: Date | null;
+  eta: Date | null;
+  commodity: string | null;
+  pieces: number | null;
+  gross_weight: Prisma.Decimal | null;
+  chargeable_weight: Prisma.Decimal | null;
+  volume_cbm: Prisma.Decimal | null;
+  shipper_id: string | null;
+  consignee_id: string | null;
+  billing_party_id: string | null;
+  origin_port_id: string | null;
+  dest_port_id: string | null;
+  customer_remarks: string | null;
+  incoterms: string | null;
+  is_dg: boolean;
+  vessel_name: string | null;
+  voyage_number: string | null;
+  flight_number: string | null;
+  hbl_number: string | null;
+  container_numbers: string | null;
+  created_at: Date;
+  updated_at: Date;
+  air_details: JobDetailSlice;
+  sea_fcl_details: SeaFclSlice;
+  milestones?: JobMilestone[];
+};
+
+type EnrichedPortalRow = PortalRow & {
+  _origin_port: {
+    id: string;
+    name: string;
+    un_locode: string;
+    country_code: string;
   } | null;
+  _dest_port: {
+    id: string;
+    name: string;
+    un_locode: string;
+    country_code: string;
+  } | null;
+  _origin_airport: {
+    id: string;
+    name: string;
+    iata_code: string;
+    country_code: string;
+  } | null;
+  _dest_airport: {
+    id: string;
+    name: string;
+    iata_code: string;
+    country_code: string;
+  } | null;
+  _shipper: { id: string; name: string; code: string } | null;
+  _consignee: { id: string; name: string; code: string } | null;
+  _vessel: { id: string; name: string; imo_number: string | null } | null;
+  _airline: { id: string; name: string; iata_code: string | null } | null;
+  _shipping_line: {
+    id: string;
+    name: string;
+    scac_code: string | null;
+  } | null;
+};
+
+type LinkedJob = Job & {
+  air_details: JobDetailSlice;
+  sea_fcl_details: SeaFclSlice;
   milestones?: JobMilestone[];
 };
 
@@ -50,72 +223,68 @@ export class PortalShipmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(user: CurrentPortalUser, query: PortalShipmentQueryDto) {
-    const where = this.buildWhere(user, query);
+    const skip = (query.page - 1) * query.limit;
+    const take = query.limit;
+    const shipmentWhere = this.buildShipmentWhere(user, query);
+    const legacyJobWhere = this.buildLegacyJobWhere(user, query);
 
-    const [rows, total] = await this.prisma.runWithTenant(
+    const { rows, total } = await this.prisma.runWithTenant(
       user.tenantId,
       async (tx) => {
-        return Promise.all([
-          tx.job.findMany({
-            where,
-            skip: (query.page - 1) * query.limit,
-            take: query.limit,
-            orderBy: { created_at: query.order },
-            include: {
-              air_details: {
-                select: {
-                  hawb_number: true,
-                  mawb_number: true,
-                  flight_number: true,
-                  flight_date: true,
-                  origin_airport_id: true,
-                  dest_airport_id: true,
-                  awb_type: true,
-                  freight_type: true,
-                },
-              },
-              sea_fcl_details: {
-                select: {
-                  voyage_number: true,
-                  hbl_number: true,
-                  mbl_number: true,
-                  booking_number: true,
-                  vessel_id: true,
-                  etd: true,
-                  eta: true,
-                  sailed_at: true,
-                  place_of_receipt: true,
-                  place_of_delivery: true,
-                  freight_terms: true,
-                  transhipment_port: true,
-                  containers: {
-                    where: { deleted_at: null },
-                    select: {
-                      id: true,
-                      container_number: true,
-                      seal_number: true,
-                      status: true,
-                      gross_weight: true,
-                      cbm: true,
-                    },
-                  },
-                },
-              },
-            },
-          }),
-          tx.job.count({ where }),
+        const [shipmentCount, legacyCount] = await Promise.all([
+          tx.shipment.count({ where: shipmentWhere }),
+          tx.job.count({ where: legacyJobWhere }),
         ]);
+        const totalCount = shipmentCount + legacyCount;
+
+        let shipmentRows: Array<
+          Shipment & { job: LinkedJob | null }
+        > = [];
+        let legacyJobs: LinkedJob[] = [];
+
+        if (skip < shipmentCount) {
+          shipmentRows = (await tx.shipment.findMany({
+            where: shipmentWhere,
+            skip,
+            take,
+            orderBy: { created_at: query.order },
+            include: { job: { include: JOB_LIST_INCLUDE } },
+          })) as Array<Shipment & { job: LinkedJob | null }>;
+
+          const remaining = take - shipmentRows.length;
+          if (remaining > 0) {
+            legacyJobs = (await tx.job.findMany({
+              where: legacyJobWhere,
+              skip: 0,
+              take: remaining,
+              orderBy: { created_at: query.order },
+              include: JOB_LIST_INCLUDE,
+            })) as LinkedJob[];
+          }
+        } else {
+          legacyJobs = (await tx.job.findMany({
+            where: legacyJobWhere,
+            skip: skip - shipmentCount,
+            take,
+            orderBy: { created_at: query.order },
+            include: JOB_LIST_INCLUDE,
+          })) as LinkedJob[];
+        }
+
+        const normalized: PortalRow[] = [
+          ...shipmentRows.map((s) => this.fromShipment(s, s.job)),
+          ...legacyJobs.map((j) => this.fromLegacyJob(j)),
+        ];
+
+        return { rows: normalized, total: totalCount };
       },
     );
 
-    const enriched = await this.attachLocations(
-      user.tenantId,
-      rows as PortalJobRow[],
-    );
+    const enriched = await this.attachLocations(user.tenantId, rows);
 
     return {
       success: true,
-      data: enriched.map((job) => this.toListItem(job, user.partyId)),
+      data: enriched.map((row) => this.toListItem(row, user.partyId)),
       meta: {
         page: query.page,
         limit: query.limit,
@@ -130,64 +299,44 @@ export class PortalShipmentsService {
     query: PortalShipmentQueryDto,
     res: Response,
   ) {
-    const where = this.buildWhere(user, query);
+    const shipmentWhere = this.buildShipmentWhere(user, query);
+    const legacyJobWhere = this.buildLegacyJobWhere(user, query);
 
-    const rows = await this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.job.findMany({
-        where,
+    const rows = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
+      const shipments = (await tx.shipment.findMany({
+        where: shipmentWhere,
         take: PORTAL_CSV_EXPORT_MAX_ROWS,
         orderBy: { created_at: query.order },
-        include: {
-          air_details: {
-            select: {
-              hawb_number: true,
-              mawb_number: true,
-              flight_number: true,
-              flight_date: true,
-              origin_airport_id: true,
-              dest_airport_id: true,
-              awb_type: true,
-              freight_type: true,
-            },
-          },
-          sea_fcl_details: {
-            select: {
-              voyage_number: true,
-              hbl_number: true,
-              mbl_number: true,
-              booking_number: true,
-              vessel_id: true,
-              etd: true,
-              eta: true,
-              sailed_at: true,
-              place_of_receipt: true,
-              place_of_delivery: true,
-              freight_terms: true,
-              transhipment_port: true,
-              containers: {
-                where: { deleted_at: null },
-                select: {
-                  id: true,
-                  container_number: true,
-                  seal_number: true,
-                  status: true,
-                  gross_weight: true,
-                  cbm: true,
-                },
-              },
-            },
-          },
-        },
-      }),
-    );
+        include: { job: { include: JOB_LIST_INCLUDE } },
+      })) as Array<Shipment & { job: LinkedJob | null }>;
 
-    const enriched = await this.attachLocations(
-      user.tenantId,
-      rows as PortalJobRow[],
-    );
-    const items = enriched.map((job) => this.toListItem(job, user.partyId));
+      const remaining = Math.max(
+        0,
+        PORTAL_CSV_EXPORT_MAX_ROWS - shipments.length,
+      );
+      const legacy =
+        remaining > 0
+          ? ((await tx.job.findMany({
+              where: legacyJobWhere,
+              take: remaining,
+              orderBy: { created_at: query.order },
+              include: JOB_LIST_INCLUDE,
+            })) as LinkedJob[])
+          : [];
+
+      return [
+        ...shipments.map((s) => this.fromShipment(s, s.job)),
+        ...legacy.map((j) => this.fromLegacyJob(j)),
+      ];
+    });
+
+    const enriched = await this.attachLocations(user.tenantId, rows);
+    const items = enriched.map((row) => this.toListItem(row, user.partyId));
 
     const headers = [
+      "shipment_id",
+      "shipment_number",
+      "job_id",
       "job_number",
       "job_type",
       "status",
@@ -213,6 +362,9 @@ export class PortalShipmentsService {
     ];
 
     const csvRows = items.map((item) => [
+      item.shipment_id,
+      item.shipment_number,
+      item.job_id,
       item.job_number,
       item.job_type,
       item.status,
@@ -250,21 +402,40 @@ export class PortalShipmentsService {
     user: CurrentPortalUser,
     period?: { from: Date; to: Date; period?: string },
   ) {
-    const base: Prisma.JobWhereInput = {
+    const dateFilter = period
+      ? { created_at: { gte: period.from, lte: period.to } }
+      : {};
+
+    const shipmentBase: Prisma.ShipmentWhereInput = {
+      tenant_id: user.tenantId,
+      deleted_at: null,
+      ...portalShipmentOwnershipWhere(user.partyId),
+      ...dateFilter,
+    };
+
+    const legacyJobBase: Prisma.JobWhereInput = {
       tenant_id: user.tenantId,
       deleted_at: null,
       ...portalJobOwnershipWhere(user.partyId),
-      ...(period
-        ? { created_at: { gte: period.from, lte: period.to } }
-        : {}),
+      NOT: { shipments: { some: { deleted_at: null } } },
+      ...dateFilter,
     };
 
-    const groups = await this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.job.groupBy({
-        by: ["status"],
-        where: base,
-        _count: { _all: true },
-      }),
+    const [shipmentGroups, jobGroups] = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.shipment.groupBy({
+            by: ["status"],
+            where: shipmentBase,
+            _count: { _all: true },
+          }),
+          tx.job.groupBy({
+            by: ["status"],
+            where: legacyJobBase,
+            _count: { _all: true },
+          }),
+        ]),
     );
 
     const byStatus = Object.values(JobStatus).reduce(
@@ -276,8 +447,13 @@ export class PortalShipmentsService {
     );
 
     let total = 0;
-    for (const row of groups) {
-      byStatus[row.status] = row._count._all;
+    for (const row of shipmentGroups) {
+      const mapped = this.mapShipmentStatusToJobBucket(row.status);
+      byStatus[mapped] += row._count._all;
+      total += row._count._all;
+    }
+    for (const row of jobGroups) {
+      byStatus[row.status] += row._count._all;
       total += row._count._all;
     }
 
@@ -310,6 +486,84 @@ export class PortalShipmentsService {
 
   async lookupByRef(user: CurrentPortalUser, ref: string) {
     const q = ref.trim();
+
+    const shipment = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.shipment.findFirst({
+        where: {
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          ...portalShipmentOwnershipWhere(user.partyId),
+          OR: [
+            { shipment_number: { equals: q, mode: "insensitive" } },
+            { hbl_number: { equals: q, mode: "insensitive" } },
+            {
+              job: {
+                job_number: { equals: q, mode: "insensitive" },
+              },
+            },
+            {
+              job: {
+                air_details: {
+                  hawb_number: { equals: q, mode: "insensitive" },
+                },
+              },
+            },
+            {
+              job: {
+                air_details: {
+                  mawb_number: { equals: q, mode: "insensitive" },
+                },
+              },
+            },
+            {
+              job: {
+                sea_fcl_details: {
+                  hbl_number: { equals: q, mode: "insensitive" },
+                },
+              },
+            },
+            {
+              job: {
+                sea_fcl_details: {
+                  mbl_number: { equals: q, mode: "insensitive" },
+                },
+              },
+            },
+            {
+              job: {
+                sea_fcl_details: {
+                  booking_number: { equals: q, mode: "insensitive" },
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          shipment_number: true,
+          status: true,
+          job_type: true,
+          job_id: true,
+          job: { select: { id: true, job_number: true, status: true } },
+        },
+      }),
+    );
+
+    if (shipment) {
+      return {
+        success: true,
+        data: {
+          id: shipment.id,
+          shipment_id: shipment.id,
+          shipment_number: shipment.shipment_number,
+          job_id: shipment.job_id,
+          job_number: shipment.job?.job_number ?? null,
+          status: shipment.job?.status ?? shipment.status,
+          job_type: shipment.job_type,
+        },
+      };
+    }
+
     const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.job.findFirst({
         where: {
@@ -351,13 +605,21 @@ export class PortalShipmentsService {
 
     return {
       success: true,
-      data: job,
+      data: {
+        id: job.id,
+        shipment_id: null,
+        shipment_number: null,
+        job_id: job.id,
+        job_number: job.job_number,
+        status: job.status,
+        job_type: job.job_type,
+      },
     };
   }
 
-  async findOne(user: CurrentPortalUser, jobId: string) {
-    const job = await this.findOwnedJob(user, jobId, true);
-    const [enriched] = await this.attachLocations(user.tenantId, [job]);
+  async findOne(user: CurrentPortalUser, id: string) {
+    const row = await this.resolveOwnedRow(user, id, true);
+    const [enriched] = await this.attachLocations(user.tenantId, [row]);
 
     return {
       success: true,
@@ -365,8 +627,11 @@ export class PortalShipmentsService {
     };
   }
 
-  async getMilestones(user: CurrentPortalUser, jobId: string) {
-    await this.findOwnedJob(user, jobId, false);
+  async getMilestones(user: CurrentPortalUser, id: string) {
+    const jobId = await this.resolveTrackingJobId(user, id);
+    if (!jobId) {
+      return { success: true, data: [] };
+    }
 
     const milestones = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.jobMilestone.findMany({
@@ -403,9 +668,139 @@ export class PortalShipmentsService {
     };
   }
 
+  /**
+   * Resolve portal `:id` to a Job id for tracking / docs / workflow.
+   * Accepts Shipment id (uses shipment.job_id) or legacy Job id.
+   */
+  async resolveTrackingJobId(
+    user: CurrentPortalUser,
+    id: string,
+  ): Promise<string | null> {
+    const shipment = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.shipment.findFirst({
+        where: {
+          id,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          ...portalShipmentOwnershipWhere(user.partyId),
+        },
+        select: { job_id: true },
+      }),
+    );
+    if (shipment) {
+      return shipment.job_id;
+    }
+
+    const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.job.findFirst({
+        where: {
+          id,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          ...portalJobOwnershipWhere(user.partyId),
+        },
+        select: { id: true },
+      }),
+    );
+    if (!job) {
+      throw new NotFoundException("Shipment not found.");
+    }
+    return job.id;
+  }
+
   // ─── Internals ──────────────────────────────────────────────
 
-  private buildWhere(
+  private buildShipmentWhere(
+    user: CurrentPortalUser,
+    query: PortalShipmentQueryDto,
+  ): Prisma.ShipmentWhereInput {
+    const where: Prisma.ShipmentWhereInput = {
+      tenant_id: user.tenantId,
+      deleted_at: null,
+      ...portalShipmentOwnershipWhere(user.partyId),
+    };
+
+    if (query.job_type) where.job_type = query.job_type;
+
+    if (query.from_date || query.to_date) {
+      where.created_at = {
+        ...(query.from_date ? { gte: new Date(query.from_date) } : {}),
+        ...(query.to_date ? { lte: new Date(query.to_date) } : {}),
+      };
+    }
+
+    if (query.status) {
+      const shipmentStatus = this.mapJobStatusToShipmentStatus(query.status);
+      where.AND = [
+        ...(Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : []),
+        {
+          OR: [
+            { job: { status: query.status } },
+            ...(shipmentStatus
+              ? [{ job_id: null as string | null, status: shipmentStatus }]
+              : []),
+          ],
+        },
+      ];
+    }
+
+    if (query.search?.trim()) {
+      const q = query.search.trim();
+      const searchOr: Prisma.ShipmentWhereInput[] = [
+        { shipment_number: { contains: q, mode: "insensitive" } },
+        { commodity: { contains: q, mode: "insensitive" } },
+        { hbl_number: { contains: q, mode: "insensitive" } },
+        { job: { job_number: { contains: q, mode: "insensitive" } } },
+        {
+          job: {
+            air_details: { hawb_number: { contains: q, mode: "insensitive" } },
+          },
+        },
+        {
+          job: {
+            air_details: { mawb_number: { contains: q, mode: "insensitive" } },
+          },
+        },
+        {
+          job: {
+            sea_fcl_details: {
+              hbl_number: { contains: q, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          job: {
+            sea_fcl_details: {
+              mbl_number: { contains: q, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          job: {
+            sea_fcl_details: {
+              booking_number: { contains: q, mode: "insensitive" },
+            },
+          },
+        },
+      ];
+      where.AND = [
+        ...(Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : []),
+        { OR: searchOr },
+      ];
+    }
+
+    return where;
+  }
+
+  private buildLegacyJobWhere(
     user: CurrentPortalUser,
     query: PortalShipmentQueryDto,
   ): Prisma.JobWhereInput {
@@ -413,6 +808,8 @@ export class PortalShipmentsService {
       tenant_id: user.tenantId,
       deleted_at: null,
       ...portalJobOwnershipWhere(user.partyId),
+      // Dual-read: only jobs that have no linked Shipment row
+      NOT: { shipments: { some: { deleted_at: null } } },
     };
 
     if (query.status) where.status = query.status;
@@ -465,89 +862,188 @@ export class PortalShipmentsService {
     return where;
   }
 
-  private async findOwnedJob(
+  private async resolveOwnedRow(
     user: CurrentPortalUser,
-    jobId: string,
-    withDetails: boolean,
-  ) {
+    id: string,
+    withMilestones: boolean,
+  ): Promise<PortalRow> {
+    const jobInclude = withMilestones
+      ? {
+          ...JOB_DETAIL_INCLUDE,
+          milestones: {
+            where: { deleted_at: null },
+            orderBy: { created_at: "asc" as const },
+            select: {
+              id: true,
+              milestone: true,
+              planned_date: true,
+              actual_date: true,
+              notes: true,
+              created_at: true,
+              updated_at: true,
+            },
+          },
+        }
+      : JOB_DETAIL_INCLUDE;
+
+    const shipment = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.shipment.findFirst({
+        where: {
+          id,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          ...portalShipmentOwnershipWhere(user.partyId),
+        },
+        include: { job: { include: jobInclude } },
+      }),
+    );
+
+    if (shipment) {
+      return this.fromShipment(
+        shipment,
+        shipment.job as LinkedJob | null,
+      );
+    }
+
     const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.job.findFirst({
         where: {
-          id: jobId,
+          id,
           tenant_id: user.tenantId,
           deleted_at: null,
           ...portalJobOwnershipWhere(user.partyId),
         },
-        include: withDetails
-          ? {
-              air_details: {
-                select: {
-                  hawb_number: true,
-                  mawb_number: true,
-                  flight_number: true,
-                  flight_date: true,
-                  airline_id: true,
-                  origin_airport_id: true,
-                  dest_airport_id: true,
-                  awb_type: true,
-                  freight_type: true,
-                },
-              },
-              sea_fcl_details: {
-                select: {
-                  voyage_number: true,
-                  hbl_number: true,
-                  mbl_number: true,
-                  booking_number: true,
-                  vessel_id: true,
-                  shipping_line_id: true,
-                  etd: true,
-                  eta: true,
-                  sailed_at: true,
-                  place_of_receipt: true,
-                  place_of_delivery: true,
-                  freight_terms: true,
-                  transhipment_port: true,
-                  containers: {
-                    where: { deleted_at: null },
-                    select: {
-                      id: true,
-                      container_number: true,
-                      seal_number: true,
-                      status: true,
-                      gross_weight: true,
-                      cbm: true,
-                    },
-                  },
-                },
-              },
-              milestones: {
-                where: { deleted_at: null },
-                orderBy: { created_at: "asc" },
-                select: {
-                  id: true,
-                  milestone: true,
-                  planned_date: true,
-                  actual_date: true,
-                  notes: true,
-                  created_at: true,
-                  updated_at: true,
-                },
-              },
-            }
-          : undefined,
+        include: jobInclude,
       }),
     );
 
     if (!job) {
-      // 404 — do not reveal whether the job exists for another party
       throw new NotFoundException("Shipment not found.");
     }
 
-    return job as PortalJobRow;
+    return this.fromLegacyJob(job as LinkedJob);
   }
 
-  private async attachLocations(tenantId: string, jobs: PortalJobRow[]) {
+  private fromShipment(
+    shipment: Shipment,
+    job: LinkedJob | null,
+  ): PortalRow {
+    return {
+      id: shipment.id,
+      shipment_id: shipment.id,
+      shipment_number: shipment.shipment_number,
+      job_id: shipment.job_id,
+      job_number: job?.job_number ?? null,
+      job_type: shipment.job_type,
+      status: job?.status ?? shipment.status,
+      etd: job?.etd ?? shipment.etd,
+      eta: job?.eta ?? shipment.eta,
+      commodity: job?.commodity ?? shipment.commodity,
+      pieces: job?.pieces ?? shipment.pieces,
+      gross_weight: job?.gross_weight ?? shipment.gross_weight,
+      chargeable_weight:
+        job?.chargeable_weight ?? shipment.chargeable_weight,
+      volume_cbm: job?.volume_cbm ?? shipment.volume_cbm,
+      shipper_id: shipment.shipper_id ?? job?.shipper_id ?? null,
+      consignee_id: shipment.consignee_id ?? job?.consignee_id ?? null,
+      billing_party_id: job?.billing_party_id ?? shipment.customer_id,
+      origin_port_id: shipment.origin_port_id ?? job?.origin_port_id ?? null,
+      dest_port_id: shipment.dest_port_id ?? job?.dest_port_id ?? null,
+      customer_remarks: job?.customer_remarks ?? shipment.notes,
+      incoterms: shipment.incoterms ?? job?.incoterms ?? null,
+      is_dg: shipment.is_dg || job?.is_dg || false,
+      vessel_name: shipment.vessel_name,
+      voyage_number: shipment.voyage_number,
+      flight_number: shipment.flight_number,
+      hbl_number: shipment.hbl_number,
+      container_numbers: shipment.container_numbers,
+      created_at: shipment.created_at,
+      updated_at: shipment.updated_at,
+      air_details: job?.air_details ?? null,
+      sea_fcl_details: job?.sea_fcl_details ?? null,
+      milestones: job?.milestones,
+    };
+  }
+
+  private fromLegacyJob(job: LinkedJob): PortalRow {
+    return {
+      id: job.id,
+      shipment_id: null,
+      shipment_number: null,
+      job_id: job.id,
+      job_number: job.job_number,
+      job_type: job.job_type,
+      status: job.status,
+      etd: job.etd,
+      eta: job.eta,
+      commodity: job.commodity,
+      pieces: job.pieces,
+      gross_weight: job.gross_weight,
+      chargeable_weight: job.chargeable_weight,
+      volume_cbm: job.volume_cbm,
+      shipper_id: job.shipper_id,
+      consignee_id: job.consignee_id,
+      billing_party_id: job.billing_party_id,
+      origin_port_id: job.origin_port_id,
+      dest_port_id: job.dest_port_id,
+      customer_remarks: job.customer_remarks,
+      incoterms: job.incoterms,
+      is_dg: job.is_dg,
+      vessel_name: null,
+      voyage_number: null,
+      flight_number: null,
+      hbl_number: null,
+      container_numbers: null,
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+      air_details: job.air_details,
+      sea_fcl_details: job.sea_fcl_details,
+      milestones: job.milestones,
+    };
+  }
+
+  private mapJobStatusToShipmentStatus(
+    status: JobStatus,
+  ): ShipmentStatus | null {
+    switch (status) {
+      case JobStatus.BOOKING_CONFIRMED:
+      case JobStatus.ENQUIRY:
+      case JobStatus.QUOTATION:
+        return ShipmentStatus.BOOKED;
+      case JobStatus.IN_PROGRESS:
+      case JobStatus.DOCS_PENDING:
+      case JobStatus.CUSTOMS_CLEARANCE:
+        return ShipmentStatus.IN_PROGRESS;
+      case JobStatus.DELIVERED:
+      case JobStatus.COMPLETED:
+        return ShipmentStatus.COMPLETED;
+      case JobStatus.CANCELLED:
+        return ShipmentStatus.CANCELLED;
+      case JobStatus.ON_HOLD:
+        return ShipmentStatus.ON_HOLD;
+      default:
+        return null;
+    }
+  }
+
+  private mapShipmentStatusToJobBucket(status: ShipmentStatus): JobStatus {
+    switch (status) {
+      case ShipmentStatus.BOOKED:
+        return JobStatus.BOOKING_CONFIRMED;
+      case ShipmentStatus.IN_PROGRESS:
+        return JobStatus.IN_PROGRESS;
+      case ShipmentStatus.COMPLETED:
+        return JobStatus.COMPLETED;
+      case ShipmentStatus.CANCELLED:
+        return JobStatus.CANCELLED;
+      case ShipmentStatus.ON_HOLD:
+        return JobStatus.ON_HOLD;
+      default:
+        return JobStatus.BOOKING_CONFIRMED;
+    }
+  }
+
+  private async attachLocations(tenantId: string, rows: PortalRow[]) {
     const portIds = new Set<string>();
     const airportIds = new Set<string>();
     const partyIds = new Set<string>();
@@ -555,21 +1051,21 @@ export class PortalShipmentsService {
     const airlineIds = new Set<string>();
     const shippingLineIds = new Set<string>();
 
-    for (const job of jobs) {
-      if (job.origin_port_id) portIds.add(job.origin_port_id);
-      if (job.dest_port_id) portIds.add(job.dest_port_id);
-      if (job.shipper_id) partyIds.add(job.shipper_id);
-      if (job.consignee_id) partyIds.add(job.consignee_id);
-      if (job.air_details?.origin_airport_id)
-        airportIds.add(job.air_details.origin_airport_id);
-      if (job.air_details?.dest_airport_id)
-        airportIds.add(job.air_details.dest_airport_id);
-      if (job.air_details?.airline_id)
-        airlineIds.add(job.air_details.airline_id);
-      if (job.sea_fcl_details?.vessel_id)
-        vesselIds.add(job.sea_fcl_details.vessel_id);
-      if (job.sea_fcl_details?.shipping_line_id)
-        shippingLineIds.add(job.sea_fcl_details.shipping_line_id);
+    for (const row of rows) {
+      if (row.origin_port_id) portIds.add(row.origin_port_id);
+      if (row.dest_port_id) portIds.add(row.dest_port_id);
+      if (row.shipper_id) partyIds.add(row.shipper_id);
+      if (row.consignee_id) partyIds.add(row.consignee_id);
+      if (row.air_details?.origin_airport_id)
+        airportIds.add(row.air_details.origin_airport_id);
+      if (row.air_details?.dest_airport_id)
+        airportIds.add(row.air_details.dest_airport_id);
+      if (row.air_details?.airline_id)
+        airlineIds.add(row.air_details.airline_id);
+      if (row.sea_fcl_details?.vessel_id)
+        vesselIds.add(row.sea_fcl_details.vessel_id);
+      if (row.sea_fcl_details?.shipping_line_id)
+        shippingLineIds.add(row.sea_fcl_details.shipping_line_id);
     }
 
     const [ports, airports, parties, vessels, airlines, shippingLines] =
@@ -655,112 +1151,107 @@ export class PortalShipmentsService {
     const airlineMap = new Map(airlines.map((a) => [a.id, a]));
     const shippingLineMap = new Map(shippingLines.map((s) => [s.id, s]));
 
-    return jobs.map((job) => ({
-      ...job,
-      _origin_port: job.origin_port_id
-        ? (portMap.get(job.origin_port_id) ?? null)
+    return rows.map((row) => ({
+      ...row,
+      _origin_port: row.origin_port_id
+        ? (portMap.get(row.origin_port_id) ?? null)
         : null,
-      _dest_port: job.dest_port_id
-        ? (portMap.get(job.dest_port_id) ?? null)
+      _dest_port: row.dest_port_id
+        ? (portMap.get(row.dest_port_id) ?? null)
         : null,
-      _origin_airport: job.air_details?.origin_airport_id
-        ? (airportMap.get(job.air_details.origin_airport_id) ?? null)
+      _origin_airport: row.air_details?.origin_airport_id
+        ? (airportMap.get(row.air_details.origin_airport_id) ?? null)
         : null,
-      _dest_airport: job.air_details?.dest_airport_id
-        ? (airportMap.get(job.air_details.dest_airport_id) ?? null)
+      _dest_airport: row.air_details?.dest_airport_id
+        ? (airportMap.get(row.air_details.dest_airport_id) ?? null)
         : null,
-      _shipper: job.shipper_id ? (partyMap.get(job.shipper_id) ?? null) : null,
-      _consignee: job.consignee_id
-        ? (partyMap.get(job.consignee_id) ?? null)
+      _shipper: row.shipper_id ? (partyMap.get(row.shipper_id) ?? null) : null,
+      _consignee: row.consignee_id
+        ? (partyMap.get(row.consignee_id) ?? null)
         : null,
-      _vessel: job.sea_fcl_details?.vessel_id
-        ? (vesselMap.get(job.sea_fcl_details.vessel_id) ?? null)
+      _vessel: row.sea_fcl_details?.vessel_id
+        ? (vesselMap.get(row.sea_fcl_details.vessel_id) ?? null)
         : null,
-      _airline: job.air_details?.airline_id
-        ? (airlineMap.get(job.air_details.airline_id) ?? null)
+      _airline: row.air_details?.airline_id
+        ? (airlineMap.get(row.air_details.airline_id) ?? null)
         : null,
-      _shipping_line: job.sea_fcl_details?.shipping_line_id
-        ? (shippingLineMap.get(job.sea_fcl_details.shipping_line_id) ?? null)
+      _shipping_line: row.sea_fcl_details?.shipping_line_id
+        ? (shippingLineMap.get(row.sea_fcl_details.shipping_line_id) ?? null)
         : null,
-    }));
+    })) as EnrichedPortalRow[];
   }
 
-  private toListItem(
-    job: Awaited<ReturnType<PortalShipmentsService["attachLocations"]>>[number],
-    partyId: string,
-  ) {
+  private toListItem(row: EnrichedPortalRow, partyId: string) {
     return {
-      id: job.id,
-      job_number: job.job_number,
-      job_type: job.job_type,
-      status: job.status,
-      etd: job.etd ?? job.sea_fcl_details?.etd ?? null,
-      eta: job.eta ?? job.sea_fcl_details?.eta ?? null,
-      commodity: job.commodity,
-      pieces: job.pieces,
-      gross_weight: job.gross_weight,
-      chargeable_weight: job.chargeable_weight,
-      volume_cbm: job.volume_cbm,
-      role: this.partyRole(job, partyId),
+      id: row.id,
+      shipment_id: row.shipment_id,
+      shipment_number: row.shipment_number,
+      job_id: row.job_id,
+      job_number: row.job_number,
+      job_type: row.job_type,
+      status: row.status,
+      etd: row.etd ?? row.sea_fcl_details?.etd ?? null,
+      eta: row.eta ?? row.sea_fcl_details?.eta ?? null,
+      commodity: row.commodity,
+      pieces: row.pieces,
+      gross_weight: row.gross_weight,
+      chargeable_weight: row.chargeable_weight,
+      volume_cbm: row.volume_cbm,
+      role: this.partyRole(row, partyId),
       origin:
-        this.formatPort(job._origin_port) ??
-        this.formatAirport(job._origin_airport),
+        this.formatPort(row._origin_port) ??
+        this.formatAirport(row._origin_airport),
       destination:
-        this.formatPort(job._dest_port) ??
-        this.formatAirport(job._dest_airport),
+        this.formatPort(row._dest_port) ??
+        this.formatAirport(row._dest_airport),
       references: {
-        hawb_number: job.air_details?.hawb_number ?? null,
-        mawb_number: job.air_details?.mawb_number ?? null,
-        hbl_number: job.sea_fcl_details?.hbl_number ?? null,
-        mbl_number: job.sea_fcl_details?.mbl_number ?? null,
-        booking_number: job.sea_fcl_details?.booking_number ?? null,
-        flight_number: job.air_details?.flight_number ?? null,
-        voyage_number: job.sea_fcl_details?.voyage_number ?? null,
+        hawb_number: row.air_details?.hawb_number ?? null,
+        mawb_number: row.air_details?.mawb_number ?? null,
+        hbl_number:
+          row.sea_fcl_details?.hbl_number ?? row.hbl_number ?? null,
+        mbl_number: row.sea_fcl_details?.mbl_number ?? null,
+        booking_number: row.sea_fcl_details?.booking_number ?? null,
+        flight_number:
+          row.air_details?.flight_number ?? row.flight_number ?? null,
+        voyage_number:
+          row.sea_fcl_details?.voyage_number ?? row.voyage_number ?? null,
       },
-      created_at: job.created_at,
-      updated_at: job.updated_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 
-  private toDetail(
-    job: Awaited<
-      ReturnType<PortalShipmentsService["attachLocations"]>
-    >[number] & {
-      milestones?: Array<{
-        id: string;
-        milestone: string;
-        planned_date: Date | null;
-        actual_date: Date | null;
-        notes: string | null;
-        created_at: Date;
-        updated_at: Date;
-      }>;
-    },
-    partyId: string,
-  ) {
-    const list = this.toListItem(job, partyId);
+  private toDetail(row: EnrichedPortalRow, partyId: string) {
+    const list = this.toListItem(row, partyId);
     const originObj = list.origin;
     const destObj = list.destination;
-    const containerNumbers = (job.sea_fcl_details?.containers ?? [])
+    const containerNumbersFromJob = (row.sea_fcl_details?.containers ?? [])
       .map((c) => c.container_number)
       .filter((n): n is string => Boolean(n));
-    const vesselName = job._vessel?.name ?? null;
-    const voyage = job.sea_fcl_details?.voyage_number ?? null;
-    const flight = job.air_details?.flight_number ?? null;
-    const airlineName = job._airline?.name ?? null;
-    const shippingLineName = job._shipping_line?.name ?? null;
+    const containerNumbers = containerNumbersFromJob.length
+      ? containerNumbersFromJob
+      : (row.container_numbers ?? "")
+          .split(/[,;\s]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+    const vesselName = row._vessel?.name ?? row.vessel_name ?? null;
+    const voyage =
+      row.sea_fcl_details?.voyage_number ?? row.voyage_number ?? null;
+    const flight =
+      row.air_details?.flight_number ?? row.flight_number ?? null;
+    const airlineName = row._airline?.name ?? null;
+    const shippingLineName = row._shipping_line?.name ?? null;
 
     const cargoParts = [
-      job.commodity,
-      job.pieces != null ? `${job.pieces} pcs` : null,
-      job.gross_weight != null ? `${job.gross_weight} kg` : null,
-      job.volume_cbm != null ? `${job.volume_cbm} cbm` : null,
+      row.commodity,
+      row.pieces != null ? `${row.pieces} pcs` : null,
+      row.gross_weight != null ? `${row.gross_weight} kg` : null,
+      row.volume_cbm != null ? `${row.volume_cbm} cbm` : null,
     ].filter(Boolean);
 
     return {
       ...list,
-      reference: job.job_number,
-      // String aliases alongside object-shaped origin/destination for PDF templates.
+      reference: row.shipment_number ?? row.job_number,
       origin_string: originObj
         ? [originObj.code, originObj.name].filter(Boolean).join(" — ")
         : null,
@@ -781,48 +1272,48 @@ export class PortalShipmentsService {
           ? `${vesselName} / ${voyage}`
           : vesselName
         : flight,
-      mbl_number: job.sea_fcl_details?.mbl_number ?? null,
-      hbl_number: job.sea_fcl_details?.hbl_number ?? null,
-      mawb_number: job.air_details?.mawb_number ?? null,
-      hawb_number: job.air_details?.hawb_number ?? null,
+      mbl_number: row.sea_fcl_details?.mbl_number ?? null,
+      hbl_number: row.sea_fcl_details?.hbl_number ?? row.hbl_number ?? null,
+      mawb_number: row.air_details?.mawb_number ?? null,
+      hawb_number: row.air_details?.hawb_number ?? null,
       airline_name: airlineName,
       shipping_line_name: shippingLineName,
-      customer_remarks: job.customer_remarks,
-      incoterms: job.incoterms,
-      is_dg: job.is_dg,
-      shipper: job._shipper,
-      consignee: job._consignee,
-      air: job.air_details
+      customer_remarks: row.customer_remarks,
+      incoterms: row.incoterms,
+      is_dg: row.is_dg,
+      shipper: row._shipper,
+      consignee: row._consignee,
+      air: row.air_details
         ? {
-            hawb_number: job.air_details.hawb_number,
-            mawb_number: job.air_details.mawb_number,
-            flight_number: job.air_details.flight_number,
-            flight_date: job.air_details.flight_date,
-            awb_type: job.air_details.awb_type,
-            freight_type: job.air_details.freight_type,
+            hawb_number: row.air_details.hawb_number,
+            mawb_number: row.air_details.mawb_number,
+            flight_number: row.air_details.flight_number,
+            flight_date: row.air_details.flight_date,
+            awb_type: row.air_details.awb_type,
+            freight_type: row.air_details.freight_type,
             airline_name: airlineName,
-            airline_code: job._airline?.iata_code ?? null,
-            origin_airport: this.formatAirport(job._origin_airport),
-            dest_airport: this.formatAirport(job._dest_airport),
+            airline_code: row._airline?.iata_code ?? null,
+            origin_airport: this.formatAirport(row._origin_airport),
+            dest_airport: this.formatAirport(row._dest_airport),
           }
         : null,
-      sea_fcl: job.sea_fcl_details
+      sea_fcl: row.sea_fcl_details
         ? {
-            voyage_number: job.sea_fcl_details.voyage_number,
-            hbl_number: job.sea_fcl_details.hbl_number,
-            mbl_number: job.sea_fcl_details.mbl_number,
-            booking_number: job.sea_fcl_details.booking_number,
-            etd: job.sea_fcl_details.etd,
-            eta: job.sea_fcl_details.eta,
-            sailed_at: job.sea_fcl_details.sailed_at,
-            place_of_receipt: job.sea_fcl_details.place_of_receipt,
-            place_of_delivery: job.sea_fcl_details.place_of_delivery,
-            freight_terms: job.sea_fcl_details.freight_terms,
-            transhipment_port: job.sea_fcl_details.transhipment_port,
-            vessel: job._vessel,
+            voyage_number: row.sea_fcl_details.voyage_number,
+            hbl_number: row.sea_fcl_details.hbl_number,
+            mbl_number: row.sea_fcl_details.mbl_number,
+            booking_number: row.sea_fcl_details.booking_number,
+            etd: row.sea_fcl_details.etd,
+            eta: row.sea_fcl_details.eta,
+            sailed_at: row.sea_fcl_details.sailed_at,
+            place_of_receipt: row.sea_fcl_details.place_of_receipt,
+            place_of_delivery: row.sea_fcl_details.place_of_delivery,
+            freight_terms: row.sea_fcl_details.freight_terms,
+            transhipment_port: row.sea_fcl_details.transhipment_port,
+            vessel: row._vessel,
             shipping_line_name: shippingLineName,
-            shipping_line_code: job._shipping_line?.scac_code ?? null,
-            containers: job.sea_fcl_details.containers.map((c) => ({
+            shipping_line_code: row._shipping_line?.scac_code ?? null,
+            containers: row.sea_fcl_details.containers.map((c) => ({
               id: c.id,
               container_number: c.container_number,
               seal_number: c.seal_number,
@@ -832,7 +1323,7 @@ export class PortalShipmentsService {
             })),
           }
         : null,
-      milestones: (job.milestones ?? []).map((m) => ({
+      milestones: (row.milestones ?? []).map((m) => ({
         id: m.id,
         milestone: m.milestone,
         planned_date: m.planned_date,
@@ -846,7 +1337,7 @@ export class PortalShipmentsService {
   }
 
   private partyRole(
-    job: {
+    row: {
       shipper_id: string | null;
       consignee_id: string | null;
       billing_party_id: string | null;
@@ -854,9 +1345,9 @@ export class PortalShipmentsService {
     partyId: string,
   ) {
     const roles: string[] = [];
-    if (job.shipper_id === partyId) roles.push("SHIPPER");
-    if (job.consignee_id === partyId) roles.push("CONSIGNEE");
-    if (job.billing_party_id === partyId) roles.push("BILLING");
+    if (row.shipper_id === partyId) roles.push("SHIPPER");
+    if (row.consignee_id === partyId) roles.push("CONSIGNEE");
+    if (row.billing_party_id === partyId) roles.push("BILLING");
     return roles;
   }
 

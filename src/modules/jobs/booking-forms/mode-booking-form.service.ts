@@ -93,7 +93,52 @@ export class ModeBookingFormService {
     return kind;
   }
 
-  async get(kind: FormKind, tenantId: string, jobId: string) {
+  /**
+   * Dual-read: prefer explicit jobId; if shipment_id is given, resolve
+   * shipment.job_id when present (gradual migrate off job-only keys).
+   */
+  async resolveJobId(
+    tenantId: string,
+    opts: { jobId?: string; shipmentId?: string },
+  ): Promise<string> {
+    if (opts.shipmentId) {
+      const shipment = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.shipment.findFirst({
+          where: {
+            id: opts.shipmentId!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { id: true, job_id: true },
+        }),
+      );
+      if (!shipment) {
+        throw new NotFoundException("Shipment not found.");
+      }
+      if (shipment.job_id) return shipment.job_id;
+      if (opts.jobId) return opts.jobId;
+      throw new BadRequestException(
+        "Shipment has no linked Job yet. Generate Job or pass job_id.",
+      );
+    }
+    if (opts.jobId) return opts.jobId;
+    throw new BadRequestException("job_id or shipment_id is required.");
+  }
+
+  /** Path `:id` may be a Job or a Shipment UUID. */
+  async resolvePathJobId(tenantId: string, id: string): Promise<string> {
+    const asJob = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+        select: { id: true },
+      }),
+    );
+    if (asJob) return id;
+    return this.resolveJobId(tenantId, { shipmentId: id });
+  }
+
+  async get(kind: FormKind, tenantId: string, jobOrShipmentId: string) {
+    const jobId = await this.resolvePathJobId(tenantId, jobOrShipmentId);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.assertJob(tx, tenantId, jobId, kind);
       let form = await this.findForm(tx, kind, tenantId, jobId);
@@ -110,11 +155,12 @@ export class ModeBookingFormService {
   async attachDocument(
     kind: FormKind,
     tenantId: string,
-    jobId: string,
+    jobOrShipmentId: string,
     docKind: string,
     file: Express.Multer.File,
     actorId?: string,
   ) {
+    const jobId = await this.resolvePathJobId(tenantId, jobOrShipmentId);
     if (!MODE_BOOKING_DOC_KINDS.includes(docKind as ModeBookingDocKind)) {
       throw new BadRequestException(
         `Invalid document kind. Use: ${MODE_BOOKING_DOC_KINDS.join(", ")}`,
@@ -160,10 +206,11 @@ export class ModeBookingFormService {
   async upsert(
     kind: FormKind,
     tenantId: string,
-    jobId: string,
+    jobOrShipmentId: string,
     dto: ModeBookingFormBaseDto,
     actorId?: string,
   ) {
+    const jobId = await this.resolvePathJobId(tenantId, jobOrShipmentId);
     const markComplete = dto.mark_complete === true;
     if (markComplete && !dto.consent_accepted) {
       throw new BadRequestException(
@@ -241,7 +288,13 @@ export class ModeBookingFormService {
     });
   }
 
-  async complete(kind: FormKind, tenantId: string, jobId: string, actorId?: string) {
+  async complete(
+    kind: FormKind,
+    tenantId: string,
+    jobOrShipmentId: string,
+    actorId?: string,
+  ) {
+    const jobId = await this.resolvePathJobId(tenantId, jobOrShipmentId);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const form = await this.findForm(tx, kind, tenantId, jobId);
       if (!form) throw new NotFoundException("Booking form not found.");

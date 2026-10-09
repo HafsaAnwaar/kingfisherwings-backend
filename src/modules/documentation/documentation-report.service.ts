@@ -21,10 +21,59 @@ export class DocumentationReportService {
   listReports() {
     return {
       items: [
-        { code: "eta-followup", name: "ETA Follow-up" },
-        { code: "etd-followup", name: "ETD Follow-up" },
-        { code: "jobs-list", name: "Jobs List" },
-        { code: "manifest-status", name: "Manifest Status" },
+        { code: "eta-followup", name: "ETA Follow-up", path: "/documentation/reports/eta-followup" },
+        { code: "etd-followup", name: "ETD Follow-up", path: "/documentation/reports/etd-followup" },
+        { code: "jobs-list", name: "Jobs List", path: "/documentation/reports/jobs-list" },
+        { code: "manifest-status", name: "Manifest Status", path: "/documentation/reports/manifest-status" },
+        {
+          code: "booking-confirmation",
+          name: "Booking Confirmation",
+          path: "/jobs/:id/documents/booking-confirmation",
+          also: "/shipments/:id/documents/booking-confirmation",
+          report_template: "OTHER_BOOKING_CONFIRMATION",
+        },
+        {
+          code: "hbl-hawb",
+          name: "HBL / HAWB",
+          path: "/jobs/:id/documents/hbl",
+          also: ["/jobs/:id/documents/hawb", "/shipments/:id/documents/hbl"],
+        },
+        {
+          code: "mbl",
+          name: "MBL",
+          path: "/jobs/:id/documents/mbl",
+        },
+        {
+          code: "delivery-order",
+          name: "Delivery Order",
+          path: "/jobs/:id/documents/delivery-order",
+          also: "/documentation/delivery-orders",
+          report_template: "SEA_DELIVERY_ORDER",
+        },
+        {
+          code: "cargo-arrival-notice",
+          name: "Cargo Arrival Notice (CAN)",
+          path: "/jobs/:id/documents/can",
+        },
+        {
+          code: "job-card",
+          name: "Job Card",
+          path: "/jobs/:id/documents/job-card",
+          report_template: "JOB_CARD_REPORT_FORMAT",
+        },
+        {
+          code: "dsr",
+          name: "Daily Status Report (DSR)",
+          path: "/reports/generate",
+          report_template: "DAILY_STATUS_REPORT_FORMAT_1_DSR_LIST_REPORT_FORMAT",
+        },
+        {
+          code: "shipwise-dsr",
+          name: "Shipwise DSR / Ops job summary",
+          path: "/reports/generate",
+          report_template: "OPS_LIST_REPORT_FORMAT_1",
+          note: "Use report catalog templates (DSR_*, OPS_LIST_*, JOB_CARD_REPORT_FORMAT) via POST /reports/generate",
+        },
       ],
     };
   }

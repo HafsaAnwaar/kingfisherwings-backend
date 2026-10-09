@@ -21,6 +21,7 @@ import {
 import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalPermissionsService } from "./portal-permissions.service";
+import { PortalShipmentsService } from "./portal-shipments.service";
 
 const PORTAL_INVOICE_STATUSES: InvoiceStatus[] = [
   "POSTED",
@@ -52,6 +53,7 @@ export class PortalDocumentsService {
     private readonly prisma: PrismaService,
     private readonly permissions: PortalPermissionsService,
     private readonly storage: StorageService,
+    private readonly portalShipments: PortalShipmentsService,
   ) {}
 
   async summary(user: CurrentPortalUser) {
@@ -111,8 +113,11 @@ export class PortalDocumentsService {
     };
   }
 
-  async listForShipment(user: CurrentPortalUser, jobId: string) {
-    await this.assertOwnedJob(user, jobId);
+  async listForShipment(user: CurrentPortalUser, id: string) {
+    const jobId = await this.portalShipments.resolveTrackingJobId(user, id);
+    if (!jobId) {
+      return { success: true, data: [] };
+    }
 
     const items = (await this.collectAllDocuments(user)).filter(
       (item) => item.job_id === jobId,
@@ -123,11 +128,14 @@ export class PortalDocumentsService {
 
   async downloadJobDocument(
     user: CurrentPortalUser,
-    jobId: string,
+    id: string,
     docId: string,
     res: Response,
   ) {
-    await this.assertOwnedJob(user, jobId);
+    const jobId = await this.portalShipments.resolveTrackingJobId(user, id);
+    if (!jobId) {
+      throw new NotFoundException("Document not found.");
+    }
 
     const doc = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.jobDocument.findFirst({
@@ -373,21 +381,4 @@ export class PortalDocumentsService {
     res.send(file.buffer);
   }
 
-  private async assertOwnedJob(user: CurrentPortalUser, jobId: string) {
-    const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.job.findFirst({
-        where: {
-          id: jobId,
-          tenant_id: user.tenantId,
-          deleted_at: null,
-          ...portalJobOwnershipWhere(user.partyId),
-        },
-        select: { id: true },
-      }),
-    );
-
-    if (!job) {
-      throw new NotFoundException("Shipment not found.");
-    }
-  }
 }

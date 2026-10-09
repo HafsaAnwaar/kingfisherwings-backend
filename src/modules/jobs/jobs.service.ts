@@ -38,8 +38,17 @@ import {
 } from "../../common/constants/module-permission-tree";
 import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
 import { MasterLabelService } from "../masters/master-label.service";
+import { ShipmentsService } from "../shipments/shipments.service";
 
 import { CreateJobDto, UpdateJobDto } from "./dto/job.dto";
+import {
+  AttachJobShipmentsDto,
+  CancelProrateDto,
+  CloseJobDto,
+  CopyJobDto,
+  JobShipmentsBodyDto,
+  ProrateToShipmentsDto,
+} from "./dto/job-console.dto";
 import { UpdateAirJobDetailDto } from "./dto/air-job-detail.dto";
 import {
   SubmitSiDto,
@@ -50,7 +59,12 @@ import {
   SubmitLclSiDto,
   UpdateSeaLclJobDetailDto,
 } from "./dto/sea-lcl-job-detail.dto";
-import { CreateJobChargeDto, UpdateJobChargeDto } from "./dto/job-charge.dto";
+import {
+  CopyJobChargesDto,
+  CreateJobChargeDto,
+  GetJobChargesDto,
+  UpdateJobChargeDto,
+} from "./dto/job-charge.dto";
 import {
   UpdateJobMilestoneDto,
   CreateCustomMilestoneDto,
@@ -132,6 +146,7 @@ export class JobsService {
     private readonly whatsApp: WhatsAppService,
     private readonly notifications: NotificationEmitterService,
     private readonly masterLabels: MasterLabelService,
+    private readonly shipmentsService: ShipmentsService,
   ) {}
 
   // ============================================================
@@ -1198,7 +1213,113 @@ export class JobsService {
     });
   }
 
-  async closeJob(tenantId: string, id: string, actorId?: string): Promise<Job> {
+  async getCloseChecklist(tenantId: string, id: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getOrThrow(tx, tenantId, id);
+
+      const [uninvoicedSaleCharges, unpostedVouchers, openShipments] =
+        await Promise.all([
+          tx.jobCharge.findMany({
+            where: {
+              tenant_id: tenantId,
+              job_id: id,
+              deleted_at: null,
+              is_cost: false,
+              is_billable: true,
+              is_invoiced: false,
+            },
+            select: {
+              id: true,
+              description: true,
+              amount: true,
+              currency_code: true,
+            },
+          }),
+          tx.voucher.findMany({
+            where: {
+              tenant_id: tenantId,
+              job_id: id,
+              deleted_at: null,
+              status: "DRAFT",
+            },
+            select: {
+              id: true,
+              voucher_number: true,
+              voucher_type: true,
+              status: true,
+            },
+          }),
+          tx.shipment.findMany({
+            where: {
+              tenant_id: tenantId,
+              job_id: id,
+              deleted_at: null,
+              status: { notIn: ["COMPLETED", "CANCELLED"] },
+            },
+            select: {
+              id: true,
+              shipment_number: true,
+              status: true,
+            },
+          }),
+        ]);
+
+      const blockers: Array<{
+        code: string;
+        message: string;
+        count: number;
+        items: unknown[];
+      }> = [];
+
+      if (uninvoicedSaleCharges.length > 0) {
+        blockers.push({
+          code: "UNINVOICED_SALE_CHARGES",
+          message: "Job has billable sale charges that are not invoiced.",
+          count: uninvoicedSaleCharges.length,
+          items: uninvoicedSaleCharges,
+        });
+      }
+      if (unpostedVouchers.length > 0) {
+        blockers.push({
+          code: "UNPOSTED_VOUCHERS",
+          message: "Job has draft vouchers that are not posted.",
+          count: unpostedVouchers.length,
+          items: unpostedVouchers,
+        });
+      }
+      if (openShipments.length > 0) {
+        blockers.push({
+          code: "OPEN_SHIPMENTS",
+          message: "Attached shipments are not COMPLETED (or CANCELLED).",
+          count: openShipments.length,
+          items: openShipments,
+        });
+      }
+
+      return {
+        can_close: blockers.length === 0,
+        blockers,
+      };
+    });
+  }
+
+  async closeJob(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    dto?: CloseJobDto,
+  ): Promise<Job> {
+    const force = dto?.force === true;
+    if (!force) {
+      const checklist = await this.getCloseChecklist(tenantId, id);
+      if (!checklist.can_close) {
+        throw new BadRequestException({
+          message: "Job cannot be closed until checklist blockers are cleared.",
+          blockers: checklist.blockers,
+        });
+      }
+    }
+
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.getOrThrow(tx, tenantId, id);
 
@@ -2974,11 +3095,213 @@ export class JobsService {
     });
   }
 
+  /** Fresa Get Charges — pull from linked quotation and/or party standards. */
+  async getCharges(
+    tenantId: string,
+    jobId: string,
+    dto: GetJobChargesDto,
+    actorId?: string,
+  ) {
+    const job = await this.findOne(tenantId, jobId);
+    const created: unknown[] = [];
+
+    if (dto.from_quotation !== false && job.created_from_quote_id) {
+      const lines = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.quotationLine.findMany({
+          where: {
+            quotation_id: job.created_from_quote_id!,
+            tenant_id: tenantId,
+            is_cost: false,
+          },
+        }),
+      );
+      for (const line of lines) {
+        if (!line.charge_code_id) continue;
+        created.push(
+          await this.addCharge(
+            tenantId,
+            jobId,
+            {
+              charge_code_id: line.charge_code_id,
+              description: line.description,
+              quantity: Number(line.quantity),
+              unit_price: Number(line.unit_price),
+              currency_code: line.currency_code,
+              is_cost: false,
+            },
+            actorId,
+          ),
+        );
+      }
+    }
+
+    if (dto.from_party_standard) {
+      const partyId = job.billing_party_id ?? job.shipper_id;
+      if (partyId) {
+        const standards = await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.partyStandardCharge.findMany({
+            where: {
+              tenant_id: tenantId,
+              party_id: partyId,
+              deleted_at: null,
+              charge_code_id: { not: null },
+            },
+          }),
+        );
+        for (const s of standards) {
+          if (!s.charge_code_id) continue;
+          created.push(
+            await this.addCharge(
+              tenantId,
+              jobId,
+              {
+                charge_code_id: s.charge_code_id,
+                description: s.description ?? "Standard charge",
+                quantity: 1,
+                unit_price: Number(s.default_amount),
+                currency_code: s.currency_code,
+                is_cost: s.is_cost,
+              },
+              actorId,
+            ),
+          );
+        }
+      }
+    }
+
+    return {
+      success: true,
+      data: created,
+      message: `Added ${created.length} charge(s).`,
+    };
+  }
+
+  /** Copy charge lines from another job, shipment, or quotation. */
+  async copyCharges(
+    tenantId: string,
+    jobId: string,
+    dto: CopyJobChargesDto,
+    actorId?: string,
+  ) {
+    await this.findOne(tenantId, jobId);
+
+    const copySale = dto.copy_sale !== false;
+    const copyCost = dto.copy_cost === true;
+    const created: unknown[] = [];
+
+    type SourceLine = {
+      charge_code_id: string | null;
+      description: string;
+      quantity: number;
+      unit_price: number;
+      currency_code: string;
+      is_cost: boolean;
+      party_id?: string | null;
+      exchange_rate?: number;
+    };
+
+    let sources: SourceLine[] = [];
+
+    if (dto.from_job_id) {
+      if (dto.from_job_id === jobId) {
+        throw new BadRequestException("Cannot copy charges from the same job.");
+      }
+      const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.jobCharge.findMany({
+          where: {
+            job_id: dto.from_job_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+        }),
+      );
+      sources = rows.map((r) => ({
+        charge_code_id: r.charge_code_id,
+        description: r.description,
+        quantity: Number(r.quantity),
+        unit_price: Number(r.unit_price),
+        currency_code: r.currency_code,
+        is_cost: r.is_cost,
+        party_id: r.party_id,
+        exchange_rate: Number(r.exchange_rate),
+      }));
+    } else if (dto.from_shipment_id) {
+      const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.shipmentCharge.findMany({
+          where: {
+            shipment_id: dto.from_shipment_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+        }),
+      );
+      sources = rows.map((r) => ({
+        charge_code_id: r.charge_code_id,
+        description: r.description,
+        quantity: Number(r.quantity),
+        unit_price: Number(r.unit_price),
+        currency_code: r.currency_code,
+        is_cost: r.is_cost,
+        party_id: r.party_id,
+        exchange_rate: Number(r.exchange_rate),
+      }));
+    } else if (dto.from_quotation_id) {
+      const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.quotationLine.findMany({
+          where: {
+            quotation_id: dto.from_quotation_id!,
+            tenant_id: tenantId,
+          },
+        }),
+      );
+      sources = rows.map((r) => ({
+        charge_code_id: r.charge_code_id,
+        description: r.description,
+        quantity: Number(r.quantity),
+        unit_price: Number(r.unit_price),
+        currency_code: r.currency_code,
+        is_cost: r.is_cost,
+      }));
+    } else {
+      throw new BadRequestException(
+        "Provide from_job_id, from_shipment_id, or from_quotation_id.",
+      );
+    }
+
+    for (const line of sources) {
+      if (line.is_cost ? !copyCost : !copySale) continue;
+      if (!line.charge_code_id) continue;
+      created.push(
+        await this.addCharge(
+          tenantId,
+          jobId,
+          {
+            charge_code_id: line.charge_code_id,
+            description: line.description,
+            quantity: line.quantity,
+            unit_price: line.unit_price,
+            currency_code: line.currency_code,
+            exchange_rate: line.exchange_rate,
+            is_cost: line.is_cost,
+            party_id: line.party_id ?? undefined,
+          },
+          actorId,
+        ),
+      );
+    }
+
+    return {
+      success: true,
+      data: created,
+      message: `Copied ${created.length} charge(s).`,
+    };
+  }
+
   /**
    * Distributes a master job's cost line to its house jobs
-   * proportionally by chargeable weight (falls back to gross weight,
-   * then equal split if neither is set) — Ch.8.2 "prorate master cost
-   * to house jobs".
+   * proportionally by chargeable weight (falls back to gross weight /
+   * CBM, then equal split). If there are no house jobs but attached
+   * shipments exist, falls through to prorate-to-shipments.
    */
   async prorateMasterCost(
     tenantId: string,
@@ -3020,26 +3343,35 @@ export class JobsService {
       });
 
       if (houseJobs.length === 0) {
+        const shipmentCount = await tx.shipment.count({
+          where: {
+            tenant_id: tenantId,
+            job_id: masterId,
+            deleted_at: null,
+            status: { not: "CANCELLED" },
+          },
+        });
+        if (shipmentCount > 0) {
+          return this.prorateCostToShipmentsTx(
+            tx,
+            tenantId,
+            master,
+            masterCharge,
+            actorId,
+          );
+        }
         throw new BadRequestException(
-          "This master job has no house jobs to prorate to.",
+          "This master job has no house jobs or attached shipments to prorate to.",
         );
       }
 
-      const weights = houseJobs.map((h) => {
-        const chargeable = Number(h.chargeable_weight ?? 0);
-        const gross = Number(h.gross_weight ?? 0);
-        const cbm = Number(h.volume_cbm ?? 0);
-        if (
-          master.job_type === "SEA_LCL_EXPORT" ||
-          master.job_type === "SEA_LCL_IMPORT"
-        ) {
-          if (cbm > 0) return cbm;
-          if (chargeable > 0) return chargeable;
-          return gross;
-        }
-        if (chargeable > 0) return chargeable;
-        return gross;
-      });
+      const weights = houseJobs.map((h) =>
+        this.prorateWeightForTarget(master.job_type, {
+          chargeable_weight: h.chargeable_weight,
+          gross_weight: h.gross_weight,
+          volume_cbm: h.volume_cbm,
+        }),
+      );
       const totalWeight = weights.reduce((sum, w) => sum + w, 0);
       const totalCost = Number(masterCharge.amount_base_currency);
 
@@ -3077,6 +3409,528 @@ export class JobsService {
       }
 
       return created;
+    });
+  }
+
+  async prorateToShipments(
+    tenantId: string,
+    masterId: string,
+    dto: ProrateToShipmentsDto,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const master = await this.getOrThrow(tx, tenantId, masterId);
+
+      let masterCharge = null as Awaited<
+        ReturnType<typeof tx.jobCharge.findFirst>
+      >;
+      if (dto.job_charge_id) {
+        masterCharge = await tx.jobCharge.findFirst({
+          where: {
+            id: dto.job_charge_id,
+            job_id: masterId,
+            tenant_id: tenantId,
+            is_cost: true,
+            deleted_at: null,
+          },
+        });
+      } else if (dto.charge_code_id) {
+        masterCharge = await tx.jobCharge.findFirst({
+          where: {
+            job_id: masterId,
+            charge_code_id: dto.charge_code_id,
+            tenant_id: tenantId,
+            is_cost: true,
+            deleted_at: null,
+          },
+        });
+      } else {
+        throw new BadRequestException(
+          "Provide job_charge_id or charge_code_id.",
+        );
+      }
+
+      if (!masterCharge) {
+        throw new NotFoundException(
+          "No cost line on the master job to prorate.",
+        );
+      }
+
+      return this.prorateCostToShipmentsTx(
+        tx,
+        tenantId,
+        master,
+        masterCharge,
+        actorId,
+      );
+    });
+  }
+
+  async cancelProrate(
+    tenantId: string,
+    masterId: string,
+    dto: CancelProrateDto,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getOrThrow(tx, tenantId, masterId);
+
+      const masterCharges = await tx.jobCharge.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: masterId,
+          deleted_at: null,
+          is_cost: true,
+          ...(dto.job_charge_id ? { id: dto.job_charge_id } : {}),
+          ...(dto.charge_code_id
+            ? { charge_code_id: dto.charge_code_id }
+            : {}),
+        },
+        select: { id: true },
+      });
+      const chargeIds = masterCharges.map((c) => c.id);
+      if (chargeIds.length === 0) {
+        return { cancelled: 0, shipment_ids: [] as string[] };
+      }
+
+      const prorated = await tx.shipmentCharge.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          prorated_from_job_charge_id: { in: chargeIds },
+          shipment: { job_id: masterId, tenant_id: tenantId },
+        },
+        select: { id: true, shipment_id: true },
+      });
+
+      if (prorated.length === 0) {
+        return { cancelled: 0, shipment_ids: [] as string[] };
+      }
+
+      const now = new Date();
+      await tx.shipmentCharge.updateMany({
+        where: { id: { in: prorated.map((p) => p.id) } },
+        data: { deleted_at: now, updated_by: actorId },
+      });
+
+      const shipmentIds = [...new Set(prorated.map((p) => p.shipment_id))];
+      for (const shipmentId of shipmentIds) {
+        await this.recalculateShipmentTotals(tx, tenantId, shipmentId);
+      }
+
+      return { cancelled: prorated.length, shipment_ids: shipmentIds };
+    });
+  }
+
+  // ============================================================
+  // JOB SHIPMENTS TAB / COPY
+  // ============================================================
+
+  async listJobShipments(tenantId: string, jobId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getOrThrow(tx, tenantId, jobId);
+      return tx.shipment.findMany({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        orderBy: { created_at: "desc" },
+        include: {
+          charges: {
+            where: { deleted_at: null },
+            orderBy: { sort_order: "asc" },
+          },
+        },
+      });
+    });
+  }
+
+  async attachJobShipments(
+    tenantId: string,
+    jobId: string,
+    dto: AttachJobShipmentsDto | JobShipmentsBodyDto,
+    actorId?: string,
+  ) {
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.getOrThrow(tx, tenantId, jobId);
+    });
+
+    const body = dto as JobShipmentsBodyDto;
+    if (
+      (!body.shipment_ids || body.shipment_ids.length === 0) &&
+      !body.create
+    ) {
+      throw new BadRequestException(
+        "Provide shipment_ids and/or create payload.",
+      );
+    }
+
+    const attached: string[] = [];
+    if (body.shipment_ids?.length) {
+      await this.prisma.runWithTenant(tenantId, async (tx) => {
+        for (const shipmentId of body.shipment_ids!) {
+          const shipment = await tx.shipment.findFirst({
+            where: {
+              id: shipmentId,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
+          });
+          if (!shipment) {
+            throw new NotFoundException(`Shipment ${shipmentId} not found.`);
+          }
+          if (shipment.job_id && shipment.job_id !== jobId) {
+            throw new BadRequestException(
+              `Shipment ${shipment.shipment_number} is already attached to another job.`,
+            );
+          }
+          await tx.shipment.update({
+            where: { id: shipmentId },
+            data: { job_id: jobId, updated_by: actorId },
+          });
+          attached.push(shipmentId);
+        }
+      });
+    }
+
+    let created = null as Awaited<
+      ReturnType<ShipmentsService["create"]>
+    > | null;
+    if (body.create) {
+      created = await this.shipmentsService.create(
+        tenantId,
+        body.create,
+        actorId,
+      );
+      await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.shipment.update({
+          where: { id: created!.id },
+          data: { job_id: jobId, updated_by: actorId },
+        }),
+      );
+    }
+
+    const shipments = await this.listJobShipments(tenantId, jobId);
+    return {
+      attached,
+      created_shipment_id: created?.id ?? null,
+      shipments,
+    };
+  }
+
+  async copyJob(
+    tenantId: string,
+    id: string,
+    dto: CopyJobDto,
+    actorId?: string,
+  ) {
+    const copyParties = dto.copy_parties !== false;
+    const copyRoute = dto.copy_route !== false;
+    const copyContainers = dto.copy_containers === true;
+    const copySale = dto.copy_sale === true;
+    const copyCost = dto.copy_cost === true;
+    const copyDimensions = dto.copy_dimensions === true;
+    const copyDepartment = dto.copy_department === true;
+    const copyVessel = dto.copy_vessel === true;
+
+    const source = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await tx.job.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+        include: {
+          charges: { where: { deleted_at: null } },
+          sea_fcl_details: {
+            include: {
+              containers: { where: { deleted_at: null } },
+            },
+          },
+          sea_lcl_details: true,
+          air_details: true,
+        },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
+      return job;
+    });
+
+    if (!source.shipper_id) {
+      throw new BadRequestException(
+        "Source job has no shipper; cannot copy job.",
+      );
+    }
+
+    const createDto: CreateJobDto = {
+      job_type: source.job_type,
+      company_id: source.company_id ?? undefined,
+      branch_id: source.branch_id ?? undefined,
+      department_id: copyDepartment
+        ? (source.department_id ?? undefined)
+        : undefined,
+      shipper_id: source.shipper_id,
+      consignee_id: copyParties
+        ? (source.consignee_id ?? undefined)
+        : undefined,
+      billing_party_id: copyParties
+        ? (source.billing_party_id ?? undefined)
+        : undefined,
+      agent_id: copyParties ? (source.agent_id ?? undefined) : undefined,
+      salesperson_id: copyParties
+        ? (source.salesperson_id ?? undefined)
+        : undefined,
+      ops_user_id: source.ops_user_id ?? undefined,
+      origin_port_id: copyRoute
+        ? (source.origin_port_id ?? undefined)
+        : undefined,
+      dest_port_id: copyRoute ? (source.dest_port_id ?? undefined) : undefined,
+      commodity: source.commodity ?? undefined,
+      hs_code: source.hs_code ?? undefined,
+      gross_weight: copyDimensions
+        ? (Number(source.gross_weight ?? 0) || undefined)
+        : undefined,
+      chargeable_weight: copyDimensions
+        ? (Number(source.chargeable_weight ?? 0) || undefined)
+        : undefined,
+      volume_cbm: copyDimensions
+        ? (Number(source.volume_cbm ?? 0) || undefined)
+        : undefined,
+      pieces: copyDimensions ? (source.pieces ?? undefined) : undefined,
+      container_type_id: copyDimensions
+        ? (source.container_type_id ?? undefined)
+        : undefined,
+      container_count: copyDimensions
+        ? (source.container_count ?? undefined)
+        : undefined,
+      incoterms: source.incoterms ?? undefined,
+      is_dg: source.is_dg,
+      dg_class: source.dg_class ?? undefined,
+      notes: source.notes ?? undefined,
+      service_scope: source.service_scope ?? undefined,
+      origin_door_address: source.origin_door_address ?? undefined,
+      dest_door_address: source.dest_door_address ?? undefined,
+      cargo_category: source.cargo_category ?? undefined,
+      etd: copyRoute && source.etd ? source.etd.toISOString() : undefined,
+      eta: copyRoute && source.eta ? source.eta.toISOString() : undefined,
+    };
+
+    const job = await this.create(tenantId, createDto, actorId);
+
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      if (copySale || copyCost) {
+        const charges = source.charges.filter((c) => {
+          if (c.is_cost) return copyCost;
+          return copySale;
+        });
+        for (const c of charges) {
+          await tx.jobCharge.create({
+            data: {
+              tenant_id: tenantId,
+              job_id: job.id,
+              charge_code_id: c.charge_code_id,
+              description: c.description,
+              quantity: c.quantity,
+              unit_price: c.unit_price,
+              currency_code: c.currency_code,
+              exchange_rate: c.exchange_rate,
+              amount: c.amount,
+              amount_base_currency: c.amount_base_currency,
+              tax_rate_id: c.tax_rate_id,
+              tax_amount: c.tax_amount,
+              is_billable: c.is_billable,
+              is_cost: c.is_cost,
+              is_provisional: c.is_provisional,
+              party_id: c.party_id,
+              created_by: actorId,
+              updated_by: actorId,
+            },
+          });
+        }
+        if (charges.length) {
+          await this.recalculateTotals(tx, tenantId, job.id);
+        }
+      }
+
+      if (copyVessel || copyContainers) {
+        const srcFcl = source.sea_fcl_details;
+        const srcLcl = source.sea_lcl_details;
+        if (srcFcl) {
+          const destDetail = await tx.seaFclJobDetail.findFirst({
+            where: { job_id: job.id, tenant_id: tenantId },
+          });
+          if (destDetail && copyVessel) {
+            await tx.seaFclJobDetail.update({
+              where: { id: destDetail.id },
+              data: {
+                vessel_id: srcFcl.vessel_id,
+                voyage_number: srcFcl.voyage_number,
+                shipping_line_id: srcFcl.shipping_line_id,
+                updated_by: actorId,
+              },
+            });
+          }
+          if (destDetail && copyContainers && srcFcl.containers?.length) {
+            for (const c of srcFcl.containers) {
+              await tx.jobContainer.create({
+                data: {
+                  tenant_id: tenantId,
+                  sea_fcl_detail_id: destDetail.id,
+                  container_number: c.container_number,
+                  container_type_id: c.container_type_id,
+                  seal_number: c.seal_number,
+                  tare_weight: c.tare_weight,
+                  max_payload: c.max_payload,
+                  cubic_capacity: c.cubic_capacity,
+                  gross_weight: c.gross_weight,
+                  cbm: c.cbm,
+                  is_soc: c.is_soc,
+                  status: "EMPTY",
+                  created_by: actorId,
+                  updated_by: actorId,
+                },
+              });
+            }
+          }
+        }
+        if (srcLcl && copyVessel) {
+          const destLcl = await tx.seaLclJobDetail.findFirst({
+            where: { job_id: job.id, tenant_id: tenantId },
+          });
+          if (destLcl) {
+            await tx.seaLclJobDetail.update({
+              where: { id: destLcl.id },
+              data: {
+                vessel_id: srcLcl.vessel_id,
+                voyage_number: srcLcl.voyage_number,
+                shipping_line_id: srcLcl.shipping_line_id,
+                updated_by: actorId,
+              },
+            });
+          }
+        }
+      }
+    });
+
+    return this.findOne(tenantId, job.id);
+  }
+
+  private prorateWeightForTarget(
+    jobType: JobType,
+    target: {
+      chargeable_weight?: unknown;
+      gross_weight?: unknown;
+      volume_cbm?: unknown;
+    },
+  ): number {
+    const chargeable = Number(target.chargeable_weight ?? 0);
+    const gross = Number(target.gross_weight ?? 0);
+    const cbm = Number(target.volume_cbm ?? 0);
+    if (jobType === "SEA_LCL_EXPORT" || jobType === "SEA_LCL_IMPORT") {
+      if (cbm > 0) return cbm;
+      if (chargeable > 0) return chargeable;
+      return gross;
+    }
+    if (chargeable > 0) return chargeable;
+    if (gross > 0) return gross;
+    return cbm;
+  }
+
+  private async prorateCostToShipmentsTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    master: Job,
+    masterCharge: {
+      id: string;
+      description: string;
+      currency_code: string;
+      amount_base_currency: unknown;
+      charge_code_id: string;
+    },
+    actorId?: string,
+  ) {
+    const shipments = await tx.shipment.findMany({
+      where: {
+        tenant_id: tenantId,
+        job_id: master.id,
+        deleted_at: null,
+        status: { not: "CANCELLED" },
+      },
+    });
+
+    if (shipments.length === 0) {
+      throw new BadRequestException(
+        "This master job has no attached shipments to prorate to.",
+      );
+    }
+
+    const existing = await tx.shipmentCharge.count({
+      where: {
+        tenant_id: tenantId,
+        deleted_at: null,
+        prorated_from_job_charge_id: masterCharge.id,
+        shipment_id: { in: shipments.map((s) => s.id) },
+      },
+    });
+    if (existing > 0) {
+      throw new ConflictException(
+        "This cost line was already prorated to shipments. Cancel prorate first.",
+      );
+    }
+
+    const weights = shipments.map((s) =>
+      this.prorateWeightForTarget(master.job_type, s),
+    );
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    const totalCost = Number(masterCharge.amount_base_currency);
+    const shares =
+      totalWeight > 0
+        ? weights.map((w) => (w / totalWeight) * totalCost)
+        : shipments.map(() => totalCost / shipments.length);
+
+    const created = [];
+    for (let i = 0; i < shipments.length; i++) {
+      const share = shares[i];
+      const line = await tx.shipmentCharge.create({
+        data: {
+          tenant_id: tenantId,
+          shipment_id: shipments[i].id,
+          charge_code_id: masterCharge.charge_code_id,
+          description: `${masterCharge.description} (prorated from master job)`,
+          quantity: 1,
+          unit_price: share,
+          currency_code: masterCharge.currency_code,
+          exchange_rate: 1,
+          amount: share,
+          amount_base_currency: share,
+          is_cost: true,
+          is_billable: false,
+          prorated_from_job_charge_id: masterCharge.id,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+      await this.recalculateShipmentTotals(tx, tenantId, shipments[i].id);
+      created.push(line);
+    }
+    return created;
+  }
+
+  private async recalculateShipmentTotals(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    shipmentId: string,
+  ) {
+    const charges = await tx.shipmentCharge.findMany({
+      where: { shipment_id: shipmentId, tenant_id: tenantId, deleted_at: null },
+    });
+    const revenue = charges
+      .filter((c) => !c.is_cost)
+      .reduce((s, c) => s + Number(c.amount), 0);
+    const cost = charges
+      .filter((c) => c.is_cost)
+      .reduce((s, c) => s + Number(c.amount), 0);
+    const gp = revenue - cost;
+    await tx.shipment.update({
+      where: { id: shipmentId },
+      data: {
+        revenue_total: revenue,
+        cost_total: cost,
+        gp_amount: gp,
+        gp_percent: revenue > 0 ? (gp / revenue) * 100 : 0,
+      },
     });
   }
 

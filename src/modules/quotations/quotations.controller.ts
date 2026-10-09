@@ -480,6 +480,66 @@ export class QuotationsController {
     return this.vendorQuotes.listForJob(tenantId, quotation.converted_job_id);
   }
 
+  @Post(":id/verify")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.APPROVE)
+  @ApiOperation({
+    summary: "Fresa Verified — staff signs off before Approved / Generate Shipment",
+  })
+  verify(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto?: ApprovalDecisionDto,
+  ) {
+    return this.service.verify(tenantId, id, actorId, dto?.comments);
+  }
+
+  @Post(":id/approve-verified")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.APPROVE)
+  @ApiOperation({
+    summary: "VERIFIED → APPROVED (unlocks Generate Shipment / Generate Job)",
+  })
+  approveVerified(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto?: ApprovalDecisionDto,
+  ) {
+    return this.service.markApprovedAfterVerify(
+      tenantId,
+      id,
+      actorId,
+      dto?.comments,
+    );
+  }
+
+  @Post(":id/generate-shipment")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
+  @ApiOperation({
+    summary: "Generate Shipment (booking/HBL) from APPROVED quotation — Fresa",
+  })
+  generateShipment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.generateShipment(tenantId, id, actorId);
+  }
+
+  @Post(":id/generate-job")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
+  @ApiOperation({
+    summary:
+      "Optional Generate Job directly from APPROVED quotation (prefer shipment-first)",
+  })
+  generateJob(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.generateJobFromQuotation(tenantId, id, actorId);
+  }
+
   @Post(":id/convert-to-job")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
   @ApiOperation({

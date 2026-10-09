@@ -104,7 +104,7 @@ export class PortalQuotationsController {
   @ApiOperation({
     summary: "Accept a sent quotation",
     description:
-      "Marks the quote APPROVED and creates a provisional job for the booking form. Does not convert to CONVERTED until POST .../convert-to-job after the booking form is submitted.",
+      "Marks the quote APPROVED and creates a Shipment (booking). Does not CONVERTED until booking form + POST .../convert-to-job (Generate Job).",
   })
   accept(
     @CurrentPortal() user: CurrentPortalUser,
@@ -116,9 +116,9 @@ export class PortalQuotationsController {
 
   @Post(":id/convert-to-job")
   @ApiOperation({
-    summary: "Convert an accepted quotation to a job",
+    summary: "Convert an accepted quotation / shipment to a job",
     description:
-      "Requires APPROVED status and a completed mode/compliance booking form on the provisional job. Sets quotation status to CONVERTED.",
+      "Requires APPROVED status, linked Shipment from accept, and a completed booking form. Links Job to Shipment and sets quotation CONVERTED.",
   })
   convertToJob(
     @CurrentPortal() user: CurrentPortalUser,

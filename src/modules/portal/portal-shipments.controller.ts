@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Param,
@@ -82,7 +83,7 @@ export class PortalShipmentsController {
   @ApiOperation({
     summary: "List my shipments",
     description:
-      "Returns jobs where the portal Party is shipper or consignee. Supports status, job_type, search, and date filters.",
+      "Returns Shipment entities (with linked Job when generated). Legacy jobs without a Shipment row are included for dual-read. Supports status, job_type, search, and date filters.",
   })
   list(
     @CurrentPortal() user: CurrentPortalUser,
@@ -95,70 +96,80 @@ export class PortalShipmentsController {
   @ApiOperation({
     summary: "List documents for a shipment",
     description:
-      "Filtered by forwarder-configured portal_permissions for this customer.",
+      "Filtered by forwarder-configured portal_permissions for this customer. Path id may be Shipment or Job.",
   })
-  documents(
+  async documents(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.portalDocuments.listForShipment(user, id);
+    const jobId = await this.shipments.resolveTrackingJobId(user, id);
+    if (!jobId) {
+      return { success: true, data: [] };
+    }
+    return this.portalDocuments.listForShipment(user, jobId);
   }
 
   @Get(":id/container-requests")
   @ApiOperation({
     summary: "List portal-visible CRO / container requests",
   })
-  containerRequests(
+  async containerRequests(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.nvoccWorkflow.listContainerRequests(user, id);
+    const jobId = await this.requireJobId(user, id);
+    return this.nvoccWorkflow.listContainerRequests(user, jobId);
   }
 
   @Post(":id/containers/:lineId/confirm-pick")
   @ApiOperation({ summary: "Customer confirms yard pickup (Picked)" })
-  confirmPick(
+  async confirmPick(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("lineId", ParseUUIDPipe) lineId: string,
   ) {
-    return this.nvoccWorkflow.confirmPick(user, id, lineId);
+    const jobId = await this.requireJobId(user, id);
+    return this.nvoccWorkflow.confirmPick(user, jobId, lineId);
   }
 
   @Post(":id/port-token/confirm")
   @ApiOperation({ summary: "Customer confirms port gate token obtained" })
-  confirmPortToken(
+  async confirmPortToken(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.nvoccWorkflow.confirmPortToken(user, id);
+    const jobId = await this.requireJobId(user, id);
+    return this.nvoccWorkflow.confirmPortToken(user, jobId);
   }
 
   @Post(":id/request-draft-bl")
   @ApiOperation({ summary: "Customer requests draft BL from Docs" })
-  requestDraftBl(
+  async requestDraftBl(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.nvoccWorkflow.requestDraftBl(user, id);
+    const jobId = await this.requireJobId(user, id);
+    return this.nvoccWorkflow.requestDraftBl(user, jobId);
   }
 
   @Post(":id/request-draft-hawb")
   @ApiOperation({ summary: "Customer requests draft House Air Waybill" })
-  requestDraftHawb(
+  async requestDraftHawb(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.airWorkflow.requestDraftHawb(user, id);
+    const jobId = await this.requireJobId(user, id);
+    return this.airWorkflow.requestDraftHawb(user, jobId);
   }
 
   @Post(":id/request-delivery-order")
   @ApiOperation({ summary: "Customer requests Delivery Order (air import)" })
-  requestDeliveryOrder(
+  async requestDeliveryOrder(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.airWorkflow.requestDeliveryOrder(user, id);
+    const jobId = await this.requireJobId(user, id);
+    return this.airWorkflow.requestDeliveryOrder(user, jobId);
   }
 
   @Get(":id/documents/:docId/download")
@@ -166,13 +177,14 @@ export class PortalShipmentsController {
     summary: "Download a shipment document",
     description: "Requires can_download permission for the document type.",
   })
-  downloadDocument(
+  async downloadDocument(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("docId", ParseUUIDPipe) docId: string,
     @Res() res: Response,
   ) {
-    return this.portalDocuments.download(user, id, docId, res);
+    const jobId = await this.requireJobId(user, id);
+    return this.portalDocuments.download(user, jobId, docId, res);
   }
 
   @Get(":id")
@@ -199,5 +211,15 @@ export class PortalShipmentsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.shipments.getMilestones(user, id);
+  }
+
+  private async requireJobId(user: CurrentPortalUser, id: string) {
+    const jobId = await this.shipments.resolveTrackingJobId(user, id);
+    if (!jobId) {
+      throw new BadRequestException(
+        "Shipment has no linked Job yet. Complete booking and Generate Job first.",
+      );
+    }
+    return jobId;
   }
 }
