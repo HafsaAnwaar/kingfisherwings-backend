@@ -7,6 +7,7 @@ import {
   IsUUID,
   Length,
   Min,
+  ValidateIf,
 } from "class-validator";
 
 export class CreateJobChargeDto {
@@ -78,3 +79,54 @@ export class CreateJobChargeDto {
 }
 
 export class UpdateJobChargeDto extends PartialType(CreateJobChargeDto) {}
+
+export class GetJobChargesDto {
+  @ApiPropertyOptional({
+    description: "Pull revenue lines from linked quotation (created_from_quote_id)",
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  from_quotation?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Pull party standard charges for shipper / billing party",
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  from_party_standard?: boolean;
+}
+
+export class CopyJobChargesDto {
+  @ApiPropertyOptional({ format: "uuid", description: "Copy from another job" })
+  @ValidateIf((o: CopyJobChargesDto) => !o.from_shipment_id && !o.from_quotation_id)
+  @IsUUID()
+  from_job_id?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Copy from a shipment's charge lines",
+  })
+  @IsOptional()
+  @IsUUID()
+  from_shipment_id?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Copy from quotation line items",
+  })
+  @IsOptional()
+  @IsUUID()
+  from_quotation_id?: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  copy_sale?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  copy_cost?: boolean;
+}

@@ -12,7 +12,14 @@ import {
   MinLength,
 } from "class-validator";
 
-const SEARCH_TYPES = ["jobs", "quotations", "parties", "invoices"] as const;
+const SEARCH_TYPES = [
+  "jobs",
+  "quotations",
+  "parties",
+  "invoices",
+  "enquiries",
+  "shipments",
+] as const;
 export type SearchEntityType = (typeof SEARCH_TYPES)[number];
 
 /**
@@ -22,14 +29,15 @@ export type SearchEntityType = (typeof SEARCH_TYPES)[number];
 export class SearchQueryDto {
   @ApiProperty({
     example: "KFW/AE",
-    description: "Free-text search across jobs, quotations, parties, invoices",
+    description:
+      "Free-text search across jobs, quotations, parties, invoices, enquiries, shipments",
   })
   @IsString()
   @MinLength(2)
   q!: string;
 
   @ApiPropertyOptional({
-    example: "jobs,quotations,parties,invoices",
+    example: "jobs,quotations,parties,invoices,enquiries,shipments",
     description: "Comma-separated entity types (default: all)",
   })
   @IsOptional()

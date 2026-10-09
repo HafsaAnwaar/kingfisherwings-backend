@@ -21,12 +21,15 @@ import {
   IsInt,
   IsIn,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
   Length,
   Max,
+  MaxLength,
   Min,
+  ValidateNested,
 } from "class-validator";
 import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
@@ -319,13 +322,65 @@ export class PatchFollowUpDto {
   notes?: string;
 }
 
+export class EnquiryChargeLineDto {
+  @ApiPropertyOptional({ format: "uuid", description: "Client / party for charge" })
+  @IsOptional()
+  @IsUUID()
+  party_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  department_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  charge_code_id?: string;
+
+  @ApiProperty({ example: "Ocean freight" })
+  @IsString()
+  @MaxLength(300)
+  description!: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  quantity?: number;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  unit_price?: number;
+
+  @ApiProperty({ description: "Line amount" })
+  @Type(() => Number)
+  @IsNumber()
+  amount!: number;
+
+  @ApiPropertyOptional({ example: "AED" })
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency_code?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  is_cost?: boolean;
+}
+
+/** Fresa 5-step enquiry wizard — all steps submitted on final create (or draft PATCH). */
 export class CreateEnquiryDto {
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   lead_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({ format: "uuid", description: "Customer" })
   @IsOptional()
   @IsUUID()
   party_id?: string;
@@ -335,24 +390,201 @@ export class CreateEnquiryDto {
   @IsUUID()
   salesperson_id?: string;
 
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  sales_coordinator_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  price_coordinator_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  company_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  branch_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  department_id?: string;
+
   @ApiProperty({ enum: JobType })
   @IsEnum(JobType)
   service_type!: JobType;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({ example: "2026-10-09" })
   @IsOptional()
-  @IsUUID()
-  origin_port_id?: string;
+  @IsDateString()
+  enquiry_date?: string;
 
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
+  shipper_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  consignee_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  shipper_address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  consignee_address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  customer_address?: string;
+
+  @ApiPropertyOptional({ format: "uuid", description: "POL" })
+  @IsOptional()
+  @IsUUID()
+  origin_port_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid", description: "POD" })
+  @IsOptional()
+  @IsUUID()
   dest_port_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid", description: "POR (port of receipt)" })
+  @IsOptional()
+  @IsUUID()
+  por_port_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  etd?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  eta?: string;
+
+  @ApiPropertyOptional({ description: "Payable at (place / party note)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  payable_at?: string;
+
+  @ApiPropertyOptional({ description: "Dispatch at" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  dispatch_at?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  carrier_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  voyage_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  vessel_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  unit_price?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  gross_weight?: number;
+
+  @ApiPropertyOptional({ description: "Volume / chargeable weight" })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  chargeable_weight?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  net_weight?: number;
+
+  @ApiPropertyOptional({ example: "KG" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  weight_unit?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  volume_cbm?: number;
+
+  @ApiPropertyOptional({ example: "CBM" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  cbm_unit?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  hs_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  pieces?: number;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  container_type_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  container_count?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   cargo_details?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  commodity?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -364,6 +596,23 @@ export class CreateEnquiryDto {
   @IsOptional()
   @IsString()
   special_requirements?: string;
+
+  @ApiPropertyOptional({
+    description: "Snapshot of selected standard charges at enquiry create",
+  })
+  @IsOptional()
+  @IsObject()
+  standard_charges_snapshot?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    type: [EnquiryChargeLineDto],
+    description: "Step 4 charge details (client / department / amount)",
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EnquiryChargeLineDto)
+  charges?: EnquiryChargeLineDto[];
 
   @ApiProperty({ example: "AED" })
   @IsString()
@@ -378,6 +627,13 @@ export class UpdateEnquiryDto extends PartialType(CreateEnquiryDto) {
   status?: EnquiryStatus;
 }
 
+export class CancelEnquiryDto {
+  @ApiProperty({ example: "Customer withdrew interest" })
+  @IsString()
+  @Length(2, 500)
+  cancel_reason!: string;
+}
+
 export class EnquiryQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: EnquiryStatus })
   @IsOptional()
@@ -388,6 +644,16 @@ export class EnquiryQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  department_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 
 export class CreateBudgetDto {

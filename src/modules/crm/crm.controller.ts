@@ -33,6 +33,7 @@ import { CrmEmailService } from "./crm-email.service";
 import { CrmLeadsService } from "./crm-leads.service";
 import {
   CallLogQueryDto,
+  CancelEnquiryDto,
   ConvertLeadDto,
   CreateBudgetDto,
   CreateCallLogDto,
@@ -228,6 +229,16 @@ export class CrmFollowUpsController {
 export class CrmEnquiriesController {
   constructor(private readonly activity: CrmActivityService) {}
 
+  @Get("reports/open")
+  @RequirePermissions(CRM_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Open enquiries report (NEW / QUOTED)" })
+  openReport(
+    @CurrentUser() user: CurrentUserType,
+    @Query() query: EnquiryQueryDto,
+  ) {
+    return this.activity.openEnquiriesReport(user, query);
+  }
+
   @Get()
   @RequirePermissions(CRM_PERMISSIONS.VIEW)
   list(@CurrentUser() user: CurrentUserType, @Query() query: EnquiryQueryDto) {
@@ -238,6 +249,41 @@ export class CrmEnquiriesController {
   @RequirePermissions(CRM_PERMISSIONS.CREATE)
   create(@CurrentUser() user: CurrentUserType, @Body() dto: CreateEnquiryDto) {
     return this.activity.createEnquiry(user, dto);
+  }
+
+  @Get(":id/pdf")
+  @RequirePermissions(CRM_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Enquiry PDF / report data pack (FE renders PDF)",
+  })
+  pdf(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.activity.enquiryPdfPack(user, id);
+  }
+
+  @Get(":id/report")
+  @RequirePermissions(CRM_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Alias of enquiry PDF/report data pack" })
+  report(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.activity.enquiryPdfPack(user, id);
+  }
+
+  @Get(":id/detail")
+  @RequirePermissions(CRM_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Enquiry detail with sections (organization, ports, dimensions, planned consignee, costing, department) + action flags",
+  })
+  detailSections(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.activity.getEnquiryDetailSections(user, id);
   }
 
   @Get(":id")
@@ -259,13 +305,65 @@ export class CrmEnquiriesController {
     return this.activity.updateEnquiry(user, id, dto);
   }
 
+  @Post(":id/copy")
+  @RequirePermissions(CRM_PERMISSIONS.CREATE)
+  @ApiOperation({ summary: "Copy enquiry (new NEW enquiry with same sheet fields)" })
+  copy(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.activity.copyEnquiry(user, id);
+  }
+
+  @Post(":id/cancel")
+  @RequirePermissions(CRM_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Cancel enquiry with reason" })
+  cancel(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CancelEnquiryDto,
+  ) {
+    return this.activity.cancelEnquiry(user, id, dto);
+  }
+
+  @Post(":id/generate-quotation")
+  @RequirePermissions(CRM_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Generate quotation from enquiry sheet" })
+  generateQuotation(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.activity.generateQuotation(user, id);
+  }
+
   @Post(":id/convert-to-quote")
   @RequirePermissions(CRM_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Alias of generate-quotation" })
   convert(
     @CurrentUser() user: CurrentUserType,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.activity.convertToQuote(user, id);
+  }
+
+  @Post(":id/generate-shipment")
+  @RequirePermissions(CRM_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Generate shipment from enquiry (status BOOKED)" })
+  generateShipment(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.activity.generateShipment(user, id);
+  }
+
+  @Post(":id/generate-job")
+  @RequirePermissions(CRM_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Generate job from enquiry (status BOOKED)" })
+  generateJob(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.activity.generateJob(user, id);
   }
 }
 

@@ -63,6 +63,7 @@ import {
 } from "../masters/master-label.service";
 import { BookingFormGateService } from "../../common/services/booking-form-gate.service";
 import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
+import { ShipmentsService } from "../shipments/shipments.service";
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -102,6 +103,7 @@ const EXPIRABLE_STATUSES: QuotationStatus[] = [
 
 import {
   CUSTOMER_OUTCOME_ALLOWED,
+  VERIFY_ALLOWED,
   quotationActionFlags,
 } from "./quotation-action-flags";
 
@@ -120,6 +122,7 @@ export class QuotationsService {
     private readonly negotiation: QuotationNegotiationService,
     private readonly masterLabels: MasterLabelService,
     private readonly bookingFormGate: BookingFormGateService,
+    private readonly shipments: ShipmentsService,
     @Inject(forwardRef(() => PortalService))
     private readonly portal: PortalService,
   ) {}
@@ -185,6 +188,8 @@ export class QuotationsService {
           routing_notes: dto.routing_notes,
           remarks: dto.remarks,
           internal_notes: dto.internal_notes,
+          terms_and_conditions: dto.terms_and_conditions,
+          valid_from: dto.valid_from ? new Date(dto.valid_from) : undefined,
           valid_until: dto.valid_until ? new Date(dto.valid_until) : undefined,
           currency_code: dto.currency_code,
           exchange_rate: dto.exchange_rate ?? 1,
@@ -586,6 +591,7 @@ export class QuotationsService {
 
       const {
         valid_until,
+        valid_from,
         packages,
         length_m,
         width_m,
@@ -599,6 +605,7 @@ export class QuotationsService {
         where: { id },
         data: {
           ...rest,
+          ...(valid_from ? { valid_from: new Date(valid_from) } : {}),
           ...(valid_until ? { valid_until: new Date(valid_until) } : {}),
           ...(cargo.volume_cbm != null ? { volume_cbm: cargo.volume_cbm } : {}),
           ...(cargo.pieces != null ? { pieces: cargo.pieces } : {}),
@@ -2333,8 +2340,12 @@ export class QuotationsService {
       "QUOTATION_APPROVED",
       "Quotation accepted",
     );
-    // Provisional job for booking forms — CONVERTED only after form submit.
-    const job = await this.ensureProvisionalJob(tenantId, id, actorId);
+    // Fresa 2C: create Shipment (booking) on accept — not provisional Job-only.
+    const shipment = await this.shipments.createFromQuotation(
+      tenantId,
+      id,
+      actorId,
+    );
     const refreshed = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -2346,9 +2357,12 @@ export class QuotationsService {
     return {
       success: true,
       data: refreshed ?? updated,
-      job: { jobId: job.jobId, jobNumber: job.jobNumber },
+      shipment: {
+        shipmentId: shipment.id,
+        shipmentNumber: shipment.shipment_number,
+      },
       message:
-        "Quotation approved. Complete the booking form, then convert to job.",
+        "Quotation approved. Complete the booking form on the shipment, then Generate Job.",
     };
   }
 
@@ -2749,15 +2763,14 @@ export class QuotationsService {
   }
 
   /**
-   * Finalize APPROVED → CONVERTED. Requires booking form complete on the
-   * provisional job (created at accept). Creates the job if missing, then
-   * gates on form completion.
+   * Finalize APPROVED → CONVERTED after booking form is complete.
+   * Prefers Fresa path: Shipment → Generate Job; falls back to provisional job.
    */
   async convertToJob(
     tenantId: string,
     id: string,
     actorId?: string,
-  ): Promise<{ jobId: string; jobNumber: string }> {
+  ): Promise<{ jobId: string; jobNumber: string; shipmentId?: string }> {
     const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -2804,15 +2817,53 @@ export class QuotationsService {
       );
     }
 
-    const provisional = await this.ensureProvisionalJob(
-      tenantId,
-      id,
-      actorId,
+    const shipment = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.shipment.findFirst({
+        where: {
+          tenant_id: tenantId,
+          quotation_id: id,
+          deleted_at: null,
+        },
+        orderBy: { created_at: "asc" },
+      }),
     );
+
+    let jobRef: { jobId: string; jobNumber: string };
+    if (shipment?.job_id) {
+      const job = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.findFirst({
+          where: {
+            id: shipment.job_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { id: true, job_number: true },
+        }),
+      );
+      if (!job) {
+        throw new NotFoundException("Shipment linked job not found.");
+      }
+      jobRef = { jobId: job.id, jobNumber: job.job_number };
+    } else if (shipment) {
+      // Dual-read: booking forms may still be on Job — generate Job from Shipment first,
+      // then gate. Prefer DIRECT for portal convert.
+      const generated = await this.shipments.generateJob(
+        tenantId,
+        shipment.id,
+        { mode: "DIRECT" },
+        actorId,
+      );
+      jobRef = {
+        jobId: generated.jobId,
+        jobNumber: generated.jobNumber,
+      };
+    } else {
+      jobRef = await this.ensureProvisionalJob(tenantId, id, actorId);
+    }
 
     const formGate = await this.bookingFormGate.isComplete(
       tenantId,
-      provisional.jobId,
+      jobRef.jobId,
       quotation.job_type,
     );
     this.bookingFormGate.assertComplete(formGate);
@@ -2822,7 +2873,7 @@ export class QuotationsService {
         where: { id },
         data: {
           status: "CONVERTED",
-          converted_job_id: provisional.jobId,
+          converted_job_id: jobRef.jobId,
           updated_by: actorId,
         },
       });
@@ -2838,10 +2889,141 @@ export class QuotationsService {
     });
 
     this.logger.log(
-      `[CONVERT_TO_JOB] Quotation ${quotation.quotation_number} -> Job ${provisional.jobNumber} (booking form complete: ${formGate.formKind})`,
+      `[CONVERT_TO_JOB] Quotation ${quotation.quotation_number} -> Job ${jobRef.jobNumber} (booking form complete: ${formGate.formKind})`,
     );
 
-    return provisional;
+    return { ...jobRef, shipmentId: shipment?.id };
+  }
+
+  // ============================================================
+  // FRESA GATES — Verify → Approve → Generate Shipment / Job
+  // ============================================================
+
+  /**
+   * Staff Verified (Fresa). From sent/negotiating/internally-approved → VERIFIED.
+   * Generate Shipment still requires APPROVED.
+   */
+  async verify(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    message?: string,
+  ): Promise<Quotation> {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await this.getOrThrow(tx, tenantId, id);
+      if (!VERIFY_ALLOWED.includes(quotation.status)) {
+        throw new BadRequestException(
+          `Cannot verify quotation in status ${quotation.status}.`,
+        );
+      }
+      const result = await tx.quotation.update({
+        where: { id },
+        data: { status: "VERIFIED", updated_by: actorId },
+      });
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        quotation.status,
+        "VERIFIED",
+        actorId,
+        message ?? "Staff verified quotation",
+      );
+      return result;
+    });
+  }
+
+  /**
+   * Staff mark Approved after Verified (Fresa Verified → Approved unlocks generate).
+   * Also allows APPROVED from customer-facing states for staff override after verify.
+   */
+  async markApprovedAfterVerify(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    message?: string,
+  ): Promise<Quotation> {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const quotation = await this.getOrThrow(tx, tenantId, id);
+      if (quotation.status !== "VERIFIED" && quotation.status !== "APPROVED") {
+        throw new BadRequestException(
+          "Only a VERIFIED quotation can be staff-approved for Generate Shipment.",
+        );
+      }
+      if (quotation.status === "APPROVED") return quotation;
+
+      const result = await tx.quotation.update({
+        where: { id },
+        data: {
+          status: "APPROVED",
+          won_at: new Date(),
+          updated_by: actorId,
+        },
+      });
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        id,
+        "VERIFIED",
+        "APPROVED",
+        actorId,
+        message ?? "Staff approved after verify",
+      );
+      return result;
+    });
+  }
+
+  async generateShipment(tenantId: string, id: string, actorId?: string) {
+    const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      }),
+    );
+    if (!quotation) throw new NotFoundException("Quotation not found.");
+    if (quotation.status !== "APPROVED") {
+      throw new BadRequestException(
+        "Only an APPROVED quotation can Generate Shipment (verify then approve first).",
+      );
+    }
+    const shipment = await this.shipments.createFromQuotation(
+      tenantId,
+      id,
+      actorId,
+    );
+    return {
+      success: true,
+      data: shipment,
+      message: "Shipment generated from quotation.",
+    };
+  }
+
+  /**
+   * Optional Fresa Generate Job directly from quote (prefer shipment-first for consol).
+   * Soft-uses ensureProvisionalJob for backward compatibility.
+   */
+  async generateJobFromQuotation(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+  ) {
+    const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: null },
+      }),
+    );
+    if (!quotation) throw new NotFoundException("Quotation not found.");
+    if (quotation.status !== "APPROVED" && quotation.status !== "CONVERTED") {
+      throw new BadRequestException(
+        "Only an APPROVED quotation can Generate Job.",
+      );
+    }
+    const job = await this.ensureProvisionalJob(tenantId, id, actorId);
+    return {
+      success: true,
+      data: job,
+      message:
+        "Job generated from quotation. Prefer Generate Shipment then Generate Job for sea consol.",
+    };
   }
 
   // ============================================================

@@ -6,20 +6,26 @@ import {
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
-import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
+import { PortalShipmentsService } from "./portal-shipments.service";
 
 @Injectable()
 export class PortalNvoccWorkflowService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly portalShipments: PortalShipmentsService,
+  ) {}
 
-  private async getOwnedNvoccJob(user: CurrentPortalUser, jobId: string) {
+  private async getOwnedNvoccJob(user: CurrentPortalUser, id: string) {
+    const jobId = await this.portalShipments.resolveTrackingJobId(user, id);
+    if (!jobId) {
+      throw new NotFoundException("Shipment not found.");
+    }
     const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.job.findFirst({
         where: {
           id: jobId,
           tenant_id: user.tenantId,
           deleted_at: null,
-          ...portalJobOwnershipWhere(user.partyId),
         },
         include: { nvocc_details: true },
       }),
@@ -30,8 +36,9 @@ export class PortalNvoccWorkflowService {
     return job;
   }
 
-  async listContainerRequests(user: CurrentPortalUser, jobId: string) {
-    await this.getOwnedNvoccJob(user, jobId);
+  async listContainerRequests(user: CurrentPortalUser, id: string) {
+    const job = await this.getOwnedNvoccJob(user, id);
+    const jobId = job.id;
     return this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.nvoccContainerRequest.findMany({
         where: {
@@ -46,8 +53,9 @@ export class PortalNvoccWorkflowService {
     );
   }
 
-  async confirmPick(user: CurrentPortalUser, jobId: string, lineId: string) {
-    await this.getOwnedNvoccJob(user, jobId);
+  async confirmPick(user: CurrentPortalUser, id: string, lineId: string) {
+    const job = await this.getOwnedNvoccJob(user, id);
+    const jobId = job.id;
     return this.prisma.runWithTenant(user.tenantId, async (tx) => {
       const line = await tx.nvoccContainerRequestLine.findFirst({
         where: {
@@ -83,8 +91,8 @@ export class PortalNvoccWorkflowService {
     });
   }
 
-  async confirmPortToken(user: CurrentPortalUser, jobId: string) {
-    const job = await this.getOwnedNvoccJob(user, jobId);
+  async confirmPortToken(user: CurrentPortalUser, id: string) {
+    const job = await this.getOwnedNvoccJob(user, id);
     return this.prisma.runWithTenant(user.tenantId, async (tx) => {
       const detail = job.nvocc_details!;
       const token = detail.port_gate_token ?? randomBytes(16).toString("hex");
@@ -104,8 +112,9 @@ export class PortalNvoccWorkflowService {
     });
   }
 
-  async requestDraftBl(user: CurrentPortalUser, jobId: string) {
-    await this.getOwnedNvoccJob(user, jobId);
+  async requestDraftBl(user: CurrentPortalUser, id: string) {
+    const job = await this.getOwnedNvoccJob(user, id);
+    const jobId = job.id;
     return this.prisma.runWithTenant(user.tenantId, async (tx) => {
       const detail = await tx.nvoccJobDetail.findFirst({
         where: { job_id: jobId, tenant_id: user.tenantId, deleted_at: null },

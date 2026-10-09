@@ -1,4 +1,5 @@
 import { QUOTATIONS_PERMISSIONS } from "../../modules/quotations/constants/quotations-permission.constants";
+import { SHIPMENTS_PERMISSIONS } from "../../modules/shipments/constants/shipments-permission.constants";
 import { CRM_PERMISSIONS } from "../../modules/crm/constants/crm-permission.constants";
 import { PARTIES_PERMISSIONS } from "../../modules/parties/constants/parties-permission.constants";
 import { INVOICES_PERMISSIONS } from "../../modules/invoices/constants/invoices-permission.constants";
@@ -71,6 +72,18 @@ export const MATRIX_TO_CLASSIC_BRIDGE: Record<string, BridgeEntry> = Object.from
       QUOTATIONS_PERMISSIONS.CLOSE,
       QUOTATIONS_PERMISSIONS.NEGOTIATE,
       QUOTATIONS_PERMISSIONS.SERVICE_CATALOG_MANAGE,
+    ],
+  ),
+  node(
+    "sales",
+    "shipments",
+    [SHIPMENTS_PERMISSIONS.VIEW],
+    [
+      SHIPMENTS_PERMISSIONS.VIEW,
+      SHIPMENTS_PERMISSIONS.CREATE,
+      SHIPMENTS_PERMISSIONS.UPDATE,
+      SHIPMENTS_PERMISSIONS.DELETE,
+      SHIPMENTS_PERMISSIONS.GENERATE,
     ],
   ),
   node(

@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { QueueModule } from "../../shared/queue/queue.module";
@@ -23,6 +23,7 @@ import { CourierService } from "./courier.service";
 import { TransportModule } from "../transport/transport.module";
 import { VendorModule } from "../vendor/vendor.module";
 import { MastersModule } from "../masters/masters.module";
+import { ShipmentsModule } from "../shipments/shipments.module";
 import { JobsDashboardService } from "./jobs-dashboard.service";
 import { AirBookingFormService } from "./air-booking-form.service";
 import { AirComplianceBookingFormService } from "./air-compliance-booking-form.service";
@@ -48,6 +49,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     TransportModule,
     VendorModule,
     MastersModule,
+    forwardRef(() => ShipmentsModule),
   ],
   controllers: [
     CustomsClearanceQueueController,

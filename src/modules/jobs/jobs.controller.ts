@@ -37,7 +37,12 @@ import {
   LinkLclTranshipmentDto,
   LinkLclWmsStorageDto,
 } from "./dto/sea-lcl.dto";
-import { CreateJobChargeDto, UpdateJobChargeDto } from "./dto/job-charge.dto";
+import {
+  CopyJobChargesDto,
+  CreateJobChargeDto,
+  GetJobChargesDto,
+  UpdateJobChargeDto,
+} from "./dto/job-charge.dto";
 import {
   UpdateJobMilestoneDto,
   CreateCustomMilestoneDto,
@@ -75,6 +80,14 @@ import {
   SchedulePreAlertDto,
   SendWhatsAppStatusDto,
 } from "./dto/week4-6-ops.dto";
+import {
+  AttachJobShipmentsDto,
+  CancelProrateDto,
+  CloseJobDto,
+  CopyJobDto,
+  JobShipmentsBodyDto,
+  ProrateToShipmentsDto,
+} from "./dto/job-console.dto";
 import {
   CalculateCfsStorageDto,
   CreateDamageReportDto,
@@ -482,15 +495,83 @@ export class JobsController {
     return this.service.update(tenantId, id, dto, actorId);
   }
 
+  @Get(":id/close-checklist")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Close blockers: uninvoiced sale charges, unposted vouchers, open shipments",
+  })
+  getCloseChecklist(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.getCloseChecklist(tenantId, id);
+  }
+
   @Post(":id/close")
   @RequirePermissions(JOBS_PERMISSIONS.CLOSE)
-  @ApiOperation({ summary: "Close a job (status -> COMPLETED)" })
+  @ApiOperation({
+    summary:
+      "Close a job (status -> COMPLETED). Enforces close checklist unless force=true.",
+  })
   closeJob(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CloseJobDto = {},
   ) {
-    return this.service.closeJob(tenantId, id, actorId);
+    return this.service.closeJob(tenantId, id, actorId, dto);
+  }
+
+  @Post(":id/copy")
+  @RequirePermissions(JOBS_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary:
+      "Copy a job with selective flags (parties/route default on; containers/sale/cost/dimensions/department/vessel opt-in)",
+  })
+  copyJob(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CopyJobDto = {},
+  ) {
+    return this.service.copyJob(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/shipments")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List shipments attached to this job" })
+  listJobShipments(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.listJobShipments(tenantId, id);
+  }
+
+  @Post(":id/shipments/attach")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Attach existing shipment(s) to this master job" })
+  attachJobShipments(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: AttachJobShipmentsDto,
+  ) {
+    return this.service.attachJobShipments(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/shipments")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Attach existing shipment(s) and/or create a new shipment on this job",
+  })
+  attachOrCreateJobShipments(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: JobShipmentsBodyDto,
+  ) {
+    return this.service.attachJobShipments(tenantId, id, dto, actorId);
   }
 
   @Post(":id/cancel")
@@ -1058,6 +1139,36 @@ export class JobsController {
     return this.service.addCharge(tenantId, id, dto, actorId);
   }
 
+  @Post(":id/get-charges")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Pull standard / quotation charges onto job (Fresa Get Charges)",
+  })
+  getCharges(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: GetJobChargesDto,
+  ) {
+    return this.service.getCharges(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/copy-charges")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Copy charges from another job, shipment, or quotation (Fresa Copy Charges)",
+  })
+  copyCharges(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CopyJobChargesDto,
+  ) {
+    return this.service.copyCharges(tenantId, id, dto, actorId);
+  }
+
   @Patch(":id/charges/:chargeId")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({ summary: "Update a charge line" })
@@ -1087,7 +1198,7 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Distribute a master job's cost line to its house jobs, proportionally by chargeable weight",
+      "Distribute a master job's cost line to house jobs (or attached shipments if no houses)",
   })
   prorateMasterCost(
     @CurrentUser("tenantId") tenantId: string,
@@ -1096,6 +1207,36 @@ export class JobsController {
     @Param("chargeCodeId", ParseUUIDPipe) chargeCodeId: string,
   ) {
     return this.service.prorateMasterCost(tenantId, id, chargeCodeId, actorId);
+  }
+
+  @Post(":id/prorate-to-shipments")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Prorate a master job cost line onto attached shipments (weight/CBM/kg) as ShipmentCharge",
+  })
+  prorateToShipments(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ProrateToShipmentsDto,
+  ) {
+    return this.service.prorateToShipments(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/cancel-prorate")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Cancel prorated ShipmentCharge lines written from this job's cost charges",
+  })
+  cancelProrate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CancelProrateDto = {},
+  ) {
+    return this.service.cancelProrate(tenantId, id, dto, actorId);
   }
 
   @Post(":id/notes")
@@ -1519,6 +1660,24 @@ export class JobsController {
       tenantId,
       id,
       "FREIGHT_MANIFEST",
+      dto,
+      actorId,
+    );
+  }
+
+  @Post(":id/documents/booking-confirmation")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Queue Booking Confirmation PDF" })
+  generateBookingConfirmation(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(
+      tenantId,
+      id,
+      "BOOKING_CONFIRMATION",
       dto,
       actorId,
     );

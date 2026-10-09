@@ -13,6 +13,20 @@ export function portalJobOwnershipWhere(partyId: string): Prisma.JobWhereInput {
   };
 }
 
+/** Portal Party sees a Shipment when customer / shipper / consignee / notify. */
+export function portalShipmentOwnershipWhere(
+  partyId: string,
+): Prisma.ShipmentWhereInput {
+  return {
+    OR: [
+      { customer_id: partyId },
+      { shipper_id: partyId },
+      { consignee_id: partyId },
+      { notify_party_id: partyId },
+    ],
+  };
+}
+
 /** Collect unique party IDs that should receive portal notifications for a job. */
 export function portalPartyIdsFromJob(job: {
   shipper_id?: string | null;

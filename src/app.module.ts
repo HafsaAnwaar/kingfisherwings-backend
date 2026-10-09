@@ -18,9 +18,12 @@ import { MastersModule } from "./modules/masters/masters.module";
 import { PartiesModule } from "./modules/parties/parties.module";
 import { OrganizationModule } from "./modules/organization/organization.module";
 import { QuotationsModule } from "./modules/quotations/quotations.module";
+import { ShipmentsModule } from "./modules/shipments/shipments.module";
 import { JobsModule } from "./modules/jobs/jobs.module";
 import { AwbStockModule } from "./modules/awb-stock/awb-stock.module";
 import { SearchModule } from "./modules/search/search.module";
+import { FavouritesModule } from "./modules/favourites/favourites.module";
+import { OpsActivityModule } from "./modules/ops-activity/ops-activity.module";
 import { ToolsModule } from "./modules/tools/tools.module";
 import { SchedulerModule } from "./modules/scheduler/scheduler.module";
 import { FilesModule } from "./files/files.module";
@@ -76,9 +79,12 @@ import { LocaleModule } from "./common/locale/locale.module";
     PartiesModule,
     OrganizationModule,
     QuotationsModule,
+    ShipmentsModule,
     JobsModule,
     AwbStockModule,
     SearchModule,
+    FavouritesModule,
+    OpsActivityModule,
     ToolsModule,
     SchedulerModule,
     FilesModule,

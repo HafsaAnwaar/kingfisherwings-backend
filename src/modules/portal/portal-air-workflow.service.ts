@@ -6,13 +6,20 @@ import {
 import { JobType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
-import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
+import { PortalShipmentsService } from "./portal-shipments.service";
 
 @Injectable()
 export class PortalAirWorkflowService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly portalShipments: PortalShipmentsService,
+  ) {}
 
-  private async getOwnedAirJob(user: CurrentPortalUser, jobId: string) {
+  private async getOwnedAirJob(user: CurrentPortalUser, id: string) {
+    const jobId = await this.portalShipments.resolveTrackingJobId(user, id);
+    if (!jobId) {
+      throw new NotFoundException("Shipment not found.");
+    }
     const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.job.findFirst({
         where: {
@@ -20,7 +27,6 @@ export class PortalAirWorkflowService {
           tenant_id: user.tenantId,
           deleted_at: null,
           job_type: { in: [JobType.AIR_EXPORT, JobType.AIR_IMPORT] },
-          ...portalJobOwnershipWhere(user.partyId),
         },
         include: { air_details: true },
       }),

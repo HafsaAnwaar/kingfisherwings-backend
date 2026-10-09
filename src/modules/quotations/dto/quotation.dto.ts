@@ -202,6 +202,16 @@ export class CreateQuotationDto {
   @IsString()
   internal_notes?: string;
 
+  @ApiPropertyOptional({ description: "Fresa quotation T&Cs on customer PDF" })
+  @IsOptional()
+  @IsString()
+  terms_and_conditions?: string;
+
+  @ApiPropertyOptional({ example: "2026-08-01" })
+  @IsOptional()
+  @IsDateString()
+  valid_from?: string;
+
   @ApiPropertyOptional({ example: "2026-08-31" })
   @IsOptional()
   @IsDateString()

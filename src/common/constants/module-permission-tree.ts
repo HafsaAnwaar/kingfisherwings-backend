@@ -62,6 +62,7 @@ export const MODULE_PERMISSION_TREE: PermissionModuleNode[] = [
     label: "Sales",
     submodules: [
       { key: "quotations", label: "Quotations" },
+      { key: "shipments", label: "Shipments" },
       { key: "crm", label: "CRM" },
       { key: "parties", label: "Customers / Parties" },
     ],

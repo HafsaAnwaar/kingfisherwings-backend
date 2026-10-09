@@ -4,7 +4,13 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { parseSearchTypes, SearchQueryDto } from "./dto/search-query.dto";
 
 export interface SearchResultItem {
-  entity_type: "job" | "quotation" | "party" | "invoice";
+  entity_type:
+    | "job"
+    | "quotation"
+    | "party"
+    | "invoice"
+    | "enquiry"
+    | "shipment";
   id: string;
   title: string;
   subtitle?: string;
@@ -43,6 +49,16 @@ export class SearchService {
     if (types.includes("invoices")) {
       results.push(
         ...(await this.searchInvoices(tenantId, term, perTypeLimit, query)),
+      );
+    }
+    if (types.includes("enquiries")) {
+      results.push(
+        ...(await this.searchEnquiries(tenantId, term, perTypeLimit, query)),
+      );
+    }
+    if (types.includes("shipments")) {
+      results.push(
+        ...(await this.searchShipments(tenantId, term, perTypeLimit, query)),
       );
     }
 
@@ -589,6 +605,223 @@ export class SearchService {
       reference: i.invoice_number,
       status: i.status,
       matched_field: "invoice",
+    }));
+  }
+
+  private async searchEnquiries(
+    tenantId: string,
+    term: string,
+    limit: number,
+    query: SearchQueryDto,
+  ): Promise<SearchResultItem[]> {
+    const uuidLike =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        term,
+      );
+    const where: Prisma.EnquiryWhereInput = {
+      tenant_id: tenantId,
+      deleted_at: null,
+      AND: [
+        {
+          OR: [
+            { commodity: { contains: term, mode: "insensitive" } },
+            { cargo_details: { contains: term, mode: "insensitive" } },
+            {
+              special_requirements: {
+                contains: term,
+                mode: "insensitive",
+              },
+            },
+            ...(uuidLike ? [{ id: term }] : []),
+          ],
+        },
+        ...(query.status ? [{ status: query.status as never }] : []),
+        ...(query.job_type ? [{ service_type: query.job_type as never }] : []),
+        ...(query.customer_id || query.party_id
+          ? [{ party_id: query.customer_id ?? query.party_id }]
+          : []),
+        ...(query.salesperson_id
+          ? [{ salesperson_id: query.salesperson_id }]
+          : []),
+        ...(query.origin_port_id
+          ? [{ origin_port_id: query.origin_port_id }]
+          : []),
+        ...(query.dest_port_id ? [{ dest_port_id: query.dest_port_id }] : []),
+        ...(query.branch_id ? [{ branch_id: query.branch_id }] : []),
+      ],
+    };
+
+    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.enquiry.findMany({
+        where,
+        select: {
+          id: true,
+          status: true,
+          service_type: true,
+          commodity: true,
+          cargo_details: true,
+          party_id: true,
+          currency_code: true,
+        },
+        take: limit,
+        orderBy: { created_at: "desc" },
+      }),
+    );
+
+    const partyIds = [
+      ...new Set(rows.map((e) => e.party_id).filter((id): id is string => Boolean(id))),
+    ];
+    const parties =
+      partyIds.length === 0
+        ? []
+        : await this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.party.findMany({
+              where: {
+                tenant_id: tenantId,
+                id: { in: partyIds },
+                deleted_at: null,
+              },
+              select: { id: true, name: true },
+            }),
+          );
+    const partyNameById = new Map(parties.map((p) => [p.id, p.name]));
+
+    return rows.map((e) => ({
+      entity_type: "enquiry" as const,
+      id: e.id,
+      title: e.commodity || e.cargo_details || `Enquiry ${e.id.slice(0, 8)}`,
+      subtitle:
+        [
+          partyNameById.get(e.party_id ?? ""),
+          e.service_type,
+          e.currency_code,
+        ]
+          .filter(Boolean)
+          .join(" · ") || undefined,
+      reference: e.id,
+      status: e.status,
+      matched_field: "enquiry",
+    }));
+  }
+
+  private async searchShipments(
+    tenantId: string,
+    term: string,
+    limit: number,
+    query: SearchQueryDto,
+  ): Promise<SearchResultItem[]> {
+    const where: Prisma.ShipmentWhereInput = {
+      tenant_id: tenantId,
+      deleted_at: null,
+      AND: [
+        {
+          OR: [
+            { shipment_number: { contains: term, mode: "insensitive" } },
+            { commodity: { contains: term, mode: "insensitive" } },
+            { hbl_number: { contains: term, mode: "insensitive" } },
+            { vessel_name: { contains: term, mode: "insensitive" } },
+            { voyage_number: { contains: term, mode: "insensitive" } },
+            { flight_number: { contains: term, mode: "insensitive" } },
+            { container_numbers: { contains: term, mode: "insensitive" } },
+          ],
+        },
+        ...(query.status ? [{ status: query.status as never }] : []),
+        ...(query.job_type ? [{ job_type: query.job_type as never }] : []),
+        ...(query.customer_id || query.party_id
+          ? [{ customer_id: query.customer_id ?? query.party_id }]
+          : []),
+        ...(query.shipper_id ? [{ shipper_id: query.shipper_id }] : []),
+        ...(query.consignee_id ? [{ consignee_id: query.consignee_id }] : []),
+        ...(query.salesperson_id
+          ? [{ salesperson_id: query.salesperson_id }]
+          : []),
+        ...(query.origin_port_id
+          ? [{ origin_port_id: query.origin_port_id }]
+          : []),
+        ...(query.dest_port_id ? [{ dest_port_id: query.dest_port_id }] : []),
+        ...(query.branch_id ? [{ branch_id: query.branch_id }] : []),
+        ...(query.hbl_number
+          ? [
+              {
+                hbl_number: {
+                  contains: query.hbl_number,
+                  mode: "insensitive" as const,
+                },
+              },
+            ]
+          : []),
+        ...(query.etd_from || query.etd_to
+          ? [
+              {
+                etd: {
+                  ...(query.etd_from ? { gte: new Date(query.etd_from) } : {}),
+                  ...(query.etd_to ? { lte: new Date(query.etd_to) } : {}),
+                },
+              },
+            ]
+          : []),
+        ...(query.eta_from || query.eta_to
+          ? [
+              {
+                eta: {
+                  ...(query.eta_from ? { gte: new Date(query.eta_from) } : {}),
+                  ...(query.eta_to ? { lte: new Date(query.eta_to) } : {}),
+                },
+              },
+            ]
+          : []),
+      ],
+    };
+
+    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.shipment.findMany({
+        where,
+        select: {
+          id: true,
+          shipment_number: true,
+          status: true,
+          job_type: true,
+          commodity: true,
+          customer_id: true,
+          hbl_number: true,
+        },
+        take: limit,
+        orderBy: { created_at: "desc" },
+      }),
+    );
+
+    const customerIds = [...new Set(rows.map((s) => s.customer_id))];
+    const customers =
+      customerIds.length === 0
+        ? []
+        : await this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.party.findMany({
+              where: {
+                tenant_id: tenantId,
+                id: { in: customerIds },
+                deleted_at: null,
+              },
+              select: { id: true, name: true },
+            }),
+          );
+    const customerNameById = new Map(customers.map((c) => [c.id, c.name]));
+
+    return rows.map((s) => ({
+      entity_type: "shipment" as const,
+      id: s.id,
+      title: s.shipment_number,
+      subtitle:
+        [
+          customerNameById.get(s.customer_id),
+          s.job_type,
+          s.commodity,
+          s.hbl_number,
+        ]
+          .filter(Boolean)
+          .join(" · ") || undefined,
+      reference: s.shipment_number,
+      status: s.status,
+      matched_field: "shipment",
     }));
   }
 }

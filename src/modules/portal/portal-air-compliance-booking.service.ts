@@ -14,6 +14,8 @@ import {
   SubmitAirComplianceFormDto,
   UpsertAirComplianceBookingFormDto,
 } from "../jobs/booking-forms/dto/air-compliance-booking-form.dto";
+import { QuotationsService } from "../quotations/quotations.service";
+import { ShipmentsService } from "../shipments/shipments.service";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
 
@@ -23,9 +25,55 @@ export class PortalAirComplianceBookingService {
     private readonly prisma: PrismaService,
     private readonly forms: AirComplianceBookingFormService,
     private readonly storage: StorageService,
+    private readonly quotations: QuotationsService,
+    private readonly shipments: ShipmentsService,
   ) {}
 
-  private async assertOwnedAirJob(user: CurrentPortalUser, jobId: string) {
+  /**
+   * Dual-read: path id may be Shipment or Job. Prefer shipment; lazily
+   * ensure provisional Job when shipment has quotation but no job yet.
+   */
+  private async resolveOwnedAirJobId(
+    user: CurrentPortalUser,
+    id: string,
+  ): Promise<string> {
+    const shipment = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.shipment.findFirst({
+        where: {
+          id,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          customer_id: user.partyId,
+          job_type: { in: [JobType.AIR_EXPORT, JobType.AIR_IMPORT] },
+        },
+        select: { id: true, job_id: true, quotation_id: true },
+      }),
+    );
+    if (shipment) {
+      if (shipment.job_id) return shipment.job_id;
+      if (shipment.quotation_id) {
+        const provisional = await this.quotations.ensureProvisionalJob(
+          user.tenantId,
+          shipment.quotation_id,
+          user.id,
+        );
+        await this.shipments.attachToJob(
+          user.tenantId,
+          provisional.jobId,
+          shipment.id,
+          user.id,
+        );
+        return provisional.jobId;
+      }
+      throw new BadRequestException(
+        "Shipment has no linked Job. Accept the quote first.",
+      );
+    }
+    return id;
+  }
+
+  private async assertOwnedAirJob(user: CurrentPortalUser, jobOrShipmentId: string) {
+    const jobId = await this.resolveOwnedAirJobId(user, jobOrShipmentId);
     const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.job.findFirst({
         where: {
