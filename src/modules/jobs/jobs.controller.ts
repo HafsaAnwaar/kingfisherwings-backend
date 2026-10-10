@@ -18,6 +18,11 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { JobsService } from "./jobs.service";
 import { JobsDashboardService } from "./jobs-dashboard.service";
+import { JobDetailService } from "./job-detail.service";
+import {
+  ChangeJobStatusDto,
+  StopJobDto,
+} from "./dto/job-detail.dto";
 import { JobsDashboardQueryDto } from "../../common/dto/dashboard-period-query.dto";
 
 import { CreateJobDto, ScanJobBarcodeDto, UpdateJobDto } from "./dto/job.dto";
@@ -153,6 +158,7 @@ export class JobsController {
   constructor(
     private readonly service: JobsService,
     private readonly dashboard: JobsDashboardService,
+    private readonly detail: JobDetailService,
     private readonly seaFclImport: SeaFclImportService,
     private readonly airImport: AirImportService,
     private readonly seaLcl: SeaLclService,
@@ -292,6 +298,56 @@ export class JobsController {
     @Body() dto: SendJobToVendorDto,
   ) {
     return this.vendorQuotes.sendJobToVendor(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/detail/:tab")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Job detail tab (info, costing, history, booking_form, shipments, …)",
+  })
+  getDetailTab(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("tab") tab: string,
+  ) {
+    return this.detail.getDetailTab(tenantId, id, tab);
+  }
+
+  @Get(":id/detail")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Fresa job detail — header, tabs, actions, links",
+  })
+  getDetail(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.getDetail(tenantId, id);
+  }
+
+  @Post(":id/change-status")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Change job operational status" })
+  changeStatus(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ChangeJobStatusDto,
+  ) {
+    return this.detail.changeStatus(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/stop")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Stop / put job on hold (status → ON_HOLD)" })
+  stopJob(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: StopJobDto,
+  ) {
+    return this.detail.stop(tenantId, id, dto.reason, actorId);
   }
 
   @Get(":id")

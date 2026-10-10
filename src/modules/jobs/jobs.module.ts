@@ -13,6 +13,7 @@ import {
   SeaKpiReportController,
 } from "./jobs-sea-scans.controller";
 import { JobsService } from "./jobs.service";
+import { JobDetailService } from "./job-detail.service";
 import { SeaFclImportService } from "./sea-fcl-import.service";
 import { AirImportService } from "./air-import.service";
 import { SeaLclService } from "./sea-lcl.service";
@@ -24,6 +25,7 @@ import { TransportModule } from "../transport/transport.module";
 import { VendorModule } from "../vendor/vendor.module";
 import { MastersModule } from "../masters/masters.module";
 import { ShipmentsModule } from "../shipments/shipments.module";
+import { QuotationsModule } from "../quotations/quotations.module";
 import { JobsDashboardService } from "./jobs-dashboard.service";
 import { AirBookingFormService } from "./air-booking-form.service";
 import { AirComplianceBookingFormService } from "./air-compliance-booking-form.service";
@@ -32,6 +34,7 @@ import { AirWorkflowActionsService } from "./air-workflow-actions.service";
 import { AirWorkflowController } from "./air-workflow.controller";
 import { ModeBookingFormService } from "./booking-forms/mode-booking-form.service";
 import { ModeBookingFormsController } from "./booking-forms/mode-booking-forms.controller";
+import { BookingFormEntityService } from "./booking-forms/booking-form-entity.service";
 import { CustomsClearanceService } from "./customs-clearance/customs-clearance.service";
 import { CustomsClearanceController } from "./customs-clearance/customs-clearance.controller";
 import { CustomsClearanceQueueController } from "./customs-clearance/customs-clearance-queue.controller";
@@ -50,6 +53,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     VendorModule,
     MastersModule,
     forwardRef(() => ShipmentsModule),
+    forwardRef(() => QuotationsModule),
   ],
   controllers: [
     CustomsClearanceQueueController,
@@ -62,6 +66,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
   ],
   providers: [
     JobsService,
+    JobDetailService,
     JobsDashboardService,
     SeaFclImportService,
     AirImportService,
@@ -74,6 +79,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     LandService,
     RoadFreightService,
     ModeBookingFormService,
+    BookingFormEntityService,
     CourierService,
     CustomsClearanceService,
   ],
@@ -90,6 +96,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     LandService,
     RoadFreightService,
     ModeBookingFormService,
+    BookingFormEntityService,
     CourierService,
     CustomsClearanceService,
   ],

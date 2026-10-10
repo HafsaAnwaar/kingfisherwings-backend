@@ -415,7 +415,11 @@ export class CreateEnquiryDto {
   @IsUUID()
   department_id?: string;
 
-  @ApiProperty({ enum: JobType })
+  @ApiProperty({
+    enum: JobType,
+    description:
+      "Service selected in wizard step 1. Full list: GET /crm/enquiries/wizard → data.services",
+  })
   @IsEnum(JobType)
   service_type!: JobType;
 

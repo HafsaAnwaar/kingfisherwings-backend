@@ -56,6 +56,8 @@ import { PortalComplianceBookingController } from "./portal-compliance-booking.c
 import { PortalComplianceBookingService } from "./portal-compliance-booking.service";
 import { PortalAirComplianceBookingController } from "./portal-air-compliance-booking.controller";
 import { PortalAirComplianceBookingService } from "./portal-air-compliance-booking.service";
+import { PortalBookingFormController } from "./portal-booking-form.controller";
+import { PortalBookingFormService } from "./portal-booking-form.service";
 import { PortalCcController } from "./portal-cc.controller";
 import { ToolsModule } from "../tools/tools.module";
 import { NvoccModule } from "../nvocc/nvocc.module";
@@ -106,6 +108,7 @@ import { ShipmentsModule } from "../shipments/shipments.module";
     PortalConverterController,
     PortalComplianceBookingController,
     PortalAirComplianceBookingController,
+    PortalBookingFormController,
     PortalCcController,
   ],
   providers: [
@@ -123,6 +126,7 @@ import { ShipmentsModule } from "../shipments/shipments.module";
     PortalAirWorkflowService,
     PortalComplianceBookingService,
     PortalAirComplianceBookingService,
+    PortalBookingFormService,
     PortalAuthGuard,
   ],
   exports: [

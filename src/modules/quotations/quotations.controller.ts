@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UploadedFile,
   UseGuards,
@@ -55,6 +56,7 @@ import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { QUOTATIONS_PERMISSIONS } from "./constants/quotations-permission.constants";
 import { QuotationDetailService } from "./quotation-detail.service";
 import { ChangeQuotationStatusDto } from "./dto/quotation-detail.dto";
+import { BookingFormEntityService } from "../jobs/booking-forms/booking-form-entity.service";
 
 @ApiTags("Quotations")
 @ApiBearerAuth()
@@ -64,6 +66,7 @@ export class QuotationsController {
   constructor(
     private readonly service: QuotationsService,
     private readonly detail: QuotationDetailService,
+    private readonly bookingForms: BookingFormEntityService,
     private readonly vendorQuotes: VendorQuotesService,
   ) {}
 
@@ -203,6 +206,51 @@ export class QuotationsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.detail.getDetail(tenantId, id);
+  }
+
+  @Get(":id/booking-form")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Get booking form for quotation (job-scoped; creates provisional job if needed)",
+  })
+  getBookingForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.bookingForms.getForQuotation(tenantId, id, { id: actorId });
+  }
+
+  @Put(":id/booking-form")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Upsert booking form for quotation (via provisional/linked job)" })
+  putBookingForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: Record<string, unknown>,
+  ) {
+    return this.bookingForms.upsertForQuotation(tenantId, id, dto, {
+      id: actorId,
+      role: role as never,
+    });
+  }
+
+  @Post(":id/booking-form/complete")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Complete booking form for quotation" })
+  completeBookingForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.bookingForms.completeForQuotation(tenantId, id, {
+      id: actorId,
+      role: role as never,
+    });
   }
 
   @Post(":id/change-status")

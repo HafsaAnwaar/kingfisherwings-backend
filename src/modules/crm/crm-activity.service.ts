@@ -23,6 +23,10 @@ import {
   PatchFollowUpDto,
   UpdateEnquiryDto,
 } from "./dto/crm.dto";
+import {
+  allOperationsServices,
+  visibleJobTypes,
+} from "../../common/constants/module-permission-tree";
 
 @Injectable()
 export class CrmActivityService {
@@ -285,6 +289,104 @@ export class CrmActivityService {
       }),
     );
     return { success: true, data: updated };
+  }
+
+  /**
+   * Create-enquiry wizard metadata. Step 1 lists every operational service
+   * (JobType); steps 2–5 field maps stay the same as the Fresa sheet.
+   */
+  getEnquiryCreateWizard(user: CurrentUser) {
+    const all = allOperationsServices();
+    const allowed = visibleJobTypes(user.permissions ?? []);
+    const services = (allowed === null
+      ? all
+      : all.filter((s) => allowed.includes(s.job_type))
+    ).map((s) => ({
+      ...s,
+      value: s.job_type,
+    }));
+
+    return {
+      success: true,
+      data: {
+        steps: [
+          {
+            step: 1,
+            key: "create_enquiry",
+            title: "Create enquiry",
+            description:
+              "Select service type (all services listed) and currency; optional lead.",
+            fields: ["service_type", "currency_code", "lead_id"],
+            services,
+          },
+          {
+            step: 2,
+            key: "port_details",
+            title: "Port details",
+            fields: [
+              "branch_id",
+              "department_id",
+              "enquiry_date",
+              "party_id",
+              "shipper_id",
+              "consignee_id",
+              "shipper_address",
+              "consignee_address",
+              "customer_address",
+              "origin_port_id",
+              "dest_port_id",
+              "por_port_id",
+              "incoterms",
+              "etd",
+              "eta",
+              "payable_at",
+              "dispatch_at",
+            ],
+          },
+          {
+            step: 3,
+            key: "planned_container_consignee",
+            title: "Planned container / consignee",
+            fields: [
+              "party_id",
+              "department_id",
+              "sales_coordinator_id",
+              "salesperson_id",
+              "price_coordinator_id",
+              "carrier_id",
+              "voyage_number",
+              "vessel_name",
+              "pieces",
+              "unit_price",
+              "gross_weight",
+              "chargeable_weight",
+              "net_weight",
+              "weight_unit",
+              "volume_cbm",
+              "cbm_unit",
+              "hs_code",
+              "commodity",
+              "container_type_id",
+              "container_count",
+            ],
+          },
+          {
+            step: 4,
+            key: "charge_details",
+            title: "Charge details",
+            fields: ["charges"],
+          },
+          {
+            step: 5,
+            key: "summary",
+            title: "Summary",
+            fields: [],
+            description: "FE review → POST /crm/enquiries",
+          },
+        ],
+        services,
+      },
+    };
   }
 
   async createEnquiry(user: CurrentUser, dto: CreateEnquiryDto) {

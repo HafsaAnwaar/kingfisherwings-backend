@@ -183,6 +183,19 @@ const OPERATIONS_JOB_TYPES = MODULE_PERMISSION_TREE.find(
   (m) => m.key === "operations",
 )!.submodules.filter((s) => s.jobType);
 
+/** All operational services (JobType) with labels — enquiry wizard step 1. */
+export function allOperationsServices(): {
+  job_type: JobType;
+  key: string;
+  label: string;
+}[] {
+  return OPERATIONS_JOB_TYPES.map((s) => ({
+    job_type: s.jobType!,
+    key: s.key,
+    label: s.label,
+  }));
+}
+
 export function operationsSeeCode(jobType: JobType): string {
   const sub = OPERATIONS_JOB_TYPES.find((s) => s.jobType === jobType);
   if (!sub) return `operations_unknown.see`;

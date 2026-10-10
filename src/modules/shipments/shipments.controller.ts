@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -37,6 +38,7 @@ import {
   UpsertShipmentRoutingLegDto,
 } from "./dto/shipment-detail.dto";
 import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
+import { BookingFormEntityService } from "../jobs/booking-forms/booking-form-entity.service";
 
 @ApiTags("Shipments")
 @ApiBearerAuth()
@@ -46,6 +48,7 @@ export class ShipmentsController {
   constructor(
     private readonly service: ShipmentsService,
     private readonly detail: ShipmentDetailService,
+    private readonly bookingForms: BookingFormEntityService,
   ) {}
 
   @Get()
@@ -88,6 +91,51 @@ export class ShipmentsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.detail.getDetail(tenantId, id);
+  }
+
+  @Get(":id/booking-form")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Get booking form for shipment (job-scoped; creates provisional job if needed)",
+  })
+  getBookingForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.bookingForms.getForShipment(tenantId, id, { id: actorId });
+  }
+
+  @Put(":id/booking-form")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Upsert booking form for shipment (via provisional/linked job)" })
+  putBookingForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: Record<string, unknown>,
+  ) {
+    return this.bookingForms.upsertForShipment(tenantId, id, dto, {
+      id: actorId,
+      role: role as never,
+    });
+  }
+
+  @Post(":id/booking-form/complete")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Complete booking form for shipment" })
+  completeBookingForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.bookingForms.completeForShipment(tenantId, id, {
+      id: actorId,
+      role: role as never,
+    });
   }
 
   @Post(":id/routing-legs")

@@ -53,7 +53,7 @@ export class ShipmentDetailService {
     return {
       success: true,
       data: {
-        shipment: this.headerPayload(shipment),
+        shipment: this.headerPayload(shipment, links.job?.job_number ?? null),
         links,
         actions: this.actionFlags(shipment),
         sections: await this.sectionSummaries(tenantId, shipment),
@@ -72,7 +72,11 @@ export class ShipmentDetailService {
     const shipment = await this.loadShipment(tenantId, id);
 
     if (normalized === "show_all" || normalized === "info") {
-      return { success: true, data: this.headerPayload(shipment) };
+      const links = await this.resolveLinks(tenantId, shipment);
+      return {
+        success: true,
+        data: this.headerPayload(shipment, links.job?.job_number ?? null),
+      };
     }
     if (normalized === "organization") {
       return {
@@ -612,7 +616,10 @@ export class ShipmentDetailService {
     return row;
   }
 
-  private headerPayload(shipment: Awaited<ReturnType<typeof this.loadShipment>>) {
+  private headerPayload(
+    shipment: Awaited<ReturnType<typeof this.loadShipment>>,
+    jobNumber?: string | null,
+  ) {
     return {
       id: shipment.id,
       shipment_number: shipment.shipment_number,
@@ -643,6 +650,7 @@ export class ShipmentDetailService {
       vessel_name: shipment.vessel_name,
       voyage_number: shipment.voyage_number,
       job_id: shipment.job_id,
+      job_number: jobNumber ?? null,
       quotation: shipment.quotation
         ? {
             id: shipment.quotation.id,
@@ -659,6 +667,8 @@ export class ShipmentDetailService {
     return {
       can_copy: true,
       can_generate_job: !hasJob && shipment.status !== "CANCELLED",
+      generate_job_modes: ["DIRECT", "HOUSE"] as const,
+      default_generate_mode: "DIRECT" as const,
       can_change_status: shipment.status !== "CANCELLED",
       can_change_bl_status: true,
       can_change_department: true,
@@ -671,6 +681,7 @@ export class ShipmentDetailService {
       can_bl_entry: hasJob,
       can_awb: hasJob && isAir,
       can_track: hasJob,
+      can_booking_form: true,
     };
   }
 
@@ -709,9 +720,26 @@ export class ShipmentDetailService {
           path_hint: `/quotations/${shipment.quotation.id}/detail`,
         }
       : null;
-    const job = shipment.job_id
-      ? { id: shipment.job_id, path_hint: `/jobs/${shipment.job_id}` }
-      : null;
+    let job: {
+      id: string;
+      job_number: string;
+      path_hint: string;
+    } | null = null;
+    if (shipment.job_id) {
+      const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.findFirst({
+          where: { id: shipment.job_id!, tenant_id: tenantId },
+          select: { id: true, job_number: true },
+        }),
+      );
+      if (row) {
+        job = {
+          id: row.id,
+          job_number: row.job_number,
+          path_hint: `/jobs/${row.id}/detail`,
+        };
+      }
+    }
     return { enquiry, quotation, job };
   }
 
