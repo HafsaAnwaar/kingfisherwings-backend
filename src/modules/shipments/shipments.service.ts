@@ -78,6 +78,17 @@ export class ShipmentsService {
           origin_port_id: dto.origin_port_id,
           dest_port_id: dto.dest_port_id,
           por_port_id: dto.por_port_id,
+          pof_port_id: dto.pof_port_id,
+          place_of_delivery: dto.place_of_delivery,
+          shipment_date: dto.shipment_date
+            ? new Date(dto.shipment_date)
+            : undefined,
+          customer_address: dto.customer_address,
+          freight_terms: dto.freight_terms,
+          freight_payable_at: dto.freight_payable_at,
+          freight_payment_type: dto.freight_payment_type,
+          marks_numbers: dto.marks_numbers,
+          is_cross_trade: dto.is_cross_trade ?? false,
           etd: dto.etd ? new Date(dto.etd) : undefined,
           eta: dto.eta ? new Date(dto.eta) : undefined,
           atd: dto.atd ? new Date(dto.atd) : undefined,
@@ -956,19 +967,34 @@ export class ShipmentsService {
       );
     }
 
+    const enquiryId = quote.source_enquiry_id ?? undefined;
     const shipment = await this.create(
       tenantId,
       {
         job_type: quote.job_type,
         customer_id: quote.customer_id,
         quotation_id: quote.id,
+        enquiry_id: enquiryId,
         company_id: quote.company_id ?? undefined,
         branch_id: quote.branch_id ?? undefined,
         department_id: quote.department_id ?? undefined,
+        shipper_id: quote.shipper_id ?? undefined,
+        consignee_id: quote.consignee_id ?? undefined,
         salesperson_id: quote.salesperson_id ?? undefined,
         carrier_id: quote.carrier_id ?? undefined,
         origin_port_id: quote.origin_port_id ?? undefined,
         dest_port_id: quote.dest_port_id ?? undefined,
+        por_port_id: quote.por_port_id ?? undefined,
+        pof_port_id: quote.pof_port_id ?? undefined,
+        place_of_delivery: quote.place_of_delivery ?? undefined,
+        customer_address: quote.customer_address ?? undefined,
+        freight_payment_type: quote.freight_payment_type ?? undefined,
+        marks_numbers: quote.marks_numbers ?? undefined,
+        shipment_date: new Date().toISOString().slice(0, 10),
+        etd: quote.etd?.toISOString().slice(0, 10),
+        eta: quote.eta?.toISOString().slice(0, 10),
+        vessel_name: quote.vessel_name ?? undefined,
+        voyage_number: quote.voyage_number ?? undefined,
         commodity: quote.commodity ?? undefined,
         hs_code: quote.hs_code ?? undefined,
         gross_weight: quote.gross_weight

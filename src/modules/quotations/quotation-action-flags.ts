@@ -31,6 +31,8 @@ export function quotationActionFlags(status: QuotationStatus) {
     can_generate_job: status === "APPROVED",
     /** Convert only after accept (APPROVED) + booking form submit. */
     can_convert_to_job: status === "APPROVED",
+    can_copy: status !== "CONVERTED",
+    can_change_status: true,
   };
 }
 

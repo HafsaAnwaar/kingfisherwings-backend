@@ -81,6 +81,87 @@ export class CreateQuotationDto {
   @IsUUID()
   dest_port_id?: string;
 
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  por_port_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  pof_port_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  place_of_receipt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  place_of_delivery?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  etd?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  eta?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  vessel_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  voyage_number?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  quotation_date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  customer_address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  frequency?: string;
+
+  @ApiPropertyOptional({ description: "PP / CC / etc." })
+  @IsOptional()
+  @IsString()
+  @Length(1, 10)
+  freight_payment_type?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  marks_numbers?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  source_enquiry_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  shipper_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  consignee_id?: string;
+
   @ApiPropertyOptional({ enum: INCOTERMS })
   @IsOptional()
   @IsEnum(INCOTERMS)

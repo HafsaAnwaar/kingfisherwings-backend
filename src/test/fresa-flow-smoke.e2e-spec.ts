@@ -131,6 +131,24 @@ describe("Fresa flow smoke (e2e)", () => {
       genJob.body.id;
     expect(jobId).toBeTruthy();
 
+    const quoteDetail = await request(app.getHttpServer())
+      .get(`/quotations/${quotationId}/detail`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(quoteDetail.body.data?.quotation?.quotation_number).toBeTruthy();
+
+    const shipDetail = await request(app.getHttpServer())
+      .get(`/shipments/${shipmentId}/detail`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(shipDetail.body.data?.shipment?.shipment_number).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .post(`/shipments/${shipmentId}/change-bl-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ bl_status: "DRAFT" })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
     const listed = await request(app.getHttpServer())
       .get("/shipments")
       .set("Authorization", `Bearer ${token}`)

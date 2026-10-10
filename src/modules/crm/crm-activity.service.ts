@@ -819,7 +819,7 @@ export class CrmActivityService {
   }
 
   async generateQuotation(user: CurrentUser, id: string) {
-    const enquiry = await this.requireEnquiry(user, id);
+    const { data: enquiry } = await this.getEnquiry(user, id);
     if (enquiry.status === "CANCELLED") {
       throw new BadRequestException("Cancelled enquiry cannot be quoted.");
     }
@@ -830,6 +830,7 @@ export class CrmActivityService {
     }
 
     const customerId = await this.resolveCustomerId(user, enquiry);
+    const today = new Date().toISOString().slice(0, 10);
     const quote = await this.quotations.create(
       user.tenantId,
       {
@@ -842,6 +843,16 @@ export class CrmActivityService {
         carrier_id: enquiry.carrier_id ?? undefined,
         origin_port_id: enquiry.origin_port_id ?? undefined,
         dest_port_id: enquiry.dest_port_id ?? undefined,
+        por_port_id: enquiry.por_port_id ?? undefined,
+        customer_address: enquiry.customer_address ?? undefined,
+        shipper_id: enquiry.shipper_id ?? undefined,
+        consignee_id: enquiry.consignee_id ?? undefined,
+        etd: enquiry.etd?.toISOString().slice(0, 10),
+        eta: enquiry.eta?.toISOString().slice(0, 10),
+        vessel_name: enquiry.vessel_name ?? undefined,
+        voyage_number: enquiry.voyage_number ?? undefined,
+        quotation_date: today,
+        source_enquiry_id: enquiry.id,
         gross_weight: enquiry.gross_weight
           ? Number(enquiry.gross_weight)
           : undefined,
@@ -861,6 +872,19 @@ export class CrmActivityService {
       },
       user.id,
     );
+
+    const chargeLines = (enquiry.charges ?? []).filter((c) => c.charge_code_id);
+    for (const c of chargeLines) {
+      await this.quotations.addLine(user.tenantId, quote.id, {
+        charge_code_id: c.charge_code_id!,
+        description: c.description,
+        quantity: Number(c.quantity),
+        unit_price: Number(c.unit_price),
+        currency_code: c.currency_code,
+        is_cost: c.is_cost,
+        sort_order: c.sort_order,
+      }, user.id);
+    }
 
     const updated = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.enquiry.update({
