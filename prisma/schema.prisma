@@ -3989,6 +3989,18 @@ model Shipment {
   hbl_number String?          @db.VarChar(50)
   hbl_date   DateTime?        @db.Date
   bl_status  BlDocumentStatus @default(DRAFT)
+  mbl_number String?          @db.VarChar(50)
+  mbl_date   DateTime?        @db.Date
+
+  shipment_date       DateTime? @db.Date
+  customer_address    String?   @db.Text
+  pof_port_id         String?   @db.Uuid
+  place_of_delivery   String?   @db.VarChar(200)
+  freight_terms       String?   @db.VarChar(30)
+  freight_payable_at  String?   @db.VarChar(100)
+  freight_payment_type String?  @db.VarChar(10)
+  marks_numbers       String?   @db.Text
+  is_cross_trade      Boolean   @default(false)
 
   revenue_total Decimal @default(0) @db.Decimal(18, 4)
   cost_total    Decimal @default(0) @db.Decimal(18, 4)
@@ -4005,6 +4017,13 @@ model Shipment {
   quotation Quotation?      @relation(fields: [quotation_id], references: [id], onDelete: SetNull)
   enquiry   Enquiry?        @relation(fields: [enquiry_id], references: [id], onDelete: SetNull)
   charges   ShipmentCharge[]
+  routing_legs      ShipmentRoutingLeg[]
+  container_plans   ShipmentContainerPlan[]
+  container_actuals ShipmentContainerActual[]
+  exchange_rates    ShipmentExchangeRate[]
+  customs_refs      ShipmentCustomsRef[]
+  split_links_as_parent ShipmentSplitLink[] @relation("ShipmentSplitParent")
+  split_links_as_child  ShipmentSplitLink[] @relation("ShipmentSplitChild")
 
   @@unique([tenant_id, shipment_number])
   @@index([tenant_id])
@@ -4053,6 +4072,133 @@ model ShipmentCharge {
   @@map("shipment_charges")
 }
 
+enum ShipmentSplitLinkType {
+  SPLIT
+  MERGE
+}
+
+model ShipmentRoutingLeg {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  shipment_id   String    @db.Uuid
+  leg_sequence  Int       @default(1)
+  transport_mode String?  @db.VarChar(20)
+  port_id       String?   @db.Uuid
+  etd           DateTime? @db.Date
+  eta           DateTime? @db.Date
+  carrier_id    String?   @db.Uuid
+  vessel_name   String?   @db.VarChar(200)
+  voyage_number String?   @db.VarChar(50)
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @updatedAt @db.Timestamptz
+  deleted_at    DateTime? @db.Timestamptz
+
+  shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, shipment_id])
+  @@map("shipment_routing_legs")
+}
+
+model ShipmentContainerPlan {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  shipment_id       String    @db.Uuid
+  container_type_id String?   @db.Uuid
+  quantity          Int       @default(1)
+  container_number  String?   @db.VarChar(40)
+  seal_number       String?   @db.VarChar(40)
+  gross_weight      Decimal?  @db.Decimal(12, 3)
+  volume_cbm        Decimal?  @db.Decimal(10, 3)
+  sort_order        Int       @default(0)
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+  deleted_at        DateTime? @db.Timestamptz
+
+  shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, shipment_id])
+  @@map("shipment_container_plans")
+}
+
+model ShipmentContainerActual {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  shipment_id       String    @db.Uuid
+  container_type_id String?   @db.Uuid
+  container_number  String?   @db.VarChar(40)
+  seal_number       String?   @db.VarChar(40)
+  gross_weight      Decimal?  @db.Decimal(12, 3)
+  volume_cbm        Decimal?  @db.Decimal(10, 3)
+  status            String?   @db.VarChar(40)
+  gate_in_at        DateTime? @db.Timestamptz
+  gate_out_at       DateTime? @db.Timestamptz
+  sort_order        Int       @default(0)
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+  deleted_at        DateTime? @db.Timestamptz
+
+  shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, shipment_id])
+  @@map("shipment_container_actuals")
+}
+
+model ShipmentExchangeRate {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  shipment_id    String    @db.Uuid
+  currency_code  String    @db.Char(3)
+  exchange_rate  Decimal   @db.Decimal(20, 8)
+  effective_date DateTime? @db.Date
+  source         String?   @db.VarChar(80)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  deleted_at     DateTime? @db.Timestamptz
+
+  shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, shipment_id])
+  @@map("shipment_exchange_rates")
+}
+
+model ShipmentCustomsRef {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String    @db.Uuid
+  shipment_id     String    @db.Uuid
+  sb_number       String?   @db.VarChar(50)
+  boe_number      String?   @db.VarChar(50)
+  customs_status  String?   @db.VarChar(40)
+  filed_at        DateTime? @db.Date
+  cleared_at      DateTime? @db.Date
+  remarks         String?   @db.Text
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+  deleted_at      DateTime? @db.Timestamptz
+
+  shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, shipment_id])
+  @@map("shipment_customs_refs")
+}
+
+model ShipmentSplitLink {
+  id                 String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String                @db.Uuid
+  parent_shipment_id String                @db.Uuid
+  child_shipment_id  String                @db.Uuid
+  link_type          ShipmentSplitLinkType
+  created_at         DateTime              @default(now()) @db.Timestamptz
+  created_by         String?               @db.Uuid
+
+  parent Shipment @relation("ShipmentSplitParent", fields: [parent_shipment_id], references: [id], onDelete: Cascade)
+  child  Shipment @relation("ShipmentSplitChild", fields: [child_shipment_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, parent_shipment_id, child_shipment_id, link_type])
+  @@index([tenant_id, parent_shipment_id])
+  @@index([tenant_id, child_shipment_id])
+  @@map("shipment_split_links")
+}
+
 /// Staff favourites for menus / reports (Fresa bookmarks).
 model UserFavourite {
   id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
@@ -4092,7 +4238,24 @@ model Quotation {
   // Route
   origin_port_id String? @db.Uuid
   dest_port_id   String? @db.Uuid
+  por_port_id    String? @db.Uuid
+  pof_port_id    String? @db.Uuid
+  place_of_receipt   String? @db.VarChar(200)
+  place_of_delivery  String? @db.VarChar(200)
   incoterm       String? @db.VarChar(10)
+  etd            DateTime? @db.Date
+  eta            DateTime? @db.Date
+  vessel_name    String?   @db.VarChar(200)
+  voyage_number  String?   @db.VarChar(50)
+
+  quotation_date     DateTime? @db.Date
+  customer_address   String?   @db.Text
+  frequency          String?   @db.VarChar(80)
+  freight_payment_type String? @db.VarChar(10)
+  marks_numbers      String?   @db.Text
+  source_enquiry_id  String?   @db.Uuid
+  shipper_id         String?   @db.Uuid
+  consignee_id       String?   @db.Uuid
 
   // Cargo
   commodity            String?  @db.VarChar(500)
@@ -4193,6 +4356,7 @@ model Quotation {
   @@index([tenant_id, carrier_id])
   @@index([tenant_id, company_id])
   @@index([tenant_id, converted_shipment_id])
+  @@index([tenant_id, source_enquiry_id])
   @@map("quotations")
 }
 

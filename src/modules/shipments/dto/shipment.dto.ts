@@ -141,6 +141,55 @@ export class CreateShipmentDto {
   @IsUUID()
   por_port_id?: string;
 
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  pof_port_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  place_of_delivery?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  shipment_date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  customer_address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  freight_terms?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  freight_payable_at?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  freight_payment_type?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  marks_numbers?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  is_cross_trade?: boolean;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()

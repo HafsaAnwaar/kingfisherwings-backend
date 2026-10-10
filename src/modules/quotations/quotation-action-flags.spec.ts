@@ -13,6 +13,8 @@ describe("quotationActionFlags", () => {
       can_generate_shipment: false,
       can_generate_job: false,
       can_convert_to_job: false,
+      can_copy: true,
+      can_change_status: true,
     });
   });
 
@@ -27,6 +29,8 @@ describe("quotationActionFlags", () => {
       can_generate_shipment: false,
       can_generate_job: false,
       can_convert_to_job: false,
+      can_copy: true,
+      can_change_status: true,
     });
   });
 
@@ -41,6 +45,8 @@ describe("quotationActionFlags", () => {
       can_generate_shipment: true,
       can_generate_job: true,
       can_convert_to_job: true,
+      can_copy: true,
+      can_change_status: true,
     });
   });
 
@@ -50,6 +56,8 @@ describe("quotationActionFlags", () => {
       can_generate_shipment: false,
       can_generate_job: false,
       can_convert_to_job: false,
+      can_copy: true,
+      can_change_status: true,
     });
   });
 });

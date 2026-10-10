@@ -53,6 +53,8 @@ import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { QUOTATIONS_PERMISSIONS } from "./constants/quotations-permission.constants";
+import { QuotationDetailService } from "./quotation-detail.service";
+import { ChangeQuotationStatusDto } from "./dto/quotation-detail.dto";
 
 @ApiTags("Quotations")
 @ApiBearerAuth()
@@ -61,6 +63,7 @@ import { QUOTATIONS_PERMISSIONS } from "./constants/quotations-permission.consta
 export class QuotationsController {
   constructor(
     private readonly service: QuotationsService,
+    private readonly detail: QuotationDetailService,
     private readonly vendorQuotes: VendorQuotesService,
   ) {}
 
@@ -179,6 +182,50 @@ export class QuotationsController {
       return this.service.expireDueAllTenants();
     }
     return this.service.expireDue(tenantId);
+  }
+
+  @Get(":id/detail/:tab")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Quotation detail tab (costing, organization, routing, info)" })
+  getDetailTab(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("tab") tab: string,
+  ) {
+    return this.detail.getDetailTab(tenantId, id, tab);
+  }
+
+  @Get(":id/detail")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Fresa quotation detail — header, sections, actions, links" })
+  getDetail(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.getDetail(tenantId, id);
+  }
+
+  @Post(":id/change-status")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
+  @ApiOperation({ summary: "Staff change quote status (verify, approve, send, …)" })
+  changeStatus(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ChangeQuotationStatusDto,
+  ) {
+    return this.detail.changeStatus(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/copy")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.CREATE)
+  @ApiOperation({ summary: "Copy quotation (alias of duplicate)" })
+  copy(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.copy(tenantId, id, actorId);
   }
 
   @Get(":id")

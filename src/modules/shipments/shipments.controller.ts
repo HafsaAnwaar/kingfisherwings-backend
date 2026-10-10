@@ -28,13 +28,25 @@ import {
 } from "./dto/shipment.dto";
 import { GenerateJobDocumentDto } from "../jobs/dto/generate-job-document.dto";
 import { ShipmentsService } from "./shipments.service";
+import { ShipmentDetailService } from "./shipment-detail.service";
+import {
+  ChangeShipmentBlStatusDto,
+  ChangeShipmentDepartmentDto,
+  MergeShipmentsDto,
+  SplitShipmentDto,
+  UpsertShipmentRoutingLegDto,
+} from "./dto/shipment-detail.dto";
+import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
 
 @ApiTags("Shipments")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("shipments")
 export class ShipmentsController {
-  constructor(private readonly service: ShipmentsService) {}
+  constructor(
+    private readonly service: ShipmentsService,
+    private readonly detail: ShipmentDetailService,
+  ) {}
 
   @Get()
   @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
@@ -55,6 +67,162 @@ export class ShipmentsController {
     @Body() dto: CreateShipmentDto,
   ) {
     return this.service.create(tenantId, dto, actorId);
+  }
+
+  @Get(":id/detail/:tab")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Shipment detail tab (costing, containers, customs, …)" })
+  getDetailTab(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("tab") tab: string,
+  ) {
+    return this.detail.getDetailTab(tenantId, id, tab);
+  }
+
+  @Get(":id/detail")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Fresa shipment detail — header, tabs, actions, links" })
+  getDetail(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.getDetail(tenantId, id);
+  }
+
+  @Post(":id/routing-legs")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  createRoutingLeg(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertShipmentRoutingLegDto,
+  ) {
+    return this.detail.createRoutingLeg(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/routing-legs/:legId")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  updateRoutingLeg(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("legId", ParseUUIDPipe) legId: string,
+    @Body() dto: UpsertShipmentRoutingLegDto,
+  ) {
+    return this.detail.updateRoutingLeg(tenantId, id, legId, dto);
+  }
+
+  @Post(":id/change-bl-status")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  changeBlStatus(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ChangeShipmentBlStatusDto,
+  ) {
+    return this.detail.changeBlStatus(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/department")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  changeDepartment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ChangeShipmentDepartmentDto,
+  ) {
+    return this.detail.changeDepartment(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/split")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  split(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: SplitShipmentDto,
+  ) {
+    return this.detail.split(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/merge")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  merge(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: MergeShipmentsDto,
+  ) {
+    return this.detail.merge(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/switch-bl")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  switchBl(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.detail.switchBl(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/edi/:action")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  ediAction(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("action") action: string,
+  ) {
+    return this.detail.runEdiAction(tenantId, id, action, actorId);
+  }
+
+  @Post(":id/create-submaster")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.GENERATE)
+  createSubmaster(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CreateSubJobDto,
+  ) {
+    return this.detail.createSubmaster(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/kpi")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  kpi(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.kpi(tenantId, id);
+  }
+
+  @Get(":id/bills-of-lading")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  listBl(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.listBillsOfLading(tenantId, id);
+  }
+
+  @Get(":id/awb")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  awb(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.awb(tenantId, id);
+  }
+
+  @Get(":id/tracking")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  tracking(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.tracking(tenantId, id);
   }
 
   @Get(":id")
