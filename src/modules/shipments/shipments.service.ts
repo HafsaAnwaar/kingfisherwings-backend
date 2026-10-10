@@ -342,11 +342,12 @@ export class ShipmentsService {
     dto: GenerateJobFromShipmentDto,
     actorId?: string,
   ) {
+    const mode = dto.mode ?? "DIRECT";
     const shipment = await this.findOne(tenantId, id);
-    if (shipment.job_id && dto.mode === "DIRECT") {
+    if (shipment.job_id && mode === "DIRECT") {
       throw new ConflictAlreadyLinked(shipment.job_id);
     }
-    if (dto.mode === "HOUSE" && !dto.master_job_id && !shipment.job_id) {
+    if (mode === "HOUSE" && !dto.master_job_id && !shipment.job_id) {
       throw new BadRequestException(
         "master_job_id is required when generating a HOUSE job without an existing master link.",
       );
@@ -367,7 +368,7 @@ export class ShipmentsService {
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       let parentJobId: string | null = null;
-      if (dto.mode === "HOUSE") {
+      if (mode === "HOUSE") {
         parentJobId = dto.master_job_id ?? shipment.job_id;
         if (parentJobId) {
           const master = await tx.job.findFirst({
@@ -457,7 +458,7 @@ export class ShipmentsService {
       );
 
       const linkJobId =
-        dto.mode === "HOUSE" && parentJobId ? parentJobId : job.id;
+        mode === "HOUSE" && parentJobId ? parentJobId : job.id;
 
       await tx.shipment.update({
         where: { id },
@@ -497,7 +498,7 @@ export class ShipmentsService {
         jobId: job.id,
         jobNumber: job.job_number,
         shipmentId: id,
-        mode: dto.mode,
+        mode,
       };
     });
   }

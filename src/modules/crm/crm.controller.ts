@@ -239,6 +239,16 @@ export class CrmEnquiriesController {
     return this.activity.openEnquiriesReport(user, query);
   }
 
+  @Get("wizard")
+  @RequirePermissions(CRM_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary:
+      "5-step create-enquiry wizard metadata — step 1 lists all services; steps 2–5 field maps",
+  })
+  createWizard(@CurrentUser() user: CurrentUserType) {
+    return this.activity.getEnquiryCreateWizard(user);
+  }
+
   @Get()
   @RequirePermissions(CRM_PERMISSIONS.VIEW)
   list(@CurrentUser() user: CurrentUserType, @Query() query: EnquiryQueryDto) {

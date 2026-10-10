@@ -397,13 +397,15 @@ export class ChangeShipmentStatusDto {
 }
 
 export class GenerateJobFromShipmentDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: ["HOUSE", "DIRECT"],
+    default: "DIRECT",
     description:
-      "HOUSE = attach as house under optional master_job_id; DIRECT = standalone/master job",
+      "DIRECT = Generate direct master job (default). HOUSE = Generate job with house under optional master_job_id.",
   })
+  @IsOptional()
   @IsEnum(["HOUSE", "DIRECT"] as const)
-  mode!: "HOUSE" | "DIRECT";
+  mode?: "HOUSE" | "DIRECT";
 
   @ApiPropertyOptional({
     format: "uuid",

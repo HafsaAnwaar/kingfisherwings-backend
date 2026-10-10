@@ -25,6 +25,6 @@ import { ShipmentDetailService } from "./shipment-detail.service";
   ],
   controllers: [ShipmentsController],
   providers: [ShipmentsService, ShipmentDetailService, DocumentationEdiService],
-  exports: [ShipmentsService],
+  exports: [ShipmentsService, ShipmentDetailService],
 })
 export class ShipmentsModule {}

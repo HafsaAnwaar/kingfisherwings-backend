@@ -18,4 +18,8 @@ When `job_id` is set and shipment tab rows are empty, `planned_container`, `actu
 
 ## Toolbar actions
 
-Copy, generate job, change status, change BL status, department, split, merge, switch BL, EDI (`bayan-generate`, `bayan-submit`, `ccn-fwb`, `ccn-submit`, `eqo-dubai-generate`), create submaster, KPI, BL list, AWB (air + job), track-trace.
+Copy, generate job (`DIRECT` default / `HOUSE`), change status, change BL status, department, split, merge, switch BL, EDI (`bayan-generate`, `bayan-submit`, `ccn-fwb`, `ccn-submit`, `eqo-dubai-generate`), create submaster, KPI, BL list, AWB (air + job), track-trace, booking form (`GET/PUT /shipments/:id/booking-form`).
+
+## Job No link
+
+After generate-job, detail header/links include `job_number` and `path_hint: /jobs/:id/detail` for FE navigation.

@@ -14,5 +14,6 @@
 | Copy quote | POST | `/quotations/:id/copy` | Match |
 | Enquiry → quote field copy | POST | `/crm/enquiries/:id/generate-quotation` | Match |
 | Shipment link on detail | `links.shipment` after generate-shipment | — | Match |
+| Booking form (job-scoped) | GET/PUT/POST | `/quotations/:id/booking-form` (+ `/complete`) | Match |
 
 Tab keys: `info`, `costing`, `organization`, `routing`.

@@ -9,6 +9,7 @@ import { VendorModule } from "../vendor/vendor.module";
 import { MastersModule } from "../masters/masters.module";
 import { PortalModule } from "../portal/portal.module";
 import { ShipmentsModule } from "../shipments/shipments.module";
+import { JobsModule } from "../jobs/jobs.module";
 import { CronSecretGuard } from "../../common/guards/cron-secret.guard";
 import { QuotationsController } from "./quotations.controller";
 import { QuotationsService } from "./quotations.service";
@@ -33,6 +34,7 @@ import { BookingFormGateService } from "../../common/services/booking-form-gate.
     VendorModule,
     MastersModule,
     ShipmentsModule,
+    forwardRef(() => JobsModule),
     forwardRef(() => PortalModule),
   ],
   // Tariffs + zip-distances MUST register before QuotationsController so

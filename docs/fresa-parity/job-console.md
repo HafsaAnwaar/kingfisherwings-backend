@@ -10,6 +10,12 @@
 | Close (enforced) | POST | `/jobs/:id/close` | Match |
 | Prorate to shipments | POST | `/jobs/:id/prorate-to-shipments` | Match |
 | Cancel prorate | POST | `/jobs/:id/cancel-prorate` | Match |
+| Tabbed detail | GET | `/jobs/:id/detail`, `/jobs/:id/detail/:tab` | Match |
+| Change operational status | POST | `/jobs/:id/change-status` | Match |
+| Stop / hold | POST | `/jobs/:id/stop` | Match |
+| Booking form (job) | GET/PUT | `/jobs/:id/:mode/booking-form` | Match |
+
+See also [job-detail.md](./job-detail.md).
 
 ## Notes
 

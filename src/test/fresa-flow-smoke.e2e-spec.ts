@@ -117,10 +117,11 @@ describe("Fresa flow smoke (e2e)", () => {
     shipmentId = directShip.body.id ?? directShip.body.data?.id;
     expect(shipmentId).toBeTruthy();
 
+    // Empty body → mode defaults to DIRECT (generate-job popup default).
     const genJob = await request(app.getHttpServer())
       .post(`/shipments/${shipmentId}/generate-job`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ mode: "DIRECT" })
+      .send({})
       .expect((res) => {
         expect([200, 201]).toContain(res.status);
       });
@@ -130,6 +131,9 @@ describe("Fresa flow smoke (e2e)", () => {
       genJob.body.data?.id ??
       genJob.body.id;
     expect(jobId).toBeTruthy();
+    expect(genJob.body.mode ?? genJob.body.data?.mode ?? "DIRECT").toBe(
+      "DIRECT",
+    );
 
     const quoteDetail = await request(app.getHttpServer())
       .get(`/quotations/${quotationId}/detail`)
@@ -142,11 +146,37 @@ describe("Fresa flow smoke (e2e)", () => {
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
     expect(shipDetail.body.data?.shipment?.shipment_number).toBeTruthy();
+    expect(shipDetail.body.data?.links?.job?.job_number).toBeTruthy();
+    expect(shipDetail.body.data?.actions?.default_generate_mode).toBe("DIRECT");
 
     await request(app.getHttpServer())
       .post(`/shipments/${shipmentId}/change-bl-status`)
       .set("Authorization", `Bearer ${token}`)
       .send({ bl_status: "DRAFT" })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
+    const jobDetail = await request(app.getHttpServer())
+      .get(`/jobs/${jobId}/detail`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(jobDetail.body.data?.job?.job_number).toBeTruthy();
+    expect(jobDetail.body.data?.actions?.can_change_status).toBe(true);
+
+    await request(app.getHttpServer())
+      .post(`/jobs/${jobId}/change-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "ON_HOLD", reason: "smoke stop" })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
+    const history = await request(app.getHttpServer())
+      .get(`/jobs/${jobId}/detail/history`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(Array.isArray(history.body.data)).toBe(true);
+
+    await request(app.getHttpServer())
+      .get(`/shipments/${shipmentId}/booking-form`)
+      .set("Authorization", `Bearer ${token}`)
       .expect((res) => expect([200, 201]).toContain(res.status));
 
     const listed = await request(app.getHttpServer())
