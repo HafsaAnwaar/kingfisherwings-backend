@@ -36,6 +36,8 @@ import {
 } from "./documentation-ops.controller";
 import { DocumentationJobTransferService } from "./documentation-job-transfer.service";
 import { DocumentationAirTrackingService } from "./documentation-air-tracking.service";
+import { DocumentationJobsController } from "./documentation-jobs.controller";
+import { DocumentationJobsService } from "./documentation-jobs.service";
 
 const redisEnabled = isRedisEnabledEnv();
 
@@ -80,6 +82,7 @@ const uploadQueueProviders = redisEnabled
     DocumentationDeliveryOrderController,
     DocumentationReportController,
     DocumentationJobTransferController,
+    DocumentationJobsController,
     DocumentationTrackingController,
   ],
   providers: [
@@ -95,6 +98,7 @@ const uploadQueueProviders = redisEnabled
     DocumentationReportService,
     DocumentationJobTransferService,
     DocumentationAirTrackingService,
+    DocumentationJobsService,
   ],
   exports: [DocumentationEdiService],
 })

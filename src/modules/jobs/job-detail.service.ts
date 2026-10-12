@@ -6,7 +6,18 @@ import {
 import { JobStatus, JobType, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ShipmentsService } from "../shipments/shipments.service";
-import { ChangeJobStatusDto } from "./dto/job-detail.dto";
+import {
+  ChangeJobStatusDto,
+  ReopenJobDto,
+} from "./dto/job-detail.dto";
+import {
+  PatchJobDimensionsDto,
+  UpsertJobPartyReferenceDto,
+} from "./dto/job-organization.dto";
+import { JobStatusCatalogService } from "./job-status-catalog.service";
+import { JobChargeAttachmentService } from "./job-charge-attachment.service";
+import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
+import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
 
 const DETAIL_TABS = [
   "show_all",
@@ -28,53 +39,15 @@ const DETAIL_TABS = [
 
 const AIR_JOB_TYPES: JobType[] = ["AIR_EXPORT", "AIR_IMPORT"];
 
-/** Allowed operational status transitions (close/cancel use dedicated endpoints). */
-const ALLOWED_TRANSITIONS: Partial<Record<JobStatus, JobStatus[]>> = {
-  ENQUIRY: ["QUOTATION", "BOOKING_CONFIRMED", "ON_HOLD", "CANCELLED"],
-  QUOTATION: ["BOOKING_CONFIRMED", "ON_HOLD", "CANCELLED"],
-  BOOKING_CONFIRMED: [
-    "IN_PROGRESS",
-    "ON_HOLD",
-    "DOCS_PENDING",
-    "CANCELLED",
-  ],
-  IN_PROGRESS: [
-    "ON_HOLD",
-    "DOCS_PENDING",
-    "CUSTOMS_CLEARANCE",
-    "DELIVERED",
-    "COMPLETED",
-  ],
-  DOCS_PENDING: [
-    "IN_PROGRESS",
-    "ON_HOLD",
-    "CUSTOMS_CLEARANCE",
-    "DELIVERED",
-    "COMPLETED",
-  ],
-  CUSTOMS_CLEARANCE: [
-    "IN_PROGRESS",
-    "ON_HOLD",
-    "DELIVERED",
-    "COMPLETED",
-  ],
-  DELIVERED: ["COMPLETED", "ON_HOLD"],
-  ON_HOLD: [
-    "BOOKING_CONFIRMED",
-    "IN_PROGRESS",
-    "DOCS_PENDING",
-    "CUSTOMS_CLEARANCE",
-    "CANCELLED",
-  ],
-  COMPLETED: [],
-  CANCELLED: [],
-};
+const TERMINAL_STATUSES: JobStatus[] = ["COMPLETED", "CANCELLED"];
 
 @Injectable()
 export class JobDetailService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly shipments: ShipmentsService,
+    private readonly statusCatalog: JobStatusCatalogService,
+    private readonly chargeAttachments: JobChargeAttachmentService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -105,6 +78,12 @@ export class JobDetailService {
       return { success: true, data: this.headerPayload(job) };
     }
     if (normalized === "organization") {
+      const refs = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.jobPartyReference.findMany({
+          where: { tenant_id: tenantId, job_id: id },
+          orderBy: { updated_at: "desc" },
+        }),
+      );
       return {
         success: true,
         data: {
@@ -116,6 +95,7 @@ export class JobDetailService {
           billing_party_id: job.billing_party_id,
           salesperson_id: job.salesperson_id,
           agent_id: job.agent_id,
+          party_references: refs,
         },
       };
     }
@@ -129,12 +109,17 @@ export class JobDetailService {
           volume_cbm: job.volume_cbm,
           hs_code: job.hs_code,
           commodity: job.commodity,
+          commodity_description: job.commodity,
           container_type_id: job.container_type_id,
           container_count: job.container_count,
         },
       };
     }
     if (normalized === "costing") {
+      const counts = await this.chargeAttachments.countsByChargeIds(
+        tenantId,
+        job.charges.map((c) => c.id),
+      );
       return {
         success: true,
         data: {
@@ -142,7 +127,10 @@ export class JobDetailService {
           cost_total: job.cost_total,
           gp_amount: job.gp_amount,
           gp_percent: job.gp_percent,
-          charges: job.charges,
+          charges: job.charges.map((c) => ({
+            ...c,
+            attachment_count: counts.get(c.id) ?? 0,
+          })),
         },
       };
     }
@@ -235,26 +223,33 @@ export class JobDetailService {
     id: string,
     dto: ChangeJobStatusDto,
     actorId?: string,
+    permissions?: string[],
   ) {
     const job = await this.loadJob(tenantId, id);
     const target = dto.status;
     if (target === job.status) {
-      return { success: true, data: job };
+      return { success: true, data: job, warnings: [] };
     }
-    if (target === "COMPLETED") {
-      throw new BadRequestException(
-        "Use POST /jobs/:id/close to complete a job (checklist enforced).",
+
+    await this.statusCatalog.ensureCatalog(tenantId);
+    try {
+      await this.statusCatalog.assertActiveCode(tenantId, target);
+    } catch {
+      throw new BadRequestException(`Status ${target} is not available.`);
+    }
+
+    const warnings: string[] = [];
+    const canForce =
+      permissions?.includes(JOBS_PERMISSIONS.STATUS_FORCE) ||
+      permissions?.includes(JOBS_PERMISSIONS.CLOSE);
+    if (target === "COMPLETED" && !canForce) {
+      warnings.push(
+        "Setting COMPLETED via change-status skips close checklist — prefer POST /jobs/:id/close.",
       );
     }
     if (target === "CANCELLED") {
-      throw new BadRequestException(
-        "Use POST /jobs/:id/cancel to cancel a job.",
-      );
-    }
-    const allowed = ALLOWED_TRANSITIONS[job.status] ?? [];
-    if (!allowed.includes(target)) {
-      throw new BadRequestException(
-        `Cannot change job status from ${job.status} to ${target}. Allowed: ${allowed.join(", ") || "none"}.`,
+      warnings.push(
+        "Prefer POST /jobs/:id/cancel for audited cancellation workflow.",
       );
     }
 
@@ -283,6 +278,110 @@ export class JobDetailService {
       return row;
     });
 
+    return { success: true, data: updated, warnings };
+  }
+
+  async reopen(
+    tenantId: string,
+    id: string,
+    dto: ReopenJobDto,
+    actorId?: string,
+  ) {
+    const job = await this.loadJob(tenantId, id);
+    if (!TERMINAL_STATUSES.includes(job.status) && job.status !== "DELIVERED") {
+      throw new BadRequestException(
+        "Reopen applies to Closed (COMPLETED), Cancelled, or Delivered jobs.",
+      );
+    }
+    const target = (dto.status ?? DEFAULT_REOPEN_STATUS) as JobStatus;
+    await this.statusCatalog.assertActiveCode(tenantId, target);
+
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.job.update({
+        where: { id },
+        data: { status: target, updated_by: actorId },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_REOPENED",
+          entity: "JOB",
+          entity_id: id,
+          metadata: {
+            from: job.status,
+            to: target,
+            reason: dto.reason ?? null,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return row;
+    });
+    return { success: true, data: updated };
+  }
+
+  async patchOrganizationReference(
+    tenantId: string,
+    jobId: string,
+    dto: UpsertJobPartyReferenceDto,
+    actorId?: string,
+  ) {
+    await this.loadJob(tenantId, jobId);
+    const role = dto.party_role ?? "CLIENT";
+    const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const existing = await tx.jobPartyReference.findFirst({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          party_role: role,
+          reference_type: dto.reference_type,
+        },
+      });
+      if (existing) {
+        return tx.jobPartyReference.update({
+          where: { id: existing.id },
+          data: {
+            reference_no: dto.reference_no,
+            party_id: dto.party_id,
+            updated_by: actorId,
+          },
+        });
+      }
+      return tx.jobPartyReference.create({
+        data: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          party_role: role,
+          party_id: dto.party_id,
+          reference_type: dto.reference_type,
+          reference_no: dto.reference_no,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+    });
+    return { success: true, data: row };
+  }
+
+  async patchDimensions(
+    tenantId: string,
+    jobId: string,
+    dto: PatchJobDimensionsDto,
+    actorId?: string,
+  ) {
+    await this.loadJob(tenantId, jobId);
+    const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.update({
+        where: { id: jobId },
+        data: {
+          ...(dto.commodity_description !== undefined
+            ? { commodity: dto.commodity_description }
+            : {}),
+          ...(dto.hs_code !== undefined ? { hs_code: dto.hs_code } : {}),
+          updated_by: actorId,
+        },
+      }),
+    );
     return { success: true, data: updated };
   }
 
@@ -343,6 +442,7 @@ export class JobDetailService {
       id: job.id,
       job_number: job.job_number,
       status: job.status,
+      job_date: job.job_date,
       job_type: job.job_type,
       branch_id: job.branch_id,
       department_id: job.department_id,
@@ -367,9 +467,13 @@ export class JobDetailService {
       job.status === "COMPLETED" || job.status === "CANCELLED";
     const isAir = AIR_JOB_TYPES.includes(job.job_type);
     return {
+      can_edit_header: !closed,
       can_edit: !closed,
+      can_edit_closed_delivery: true,
       can_delete: !closed,
-      can_change_status: !closed,
+      can_change_status: true,
+      can_reopen:
+        closed || job.status === "DELIVERED",
       can_stop: !closed && job.status !== "ON_HOLD",
       can_close: !closed,
       can_cancel: !closed,
@@ -384,6 +488,10 @@ export class JobDetailService {
       can_track: !!job.tracking_token,
       path_hints: {
         close: `/jobs/${job.id}/close`,
+        reopen: `/jobs/${job.id}/reopen`,
+        change_status: `/jobs/${job.id}/change-status`,
+        status_options: `/jobs/status-options?job_id=${job.id}`,
+        gpum: `/jobs/${job.id}/gpum`,
         cancel: `/jobs/${job.id}/cancel`,
         copy: `/jobs/${job.id}/copy`,
         switch_bl: `/jobs/${job.id}/documents/switch-bl`,

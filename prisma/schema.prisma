@@ -60,6 +60,8 @@ enum JobStatus {
   ENQUIRY
   QUOTATION
   BOOKING_CONFIRMED
+  APPROVED
+  OPEN
   IN_PROGRESS
   DOCS_PENDING
   CUSTOMS_CLEARANCE
@@ -67,6 +69,31 @@ enum JobStatus {
   COMPLETED
   CANCELLED
   ON_HOLD
+}
+
+enum JobStatusCategory {
+  LIFECYCLE
+  OPERATIONAL
+}
+
+enum JobDateSource {
+  ETD_ATD
+  ETA_ATA
+  SYSTEM_DATE
+}
+
+enum JobPartyRole {
+  CLIENT
+  SHIPPER
+  CONSIGNEE
+  BILLING_PARTY
+  AGENT
+}
+
+enum JobPartyReferenceType {
+  PO_NUMBER
+  CUSTOMER_REF
+  OTHER
 }
 
 enum ShipmentMode {
@@ -748,6 +775,8 @@ model Tenant {
   /// Optional — set/changed any time after signup (SuperAdmin or tenant admin). When null, phones use international E.164 and currency/timezone keep their own defaults.
   country_code         String? @db.Char(2)
   financial_year_start Int     @default(1)
+  /// How Job.job_date is derived when a job is created or generated from shipment/quote.
+  job_date_source      JobDateSource @default(SYSTEM_DATE)
 
   // Business Registration
   vat_number String? @db.VarChar(50)
@@ -1183,6 +1212,7 @@ model User {
   salesperson_budgets  SalespersonBudget[]
   email_campaigns      EmailCampaign[]     @relation("CampaignCreator")
   hr_employees         HrEmployee[]
+  gpum_allocations     JobGpumAllocation[]
 
   @@unique([tenant_id, email])
   @@index([tenant_id])
@@ -1692,6 +1722,8 @@ model ContainerType {
   tare_kg          Decimal? @db.Decimal(10, 2)
   max_cargo_kg     Decimal? @db.Decimal(10, 2)
   category         String?  @db.VarChar(40)
+  /// Fresa BLP_CONT_TYPE_CODE-style token for auto costing quantity.
+  calculation_method String? @db.VarChar(80)
   is_active   Boolean       @default(true)
   created_at  DateTime      @default(now()) @db.Timestamptz
   updated_at  DateTime      @updatedAt @db.Timestamptz
@@ -2536,6 +2568,8 @@ model Job {
   tags              String[]  @db.Text
   etd               DateTime? @db.Date
   eta               DateTime? @db.Date
+  /// Reporting job date — set from tenant job_date_source on create/generate.
+  job_date          DateTime? @db.Date
 
   /// Universal scannable barcode (CODE128-safe). Auto-set on create.
   barcode_value         String?       @db.VarChar(80)
@@ -2600,6 +2634,10 @@ model Job {
   vendor_quotes        VendorQuote[]
   job_scan_events      JobScanEvent[]
   shipments            Shipment[]
+  party_references     JobPartyReference[]
+  gpum_allocations     JobGpumAllocation[]
+  import_delivery      JobImportDeliveryDetail?
+  charge_attachments   JobChargeAttachment[]
 
   @@unique([tenant_id, job_number])
   @@unique([tenant_id, barcode_value])
@@ -3841,10 +3879,110 @@ model JobCharge {
   job          Job          @relation(fields: [job_id], references: [id], onDelete: Cascade)
   invoice_line InvoiceLine?
   transport_request TransportRequest?
+  attachments  JobChargeAttachment[]
 
   @@index([tenant_id])
   @@index([tenant_id, job_id])
   @@map("job_charges")
+}
+
+model JobStatusCatalog {
+  id          String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String             @db.Uuid
+  code        String             @db.VarChar(40)
+  label       String             @db.VarChar(120)
+  category    JobStatusCategory  @default(OPERATIONAL)
+  is_terminal Boolean            @default(false)
+  sort_order  Int                @default(0)
+  is_active   Boolean            @default(true)
+  created_at  DateTime           @default(now()) @db.Timestamptz
+  updated_at  DateTime           @updatedAt @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, is_active])
+  @@map("job_status_catalog")
+}
+
+model JobPartyReference {
+  id             String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String                @db.Uuid
+  job_id         String                @db.Uuid
+  party_role     JobPartyRole          @default(CLIENT)
+  party_id       String?               @db.Uuid
+  reference_type JobPartyReferenceType
+  reference_no   String                @db.VarChar(100)
+  created_at     DateTime              @default(now()) @db.Timestamptz
+  updated_at     DateTime              @updatedAt @db.Timestamptz
+  created_by     String?               @db.Uuid
+  updated_by     String?               @db.Uuid
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, job_id, party_role])
+  @@map("job_party_references")
+}
+
+model JobGpumAllocation {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String   @db.Uuid
+  job_id     String   @db.Uuid
+  user_id    String   @db.Uuid
+  gp_percent Decimal  @db.Decimal(7, 4)
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_by String?  @db.Uuid
+
+  job  Job  @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, job_id, user_id])
+  @@index([tenant_id, job_id])
+  @@map("job_gpum_allocations")
+}
+
+model JobChargeAttachment {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  job_id        String    @db.Uuid
+  job_charge_id String    @db.Uuid
+  file_name     String    @db.VarChar(300)
+  file_url      String    @db.Text
+  s3_key        String?   @db.Text
+  file_size     Int?
+  mime_type     String?   @db.VarChar(100)
+  uploaded_by   String?   @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  deleted_at    DateTime? @db.Timestamptz
+
+  job        Job       @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  job_charge JobCharge @relation(fields: [job_charge_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, job_charge_id])
+  @@index([tenant_id, job_id])
+  @@map("job_charge_attachments")
+}
+
+model JobImportDeliveryDetail {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  job_id               String    @unique @db.Uuid
+  shipment_id          String?   @db.Uuid
+  do_status            String?   @db.VarChar(40)
+  number_of_pallets    Int?
+  cargo_delivered_date DateTime? @db.Date
+  truck_details        String?   @db.VarChar(500)
+  driver_name          String?   @db.VarChar(200)
+  remarks              String?   @db.Text
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+  updated_by           String?   @db.Uuid
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, cargo_delivered_date])
+  @@map("job_import_delivery_details")
 }
 
 model JobMilestone {
@@ -7601,6 +7739,7 @@ model RateBasis {
   tenant_id  String    @db.Uuid
   code       String    @db.VarChar(30)
   name       String    @db.VarChar(200)
+  calculation_method String? @db.VarChar(80)
   is_active  Boolean   @default(true)
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
@@ -7640,6 +7779,7 @@ model StorageSlab {
   tenant_id      String    @db.Uuid
   code           String    @db.VarChar(30)
   name           String    @db.VarChar(200)
+  charge_description String? @db.VarChar(300)
   from_days      Int
   to_days        Int
   rate           Decimal   @db.Decimal(18, 4)

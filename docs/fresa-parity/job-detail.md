@@ -24,9 +24,14 @@ Same as shipment where applicable: `show_all`, `info`, `organization`, `dimensio
 
 | Action | API |
 |--------|-----|
-| Change operational status | `POST /jobs/:id/change-status` |
+| Status options (catalog) | `GET /jobs/status-options?job_id=` |
+| Change status (anytime) | `POST /jobs/:id/change-status` |
+| Reopen closed/cancelled | `POST /jobs/:id/reopen` |
 | Stop / hold | `POST /jobs/:id/stop` → `ON_HOLD` |
-| Close | `POST /jobs/:id/close` |
+| Close (checklist) | `POST /jobs/:id/close` |
+| GPUM | `GET/PUT /jobs/:id/gpum` |
+| Client PO reference | `PATCH /jobs/:id/organization/client-reference` |
+| Dimension / commodity | `PATCH /jobs/:id/dimensions` |
 | Cancel | `POST /jobs/:id/cancel` |
 | Copy | `POST /jobs/:id/copy` |
 | Docs | `/ops/JOB/:id/attachments` (bidirectional visibility) |

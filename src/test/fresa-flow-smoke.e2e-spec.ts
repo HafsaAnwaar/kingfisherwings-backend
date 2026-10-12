@@ -168,6 +168,33 @@ describe("Fresa flow smoke (e2e)", () => {
       .send({ status: "ON_HOLD", reason: "smoke stop" })
       .expect((res) => expect([200, 201]).toContain(res.status));
 
+    const statusOpts = await request(app.getHttpServer())
+      .get(`/jobs/status-options?job_id=${jobId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(statusOpts.body.data?.options?.length).toBeGreaterThan(0);
+
+    await request(app.getHttpServer())
+      .patch(`/jobs/${jobId}/organization/client-reference`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        reference_type: "PO_NUMBER",
+        reference_no: `PO-SMOKE-${runId}`,
+        party_id: partyId,
+      })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
+    await request(app.getHttpServer())
+      .patch(`/jobs/${jobId}/dimensions`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ commodity_description: "Smoke commodity" })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
+    await request(app.getHttpServer())
+      .get("/documentation/jobs")
+      .set("Authorization", `Bearer ${token}`)
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
     const history = await request(app.getHttpServer())
       .get(`/jobs/${jobId}/detail/history`)
       .set("Authorization", `Bearer ${token}`)

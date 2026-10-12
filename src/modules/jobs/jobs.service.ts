@@ -95,6 +95,8 @@ import {
 } from "./dto/stuffing-record.dto";
 import { SendPreAlertDto } from "./dto/pre-alert.dto";
 import { GenerateJobDocumentDto } from "./dto/generate-job-document.dto";
+import { JobDateService } from "./job-date.service";
+import { resolveAutoChargeQuantity } from "./utils/job-charge-quantity.util";
 import { JobQueryDto } from "./dto/job-query.dto";
 import {
   CreatePaymentRequestFromJobDto,
@@ -147,6 +149,7 @@ export class JobsService {
     private readonly notifications: NotificationEmitterService,
     private readonly masterLabels: MasterLabelService,
     private readonly shipmentsService: ShipmentsService,
+    private readonly jobDates: JobDateService,
   ) {}
 
   // ============================================================
@@ -248,6 +251,13 @@ export class JobsService {
 
       const barcodeValue = barcodeFromJobNumber(jobNumber);
       const defaultScope = defaultServiceScopeForJobType(dto.job_type);
+      const etdDate = dto.etd ? new Date(dto.etd) : undefined;
+      const etaDate = dto.eta ? new Date(dto.eta) : undefined;
+      const jobDate = await this.jobDates.resolveForJob(tenantId, {
+        job_type: dto.job_type,
+        etd: etdDate,
+        eta: etaDate,
+      });
 
       const job = await tx.job.create({
         data: {
@@ -258,6 +268,7 @@ export class JobsService {
           barcode_value: barcodeValue,
           job_type: dto.job_type,
           status: "BOOKING_CONFIRMED",
+          job_date: jobDate,
           branch_id: dto.branch_id,
           department_id: dto.department_id,
           parent_job_id: dto.parent_job_id,
@@ -283,8 +294,8 @@ export class JobsService {
           notes: dto.notes,
           customer_remarks: dto.customer_remarks,
           tags: dto.tags ?? [],
-          etd: dto.etd ? new Date(dto.etd) : undefined,
-          eta: dto.eta ? new Date(dto.eta) : undefined,
+          etd: etdDate,
+          eta: etaDate,
           service_scope: dto.service_scope ?? defaultScope,
           origin_door_address: dto.origin_door_address,
           dest_door_address: dto.dest_door_address,
@@ -2971,7 +2982,16 @@ export class JobsService {
       await this.assertChargeCodeExists(tx, tenantId, dto.charge_code_id);
       const taxAmount = await this.computeTax(tx, tenantId, dto);
 
-      const quantity = dto.quantity ?? 1;
+      const chargeCode = await tx.chargeCode.findFirst({
+        where: { id: dto.charge_code_id, tenant_id: tenantId },
+      });
+      const quantity = await resolveAutoChargeQuantity(
+        tx,
+        tenantId,
+        jobId,
+        chargeCode?.unit,
+        dto.quantity,
+      );
       const exchangeRate = dto.exchange_rate ?? 1;
       const amount = quantity * dto.unit_price;
       const amountBase = amount * exchangeRate;

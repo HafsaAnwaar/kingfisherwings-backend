@@ -93,6 +93,15 @@ export class TenantsController {
     return this.tenantsService.statistics();
   }
 
+  @Get("product-modules")
+  @ApiOperation({
+    summary:
+      "List product modules SuperAdmin can enable/disable on a tenant (includes Shipments)",
+  })
+  listProductModules() {
+    return this.tenantsService.listProductModules();
+  }
+
   // =====================================================
   // SYNC PERMISSIONS
   // =====================================================

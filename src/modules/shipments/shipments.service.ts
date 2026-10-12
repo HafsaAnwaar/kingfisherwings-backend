@@ -9,6 +9,7 @@ import { NumberGeneratorService } from "../organization/number-formats/number-ge
 import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
 import { mintTrackingToken } from "../jobs/utils/tracking-token.util";
 import { seedJobTypeExtras } from "../jobs/utils/job-type-seed.util";
+import { resolveJobDate } from "../jobs/utils/job-date.util";
 import { assertDocumentAllowedForJobType } from "../jobs/constants/job-document-allowlist";
 import { GenerateJobDocumentDto } from "../jobs/dto/generate-job-document.dto";
 import {
@@ -385,6 +386,17 @@ export class ShipmentsService {
         }
       }
 
+      const tenantRow = await tx.tenant.findUnique({
+        where: { id: tenantId },
+        select: { job_date_source: true },
+      });
+      const job_date = resolveJobDate({
+        job_date_source: tenantRow?.job_date_source ?? "SYSTEM_DATE",
+        job_type: shipment.job_type,
+        etd: shipment.etd,
+        eta: shipment.eta,
+      });
+
       const job = await tx.job.create({
         data: {
           tenant_id: tenantId,
@@ -392,6 +404,7 @@ export class ShipmentsService {
           tracking_token: mintTrackingToken(),
           job_type: shipment.job_type,
           status: "BOOKING_CONFIRMED",
+          job_date,
           parent_job_id: parentJobId,
           created_from_quote_id: shipment.quotation_id,
           company_id: shipment.company_id,

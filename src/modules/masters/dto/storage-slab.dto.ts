@@ -24,6 +24,12 @@ export class CreateStorageSlabDto {
   @Length(2, 200)
   name!: string;
 
+  @ApiPropertyOptional({ description: "Charge description on Fresa slab master" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  charge_description?: string;
+
   @ApiProperty({ example: 1 })
   @IsInt()
   @Min(0)

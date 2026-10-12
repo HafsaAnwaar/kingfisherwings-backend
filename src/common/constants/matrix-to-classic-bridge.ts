@@ -74,6 +74,20 @@ export const MATRIX_TO_CLASSIC_BRIDGE: Record<string, BridgeEntry> = Object.from
       QUOTATIONS_PERMISSIONS.SERVICE_CATALOG_MANAGE,
     ],
   ),
+  // Top-level Shipments product module (SuperAdmin enabled_modules toggle)
+  node(
+    "shipments",
+    "module",
+    [SHIPMENTS_PERMISSIONS.VIEW],
+    [
+      SHIPMENTS_PERMISSIONS.VIEW,
+      SHIPMENTS_PERMISSIONS.CREATE,
+      SHIPMENTS_PERMISSIONS.UPDATE,
+      SHIPMENTS_PERMISSIONS.DELETE,
+      SHIPMENTS_PERMISSIONS.GENERATE,
+    ],
+  ),
+  // Legacy matrix key (pre top-level Shipments) — keep so existing grants still resolve
   node(
     "sales",
     "shipments",

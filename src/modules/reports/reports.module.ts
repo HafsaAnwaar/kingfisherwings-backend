@@ -88,6 +88,10 @@ const queueProviders = redisEnabled
     ReportsSeedService,
     ...queueProviders,
   ],
-  exports: [InvoiceFormatPayloadService, ReportDataPackRegistry],
+  exports: [
+    InvoiceFormatPayloadService,
+    ReportDataPackRegistry,
+    ReportsGenerateService,
+  ],
 })
 export class ReportsModule {}
