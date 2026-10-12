@@ -1,6 +1,7 @@
 import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { OrganizationModule } from "../organization/organization.module";
+import { PartiesModule } from "../parties/parties.module";
 import { QueueModule } from "../../shared/queue/queue.module";
 import { EmailModule } from "../../shared/email/email.module";
 import { WhatsAppModule } from "../../shared/whatsapp/whatsapp.module";
@@ -18,6 +19,9 @@ import { JobStatusCatalogService } from "./job-status-catalog.service";
 import { JobGpumService } from "./job-gpum.service";
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobContainerStorageCostingService } from "./job-container-storage-costing.service";
+import { JobOrganizationService } from "./job-organization.service";
+import { JobDimensionService } from "./job-dimension.service";
+import { JobContainerTabService } from "./job-container-tab.service";
 import { JobDateService } from "./job-date.service";
 import { SeaFclImportService } from "./sea-fcl-import.service";
 import { AirImportService } from "./air-import.service";
@@ -48,6 +52,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
   imports: [
     PrismaModule,
     OrganizationModule,
+    PartiesModule,
     QueueModule,
     EmailModule,
     WhatsAppModule,
@@ -76,6 +81,9 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     JobGpumService,
     JobChargeAttachmentService,
     JobContainerStorageCostingService,
+    JobOrganizationService,
+    JobDimensionService,
+    JobContainerTabService,
     JobDateService,
     JobsDashboardService,
     SeaFclImportService,

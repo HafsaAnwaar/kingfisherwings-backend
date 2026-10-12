@@ -12,9 +12,17 @@ import {
   Post,
   Put,
   Query,
+  Res,
+  StreamableFile,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
+import type { Response } from "express";
+import { JobPartyRole } from "@prisma/client";
+import "multer";
 
 import { JobsService } from "./jobs.service";
 import { JobsDashboardService } from "./jobs-dashboard.service";
@@ -28,6 +36,20 @@ import {
   PatchJobDimensionsDto,
   UpsertJobPartyReferenceDto,
 } from "./dto/job-organization.dto";
+import {
+  AddJobOrganizationDto,
+  CopyJobOrganizationsDto,
+  RefreshOrgPartySnapshotDto,
+  ReplaceJobOrganizationDto,
+} from "./dto/job-organization-tab.dto";
+import {
+  BulkJobDimensionsDto,
+  ConfirmDimensionUploadDto,
+  PasteDimensionUploadDto,
+  SyncDimensionsToCargoDto,
+  UpdateJobDimensionLineDto,
+  UpsertJobDimensionLineDto,
+} from "./dto/job-dimension.dto";
 import { PutJobGpumDto } from "./dto/job-gpum.dto";
 import {
   CalculateStorageChargesDto,
@@ -38,6 +60,9 @@ import { JobStatusCatalogService } from "./job-status-catalog.service";
 import { JobGpumService } from "./job-gpum.service";
 import { JobContainerStorageCostingService } from "./job-container-storage-costing.service";
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
+import { JobOrganizationService } from "./job-organization.service";
+import { JobDimensionService } from "./job-dimension.service";
+import { JobContainerTabService } from "./job-container-tab.service";
 import { JobsDashboardQueryDto } from "../../common/dto/dashboard-period-query.dto";
 
 import { CreateJobDto, ScanJobBarcodeDto, UpdateJobDto } from "./dto/job.dto";
@@ -74,8 +99,13 @@ import {
   FinalizeJobDocumentDto,
 } from "./dto/job-document.dto";
 import {
+  BulkJobContainersDto,
+  ConfirmContainerUploadDto,
   CreateJobContainerDto,
+  PasteContainerUploadDto,
+  SyncContainersFromSubJobsDto,
   UpdateJobContainerDto,
+  UpdateJobDetailsFromContainerTabDto,
 } from "./dto/job-container.dto";
 import {
   AssignCargoToContainerDto,
@@ -178,6 +208,9 @@ export class JobsController {
     private readonly gpum: JobGpumService,
     private readonly storageCosting: JobContainerStorageCostingService,
     private readonly chargeAttachments: JobChargeAttachmentService,
+    private readonly organizations: JobOrganizationService,
+    private readonly dimensions: JobDimensionService,
+    private readonly containerTab: JobContainerTabService,
     private readonly seaFclImport: SeaFclImportService,
     private readonly airImport: AirImportService,
     private readonly seaLcl: SeaLclService,
@@ -392,9 +425,102 @@ export class JobsController {
     return this.detail.patchOrganizationReference(tenantId, id, dto, actorId);
   }
 
+  @Get(":id/organizations")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List job organizations (Organization tab)" })
+  listOrganizations(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.organizations.list(tenantId, id);
+  }
+
+  @Post(":id/organizations")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Add organization — select existing party or create new",
+  })
+  addOrganization(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: AddJobOrganizationDto,
+  ) {
+    return this.organizations.add(tenantId, id, dto, actorId);
+  }
+
+  @Put(":id/organizations/:orgType")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Replace organization party for a type" })
+  replaceOrganization(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("orgType") orgType: string,
+    @Body() dto: ReplaceJobOrganizationDto,
+  ) {
+    const role = orgType.toUpperCase() as JobPartyRole;
+    if (!Object.values(JobPartyRole).includes(role)) {
+      throw new BadRequestException(`Invalid org_type: ${orgType}`);
+    }
+    return this.organizations.replace(tenantId, id, role, dto, actorId);
+  }
+
+  @Delete(":id/organizations/:orgType")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Unlink organization type from job" })
+  removeOrganization(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("orgType") orgType: string,
+  ) {
+    const role = orgType.toUpperCase() as JobPartyRole;
+    if (!Object.values(JobPartyRole).includes(role)) {
+      throw new BadRequestException(`Invalid org_type: ${orgType}`);
+    }
+    return this.organizations.remove(tenantId, id, role, actorId);
+  }
+
+  @Post(":id/organizations/copy-from")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Copy organizations from parent (or source_job_id)",
+  })
+  copyOrganizations(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CopyJobOrganizationsDto,
+  ) {
+    return this.organizations.copyFromSource(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/organizations/refresh-snapshots")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Re-freeze party address/name snapshots from current master party data",
+  })
+  refreshOrgSnapshots(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: RefreshOrgPartySnapshotDto,
+  ) {
+    return this.organizations.refreshPartySnapshots(
+      tenantId,
+      id,
+      dto,
+      actorId,
+    );
+  }
+
   @Patch(":id/dimensions")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Update dimension tab (commodity description)" })
+  @ApiOperation({
+    summary: "Legacy: update job header commodity/hs on Dimension tab",
+  })
   patchDimensions(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -402,6 +528,175 @@ export class JobsController {
     @Body() dto: PatchJobDimensionsDto,
   ) {
     return this.detail.patchDimensions(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/dimensions")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List dimension lines" })
+  listDimensions(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.dimensions.list(tenantId, id);
+  }
+
+  @Post(":id/dimensions")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Add dimension line" })
+  addDimension(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobDimensionLineDto,
+  ) {
+    return this.dimensions.add(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/dimensions/:lineId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Update dimension line" })
+  updateDimension(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("lineId", ParseUUIDPipe) lineId: string,
+    @Body() dto: UpdateJobDimensionLineDto,
+  ) {
+    return this.dimensions.update(tenantId, id, lineId, dto, actorId);
+  }
+
+  @Delete(":id/dimensions/:lineId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Soft-delete dimension line" })
+  removeDimension(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("lineId", ParseUUIDPipe) lineId: string,
+  ) {
+    return this.dimensions.remove(tenantId, id, lineId, actorId);
+  }
+
+  @Put(":id/dimensions/bulk")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Multiple update dimension lines" })
+  bulkDimensions(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: BulkJobDimensionsDto,
+  ) {
+    return this.dimensions.bulk(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/dimensions/upload-sample")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Download dimension upload sample Excel" })
+  async dimensionUploadSample(@Res({ passthrough: true }) res: Response) {
+    const file = await this.dimensions.downloadSample();
+    res.setHeader("Content-Type", file.contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${file.filename}"`,
+    );
+    return new StreamableFile(file.buffer);
+  }
+
+  @Get(":id/dimensions/export")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Export dimension lines as CSV" })
+  async exportDimensions(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const file = await this.dimensions.exportCsv(tenantId, id);
+    res.setHeader("Content-Type", file.contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${file.filename}"`,
+    );
+    return new StreamableFile(file.buffer);
+  }
+
+  @Post(":id/dimensions/upload")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+        confirm: { type: "boolean" },
+        replace_all: { type: "boolean" },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  @ApiOperation({
+    summary: "Upload dimensions Excel/CSV/text (preview unless confirm=true)",
+  })
+  uploadDimensions(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Query("confirm") confirm?: string,
+    @Query("replace_all") replaceAll?: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException("file is required.");
+    }
+    return this.dimensions.uploadFile(
+      tenantId,
+      id,
+      file,
+      confirm === "true" || confirm === "1",
+      replaceAll === "true" || replaceAll === "1",
+      actorId,
+    );
+  }
+
+  @Post(":id/dimensions/upload/paste")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Paste EDI Format / CSV text (Fresa upload paste flow)",
+  })
+  pasteDimensions(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PasteDimensionUploadDto,
+  ) {
+    return this.dimensions.uploadPaste(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/dimensions/upload/confirm")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Confirm previewed dimension upload rows" })
+  confirmDimensionUpload(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ConfirmDimensionUploadDto,
+  ) {
+    return this.dimensions.confirmUpload(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/dimensions/sync-to-cargo")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Sync dimension lines into JobCargo (create/update linked rows)",
+  })
+  syncDimensionsToCargo(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: SyncDimensionsToCargoDto,
+  ) {
+    return this.dimensions.syncToCargo(tenantId, id, dto, actorId);
   }
 
   @Get(":id/gpum")
@@ -556,16 +851,6 @@ export class JobsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.listDocuments(tenantId, id);
-  }
-
-  @Get(":id/containers")
-  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List containers on a Sea FCL job" })
-  listContainers(
-    @CurrentUser("tenantId") tenantId: string,
-    @Param("id", ParseUUIDPipe) id: string,
-  ) {
-    return this.service.listContainers(tenantId, id);
   }
 
   @Get(":id/containers/fill")
@@ -2157,21 +2442,171 @@ export class JobsController {
     );
   }
 
+  @Get(":id/containers")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List job containers (all modes)" })
+  listContainers(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("kind") kind?: string,
+  ) {
+    const k =
+      kind?.toUpperCase() === "PLANNED"
+        ? ("PLANNED" as const)
+        : kind?.toUpperCase() === "ACTUAL"
+          ? ("ACTUAL" as const)
+          : undefined;
+    return this.containerTab.list(tenantId, id, k);
+  }
+
+  @Get(":id/containers/upload-sample")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Download container upload sample Excel" })
+  async containerUploadSample(@Res({ passthrough: true }) res: Response) {
+    const file = await this.containerTab.downloadSample();
+    res.setHeader("Content-Type", file.contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${file.filename}"`,
+    );
+    return new StreamableFile(file.buffer);
+  }
+
+  @Get(":id/containers/export")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Export containers as CSV" })
+  async exportContainers(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const file = await this.containerTab.exportCsv(tenantId, id);
+    res.setHeader("Content-Type", file.contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${file.filename}"`,
+    );
+    return new StreamableFile(file.buffer);
+  }
+
   @Post(":id/containers")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Add a container to a Sea FCL job" })
+  @ApiOperation({ summary: "Add a container to a job (any mode)" })
   addContainer(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: CreateJobContainerDto,
   ) {
-    return this.service.addContainer(tenantId, id, dto, actorId);
+    return this.containerTab.add(tenantId, id, dto, actorId);
+  }
+
+  @Put(":id/containers/bulk")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Multiple update containers" })
+  bulkContainers(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: BulkJobContainersDto,
+  ) {
+    return this.containerTab.bulk(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/containers/upload")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  @ApiOperation({
+    summary: "Upload containers Excel/CSV (preview unless confirm=true)",
+  })
+  uploadContainers(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Query("confirm") confirm?: string,
+    @Query("replace_all") replaceAll?: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException("file is required.");
+    }
+    return this.containerTab.uploadFile(
+      tenantId,
+      id,
+      file,
+      confirm === "true" || confirm === "1",
+      replaceAll === "true" || replaceAll === "1",
+      actorId,
+    );
+  }
+
+  @Post(":id/containers/upload/paste")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Paste CSV text for container upload" })
+  pasteContainers(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PasteContainerUploadDto,
+  ) {
+    return this.containerTab.uploadPaste(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/containers/upload/confirm")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Confirm previewed container upload rows" })
+  confirmContainerUpload(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ConfirmContainerUploadDto,
+  ) {
+    return this.containerTab.confirmUpload(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/containers/job-details")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Update job details from Container tab" })
+  updateJobDetailsFromContainerTab(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateJobDetailsFromContainerTabDto,
+  ) {
+    return this.containerTab.updateJobDetails(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/containers/sync-from-sub-jobs")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Update master containers from sub-job details (Fresa)",
+  })
+  syncContainersFromSubJobs(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: SyncContainersFromSubJobsDto,
+  ) {
+    return this.containerTab.syncFromSubJobs(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/containers/:containerId")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "View a single container" })
+  getContainer(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("containerId", ParseUUIDPipe) containerId: string,
+  ) {
+    return this.containerTab.getOne(tenantId, id, containerId);
   }
 
   @Patch(":id/containers/:containerId")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Update a container on a Sea FCL job" })
+  @ApiOperation({ summary: "Update a container on a job" })
   updateContainer(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -2179,7 +2614,7 @@ export class JobsController {
     @Param("containerId", ParseUUIDPipe) containerId: string,
     @Body() dto: UpdateJobContainerDto,
   ) {
-    return this.service.updateContainer(
+    return this.containerTab.update(
       tenantId,
       id,
       containerId,
@@ -2189,16 +2624,15 @@ export class JobsController {
   }
 
   @Delete(":id/containers/:containerId")
-  @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Remove a container from a Sea FCL job" })
+  @ApiOperation({ summary: "Remove a container from a job" })
   async removeContainer(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("containerId", ParseUUIDPipe) containerId: string,
   ) {
-    await this.service.removeContainer(tenantId, id, containerId, actorId);
+    return this.containerTab.remove(tenantId, id, containerId, actorId);
   }
 
   @Post(":id/containers/:containerId/cargo")

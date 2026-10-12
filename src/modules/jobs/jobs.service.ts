@@ -1955,16 +1955,20 @@ export class JobsService {
 
   async listContainers(tenantId: string, jobId: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const job = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: { id: true },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
 
       const containers = await tx.jobContainer.findMany({
         where: {
           tenant_id: tenantId,
-          sea_fcl_detail_id: detail.id,
+          job_id: jobId,
           deleted_at: null,
         },
         include: { cargo_lines: { where: { deleted_at: null } } },
-        orderBy: { created_at: "asc" },
+        orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
       });
 
       const types = await this.masterLabels.resolveContainerTypes(
@@ -1977,6 +1981,7 @@ export class JobsService {
         const type = types.get(c.container_type_id);
         return {
           ...c,
+          actual_seal: c.actual_seal ?? c.seal_number,
           container_type_code: type?.code ?? null,
           container_type_name: type?.name ?? null,
         };
@@ -2181,11 +2186,15 @@ export class JobsService {
     containerId?: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const job = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: { id: true },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
       const containers = await tx.jobContainer.findMany({
         where: {
           tenant_id: tenantId,
-          sea_fcl_detail_id: detail.id,
+          job_id: jobId,
           deleted_at: null,
           ...(containerId ? { id: containerId } : {}),
         },
@@ -2257,27 +2266,69 @@ export class JobsService {
     dto: CreateJobContainerDto,
     actorId?: string,
   ) {
+    if (!dto.container_type_id) {
+      throw new BadRequestException("container_type_id is required.");
+    }
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
+      const job = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: { id: true },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
+
+      const detail = await tx.seaFclJobDetail.findFirst({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        select: { id: true },
+      });
       const type = await this.assertContainerTypeExists(
         tx,
         tenantId,
-        dto.container_type_id,
+        dto.container_type_id!,
       );
 
-      const { gate_in_at, status, max_payload, cubic_capacity, ...rest } = dto;
+      const {
+        gate_in_at,
+        status,
+        max_payload,
+        cubic_capacity,
+        container_kind,
+        line_no,
+        actual_seal,
+        packages,
+        hs_code,
+        net_weight,
+        volume_weight,
+        chargeable_units,
+        shipment_id,
+        ...rest
+      } = dto;
+
+      const maxLine = await tx.jobContainer.aggregate({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        _max: { line_no: true },
+      });
 
       return tx.jobContainer.create({
         data: {
           tenant_id: tenantId,
-          sea_fcl_detail_id: detail.id,
-          container_type_id: rest.container_type_id,
+          job_id: jobId,
+          sea_fcl_detail_id: detail?.id ?? null,
+          container_type_id: rest.container_type_id!,
+          container_kind: container_kind ?? "ACTUAL",
+          line_no: line_no ?? (maxLine._max.line_no ?? 0) + 1,
           container_number: rest.container_number,
           seal_number: rest.seal_number,
+          actual_seal: actual_seal ?? rest.seal_number,
+          packages,
+          hs_code,
           tare_weight: rest.tare_weight,
           gross_weight: rest.gross_weight,
+          net_weight,
+          volume_weight,
           vgm_weight: rest.vgm_weight,
           cbm: rest.cbm,
+          chargeable_units,
+          shipment_id,
           is_soc: rest.is_soc ?? false,
           max_payload:
             max_payload ??
@@ -2302,12 +2353,10 @@ export class JobsService {
     actorId?: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
-
       const container = await tx.jobContainer.findFirst({
         where: {
           id: containerId,
-          sea_fcl_detail_id: detail.id,
+          job_id: jobId,
           tenant_id: tenantId,
           deleted_at: null,
         },
@@ -2335,6 +2384,9 @@ export class JobsService {
           ...rest,
           ...(nextStatus ? { status: nextStatus } : {}),
           ...(nextGateIn ? { gate_in_at: nextGateIn } : {}),
+          ...(dto.seal_number && !dto.actual_seal
+            ? { actual_seal: dto.seal_number }
+            : {}),
           updated_by: actorId,
         },
       });
@@ -2372,12 +2424,10 @@ export class JobsService {
     actorId?: string,
   ): Promise<void> {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
-
       const container = await tx.jobContainer.findFirst({
         where: {
           id: containerId,
-          sea_fcl_detail_id: detail.id,
+          job_id: jobId,
           tenant_id: tenantId,
           deleted_at: null,
         },
@@ -3787,15 +3837,24 @@ export class JobsService {
               await tx.jobContainer.create({
                 data: {
                   tenant_id: tenantId,
+                  job_id: job.id,
                   sea_fcl_detail_id: destDetail.id,
                   container_number: c.container_number,
                   container_type_id: c.container_type_id,
                   seal_number: c.seal_number,
+                  actual_seal: c.actual_seal ?? c.seal_number,
+                  line_no: c.line_no,
+                  container_kind: c.container_kind,
+                  packages: c.packages,
+                  hs_code: c.hs_code,
                   tare_weight: c.tare_weight,
                   max_payload: c.max_payload,
                   cubic_capacity: c.cubic_capacity,
                   gross_weight: c.gross_weight,
+                  net_weight: c.net_weight,
+                  volume_weight: c.volume_weight,
                   cbm: c.cbm,
+                  chargeable_units: c.chargeable_units,
                   is_soc: c.is_soc,
                   status: "EMPTY",
                   created_by: actorId,

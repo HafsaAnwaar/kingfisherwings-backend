@@ -20,6 +20,9 @@ Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATI
 | [shipment-detail.md](./shipment-detail.md) | Match (detail tabs + toolbar + proxies) |
 | [job-console.md](./job-console.md) | Match |
 | [job-detail.md](./job-detail.md) | Match (detail tabs + status catalog + GPUM + booking form) |
+| [job-organization.md](./job-organization.md) | Organization tab (add/select/create party) |
+| [job-dimensions.md](./job-dimensions.md) | Dimension lines + upload |
+| [job-containers.md](./job-containers.md) | Container tab (job-scoped) |
 | [job-fresa-blog-features.md](./job-fresa-blog-features.md) | Blog → API map (11 topics) |
 | [job-module-route-map.md](./job-module-route-map.md) | FE screen → routes |
 | [costing.md](./costing.md) | Match |
