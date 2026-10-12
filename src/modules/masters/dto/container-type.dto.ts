@@ -100,6 +100,12 @@ export class CreateContainerTypeDto {
   @Length(1, 40)
   category?: string;
 
+  @ApiPropertyOptional({ example: "BLP_CONT_TYPE_CODE" })
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  calculation_method?: string;
+
   @ApiPropertyOptional({ default: true })
   @IsOptional()
   @IsBoolean()

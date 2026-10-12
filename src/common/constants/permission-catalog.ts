@@ -2,6 +2,7 @@ import { PERMISSION_CONSTANTS as USERS_PERMISSION_CONSTANTS } from "../../module
 import { MASTERS_PERMISSION_CONSTANTS } from "../../modules/masters/constants/masters-permission.constants";
 import { PARTIES_PERMISSION_CONSTANTS } from "../../modules/parties/constants/parties-permission.constants";
 import { QUOTATIONS_PERMISSION_CONSTANTS } from "../../modules/quotations/constants/quotations-permission.constants";
+import { SHIPMENTS_PERMISSION_CONSTANTS } from "../../modules/shipments/constants/shipments-permission.constants";
 import { JOBS_PERMISSION_CONSTANTS } from "../../modules/jobs/constants/jobs-permission.constants";
 import { AWB_STOCK_PERMISSION_CONSTANTS } from "../../modules/awb-stock/constants/awb-stock-permission.constants";
 import { SEARCH_PERMISSION_CONSTANTS } from "../../modules/search/constants/search-permission.constants";
@@ -61,6 +62,11 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
     module: QUOTATIONS_PERMISSION_CONSTANTS.MODULE,
     action,
     description: `${QUOTATIONS_PERMISSION_CONSTANTS.MODULE}.${action}`,
+  })),
+  ...Object.values(SHIPMENTS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
+    module: SHIPMENTS_PERMISSION_CONSTANTS.MODULE,
+    action,
+    description: `${SHIPMENTS_PERMISSION_CONSTANTS.MODULE}.${action}`,
   })),
   ...Object.values(JOBS_PERMISSION_CONSTANTS.ACTIONS).map((action) => ({
     module: JOBS_PERMISSION_CONSTANTS.MODULE,

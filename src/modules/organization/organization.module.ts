@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 
 import { OrganizationController } from "./organization.controller";
+import { OrganizationSettingsController } from "./organization-settings.controller";
 import { OrganizationService } from "./organization.service";
 
 import { BankAccountsController } from "./bank-accounts/bank-accounts.controller";
@@ -15,6 +16,7 @@ import { NumberGeneratorService } from "./number-formats/number-generator.servic
   imports: [PrismaModule],
   controllers: [
     OrganizationController,
+    OrganizationSettingsController,
     BankAccountsController,
     NumberFormatsController,
   ],

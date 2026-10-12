@@ -21,8 +21,23 @@ import { JobsDashboardService } from "./jobs-dashboard.service";
 import { JobDetailService } from "./job-detail.service";
 import {
   ChangeJobStatusDto,
+  ReopenJobDto,
   StopJobDto,
 } from "./dto/job-detail.dto";
+import {
+  PatchJobDimensionsDto,
+  UpsertJobPartyReferenceDto,
+} from "./dto/job-organization.dto";
+import { PutJobGpumDto } from "./dto/job-gpum.dto";
+import {
+  CalculateStorageChargesDto,
+  ConfirmStorageChargesDto,
+} from "./dto/job-storage-costing.dto";
+import { CreateJobChargeAttachmentDto } from "./dto/job-charge-attachment.dto";
+import { JobStatusCatalogService } from "./job-status-catalog.service";
+import { JobGpumService } from "./job-gpum.service";
+import { JobContainerStorageCostingService } from "./job-container-storage-costing.service";
+import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobsDashboardQueryDto } from "../../common/dto/dashboard-period-query.dto";
 
 import { CreateJobDto, ScanJobBarcodeDto, UpdateJobDto } from "./dto/job.dto";
@@ -159,6 +174,10 @@ export class JobsController {
     private readonly service: JobsService,
     private readonly dashboard: JobsDashboardService,
     private readonly detail: JobDetailService,
+    private readonly statusCatalog: JobStatusCatalogService,
+    private readonly gpum: JobGpumService,
+    private readonly storageCosting: JobContainerStorageCostingService,
+    private readonly chargeAttachments: JobChargeAttachmentService,
     private readonly seaFclImport: SeaFclImportService,
     private readonly airImport: AirImportService,
     private readonly seaLcl: SeaLclService,
@@ -211,6 +230,16 @@ export class JobsController {
     @Query() query: JobsDashboardQueryDto,
   ) {
     return this.dashboard.teamWorkload(tenantId, query);
+  }
+
+  @Get("status-options")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Job status catalog (Approved/Open/Closed labels)" })
+  statusOptions(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query("job_id") jobId?: string,
+  ) {
+    return this.statusCatalog.listOptions(tenantId, jobId);
   }
 
   @Get("job-offers")
@@ -328,14 +357,120 @@ export class JobsController {
 
   @Post(":id/change-status")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Change job operational status" })
+  @ApiOperation({ summary: "Change job status (any catalog value, anytime)" })
   changeStatus(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: ChangeJobStatusDto,
   ) {
-    return this.detail.changeStatus(tenantId, id, dto, actorId);
+    return this.detail.changeStatus(tenantId, id, dto, actorId, permissions);
+  }
+
+  @Post(":id/reopen")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Reopen closed/cancelled/delivered job" })
+  reopenJob(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ReopenJobDto,
+  ) {
+    return this.detail.reopen(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/organization/client-reference")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Upsert client reference (e.g. PO Number)" })
+  patchClientReference(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobPartyReferenceDto,
+  ) {
+    return this.detail.patchOrganizationReference(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/dimensions")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Update dimension tab (commodity description)" })
+  patchDimensions(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PatchJobDimensionsDto,
+  ) {
+    return this.detail.patchDimensions(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/gpum")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
+  @ApiOperation({ summary: "GPUM allocations for job" })
+  getGpum(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.gpum.get(tenantId, id);
+  }
+
+  @Put(":id/gpum")
+  @RequirePermissions(JOBS_PERMISSIONS.GPUM_MANAGE)
+  @ApiOperation({ summary: "Replace GPUM allocations (total must be 100%)" })
+  putGpum(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PutJobGpumDto,
+  ) {
+    return this.gpum.put(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/containers/storage-charges/calculate")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Calculate storage/detention from slabs" })
+  calculateStorageCharges(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CalculateStorageChargesDto,
+  ) {
+    return this.storageCosting.calculate(tenantId, id, dto);
+  }
+
+  @Post(":id/containers/storage-charges/confirm-to-costing")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Confirm storage lines into job costing" })
+  confirmStorageToCosting(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ConfirmStorageChargesDto,
+  ) {
+    return this.storageCosting.confirmToCosting(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/charges/:chargeId/attachments")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List attachments on a costing line" })
+  listChargeAttachments(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("chargeId", ParseUUIDPipe) chargeId: string,
+  ) {
+    return this.chargeAttachments.list(tenantId, id, chargeId);
+  }
+
+  @Post(":id/charges/:chargeId/attachments")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Attach file metadata to costing line" })
+  addChargeAttachment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("chargeId", ParseUUIDPipe) chargeId: string,
+    @Body() dto: CreateJobChargeAttachmentDto,
+  ) {
+    return this.chargeAttachments.create(tenantId, id, chargeId, dto, actorId);
   }
 
   @Post(":id/stop")

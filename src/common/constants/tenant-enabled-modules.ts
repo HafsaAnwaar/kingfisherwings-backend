@@ -22,6 +22,11 @@ export function normalizeEnabledModules(
   const valid = raw.filter(isValidProductModuleKey);
   // Always keep admin so Tenant Admin can manage users
   if (!valid.includes("admin")) valid.push("admin");
+  // Upgrade path: Shipments was under Sales; keep it on when Sales is enabled
+  // until SuperAdmin explicitly manages the new top-level `shipments` toggle.
+  if (valid.includes("sales") && !valid.includes("shipments")) {
+    valid.push("shipments");
+  }
   return [...new Set(valid)];
 }
 
@@ -38,6 +43,7 @@ export function filterPermissionTree(
 const CLASSIC_MODULE_TO_PRODUCT: Record<string, string> = {
   jobs: "operations",
   quotations: "sales",
+  shipments: "shipments",
   crm: "sales",
   parties: "sales",
   invoices: "finance",

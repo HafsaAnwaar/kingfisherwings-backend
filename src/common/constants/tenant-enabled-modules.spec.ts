@@ -28,12 +28,23 @@ describe("tenant-enabled-modules", () => {
     );
     expect(productModuleForPermissionCode("jobs.view")).toBe("operations");
     expect(productModuleForPermissionCode("quotations.view")).toBe("sales");
+    expect(productModuleForPermissionCode("shipments.view")).toBe("shipments");
+    expect(productModuleForPermissionCode("shipments_module.write")).toBe(
+      "shipments",
+    );
     expect(productModuleForPermissionCode("wms.view")).toBe("wms");
+  });
+
+  it("auto-enables shipments when sales is enabled (upgrade path)", () => {
+    expect(normalizeEnabledModules(["sales", "operations"])).toEqual(
+      expect.arrayContaining(["sales", "operations", "admin", "shipments"]),
+    );
   });
 
   it("filters permission codes by enabled modules", () => {
     const enabled = ["sales", "admin"];
     expect(isPermissionCodeEnabled("quotations.view", enabled)).toBe(true);
+    expect(isPermissionCodeEnabled("shipments.view", enabled)).toBe(true);
     expect(isPermissionCodeEnabled("jobs.view", enabled)).toBe(false);
     expect(
       filterPermissionCodes(

@@ -29,6 +29,7 @@ import {
   normalizeEnabledModules,
   productModuleForPermissionCode,
 } from "../../common/constants/tenant-enabled-modules";
+import { MODULE_PERMISSION_TREE } from "../../common/constants/module-permission-tree";
 
 const OWNER_ROLE_CODE = "TENANT_ADMIN";
 
@@ -754,6 +755,20 @@ export class TenantsService {
     };
   }
 
+  listProductModules() {
+    return {
+      success: true,
+      data: MODULE_PERMISSION_TREE.map((m) => ({
+        key: m.key,
+        label: m.label,
+        submodules: m.submodules.map((s) => ({
+          key: s.key,
+          label: s.label,
+        })),
+      })),
+    };
+  }
+
   async updateFeatures(
     id: string,
     body: {
@@ -819,6 +834,10 @@ export class TenantsService {
         slug: tenant.slug,
         quote_requests_bridge_enabled: tenant.quote_requests_bridge_enabled,
         enabled_modules: normalizeEnabledModules(tenant.enabled_modules),
+        available_modules: MODULE_PERMISSION_TREE.map((m) => ({
+          key: m.key,
+          label: m.label,
+        })),
       },
     };
   }
@@ -912,11 +931,16 @@ export class TenantsService {
   /** Never return password_hash — applied to every response that includes a tenant. */
   private sanitizeTenant(tenant: Tenant): Omit<Tenant, "password_hash"> & {
     enabled_modules: string[];
+    available_modules: { key: string; label: string }[];
   } {
     const { password_hash, ...safe } = tenant;
     return {
       ...safe,
       enabled_modules: normalizeEnabledModules(tenant.enabled_modules),
+      available_modules: MODULE_PERMISSION_TREE.map((m) => ({
+        key: m.key,
+        label: m.label,
+      })),
     };
   }
 

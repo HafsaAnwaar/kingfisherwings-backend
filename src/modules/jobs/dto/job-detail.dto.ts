@@ -5,12 +5,28 @@ import { IsEnum, IsOptional, IsString, MaxLength } from "class-validator";
 export class ChangeJobStatusDto {
   @ApiProperty({
     enum: JobStatus,
-    description: "Operational status (e.g. IN_PROGRESS, ON_HOLD, DOCS_PENDING)",
+    description: "Job status (any active catalog value)",
   })
   @IsEnum(JobStatus)
   status!: JobStatus;
 
   @ApiPropertyOptional({ description: "Audit reason for the status change" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+export class ReopenJobDto {
+  @ApiPropertyOptional({
+    enum: JobStatus,
+    description: "Target status after reopen (default IN_PROGRESS)",
+  })
+  @IsOptional()
+  @IsEnum(JobStatus)
+  status?: JobStatus;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(500)

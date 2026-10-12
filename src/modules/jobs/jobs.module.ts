@@ -14,6 +14,11 @@ import {
 } from "./jobs-sea-scans.controller";
 import { JobsService } from "./jobs.service";
 import { JobDetailService } from "./job-detail.service";
+import { JobStatusCatalogService } from "./job-status-catalog.service";
+import { JobGpumService } from "./job-gpum.service";
+import { JobChargeAttachmentService } from "./job-charge-attachment.service";
+import { JobContainerStorageCostingService } from "./job-container-storage-costing.service";
+import { JobDateService } from "./job-date.service";
 import { SeaFclImportService } from "./sea-fcl-import.service";
 import { AirImportService } from "./air-import.service";
 import { SeaLclService } from "./sea-lcl.service";
@@ -67,6 +72,11 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
   providers: [
     JobsService,
     JobDetailService,
+    JobStatusCatalogService,
+    JobGpumService,
+    JobChargeAttachmentService,
+    JobContainerStorageCostingService,
+    JobDateService,
     JobsDashboardService,
     SeaFclImportService,
     AirImportService,
@@ -85,6 +95,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
   ],
   exports: [
     JobsService,
+    JobDateService,
     JobsDashboardService,
     SeaFclImportService,
     AirImportService,
