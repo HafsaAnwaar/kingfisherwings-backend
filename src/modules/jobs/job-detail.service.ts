@@ -16,8 +16,12 @@ import {
 } from "./dto/job-organization.dto";
 import { JobStatusCatalogService } from "./job-status-catalog.service";
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
+import { JobOrganizationService } from "./job-organization.service";
+import { JobDimensionService } from "./job-dimension.service";
+import { JobContainerTabService } from "./job-container-tab.service";
 import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
+import { JobContainerKind } from "@prisma/client";
 
 const DETAIL_TABS = [
   "show_all",
@@ -48,6 +52,9 @@ export class JobDetailService {
     private readonly shipments: ShipmentsService,
     private readonly statusCatalog: JobStatusCatalogService,
     private readonly chargeAttachments: JobChargeAttachmentService,
+    private readonly organizations: JobOrganizationService,
+    private readonly dimensions: JobDimensionService,
+    private readonly containerTab: JobContainerTabService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -78,42 +85,10 @@ export class JobDetailService {
       return { success: true, data: this.headerPayload(job) };
     }
     if (normalized === "organization") {
-      const refs = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.jobPartyReference.findMany({
-          where: { tenant_id: tenantId, job_id: id },
-          orderBy: { updated_at: "desc" },
-        }),
-      );
-      return {
-        success: true,
-        data: {
-          company_id: job.company_id,
-          branch_id: job.branch_id,
-          department_id: job.department_id,
-          shipper_id: job.shipper_id,
-          consignee_id: job.consignee_id,
-          billing_party_id: job.billing_party_id,
-          salesperson_id: job.salesperson_id,
-          agent_id: job.agent_id,
-          party_references: refs,
-        },
-      };
+      return this.organizations.getTab(tenantId, id);
     }
     if (normalized === "dimensions") {
-      return {
-        success: true,
-        data: {
-          pieces: job.pieces,
-          gross_weight: job.gross_weight,
-          chargeable_weight: job.chargeable_weight,
-          volume_cbm: job.volume_cbm,
-          hs_code: job.hs_code,
-          commodity: job.commodity,
-          commodity_description: job.commodity,
-          container_type_id: job.container_type_id,
-          container_count: job.container_count,
-        },
-      };
+      return this.dimensions.getTab(tenantId, id);
     }
     if (normalized === "costing") {
       const counts = await this.chargeAttachments.countsByChargeIds(
@@ -145,11 +120,19 @@ export class JobDetailService {
         },
       };
     }
-    if (normalized === "planned_container" || normalized === "actual_container") {
-      return {
-        success: true,
-        data: await this.jobContainers(tenantId, id),
-      };
+    if (normalized === "planned_container") {
+      return this.containerTab.getTab(
+        tenantId,
+        id,
+        JobContainerKind.PLANNED,
+      );
+    }
+    if (normalized === "actual_container") {
+      return this.containerTab.getTab(
+        tenantId,
+        id,
+        JobContainerKind.ACTUAL,
+      );
     }
     if (normalized === "ex_rate") {
       const currencies = [
@@ -449,11 +432,16 @@ export class JobDetailService {
       company_id: job.company_id,
       shipper_id: job.shipper_id,
       consignee_id: job.consignee_id,
+      billing_party_id: job.billing_party_id,
+      agent_id: job.agent_id,
       origin_port_id: job.origin_port_id,
       dest_port_id: job.dest_port_id,
       etd: job.etd,
       eta: job.eta,
       commodity: job.commodity,
+      pieces: job.pieces,
+      gross_weight: job.gross_weight,
+      volume_cbm: job.volume_cbm,
       mbl_number: sea?.mbl_number ?? null,
       hbl_number: sea?.hbl_number ?? null,
       created_from_quote_id: job.created_from_quote_id,
@@ -616,21 +604,4 @@ export class JobDetailService {
     };
   }
 
-  private async jobContainers(tenantId: string, jobId: string) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const detail = await tx.seaFclJobDetail.findFirst({
-        where: { tenant_id: tenantId, job_id: jobId },
-        select: { id: true },
-      });
-      if (!detail) return [];
-      return tx.jobContainer.findMany({
-        where: {
-          tenant_id: tenantId,
-          sea_fcl_detail_id: detail.id,
-          deleted_at: null,
-        },
-        orderBy: { created_at: "asc" },
-      });
-    });
-  }
 }

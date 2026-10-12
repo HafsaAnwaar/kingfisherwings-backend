@@ -185,10 +185,60 @@ describe("Fresa flow smoke (e2e)", () => {
       .expect((res) => expect([200, 201]).toContain(res.status));
 
     await request(app.getHttpServer())
+      .post(`/jobs/${jobId}/organizations`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ org_type: "CLIENT", party_id: partyId })
+      .expect((res) => expect([200, 201, 400]).toContain(res.status));
+
+    const orgTab = await request(app.getHttpServer())
+      .get(`/jobs/${jobId}/detail/organization`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(orgTab.body.data?.organization_types?.length).toBeGreaterThan(0);
+
+    await request(app.getHttpServer())
       .patch(`/jobs/${jobId}/dimensions`)
       .set("Authorization", `Bearer ${token}`)
       .send({ commodity_description: "Smoke commodity" })
       .expect((res) => expect([200, 201]).toContain(res.status));
+
+    await request(app.getHttpServer())
+      .post(`/jobs/${jobId}/dimensions`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        length: 100,
+        width: 50,
+        height: 40,
+        no_of_pcs: 2,
+        g_weight: 10,
+        commodity: "Smoke dims",
+      })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
+    await request(app.getHttpServer())
+      .post(`/jobs/${jobId}/dimensions`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        length: 80,
+        width: 40,
+        height: 30,
+        no_of_pcs: 1,
+        g_weight: 5,
+        commodity: "Smoke dims 2",
+      })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
+    const dimTab = await request(app.getHttpServer())
+      .get(`/jobs/${jobId}/detail/dimensions`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(dimTab.body.data?.lines?.length).toBeGreaterThanOrEqual(2);
+
+    const ctrTab = await request(app.getHttpServer())
+      .get(`/jobs/${jobId}/detail/actual_container`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(ctrTab.body.data?.actions?.add).toBe(true);
 
     await request(app.getHttpServer())
       .get("/documentation/jobs")

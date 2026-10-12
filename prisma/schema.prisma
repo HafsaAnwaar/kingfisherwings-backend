@@ -88,11 +88,51 @@ enum JobPartyRole {
   CONSIGNEE
   BILLING_PARTY
   AGENT
+  NOTIFY
 }
 
 enum JobPartyReferenceType {
   PO_NUMBER
   CUSTOMER_REF
+  OTHER
+}
+
+enum JobContainerKind {
+  PLANNED
+  ACTUAL
+}
+
+enum DimensionLengthUnit {
+  CM
+  IN
+  M
+  MM
+  FT
+}
+
+enum DimensionWeightUnit {
+  KG
+  LB
+  MT
+  G
+}
+
+enum DimensionVolumeUnit {
+  CBM
+  CFT
+  CI
+}
+
+enum DimensionPackageType {
+  PACKAGES
+  CARTONS
+  PALLETS
+  CRATES
+  DRUMS
+  BAGS
+  BALES
+  BOXES
+  UNITS
   OTHER
 }
 
@@ -777,6 +817,8 @@ model Tenant {
   financial_year_start Int     @default(1)
   /// How Job.job_date is derived when a job is created or generated from shipment/quote.
   job_date_source      JobDateSource @default(SYSTEM_DATE)
+  /// Volumetric weight divisor when dims are in cm → kg (IATA default 6000; some use 5000/366).
+  volumetric_divisor_cm Int @default(6000)
 
   // Business Registration
   vat_number String? @db.VarChar(50)
@@ -2453,6 +2495,7 @@ model Party {
   enquiries                Enquiry[]
   crm_subscribers          CrmSubscriber[]
   payment_transactions     PaymentTransaction[]
+  job_organizations        JobOrganization[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -2635,6 +2678,9 @@ model Job {
   job_scan_events      JobScanEvent[]
   shipments            Shipment[]
   party_references     JobPartyReference[]
+  organizations        JobOrganization[]
+  dimension_lines      JobDimensionLine[]
+  containers_job       JobContainer[]          @relation("JobContainers")
   gpum_allocations     JobGpumAllocation[]
   import_delivery      JobImportDeliveryDetail?
   charge_attachments   JobChargeAttachment[]
@@ -3561,37 +3607,55 @@ model NvoccTariff {
 }
 
 model JobContainer {
-  id                String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id         String          @db.Uuid
-  sea_fcl_detail_id String          @db.Uuid
-  container_number  String?         @db.VarChar(20)
-  container_type_id String          @db.Uuid
-  seal_number       String?         @db.VarChar(30)
-  tare_weight       Decimal?        @db.Decimal(10, 3)
-  max_payload       Decimal?        @db.Decimal(10, 3)
-  cubic_capacity    Decimal?        @db.Decimal(10, 3)
-  gross_weight      Decimal?        @db.Decimal(10, 3)
-  vgm_weight        Decimal?        @db.Decimal(10, 3)
-  cbm               Decimal?        @db.Decimal(10, 3)
-  status            ContainerStatus @default(EMPTY)
-  gate_in_at        DateTime?       @db.Timestamptz
-  returned_at       DateTime?       @db.Timestamptz
-  return_condition  String?         @db.Text
-  is_soc            Boolean         @default(false)
-  created_at        DateTime        @default(now()) @db.Timestamptz
-  updated_at        DateTime        @updatedAt @db.Timestamptz
-  created_by        String?         @db.Uuid
-  updated_by        String?         @db.Uuid
-  deleted_at        DateTime?       @db.Timestamptz
+  id                String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String            @db.Uuid
+  /// Job-scoped containers (all modes). Backfilled from sea_fcl for legacy rows.
+  job_id            String            @db.Uuid
+  /// Optional — set for Sea FCL when detail exists (legacy relation).
+  sea_fcl_detail_id String?           @db.Uuid
+  line_no           Int?
+  container_kind    JobContainerKind  @default(ACTUAL)
+  container_number  String?           @db.VarChar(20)
+  container_type_id String            @db.Uuid
+  seal_number       String?           @db.VarChar(30)
+  /// Alias display: actual seal (same as seal_number when set).
+  actual_seal       String?           @db.VarChar(30)
+  tare_weight       Decimal?          @db.Decimal(10, 3)
+  max_payload       Decimal?          @db.Decimal(10, 3)
+  cubic_capacity    Decimal?          @db.Decimal(10, 3)
+  packages          Int?
+  hs_code           String?           @db.VarChar(12)
+  gross_weight      Decimal?          @db.Decimal(10, 3)
+  net_weight        Decimal?          @db.Decimal(10, 3)
+  volume_weight     Decimal?          @db.Decimal(10, 3)
+  vgm_weight        Decimal?          @db.Decimal(10, 3)
+  cbm               Decimal?          @db.Decimal(10, 3)
+  chargeable_units  Decimal?          @db.Decimal(12, 3)
+  shipment_id       String?           @db.Uuid
+  status            ContainerStatus   @default(EMPTY)
+  gate_in_at        DateTime?         @db.Timestamptz
+  returned_at       DateTime?         @db.Timestamptz
+  return_condition  String?           @db.Text
+  is_soc            Boolean           @default(false)
+  created_at        DateTime          @default(now()) @db.Timestamptz
+  updated_at        DateTime          @updatedAt @db.Timestamptz
+  created_by        String?           @db.Uuid
+  updated_by        String?           @db.Uuid
+  deleted_at        DateTime?         @db.Timestamptz
 
-  sea_fcl_detail   SeaFclJobDetail   @relation(fields: [sea_fcl_detail_id], references: [id], onDelete: Cascade)
+  job              Job               @relation("JobContainers", fields: [job_id], references: [id], onDelete: Cascade)
+  sea_fcl_detail   SeaFclJobDetail?  @relation(fields: [sea_fcl_detail_id], references: [id], onDelete: Cascade)
+  shipment         Shipment?         @relation(fields: [shipment_id], references: [id], onDelete: SetNull)
   cargo_lines      JobCargo[]
   stuffing_records StuffingRecord[]
   free_days        ContainerFreeDays?
   damage_reports   DamageReport[]
+  dimension_lines  JobDimensionLine[]
 
   @@index([tenant_id])
+  @@index([tenant_id, job_id])
   @@index([tenant_id, container_number])
+  @@index([tenant_id, job_id, container_kind])
   @@map("job_containers")
 }
 
@@ -3764,8 +3828,9 @@ model JobCargo {
   updated_by     String?   @db.Uuid
   deleted_at     DateTime? @db.Timestamptz
 
-  job       Job           @relation(fields: [job_id], references: [id], onDelete: Cascade)
-  container JobContainer? @relation(fields: [container_id], references: [id], onDelete: SetNull)
+  job            Job                @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  container      JobContainer?      @relation(fields: [container_id], references: [id], onDelete: SetNull)
+  dimension_lines JobDimensionLine[]
 
   @@index([tenant_id])
   @@index([tenant_id, job_id])
@@ -3921,6 +3986,86 @@ model JobPartyReference {
   @@index([tenant_id, job_id])
   @@index([tenant_id, job_id, party_role])
   @@map("job_party_references")
+}
+
+/// Organization tab — linked parties by role (select existing or create).
+model JobOrganization {
+  id                  String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String       @db.Uuid
+  job_id              String       @db.Uuid
+  org_type            JobPartyRole
+  party_id            String       @db.Uuid
+  /// When true for CLIENT, drives Job.billing_party_id and customer display.
+  is_primary_customer Boolean      @default(false)
+  /// Frozen party card at link/replace time (docs stay stable if master party changes).
+  party_snapshot      Json?
+  created_at          DateTime     @default(now()) @db.Timestamptz
+  updated_at          DateTime     @updatedAt @db.Timestamptz
+  created_by          String?      @db.Uuid
+  updated_by          String?      @db.Uuid
+  deleted_at          DateTime?    @db.Timestamptz
+
+  job   Job   @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  party Party @relation(fields: [party_id], references: [id], onDelete: Restrict)
+
+  @@unique([tenant_id, job_id, org_type])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, party_id])
+  @@map("job_organizations")
+}
+
+/// Dimension tab — line-level cargo dimensions under a job.
+model JobDimensionLine {
+  id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String                @db.Uuid
+  job_id                String                @db.Uuid
+  line_no               Int
+  length_unit           DimensionLengthUnit   @default(CM)
+  length                Decimal?              @db.Decimal(12, 3)
+  width                 Decimal?              @db.Decimal(12, 3)
+  height                Decimal?              @db.Decimal(12, 3)
+  no_of_pcs             Int                   @default(1)
+  package_type          DimensionPackageType  @default(PACKAGES)
+  g_weight              Decimal?              @db.Decimal(12, 3)
+  g_weight_unit         DimensionWeightUnit   @default(KG)
+  v_weight              Decimal?              @db.Decimal(12, 3)
+  v_weight_unit         DimensionWeightUnit   @default(KG)
+  n_weight              Decimal?              @db.Decimal(12, 3)
+  n_weight_unit         DimensionWeightUnit   @default(KG)
+  total_weight          Decimal?              @db.Decimal(12, 3)
+  total_weight_unit     DimensionWeightUnit   @default(KG)
+  volume                Decimal?              @db.Decimal(12, 6)
+  volume_unit           DimensionVolumeUnit   @default(CBM)
+  hs_code               String?               @db.VarChar(12)
+  dimension_type        String?               @db.VarChar(80)
+  cod                   String?               @db.VarChar(80)
+  total_inner_city      Decimal?              @db.Decimal(18, 4)
+  quantity              Decimal?              @db.Decimal(12, 3)
+  currency_code         String?               @db.Char(3)
+  goods_value           Decimal?              @db.Decimal(18, 4)
+  total_value           Decimal?              @db.Decimal(18, 4)
+  container_no          String?               @db.VarChar(20)
+  container_id          String?               @db.Uuid
+  /// Linked JobCargo row when synced from Dimension tab.
+  synced_cargo_id       String?               @db.Uuid
+  commodity             String?               @db.VarChar(500)
+  commodity_description String?               @db.Text
+  remarks               String?               @db.Text
+  created_at            DateTime              @default(now()) @db.Timestamptz
+  updated_at            DateTime              @updatedAt @db.Timestamptz
+  created_by            String?               @db.Uuid
+  updated_by            String?               @db.Uuid
+  deleted_at            DateTime?             @db.Timestamptz
+
+  job          Job           @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  container    JobContainer? @relation(fields: [container_id], references: [id], onDelete: SetNull)
+  synced_cargo JobCargo?     @relation(fields: [synced_cargo_id], references: [id], onDelete: SetNull)
+
+  @@unique([tenant_id, job_id, line_no])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, container_id])
+  @@index([tenant_id, synced_cargo_id])
+  @@map("job_dimension_lines")
 }
 
 model JobGpumAllocation {
@@ -4162,6 +4307,7 @@ model Shipment {
   customs_refs      ShipmentCustomsRef[]
   split_links_as_parent ShipmentSplitLink[] @relation("ShipmentSplitParent")
   split_links_as_child  ShipmentSplitLink[] @relation("ShipmentSplitChild")
+  job_containers    JobContainer[]
 
   @@unique([tenant_id, shipment_number])
   @@index([tenant_id])

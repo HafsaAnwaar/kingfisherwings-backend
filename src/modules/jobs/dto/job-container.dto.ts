@@ -1,14 +1,22 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { JobContainerKind } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
+  IsEnum,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Length,
+  MaxLength,
   Min,
+  ValidateNested,
 } from "class-validator";
 
 const CONTAINER_STATUSES = [
@@ -22,9 +30,21 @@ const CONTAINER_STATUSES = [
 ] as const;
 
 export class CreateJobContainerDto {
-  @ApiProperty({ format: "uuid" })
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
   @IsUUID()
-  container_type_id!: string;
+  container_type_id?: string;
+
+  @ApiPropertyOptional({ enum: JobContainerKind, default: "ACTUAL" })
+  @IsOptional()
+  @IsEnum(JobContainerKind)
+  container_kind?: JobContainerKind;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  line_no?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -37,6 +57,24 @@ export class CreateJobContainerDto {
   @IsString()
   @Length(1, 30)
   seal_number?: string;
+
+  @ApiPropertyOptional({ description: "Actual seal (defaults to seal_number)" })
+  @IsOptional()
+  @IsString()
+  @Length(1, 30)
+  actual_seal?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  hs_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  packages?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -66,6 +104,18 @@ export class CreateJobContainerDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  net_weight?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  volume_weight?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   vgm_weight?: number;
 
   @ApiPropertyOptional()
@@ -73,6 +123,20 @@ export class CreateJobContainerDto {
   @IsNumber()
   @Min(0)
   cbm?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  chargeable_units?: number;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Attach info shipment",
+  })
+  @IsOptional()
+  @IsUUID()
+  shipment_id?: string;
 
   @ApiPropertyOptional({ enum: CONTAINER_STATUSES, default: "EMPTY" })
   @IsOptional()
@@ -91,3 +155,113 @@ export class CreateJobContainerDto {
 }
 
 export class UpdateJobContainerDto extends PartialType(CreateJobContainerDto) {}
+
+export class BulkContainerItemDto extends CreateJobContainerDto {
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  delete?: boolean;
+}
+
+export class BulkJobContainersDto {
+  @ApiProperty({ type: [BulkContainerItemDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => BulkContainerItemDto)
+  containers!: BulkContainerItemDto[];
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  replace_all?: boolean;
+}
+
+export class ConfirmContainerUploadDto {
+  @ApiProperty({ type: [CreateJobContainerDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateJobContainerDto)
+  containers!: CreateJobContainerDto[];
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  replace_all?: boolean;
+}
+
+export class PasteContainerUploadDto {
+  @ApiProperty()
+  @IsString()
+  @Length(1, 500_000)
+  content!: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  confirm?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  replace_all?: boolean;
+}
+
+export class SyncContainersFromSubJobsDto {
+  @ApiPropertyOptional({
+    description:
+      "If true, only update containers whose container_number matches a sub-job container",
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  matching_only?: boolean;
+}
+
+export class UpdateJobDetailsFromContainerTabDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  commodity?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  hs_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  pieces?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  gross_weight?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  volume_cbm?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  etd?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  eta?: string;
+}

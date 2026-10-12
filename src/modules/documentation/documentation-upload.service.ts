@@ -237,9 +237,11 @@ export class DocumentationUploadService {
           tx.jobContainer.create({
             data: {
               tenant_id: tenantId,
+              job_id: job.id,
               sea_fcl_detail_id: job.sea_fcl_details!.id,
               container_number: row.container_number,
               seal_number: row.seal_number || undefined,
+              actual_seal: row.seal_number || undefined,
               container_type_id: job.container_type_id!,
             },
           }),

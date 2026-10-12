@@ -6,11 +6,12 @@
 |--------|--------|
 | Header / tabs | `GET /jobs/:id/detail`, `GET /jobs/:id/detail/:tab` |
 | Status | `GET /jobs/status-options`, `POST /jobs/:id/change-status`, `POST /jobs/:id/reopen`, `POST /jobs/:id/close`, `POST /jobs/:id/cancel`, `POST /jobs/:id/stop` |
-| Organization + PO | tab `organization`; `PATCH /jobs/:id/organization/client-reference` |
-| Dimensions | tab `dimensions`; `PATCH /jobs/:id/dimensions` |
+| Organization + PO | tab `organization`; `GET/POST /jobs/:id/organizations`; `PUT/DELETE .../:orgType`; `POST .../copy-from`; `POST .../refresh-snapshots`; `PATCH .../organization/client-reference` — see [job-organization.md](./job-organization.md) |
+| Dimensions | tab `dimensions`; line CRUD/bulk/upload/export; `POST .../dimensions/sync-to-cargo`; tenant divisor `GET/PATCH /organization/settings/dimensions` — see [job-dimensions.md](./job-dimensions.md) |
+| Planned / Actual container | tabs `planned_container` / `actual_container`; full container CRUD/bulk/upload — see [job-containers.md](./job-containers.md) |
 | Costing | tab `costing`; charges CRUD under `/jobs/:id/charges`; attachments on charge |
 | GPUM | `GET/PUT /jobs/:id/gpum` |
-| Storage charges (FCL) | `POST .../containers/storage-charges/calculate`, `confirm-to-costing` |
+| Storage charges | `POST .../containers/storage-charges/calculate`, `confirm-to-costing` |
 | History | tab `history` |
 
 ## Documentation module
