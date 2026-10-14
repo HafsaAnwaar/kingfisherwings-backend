@@ -36,7 +36,6 @@ import { RoadFreightService } from "./road-freight.service";
 import { CourierService } from "./courier.service";
 import { TransportModule } from "../transport/transport.module";
 import { VendorModule } from "../vendor/vendor.module";
-import { VendorJobsController } from "../vendor/vendor-jobs.controller";
 import { MastersModule } from "../masters/masters.module";
 import { ShipmentsModule } from "../shipments/shipments.module";
 import { QuotationsModule } from "../quotations/quotations.module";
@@ -66,7 +65,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     GlModule,
     StorageModule,
     TransportModule,
-    VendorModule,
+    forwardRef(() => VendorModule),
     MastersModule,
     forwardRef(() => ShipmentsModule),
     forwardRef(() => QuotationsModule),
@@ -79,7 +78,6 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     AirWorkflowController,
     ModeBookingFormsController,
     CustomsClearanceController,
-    VendorJobsController,
   ],
   providers: [
     JobsService,
@@ -114,6 +112,10 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
   exports: [
     JobsService,
     JobCostingService,
+    JobOrganizationService,
+    JobDimensionService,
+    JobContainerTabService,
+    JobTabPanelsService,
     JobDateService,
     JobsDashboardService,
     SeaFclImportService,

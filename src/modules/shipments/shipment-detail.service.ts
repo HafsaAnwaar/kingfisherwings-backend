@@ -5,7 +5,7 @@ import {
   NotFoundException,
   forwardRef,
 } from "@nestjs/common";
-import { DocumentType, JobType } from "@prisma/client";
+import { DocumentType, JobContainerKind, JobType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ShipmentsService } from "./shipments.service";
 import { JobsService } from "../jobs/jobs.service";
@@ -13,12 +13,15 @@ import { DocumentationEdiService } from "../documentation/documentation-edi.serv
 import { GenerateJobDocumentDto } from "../jobs/dto/generate-job-document.dto";
 import {
   ChangeShipmentBlStatusDto,
-  ChangeShipmentDepartmentDto,
   MergeShipmentsDto,
   SplitShipmentDto,
-  UpsertShipmentRoutingLegDto,
 } from "./dto/shipment-detail.dto";
 import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
+import { ShipmentTabParityService } from "./shipment-tab-parity.service";
+import {
+  PatchJobDepartmentDto,
+  UpsertJobRoutingLegDto,
+} from "../jobs/dto/job-tab-panels.dto";
 
 const DETAIL_TABS = [
   "show_all",
@@ -45,6 +48,7 @@ export class ShipmentDetailService {
     @Inject(forwardRef(() => JobsService))
     private readonly jobs: JobsService,
     private readonly edi: DocumentationEdiService,
+    private readonly tabParity: ShipmentTabParityService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -79,119 +83,39 @@ export class ShipmentDetailService {
       };
     }
     if (normalized === "organization") {
-      return {
-        success: true,
-        data: {
-          company_id: shipment.company_id,
-          branch_id: shipment.branch_id,
-          department_id: shipment.department_id,
-          customer_id: shipment.customer_id,
-          customer_address: shipment.customer_address,
-          shipper_id: shipment.shipper_id,
-          consignee_id: shipment.consignee_id,
-          notify_party_id: shipment.notify_party_id,
-          salesperson_id: shipment.salesperson_id,
-          carrier_id: shipment.carrier_id,
-        },
-      };
+      return this.tabParity.getOrganization(tenantId, id);
     }
     if (normalized === "dimensions") {
-      return {
-        success: true,
-        data: {
-          pieces: shipment.pieces,
-          gross_weight: shipment.gross_weight,
-          chargeable_weight: shipment.chargeable_weight,
-          volume_cbm: shipment.volume_cbm,
-          hs_code: shipment.hs_code,
-          commodity: shipment.commodity,
-          container_type_id: shipment.container_type_id,
-          container_count: shipment.container_count,
-          container_numbers: shipment.container_numbers,
-          seal_numbers: shipment.seal_numbers,
-        },
-      };
+      return this.tabParity.getDimensions(tenantId, id);
     }
     if (normalized === "costing") {
-      return {
-        success: true,
-        data: {
-          revenue_total: shipment.revenue_total,
-          cost_total: shipment.cost_total,
-          gp_amount: shipment.gp_amount,
-          gp_percent: shipment.gp_percent,
-          charges: shipment.charges,
-        },
-      };
+      return this.tabParity.getCosting(tenantId, id);
     }
     if (normalized === "department") {
-      const enquiry = shipment.enquiry_id
-        ? await this.prisma.runWithTenant(tenantId, (tx) =>
-            tx.enquiry.findFirst({
-              where: { id: shipment.enquiry_id!, tenant_id: tenantId },
-              select: {
-                sales_coordinator_id: true,
-                price_coordinator_id: true,
-                department_id: true,
-                branch_id: true,
-                company_id: true,
-              },
-            }),
-          )
-        : null;
-      return {
-        success: true,
-        data: {
-          branch_id: shipment.branch_id,
-          company_id: shipment.company_id,
-          department_id: shipment.department_id,
-          salesperson_id: shipment.salesperson_id,
-          sales_coordinator_id: enquiry?.sales_coordinator_id,
-          price_coordinator_id: enquiry?.price_coordinator_id,
-        },
-      };
+      return this.tabParity.getDepartment(tenantId, id);
     }
     if (normalized === "planned_container") {
-      return {
-        success: true,
-        data: await this.plannedContainers(tenantId, shipment),
-      };
+      return this.tabParity.getContainers(
+        tenantId,
+        id,
+        JobContainerKind.PLANNED,
+      );
     }
     if (normalized === "actual_container") {
-      return {
-        success: true,
-        data: await this.actualContainers(tenantId, shipment),
-      };
+      return this.tabParity.getContainers(
+        tenantId,
+        id,
+        JobContainerKind.ACTUAL,
+      );
     }
     if (normalized === "ex_rate") {
-      const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.shipmentExchangeRate.findMany({
-          where: {
-            tenant_id: tenantId,
-            shipment_id: id,
-            deleted_at: null,
-          },
-        }),
-      );
-      return { success: true, data: rows };
+      return this.tabParity.getExRate(tenantId, id);
     }
     if (normalized === "routing") {
-      return {
-        success: true,
-        data: await this.routingLegs(tenantId, shipment),
-      };
+      return this.tabParity.getRouting(tenantId, id);
     }
     if (normalized === "customs" || normalized === "shipping_bill_boe") {
-      const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.shipmentCustomsRef.findMany({
-          where: {
-            tenant_id: tenantId,
-            shipment_id: id,
-            deleted_at: null,
-          },
-        }),
-      );
-      return { success: true, data: rows };
+      return this.tabParity.getCustoms(tenantId, id);
     }
     return { success: true, data: {} };
   }
@@ -199,63 +123,26 @@ export class ShipmentDetailService {
   createRoutingLeg(
     tenantId: string,
     shipmentId: string,
-    dto: UpsertShipmentRoutingLegDto,
+    dto: UpsertJobRoutingLegDto,
     actorId?: string,
   ) {
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.shipmentRoutingLeg.create({
-        data: {
-          tenant_id: tenantId,
-          shipment_id: shipmentId,
-          leg_sequence: dto.leg_sequence ?? 1,
-          transport_mode: dto.transport_mode,
-          port_id: dto.port_id,
-          etd: dto.etd ? new Date(dto.etd) : undefined,
-          eta: dto.eta ? new Date(dto.eta) : undefined,
-          vessel_name: dto.vessel_name,
-          voyage_number: dto.voyage_number,
-        },
-      }),
-    );
+    return this.tabParity.createRoutingLeg(tenantId, shipmentId, dto, actorId);
   }
 
   updateRoutingLeg(
     tenantId: string,
     shipmentId: string,
     legId: string,
-    dto: UpsertShipmentRoutingLegDto,
-    _actorId?: string,
+    dto: UpsertJobRoutingLegDto,
+    actorId?: string,
   ) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const leg = await tx.shipmentRoutingLeg.findFirst({
-        where: { id: legId, shipment_id: shipmentId, tenant_id: tenantId },
-      });
-      if (!leg) throw new NotFoundException("Routing leg not found.");
-      return tx.shipmentRoutingLeg.update({
-        where: { id: legId },
-        data: {
-          ...(dto.leg_sequence !== undefined
-            ? { leg_sequence: dto.leg_sequence }
-            : {}),
-          ...(dto.transport_mode !== undefined
-            ? { transport_mode: dto.transport_mode }
-            : {}),
-          ...(dto.port_id !== undefined ? { port_id: dto.port_id } : {}),
-          ...(dto.etd !== undefined
-            ? { etd: dto.etd ? new Date(dto.etd) : null }
-            : {}),
-          ...(dto.eta !== undefined
-            ? { eta: dto.eta ? new Date(dto.eta) : null }
-            : {}),
-          ...(dto.vessel_name !== undefined
-            ? { vessel_name: dto.vessel_name }
-            : {}),
-          ...(dto.voyage_number !== undefined
-            ? { voyage_number: dto.voyage_number }
-            : {}),
-        },
-      });
-    });
+    return this.tabParity.updateRoutingLeg(
+      tenantId,
+      shipmentId,
+      legId,
+      dto,
+      actorId,
+    );
   }
 
   async changeBlStatus(
@@ -283,20 +170,10 @@ export class ShipmentDetailService {
   async changeDepartment(
     tenantId: string,
     id: string,
-    dto: ChangeShipmentDepartmentDto,
+    dto: PatchJobDepartmentDto,
     actorId?: string,
   ) {
-    await this.shipments.findOne(tenantId, id);
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.shipment.update({
-        where: { id },
-        data: {
-          department_id: dto.department_id,
-          ...(dto.branch_id !== undefined ? { branch_id: dto.branch_id } : {}),
-          updated_by: actorId,
-        },
-      }),
-    );
+    return this.tabParity.patchDepartment(tenantId, id, dto, actorId);
   }
 
   async split(

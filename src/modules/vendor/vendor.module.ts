@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PaymentsModule } from "../payments/payments.module";
 import { VendorPayoutsPortalController } from "./vendor-payouts-portal.controller";
 import { JwtModule } from "@nestjs/jwt";
@@ -37,7 +37,9 @@ import { VendorDashboardService } from "./vendor-dashboard.service";
 import { VendorDashboardController } from "./vendor-dashboard.controller";
 import { VendorDocumentShareService } from "./vendor-document-share.service";
 import { VendorConverterController } from "./vendor-converter.controller";
+import { VendorJobsController } from "./vendor-jobs.controller";
 import { ToolsModule } from "../tools/tools.module";
+import { JobsModule } from "../jobs/jobs.module";
 
 @Module({
   imports: [
@@ -52,6 +54,7 @@ import { ToolsModule } from "../tools/tools.module";
     GlModule,
     NotificationsModule,
     JwtModule.register({}),
+    forwardRef(() => JobsModule),
   ],
   controllers: [
     VendorPayoutsPortalController,
@@ -68,6 +71,7 @@ import { ToolsModule } from "../tools/tools.module";
     JobOffersController,
     VendorDashboardController,
     VendorConverterController,
+    VendorJobsController,
   ],
   providers: [
     VendorService,

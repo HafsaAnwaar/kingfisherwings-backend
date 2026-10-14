@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DocumentType, JobType, Prisma, ShipmentStatus } from "@prisma/client";
+import {
+  DocumentType,
+  JobContainerKind,
+  JobType,
+  Prisma,
+  ShipmentStatus,
+} from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
@@ -455,12 +461,27 @@ export class ShipmentsService {
             tax_amount: c.tax_amount,
             is_cost: c.is_cost,
             is_provisional: c.is_provisional,
+            is_billable: c.is_billable,
             party_id: c.party_id,
+            line_no: c.line_no,
+            sale_party_id: c.sale_party_id,
+            sale_amount: c.sale_amount,
+            sale_tax_amount: c.sale_tax_amount,
+            sale_currency: c.sale_currency,
+            sale_ex_rate: c.sale_ex_rate,
+            cost_party_id: c.cost_party_id,
+            cost_amount: c.cost_amount,
+            cost_tax_amount: c.cost_tax_amount,
+            cost_currency: c.cost_currency,
+            cost_ex_rate: c.cost_ex_rate,
+            gp_amount: c.gp_amount,
             created_by: actorId,
             updated_by: actorId,
           })),
         });
       }
+
+      await this.copyShipmentTabsToJob(tx, tenantId, id, job.id, actorId);
 
       await seedJobTypeExtras(
         tx,
@@ -1108,6 +1129,181 @@ export class ShipmentsService {
         gp_percent: revenue > 0 ? (gp / revenue) * 100 : 0,
       },
     });
+  }
+
+  /** Copy shared tab rows from shipment → job on generate-job. */
+  private async copyShipmentTabsToJob(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    shipmentId: string,
+    jobId: string,
+    actorId?: string,
+  ) {
+    const orgs = await tx.shipmentOrganization.findMany({
+      where: { tenant_id: tenantId, shipment_id: shipmentId, deleted_at: null },
+    });
+    if (orgs.length) {
+      await tx.jobOrganization.createMany({
+        data: orgs.map((o) => ({
+          tenant_id: tenantId,
+          job_id: jobId,
+          org_type: o.org_type,
+          party_id: o.party_id,
+          is_primary_customer: o.is_primary_customer,
+          party_snapshot: o.party_snapshot ?? undefined,
+          created_by: actorId,
+          updated_by: actorId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    const dims = await tx.shipmentDimensionLine.findMany({
+      where: { tenant_id: tenantId, shipment_id: shipmentId, deleted_at: null },
+    });
+    if (dims.length) {
+      await tx.jobDimensionLine.createMany({
+        data: dims.map((d) => ({
+          tenant_id: tenantId,
+          job_id: jobId,
+          line_no: d.line_no,
+          length_unit: d.length_unit,
+          length: d.length,
+          width: d.width,
+          height: d.height,
+          no_of_pcs: d.no_of_pcs,
+          package_type: d.package_type,
+          g_weight: d.g_weight,
+          g_weight_unit: d.g_weight_unit,
+          v_weight: d.v_weight,
+          v_weight_unit: d.v_weight_unit,
+          n_weight: d.n_weight,
+          n_weight_unit: d.n_weight_unit,
+          total_weight: d.total_weight,
+          total_weight_unit: d.total_weight_unit,
+          volume: d.volume,
+          volume_unit: d.volume_unit,
+          hs_code: d.hs_code,
+          commodity: d.commodity,
+          commodity_description: d.commodity_description,
+          remarks: d.remarks,
+          created_by: actorId,
+          updated_by: actorId,
+        })),
+      });
+    }
+
+    const plans = await tx.shipmentContainerPlan.findMany({
+      where: {
+        tenant_id: tenantId,
+        shipment_id: shipmentId,
+        deleted_at: null,
+        container_type_id: { not: null },
+      },
+    });
+    if (plans.length) {
+      await tx.jobContainer.createMany({
+        data: plans.map((p, i) => ({
+          tenant_id: tenantId,
+          job_id: jobId,
+          line_no: i + 1,
+          container_kind: JobContainerKind.PLANNED,
+          container_type_id: p.container_type_id!,
+          container_number: p.container_number,
+          seal_number: p.seal_number,
+          gross_weight: p.gross_weight,
+          cbm: p.volume_cbm,
+          shipment_id: shipmentId,
+          created_by: actorId,
+          updated_by: actorId,
+        })),
+      });
+    }
+
+    const actuals = await tx.shipmentContainerActual.findMany({
+      where: {
+        tenant_id: tenantId,
+        shipment_id: shipmentId,
+        deleted_at: null,
+        container_type_id: { not: null },
+      },
+    });
+    if (actuals.length) {
+      await tx.jobContainer.createMany({
+        data: actuals.map((a, i) => ({
+          tenant_id: tenantId,
+          job_id: jobId,
+          line_no: i + 1,
+          container_kind: JobContainerKind.ACTUAL,
+          container_type_id: a.container_type_id!,
+          container_number: a.container_number,
+          seal_number: a.seal_number,
+          gross_weight: a.gross_weight,
+          cbm: a.volume_cbm,
+          gate_in_at: a.gate_in_at,
+          shipment_id: shipmentId,
+          created_by: actorId,
+          updated_by: actorId,
+        })),
+      });
+    }
+
+    const rates = await tx.shipmentExchangeRate.findMany({
+      where: { tenant_id: tenantId, shipment_id: shipmentId, deleted_at: null },
+    });
+    if (rates.length) {
+      await tx.jobExchangeRate.createMany({
+        data: rates.map((r) => ({
+          tenant_id: tenantId,
+          job_id: jobId,
+          currency_code: r.currency_code,
+          exchange_rate: r.exchange_rate,
+          effective_date: r.effective_date,
+          source: r.source,
+        })),
+      });
+    }
+
+    const legs = await tx.shipmentRoutingLeg.findMany({
+      where: { tenant_id: tenantId, shipment_id: shipmentId, deleted_at: null },
+    });
+    if (legs.length) {
+      await tx.jobRoutingLeg.createMany({
+        data: legs.map((l) => ({
+          tenant_id: tenantId,
+          job_id: jobId,
+          leg_sequence: l.leg_sequence,
+          transport_mode: l.transport_mode,
+          port_id: l.port_id,
+          origin_port_id: l.origin_port_id,
+          dest_port_id: l.dest_port_id,
+          etd: l.etd,
+          eta: l.eta,
+          carrier_id: l.carrier_id,
+          vessel_name: l.vessel_name,
+          voyage_number: l.voyage_number,
+        })),
+      });
+    }
+
+    const customs = await tx.shipmentCustomsRef.findMany({
+      where: { tenant_id: tenantId, shipment_id: shipmentId, deleted_at: null },
+    });
+    if (customs.length) {
+      await tx.jobCustomsRef.createMany({
+        data: customs.map((c) => ({
+          tenant_id: tenantId,
+          job_id: jobId,
+          sb_number: c.sb_number,
+          boe_number: c.boe_number,
+          customs_house: c.customs_house,
+          customs_status: c.customs_status,
+          filed_at: c.filed_at,
+          cleared_at: c.cleared_at,
+          remarks: c.remarks,
+        })),
+      });
+    }
   }
 
   private async resolveBranchCode(tenantId: string, branchId?: string) {
