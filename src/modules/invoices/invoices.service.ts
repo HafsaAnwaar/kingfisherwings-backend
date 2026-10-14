@@ -315,7 +315,144 @@ export class InvoicesService {
     });
   }
 
-  async createFromJob(tenantId: string, jobId: string, actorId?: string) {
+  async createFromJobSelected(
+    tenantId: string,
+    jobId: string,
+    chargeIds: string[],
+    actorId?: string,
+  ) {
+    return this.createFromJob(tenantId, jobId, actorId, chargeIds);
+  }
+
+  async createPurchaseFromJob(
+    tenantId: string,
+    jobId: string,
+    chargeIds: string[] | undefined,
+    actorId?: string,
+  ) {
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      "PURCHASE_INVOICE",
+    );
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        include: {
+          charges: {
+            where: {
+              deleted_at: null,
+              is_invoiced: false,
+              OR: [
+                { is_cost: true },
+                { cost_amount: { not: null } },
+              ],
+              ...(chargeIds?.length ? { id: { in: chargeIds } } : {}),
+            },
+          },
+        },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
+      const charges = job.charges.filter(
+        (c) => c.is_cost || c.cost_amount != null,
+      );
+      if (!charges.length) {
+        throw new BadRequestException(
+          "No uninvoiced cost charges on this job.",
+        );
+      }
+      const vendorId =
+        charges[0].cost_party_id ?? charges[0].party_id ?? null;
+      if (!vendorId) {
+        throw new BadRequestException(
+          "Cost charges must have a vendor (cost_party_id) to create a purchase invoice.",
+        );
+      }
+
+      const defaultTax = await tx.taxRate.findFirst({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          is_active: true,
+          is_default: true,
+        },
+        orderBy: { effective_from: "desc" },
+      });
+      const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
+      const currency =
+        charges[0].cost_currency ?? charges[0].currency_code;
+      const exRate = Number(
+        charges[0].cost_ex_rate ?? charges[0].exchange_rate ?? 1,
+      );
+
+      const invoice = await tx.invoice.create({
+        data: {
+          tenant_id: tenantId,
+          company_id: job.company_id,
+          invoice_number: invoiceNumber,
+          invoice_type: "PURCHASE_INVOICE",
+          status: "DRAFT",
+          job_id: jobId,
+          party_id: vendorId,
+          branch_id: job.branch_id,
+          department_id: job.department_id,
+          currency_code: currency,
+          exchange_rate: exRate,
+          vat_rate: defaultVatRate,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+
+      for (const [index, charge] of charges.entries()) {
+        const amount = Number(charge.cost_amount ?? charge.amount);
+        const tax = Number(charge.cost_tax_amount ?? charge.tax_amount ?? 0);
+        const qty = Number(charge.quantity ?? 1);
+        const unitPrice = qty > 0 ? amount / qty : amount;
+        const lineTaxRate =
+          amount > 0 && tax > 0
+            ? Math.round((tax / amount) * 10000) / 100
+            : tax > 0
+              ? defaultVatRate
+              : 0;
+
+        await tx.invoiceLine.create({
+          data: {
+            tenant_id: tenantId,
+            invoice_id: invoice.id,
+            job_id: jobId,
+            job_charge_id: charge.id,
+            charge_code_id: charge.charge_code_id,
+            description: charge.description,
+            quantity: qty,
+            unit_price: unitPrice,
+            amount,
+            tax_rate_id: charge.tax_rate_id,
+            tax_rate: lineTaxRate,
+            tax_amount: tax,
+            is_taxable: tax > 0,
+            sort_order: index,
+            created_by: actorId,
+            updated_by: actorId,
+          },
+        });
+
+        await tx.jobCharge.update({
+          where: { id: charge.id },
+          data: { is_invoiced: true, updated_by: actorId },
+        });
+      }
+
+      return this.recalculateAndReturn(tx, tenantId, invoice.id);
+    });
+  }
+
+  async createFromJob(
+    tenantId: string,
+    jobId: string,
+    actorId?: string,
+    chargeIds?: string[],
+  ) {
     const invoiceNumber = await this.numberGenerator.generate(
       tenantId,
       "INVOICE",
@@ -331,6 +468,7 @@ export class InvoicesService {
               is_billable: true,
               is_cost: false,
               is_invoiced: false,
+              ...(chargeIds?.length ? { id: { in: chargeIds } } : {}),
             },
           },
         },
@@ -346,10 +484,14 @@ export class InvoicesService {
         );
       }
 
-      const customerId = job.shipper_id ?? job.consignee_id;
+      const customerId =
+        job.charges[0].sale_party_id ??
+        job.billing_party_id ??
+        job.shipper_id ??
+        job.consignee_id;
       if (!customerId) {
         throw new BadRequestException(
-          "Job must have a shipper or consignee to invoice.",
+          "Job must have a shipper, consignee, or sale bill-to to invoice.",
         );
       }
 
@@ -375,8 +517,10 @@ export class InvoicesService {
           party_id: customerId,
           branch_id: job.branch_id,
           department_id: job.department_id,
-          currency_code: job.charges[0].currency_code,
-          exchange_rate: job.charges[0].exchange_rate,
+          currency_code:
+            job.charges[0].sale_currency ?? job.charges[0].currency_code,
+          exchange_rate:
+            job.charges[0].sale_ex_rate ?? job.charges[0].exchange_rate,
           vat_rate: defaultVatRate,
           created_by: actorId,
           updated_by: actorId,
@@ -384,8 +528,10 @@ export class InvoicesService {
       });
 
       for (const [index, charge] of job.charges.entries()) {
-        const chargeAmount = Number(charge.amount);
-        const chargeTax = Number(charge.tax_amount);
+        const chargeAmount = Number(charge.sale_amount ?? charge.amount);
+        const chargeTax = Number(charge.sale_tax_amount ?? charge.tax_amount);
+        const qty = Number(charge.sale_qty ?? charge.quantity ?? 1);
+        const unitPrice = qty > 0 ? chargeAmount / qty : chargeAmount;
         const lineTaxRate =
           chargeAmount > 0 && chargeTax > 0
             ? Math.round((chargeTax / chargeAmount) * 10000) / 100
@@ -401,12 +547,12 @@ export class InvoicesService {
             job_charge_id: charge.id,
             charge_code_id: charge.charge_code_id,
             description: charge.description,
-            quantity: charge.quantity,
-            unit_price: charge.unit_price,
-            amount: charge.amount,
-            tax_rate_id: charge.tax_rate_id,
+            quantity: qty,
+            unit_price: unitPrice,
+            amount: chargeAmount,
+            tax_rate_id: charge.sale_tax_rate_id ?? charge.tax_rate_id,
             tax_rate: lineTaxRate,
-            tax_amount: charge.tax_amount,
+            tax_amount: chargeTax,
             is_taxable: chargeTax > 0,
             sort_order: index,
             created_by: actorId,

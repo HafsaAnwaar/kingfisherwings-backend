@@ -251,6 +251,153 @@ describe("Fresa flow smoke (e2e)", () => {
       .expect(200);
     expect(Array.isArray(history.body.data)).toBe(true);
 
+    // --- Job Costing tab parity smoke ---
+    const chargeCode = await request(app.getHttpServer())
+      .post("/masters/charge-codes")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        code: `FRT${runId}`.slice(0, 10),
+        description: "Smoke freight",
+        charge_group: "FREIGHT",
+        unit: "SHPT",
+        applicable_modes: ["SEA"],
+      })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+    const chargeCodeId =
+      chargeCode.body.id ?? chargeCode.body.data?.id;
+
+    const vendor = await request(app.getHttpServer())
+      .post("/parties")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        party_type: "SUPPLIER",
+        code: `FR-V-${runId}`,
+        name: "Fresa Vendor",
+      })
+      .expect(201);
+    const vendorId = vendor.body.id ?? vendor.body.data?.id;
+
+    if (chargeCodeId) {
+      const composite = await request(app.getHttpServer())
+        .post(`/jobs/${jobId}/charges/composite`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          charge: {
+            charge_code_id: chargeCodeId,
+            description: "Ocean freight",
+            quantity: 1,
+            unit: "SHPT",
+          },
+          sale: {
+            amount: 1000,
+            currency: "AED",
+            ex_rate: 1,
+            bill_to: partyId,
+            dr_cr: "CR",
+          },
+          cost: {
+            amount: 700,
+            currency: "AED",
+            ex_rate: 1,
+            vendor: vendorId,
+            dr_cr: "DR",
+          },
+        })
+        .expect((res) => expect([200, 201]).toContain(res.status));
+      const chargeId =
+        composite.body.data?.id ?? composite.body.id;
+
+      const costingTab = await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/detail/costing`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      expect(costingTab.body.data?.actions?.get_job_charges).toBe(true);
+      expect(costingTab.body.data?.lines?.length).toBeGreaterThan(0);
+
+      await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/charges`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post(`/jobs/${jobId}/get-job-charges`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          type: "SHIPMENT",
+          shipment_id: shipmentId,
+          confirm: false,
+        })
+        .expect((res) => expect([200, 201]).toContain(res.status));
+
+      await request(app.getHttpServer())
+        .post(`/jobs/${jobId}/profit-share/preview`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ charge_code_id: chargeCodeId })
+        .expect((res) => expect([200, 201]).toContain(res.status));
+
+      await request(app.getHttpServer())
+        .post(`/jobs/${jobId}/profit-share/add`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          charge_code_id: chargeCodeId,
+          profit_share_percent: 10,
+          profit_share_agent_id: vendorId,
+        })
+        .expect((res) => expect([200, 201]).toContain(res.status));
+
+      if (chargeId) {
+        await request(app.getHttpServer())
+          .post(`/jobs/${jobId}/invoices/sale`)
+          .set("Authorization", `Bearer ${token}`)
+          .send({ charge_ids: [chargeId] })
+          .expect((res) => expect([200, 201, 400]).toContain(res.status));
+
+        await request(app.getHttpServer())
+          .post(`/jobs/${jobId}/invoices/purchase`)
+          .set("Authorization", `Bearer ${token}`)
+          .send({ charge_ids: [chargeId] })
+          .expect((res) => expect([200, 201, 400]).toContain(res.status));
+
+        await request(app.getHttpServer())
+          .get(`/jobs/${jobId}/charges/${chargeId}/history`)
+          .set("Authorization", `Bearer ${token}`)
+          .expect(200);
+      }
+
+      await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/pnl/custom-duty`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post(`/jobs/${jobId}/exchange-rates`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currency_code: "USD", exchange_rate: 3.67 })
+        .expect((res) => expect([200, 201]).toContain(res.status));
+
+      await request(app.getHttpServer())
+        .post(`/jobs/${jobId}/routing-legs`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ leg_sequence: 2, vessel_name: "Smoke Vessel" })
+        .expect((res) => expect([200, 201]).toContain(res.status));
+
+      await request(app.getHttpServer())
+        .post(`/jobs/${jobId}/customs-refs`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ sb_number: `SB-${runId}`, customs_status: "FILED" })
+        .expect((res) => expect([200, 201]).toContain(res.status));
+
+      await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/detail/department`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/detail/booking_form`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+    }
+
     await request(app.getHttpServer())
       .get(`/shipments/${shipmentId}/booking-form`)
       .set("Authorization", `Bearer ${token}`)
@@ -262,5 +409,5 @@ describe("Fresa flow smoke (e2e)", () => {
       .expect(200);
     const rows = listed.body.data ?? listed.body;
     expect(Array.isArray(rows) ? rows.length : 1).toBeGreaterThan(0);
-  }, 120_000);
+  }, 180_000);
 });

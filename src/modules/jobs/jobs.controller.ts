@@ -21,7 +21,7 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
-import { JobPartyRole } from "@prisma/client";
+import { JobChargeAttachmentSide, JobPartyRole } from "@prisma/client";
 import "multer";
 
 import { JobsService } from "./jobs.service";
@@ -63,6 +63,25 @@ import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobOrganizationService } from "./job-organization.service";
 import { JobDimensionService } from "./job-dimension.service";
 import { JobContainerTabService } from "./job-container-tab.service";
+import { JobCostingService } from "./job-costing.service";
+import { JobProfitShareService } from "./job-profit-share.service";
+import { JobTabPanelsService } from "./job-tab-panels.service";
+import {
+  CompositeJobChargeDto,
+  CostSectionDto,
+  GenerateJobVoucherDto,
+  GetJobChargesFromShipmentDto,
+  JobInvoiceFromChargesDto,
+  ProfitShareAddDto,
+  ProfitSharePreviewDto,
+  SaleSectionDto,
+} from "./dto/job-costing.dto";
+import {
+  PatchJobDepartmentDto,
+  UpsertJobCustomsRefDto,
+  UpsertJobExchangeRateDto,
+  UpsertJobRoutingLegDto,
+} from "./dto/job-tab-panels.dto";
 import { JobsDashboardQueryDto } from "../../common/dto/dashboard-period-query.dto";
 
 import { CreateJobDto, ScanJobBarcodeDto, UpdateJobDto } from "./dto/job.dto";
@@ -211,6 +230,9 @@ export class JobsController {
     private readonly organizations: JobOrganizationService,
     private readonly dimensions: JobDimensionService,
     private readonly containerTab: JobContainerTabService,
+    private readonly costing: JobCostingService,
+    private readonly profitShare: JobProfitShareService,
+    private readonly tabPanels: JobTabPanelsService,
     private readonly seaFclImport: SeaFclImportService,
     private readonly airImport: AirImportService,
     private readonly seaLcl: SeaLclService,
@@ -699,6 +721,123 @@ export class JobsController {
     return this.dimensions.syncToCargo(tenantId, id, dto, actorId);
   }
 
+  @Patch(":id/department")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Patch job department tab (branch/company/department/salesperson)",
+  })
+  patchDepartment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PatchJobDepartmentDto,
+  ) {
+    return this.tabPanels.patchDepartment(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/exchange-rates")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Upsert job exchange rate (optional apply_to_charges)",
+  })
+  upsertExchangeRate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobExchangeRateDto,
+  ) {
+    return this.tabPanels.upsertExchangeRate(tenantId, id, dto, actorId);
+  }
+
+  @Delete(":id/exchange-rates/:rateId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Soft-delete a job exchange rate row" })
+  async deleteExchangeRate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rateId", ParseUUIDPipe) rateId: string,
+  ) {
+    await this.tabPanels.deleteExchangeRate(tenantId, id, rateId, actorId);
+  }
+
+  @Post(":id/routing-legs")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Add a job routing leg" })
+  createRoutingLeg(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobRoutingLegDto,
+  ) {
+    return this.tabPanels.createRoutingLeg(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/routing-legs/:legId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Update a job routing leg" })
+  updateRoutingLeg(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("legId", ParseUUIDPipe) legId: string,
+    @Body() dto: UpsertJobRoutingLegDto,
+  ) {
+    return this.tabPanels.updateRoutingLeg(tenantId, id, legId, dto, actorId);
+  }
+
+  @Delete(":id/routing-legs/:legId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Soft-delete a job routing leg" })
+  async deleteRoutingLeg(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("legId", ParseUUIDPipe) legId: string,
+  ) {
+    await this.tabPanels.deleteRoutingLeg(tenantId, id, legId, actorId);
+  }
+
+  @Post(":id/customs-refs")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Add customs / SB / BOE reference on job" })
+  createCustomsRef(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobCustomsRefDto,
+  ) {
+    return this.tabPanels.createCustomsRef(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/customs-refs/:refId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Update customs / SB / BOE reference" })
+  updateCustomsRef(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("refId", ParseUUIDPipe) refId: string,
+    @Body() dto: UpsertJobCustomsRefDto,
+  ) {
+    return this.tabPanels.updateCustomsRef(tenantId, id, refId, dto, actorId);
+  }
+
+  @Delete(":id/customs-refs/:refId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Soft-delete customs / SB / BOE reference" })
+  async deleteCustomsRef(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("refId", ParseUUIDPipe) refId: string,
+  ) {
+    await this.tabPanels.deleteCustomsRef(tenantId, id, refId, actorId);
+  }
+
   @Get(":id/gpum")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
   @ApiOperation({ summary: "GPUM allocations for job" })
@@ -746,13 +885,16 @@ export class JobsController {
 
   @Get(":id/charges/:chargeId/attachments")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List attachments on a costing line" })
+  @ApiOperation({
+    summary: "List attachments on a costing line (optional ?side=SALE|COST|CHARGE)",
+  })
   listChargeAttachments(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("chargeId", ParseUUIDPipe) chargeId: string,
+    @Query("side") side?: JobChargeAttachmentSide,
   ) {
-    return this.chargeAttachments.list(tenantId, id, chargeId);
+    return this.chargeAttachments.list(tenantId, id, chargeId, side);
   }
 
   @Post(":id/charges/:chargeId/attachments")
@@ -1601,6 +1743,16 @@ export class JobsController {
     return this.service.addCustomMilestone(tenantId, id, dto, actorId);
   }
 
+  @Get(":id/charges")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List job charge lines (costing grid)" })
+  listCharges(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.costing.listCharges(tenantId, id);
+  }
+
   @Post(":id/charges")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
@@ -1613,6 +1765,67 @@ export class JobsController {
     @Body() dto: CreateJobChargeDto,
   ) {
     return this.service.addCharge(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/charges/composite")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Add paired charge + sale + cost line (Fresa Costing Add)",
+  })
+  addCompositeCharge(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CompositeJobChargeDto,
+  ) {
+    return this.costing.addComposite(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/charges/history")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Job costing revision history (all lines)" })
+  chargeHistory(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.costing.getHistory(tenantId, id);
+  }
+
+  @Get(":id/charges/:chargeId/history")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Costing revision history for one charge line" })
+  chargeLineHistory(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("chargeId", ParseUUIDPipe) chargeId: string,
+  ) {
+    return this.costing.getHistory(tenantId, id, chargeId);
+  }
+
+  @Patch(":id/charges/:chargeId/sale")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Patch sale side of a costing line" })
+  patchChargeSale(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("chargeId", ParseUUIDPipe) chargeId: string,
+    @Body() dto: SaleSectionDto,
+  ) {
+    return this.costing.patchSale(tenantId, id, chargeId, dto, actorId);
+  }
+
+  @Patch(":id/charges/:chargeId/cost")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Patch cost side of a costing line" })
+  patchChargeCost(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("chargeId", ParseUUIDPipe) chargeId: string,
+    @Body() dto: CostSectionDto,
+  ) {
+    return this.costing.patchCost(tenantId, id, chargeId, dto, actorId);
   }
 
   @Post(":id/get-charges")
@@ -1630,6 +1843,21 @@ export class JobsController {
     return this.service.getCharges(tenantId, id, dto, actorId);
   }
 
+  @Post(":id/get-job-charges")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Get Job Charges from shipment (preview when confirm=false; submit when true)",
+  })
+  getJobChargesFromShipment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: GetJobChargesFromShipmentDto,
+  ) {
+    return this.costing.getJobChargesFromShipment(tenantId, id, dto, actorId);
+  }
+
   @Post(":id/copy-charges")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
@@ -1643,6 +1871,89 @@ export class JobsController {
     @Body() dto: CopyJobChargesDto,
   ) {
     return this.service.copyCharges(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/profit-share/preview")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
+  @ApiOperation({ summary: "Profit share calculator preview" })
+  profitSharePreview(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ProfitSharePreviewDto,
+  ) {
+    return this.profitShare.preview(tenantId, id, dto);
+  }
+
+  @Post(":id/profit-share/add")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Add profit share charge line from calculator" })
+  profitShareAdd(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ProfitShareAddDto,
+  ) {
+    return this.profitShare.add(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/vouchers")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List vouchers linked to this job" })
+  listJobVouchers(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.costing.listVouchers(tenantId, id);
+  }
+
+  @Post(":id/vouchers/generate")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Generate draft voucher from selected charge lines" })
+  generateJobVoucher(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobVoucherDto,
+  ) {
+    return this.costing.generateVoucher(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/invoices/sale")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Generate sale invoice from selected (or all) billable sale lines",
+  })
+  generateSaleInvoice(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: JobInvoiceFromChargesDto,
+  ) {
+    return this.costing.createSaleInvoice(tenantId, id, dto ?? {}, actorId);
+  }
+
+  @Post(":id/invoices/purchase")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Generate purchase invoice from selected (or all) cost lines",
+  })
+  generatePurchaseInvoice(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: JobInvoiceFromChargesDto,
+  ) {
+    return this.costing.createPurchaseInvoice(tenantId, id, dto ?? {}, actorId);
+  }
+
+  @Get(":id/pnl/custom-duty")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
+  @ApiOperation({ summary: "Job profit sheet filtered for custom duty charges" })
+  customDutyPnl(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.costing.getCustomDutyPnl(tenantId, id);
   }
 
   @Patch(":id/charges/:chargeId")
@@ -2187,6 +2498,24 @@ export class JobsController {
     @Body() dto: GenerateJobDocumentDto,
   ) {
     return this.service.generateDocument(tenantId, id, "JOB_PNL", dto, actorId);
+  }
+
+  @Post(":id/documents/job-pnl-custom-duty")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
+  @ApiOperation({ summary: "Queue Job P&L Custom Duty PDF" })
+  generateJobPnlCustomDuty(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobDocumentDto,
+  ) {
+    return this.service.generateDocument(
+      tenantId,
+      id,
+      "JOB_PNL_CUSTOM_DUTY",
+      dto,
+      actorId,
+    );
   }
 
   @Post(":id/documents/proforma-invoice")

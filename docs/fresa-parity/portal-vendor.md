@@ -8,7 +8,7 @@
 | Booking forms | Path id accepts Job or Shipment (`shipment.job_id`) | Match |
 | Portal booking form (all modes) | GET/PUT/complete on shipment + quotation | Match |
 | Vendor pass-to-vendor | Requires Job (after generate) | Match |
-| Vendor costing | Default: cost lines on **Job** (`/jobs/:id/charges`) | Match |
+| Vendor / portal costing | `GET /portal/jobs/:id/costing` (sale only); `GET /vendor/jobs/:id/costing` (cost only, via vendor quote or cost_party) | Match |
 
 ## API paths
 

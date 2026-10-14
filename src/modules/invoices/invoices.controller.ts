@@ -95,13 +95,23 @@ export class InvoicesController {
   @Post("from-job/:jobId")
   @RequirePermissions(INVOICES_PERMISSIONS.CREATE)
   @ApiOperation({
-    summary: "Create draft invoice from uninvoiced billable job charges",
+    summary:
+      "Create draft sale invoice from uninvoiced billable job charges (optional charge_ids)",
   })
   createFromJob(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("jobId", ParseUUIDPipe) jobId: string,
+    @Body() body?: { charge_ids?: string[] },
   ) {
+    if (body?.charge_ids?.length) {
+      return this.service.createFromJobSelected(
+        tenantId,
+        jobId,
+        body.charge_ids,
+        actorId,
+      );
+    }
     return this.service.createFromJob(tenantId, jobId, actorId);
   }
 

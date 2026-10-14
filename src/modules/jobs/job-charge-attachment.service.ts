@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { JobChargeAttachmentSide } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateJobChargeAttachmentDto } from "./dto/job-charge-attachment.dto";
 
@@ -6,7 +7,12 @@ import { CreateJobChargeAttachmentDto } from "./dto/job-charge-attachment.dto";
 export class JobChargeAttachmentService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(tenantId: string, jobId: string, chargeId: string) {
+  async list(
+    tenantId: string,
+    jobId: string,
+    chargeId: string,
+    side?: JobChargeAttachmentSide,
+  ) {
     await this.assertCharge(tenantId, jobId, chargeId);
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobChargeAttachment.findMany({
@@ -15,6 +21,7 @@ export class JobChargeAttachmentService {
           job_id: jobId,
           job_charge_id: chargeId,
           deleted_at: null,
+          ...(side ? { side } : {}),
         },
         orderBy: { created_at: "desc" },
       }),
@@ -36,6 +43,7 @@ export class JobChargeAttachmentService {
           tenant_id: tenantId,
           job_id: jobId,
           job_charge_id: chargeId,
+          side: dto.side ?? JobChargeAttachmentSide.CHARGE,
           file_name: dto.file_name,
           file_url: dto.file_url,
           s3_key: dto.s3_key,

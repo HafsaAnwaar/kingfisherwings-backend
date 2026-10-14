@@ -19,6 +19,8 @@ import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobOrganizationService } from "./job-organization.service";
 import { JobDimensionService } from "./job-dimension.service";
 import { JobContainerTabService } from "./job-container-tab.service";
+import { JobCostingService } from "./job-costing.service";
+import { JobTabPanelsService } from "./job-tab-panels.service";
 import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
 import { JobContainerKind } from "@prisma/client";
@@ -55,6 +57,8 @@ export class JobDetailService {
     private readonly organizations: JobOrganizationService,
     private readonly dimensions: JobDimensionService,
     private readonly containerTab: JobContainerTabService,
+    private readonly costing: JobCostingService,
+    private readonly tabPanels: JobTabPanelsService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -91,34 +95,10 @@ export class JobDetailService {
       return this.dimensions.getTab(tenantId, id);
     }
     if (normalized === "costing") {
-      const counts = await this.chargeAttachments.countsByChargeIds(
-        tenantId,
-        job.charges.map((c) => c.id),
-      );
-      return {
-        success: true,
-        data: {
-          revenue_total: job.revenue_total,
-          cost_total: job.cost_total,
-          gp_amount: job.gp_amount,
-          gp_percent: job.gp_percent,
-          charges: job.charges.map((c) => ({
-            ...c,
-            attachment_count: counts.get(c.id) ?? 0,
-          })),
-        },
-      };
+      return this.costing.getTab(tenantId, id, "STAFF");
     }
     if (normalized === "department") {
-      return {
-        success: true,
-        data: {
-          branch_id: job.branch_id,
-          company_id: job.company_id,
-          department_id: job.department_id,
-          salesperson_id: job.salesperson_id,
-        },
-      };
+      return this.tabPanels.getDepartmentTab(tenantId, id);
     }
     if (normalized === "planned_container") {
       return this.containerTab.getTab(
@@ -135,64 +115,19 @@ export class JobDetailService {
       );
     }
     if (normalized === "ex_rate") {
-      const currencies = [
-        ...new Set(
-          job.charges
-            .map((c) => c.currency_code)
-            .filter((c): c is string => !!c),
-        ),
-      ];
-      return {
-        success: true,
-        data: currencies.map((currency_code) => {
-          const line = job.charges.find((c) => c.currency_code === currency_code);
-          return {
-            currency_code,
-            exchange_rate: line?.exchange_rate ?? 1,
-          };
-        }),
-      };
+      return this.tabPanels.getExRateTab(tenantId, id);
     }
     if (normalized === "routing") {
-      return {
-        success: true,
-        data: [
-          {
-            leg_sequence: 1,
-            origin_port_id: job.origin_port_id,
-            dest_port_id: job.dest_port_id,
-            etd: job.etd,
-            eta: job.eta,
-          },
-        ],
-      };
+      return this.tabPanels.getRoutingTab(tenantId, id);
     }
     if (normalized === "customs" || normalized === "shipping_bill_boe") {
-      return {
-        success: true,
-        data: {
-          notes: "Use /ops/JOB/:id/references for SB/BOE refs; mode details hold BL numbers.",
-          sea_fcl: job.sea_fcl_details
-            ? {
-                hbl_number: job.sea_fcl_details.hbl_number,
-                mbl_number: job.sea_fcl_details.mbl_number,
-              }
-            : null,
-        },
-      };
+      return this.tabPanels.getCustomsTab(tenantId, id);
     }
     if (normalized === "history") {
       return this.history(tenantId, id);
     }
     if (normalized === "booking_form") {
-      return {
-        success: true,
-        data: {
-          job_id: id,
-          job_type: job.job_type,
-          path_hints: this.bookingFormPathHints(job.job_type, id),
-        },
-      };
+      return this.tabPanels.getBookingFormTab(tenantId, id);
     }
     if (normalized === "shipments") {
       const rows = await this.shipments.listForJob(tenantId, id);

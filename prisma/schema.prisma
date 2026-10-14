@@ -221,6 +221,29 @@ enum ChargeGroup {
   OTHER
 }
 
+enum JobChargePpCc {
+  PP
+  CC
+}
+
+enum JobChargeDrCr {
+  DR
+  CR
+}
+
+enum JobChargeAttachmentSide {
+  CHARGE
+  SALE
+  COST
+}
+
+enum JobChargeProrateStatus {
+  NONE
+  PARTIAL
+  FULL
+  CANCELLED
+}
+
 enum ContainerSize {
   SIZE_20GP
   SIZE_40GP
@@ -366,6 +389,7 @@ enum DocumentType {
   BARCODE_LABEL
   CONSIGNEE_LABEL
   JOB_COSTING
+  JOB_PNL_CUSTOM_DUTY
   FREIGHT_CERTIFICATE
   CROSS_BORDER_DECLARATION
   CUSTOMS_TRANSIT
@@ -2684,6 +2708,9 @@ model Job {
   gpum_allocations     JobGpumAllocation[]
   import_delivery      JobImportDeliveryDetail?
   charge_attachments   JobChargeAttachment[]
+  routing_legs         JobRoutingLeg[]
+  exchange_rates       JobExchangeRate[]
+  customs_refs         JobCustomsRef[]
 
   @@unique([tenant_id, job_number])
   @@unique([tenant_id, barcode_value])
@@ -3935,6 +3962,54 @@ model JobCharge {
   is_provisional       Boolean   @default(false)
   party_id             String?   @db.Uuid
   is_invoiced          Boolean   @default(false)
+
+  /// Costing tab header fields
+  line_no              Int?
+  unit                 String?           @db.VarChar(30)
+  remarks              String?           @db.Text
+  pp_cc                JobChargePpCc?
+  ofd_type             String?           @db.VarChar(40)
+
+  /// Sale side (customer)
+  sale_party_id        String?           @db.Uuid
+  sale_dr_cr           JobChargeDrCr?
+  sale_amount          Decimal?          @db.Decimal(18, 4)
+  sale_qty             Decimal?          @db.Decimal(10, 3)
+  sale_tax_amount      Decimal?          @db.Decimal(18, 4)
+  sale_tax_rate_id     String?           @db.Uuid
+  sale_tax_group_code  String?           @db.VarChar(40)
+  sale_currency        String?           @db.Char(3)
+  sale_ex_rate         Decimal?          @db.Decimal(20, 8)
+  sale_fcy_amount      Decimal?          @db.Decimal(18, 4)
+  sale_taxable_amount  Decimal?          @db.Decimal(18, 4)
+  sale_remarks         String?           @db.Text
+  sale_editable        Boolean           @default(true)
+  sale_voucher_id      String?           @db.Uuid
+
+  /// Cost side (vendor)
+  cost_party_id        String?           @db.Uuid
+  cost_dr_cr           JobChargeDrCr?
+  cost_amount          Decimal?          @db.Decimal(18, 4)
+  cost_tax_amount      Decimal?          @db.Decimal(18, 4)
+  cost_currency        String?           @db.Char(3)
+  cost_ex_rate         Decimal?          @db.Decimal(20, 8)
+  cost_fcy_amount      Decimal?          @db.Decimal(18, 4)
+  cost_declaration_no  String?           @db.VarChar(100)
+  cost_declaration_date DateTime?        @db.Date
+  cost_reference_no    String?           @db.VarChar(100)
+  cost_date            DateTime?         @db.Date
+  cost_remarks         String?           @db.Text
+  cost_editable        Boolean           @default(true)
+  cost_voucher_id      String?           @db.Uuid
+
+  gp_amount            Decimal?          @db.Decimal(18, 4)
+  freight_flag         Boolean           @default(false)
+  prorate_status       JobChargeProrateStatus @default(NONE)
+  synced_from_shipment_charge_id String? @db.Uuid
+  visible_to_customer  Boolean           @default(true)
+  visible_to_vendor    Boolean           @default(true)
+  is_profit_share      Boolean           @default(false)
+
   created_at           DateTime  @default(now()) @db.Timestamptz
   updated_at           DateTime  @updatedAt @db.Timestamptz
   created_by           String?   @db.Uuid
@@ -3945,10 +4020,32 @@ model JobCharge {
   invoice_line InvoiceLine?
   transport_request TransportRequest?
   attachments  JobChargeAttachment[]
+  revisions    JobChargeRevision[]
+  sale_voucher Voucher?     @relation("JobChargeSaleVoucher", fields: [sale_voucher_id], references: [id], onDelete: SetNull)
+  cost_voucher Voucher?     @relation("JobChargeCostVoucher", fields: [cost_voucher_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id])
   @@index([tenant_id, job_id])
+  @@index([tenant_id, job_id, line_no])
   @@map("job_charges")
+}
+
+model JobChargeRevision {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String   @db.Uuid
+  job_id        String   @db.Uuid
+  job_charge_id String   @db.Uuid
+  action        String   @db.VarChar(40)
+  before_json   Json?
+  after_json    Json?
+  actor_id      String?  @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  job_charge JobCharge @relation(fields: [job_charge_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, job_charge_id])
+  @@map("job_charge_revisions")
 }
 
 model JobStatusCatalog {
@@ -4088,18 +4185,19 @@ model JobGpumAllocation {
 }
 
 model JobChargeAttachment {
-  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id     String    @db.Uuid
-  job_id        String    @db.Uuid
-  job_charge_id String    @db.Uuid
-  file_name     String    @db.VarChar(300)
-  file_url      String    @db.Text
-  s3_key        String?   @db.Text
+  id            String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String                   @db.Uuid
+  job_id        String                   @db.Uuid
+  job_charge_id String                   @db.Uuid
+  side          JobChargeAttachmentSide  @default(CHARGE)
+  file_name     String                   @db.VarChar(300)
+  file_url      String                   @db.Text
+  s3_key        String?                  @db.Text
   file_size     Int?
-  mime_type     String?   @db.VarChar(100)
-  uploaded_by   String?   @db.Uuid
-  created_at    DateTime  @default(now()) @db.Timestamptz
-  deleted_at    DateTime? @db.Timestamptz
+  mime_type     String?                  @db.VarChar(100)
+  uploaded_by   String?                  @db.Uuid
+  created_at    DateTime                 @default(now()) @db.Timestamptz
+  deleted_at    DateTime?                @db.Timestamptz
 
   job        Job       @relation(fields: [job_id], references: [id], onDelete: Cascade)
   job_charge JobCharge @relation(fields: [job_charge_id], references: [id], onDelete: Cascade)
@@ -4359,6 +4457,70 @@ model ShipmentCharge {
 enum ShipmentSplitLinkType {
   SPLIT
   MERGE
+}
+
+model JobRoutingLeg {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  job_id         String    @db.Uuid
+  leg_sequence   Int       @default(1)
+  transport_mode String?   @db.VarChar(20)
+  port_id        String?   @db.Uuid
+  origin_port_id String?   @db.Uuid
+  dest_port_id   String?   @db.Uuid
+  etd            DateTime? @db.Date
+  eta            DateTime? @db.Date
+  carrier_id     String?   @db.Uuid
+  vessel_name    String?   @db.VarChar(200)
+  voyage_number  String?   @db.VarChar(50)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  deleted_at     DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, job_id])
+  @@map("job_routing_legs")
+}
+
+model JobExchangeRate {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  job_id         String    @db.Uuid
+  currency_code  String    @db.Char(3)
+  exchange_rate  Decimal   @db.Decimal(20, 8)
+  effective_date DateTime? @db.Date
+  source         String?   @db.VarChar(80)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  deleted_at     DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, job_id, currency_code])
+  @@map("job_exchange_rates")
+}
+
+model JobCustomsRef {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  job_id         String    @db.Uuid
+  sb_number      String?   @db.VarChar(50)
+  boe_number     String?   @db.VarChar(50)
+  customs_house  String?   @db.VarChar(100)
+  customs_status String?   @db.VarChar(40)
+  filed_at       DateTime? @db.Date
+  cleared_at     DateTime? @db.Date
+  remarks        String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  deleted_at     DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, job_id])
+  @@map("job_customs_refs")
 }
 
 model ShipmentRoutingLeg {
@@ -5248,6 +5410,8 @@ model Voucher {
   lines        VoucherLine[]
   payments     Payment[]
   reconciliation_lines BankReconciliationLine[]
+  job_charges_sale JobCharge[] @relation("JobChargeSaleVoucher")
+  job_charges_cost JobCharge[] @relation("JobChargeCostVoucher")
 
   @@unique([tenant_id, voucher_number])
   @@index([tenant_id])

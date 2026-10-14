@@ -59,6 +59,7 @@ import { PortalAirComplianceBookingService } from "./portal-air-compliance-booki
 import { PortalBookingFormController } from "./portal-booking-form.controller";
 import { PortalBookingFormService } from "./portal-booking-form.service";
 import { PortalCcController } from "./portal-cc.controller";
+import { PortalJobsController } from "./portal-jobs.controller";
 import { ToolsModule } from "../tools/tools.module";
 import { NvoccModule } from "../nvocc/nvocc.module";
 import { JobsModule } from "../jobs/jobs.module";
@@ -110,6 +111,7 @@ import { ShipmentsModule } from "../shipments/shipments.module";
     PortalAirComplianceBookingController,
     PortalBookingFormController,
     PortalCcController,
+    PortalJobsController,
   ],
   providers: [
     PortalService,

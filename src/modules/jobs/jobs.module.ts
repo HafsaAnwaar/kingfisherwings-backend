@@ -7,6 +7,7 @@ import { EmailModule } from "../../shared/email/email.module";
 import { WhatsAppModule } from "../../shared/whatsapp/whatsapp.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { InvoicesModule } from "../invoices/invoices.module";
+import { GlModule } from "../gl/gl.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { JobsController } from "./jobs.controller";
 import {
@@ -22,6 +23,9 @@ import { JobContainerStorageCostingService } from "./job-container-storage-costi
 import { JobOrganizationService } from "./job-organization.service";
 import { JobDimensionService } from "./job-dimension.service";
 import { JobContainerTabService } from "./job-container-tab.service";
+import { JobCostingService } from "./job-costing.service";
+import { JobProfitShareService } from "./job-profit-share.service";
+import { JobTabPanelsService } from "./job-tab-panels.service";
 import { JobDateService } from "./job-date.service";
 import { SeaFclImportService } from "./sea-fcl-import.service";
 import { AirImportService } from "./air-import.service";
@@ -32,6 +36,7 @@ import { RoadFreightService } from "./road-freight.service";
 import { CourierService } from "./courier.service";
 import { TransportModule } from "../transport/transport.module";
 import { VendorModule } from "../vendor/vendor.module";
+import { VendorJobsController } from "../vendor/vendor-jobs.controller";
 import { MastersModule } from "../masters/masters.module";
 import { ShipmentsModule } from "../shipments/shipments.module";
 import { QuotationsModule } from "../quotations/quotations.module";
@@ -58,6 +63,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     WhatsAppModule,
     NotificationsModule,
     InvoicesModule,
+    GlModule,
     StorageModule,
     TransportModule,
     VendorModule,
@@ -73,6 +79,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     AirWorkflowController,
     ModeBookingFormsController,
     CustomsClearanceController,
+    VendorJobsController,
   ],
   providers: [
     JobsService,
@@ -84,6 +91,9 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     JobOrganizationService,
     JobDimensionService,
     JobContainerTabService,
+    JobCostingService,
+    JobProfitShareService,
+    JobTabPanelsService,
     JobDateService,
     JobsDashboardService,
     SeaFclImportService,
@@ -103,6 +113,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
   ],
   exports: [
     JobsService,
+    JobCostingService,
     JobDateService,
     JobsDashboardService,
     SeaFclImportService,
