@@ -8,6 +8,9 @@
 | Generate job (house\|direct) | POST | `/shipments/:id/generate-job` | Match |
 | Copy shipment | POST | `/shipments/:id/copy` | Match |
 | Sale/cost charges | POST/GET | `/shipments/:id/charges` | Match |
+| Composite paired charge | POST | `/shipments/:id/charges/composite` | Match (job shape; proxies when linked) |
+| Organizations / dimensions | POST | `/shipments/:id/organizations`, `/shipments/:id/dimensions` | Match (job shape; proxies when linked) |
+| Exchange rates / customs | POST | `/shipments/:id/exchange-rates`, `/shipments/:id/customs-refs` | Match (job shape; proxies when linked) |
 | Get charges (quote/party) | POST | `/shipments/:id/get-charges` | Match |
 | Copy charges | POST | `/shipments/:id/copy-charges` | Match |
 | Booking confirmation / HBL | POST | `/shipments/:id/documents/*` | Match |
@@ -21,4 +24,4 @@
 | Submaster / sub-job | POST | `/shipments/:id/create-submaster` | Match |
 | KPI / BL / AWB / track | GET | `/shipments/:id/kpi`, `…/bills-of-lading`, `…/awb`, `…/tracking` | Match |
 
-Tab keys: `show_all`, `info`, `organization`, `dimensions`, `planned_container`, `actual_container`, `ex_rate`, `costing`, `department`, `shipping_bill_boe`, `routing`, `customs`. When `job_id` is set, container/routing tabs dual-read from job data if shipment child rows are empty.
+Tab keys: `show_all`, `info`, `organization`, `dimensions`, `planned_container`, `actual_container`, `ex_rate`, `costing`, `department`, `shipping_bill_boe`, `routing`, `customs` (no job-only `history` / `booking_form` / `shipments`). Shared tabs use the same response shapes as job; when `job_id` is set they proxy to job services. See [shipment-detail.md](./shipment-detail.md).

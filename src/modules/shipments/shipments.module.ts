@@ -4,10 +4,12 @@ import { OrganizationModule } from "../organization/organization.module";
 import { QueueModule } from "../../shared/queue/queue.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { JobsModule } from "../jobs/jobs.module";
+import { PartiesModule } from "../parties/parties.module";
 import { DocumentationEdiService } from "../documentation/documentation-edi.service";
 import { ShipmentsController } from "./shipments.controller";
 import { ShipmentsService } from "./shipments.service";
 import { ShipmentDetailService } from "./shipment-detail.service";
+import { ShipmentTabParityService } from "./shipment-tab-parity.service";
 
 /**
  * Avoid importing DocumentationModule here: it imports JobsModule, and JobsModule
@@ -21,10 +23,16 @@ import { ShipmentDetailService } from "./shipment-detail.service";
     OrganizationModule,
     QueueModule,
     StorageModule,
+    PartiesModule,
     forwardRef(() => JobsModule),
   ],
   controllers: [ShipmentsController],
-  providers: [ShipmentsService, ShipmentDetailService, DocumentationEdiService],
-  exports: [ShipmentsService, ShipmentDetailService],
+  providers: [
+    ShipmentsService,
+    ShipmentDetailService,
+    ShipmentTabParityService,
+    DocumentationEdiService,
+  ],
+  exports: [ShipmentsService, ShipmentDetailService, ShipmentTabParityService],
 })
 export class ShipmentsModule {}

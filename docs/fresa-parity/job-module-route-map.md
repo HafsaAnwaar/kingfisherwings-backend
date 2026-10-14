@@ -14,6 +14,7 @@
 | Exchange rates | tab `ex_rate`; `POST /jobs/:id/exchange-rates`; `DELETE .../exchange-rates/:rateId` |
 | Routing | tab `routing`; `POST/PATCH/DELETE /jobs/:id/routing-legs` |
 | Customs / SB-BOE | tabs `customs` / `shipping_bill_boe`; `POST/PATCH/DELETE /jobs/:id/customs-refs` |
+| Shipment shared tabs | Same tabs/DTOs on `/shipments/:id/detail/:tab` (excl. history/booking_form/shipments); proxy when linked — see [shipment-detail.md](./shipment-detail.md) |
 | Booking form | tab `booking_form` (summary + completeness); mode forms under `/jobs/:id/{mode}/booking-form` |
 | GPUM | `GET/PUT /jobs/:id/gpum` (not profit share) |
 | Storage charges | `POST .../containers/storage-charges/calculate`, `confirm-to-costing` |

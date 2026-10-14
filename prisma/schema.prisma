@@ -2520,6 +2520,7 @@ model Party {
   crm_subscribers          CrmSubscriber[]
   payment_transactions     PaymentTransaction[]
   job_organizations        JobOrganization[]
+  shipment_organizations   ShipmentOrganization[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -4403,6 +4404,8 @@ model Shipment {
   container_actuals ShipmentContainerActual[]
   exchange_rates    ShipmentExchangeRate[]
   customs_refs      ShipmentCustomsRef[]
+  organizations     ShipmentOrganization[]
+  dimension_lines   ShipmentDimensionLine[]
   split_links_as_parent ShipmentSplitLink[] @relation("ShipmentSplitParent")
   split_links_as_child  ShipmentSplitLink[] @relation("ShipmentSplitChild")
   job_containers    JobContainer[]
@@ -4440,6 +4443,18 @@ model ShipmentCharge {
   is_invoiced          Boolean   @default(false)
   /// When prorated from a master job charge.
   prorated_from_job_charge_id String? @db.Uuid
+  line_no              Int?
+  sale_party_id        String?   @db.Uuid
+  sale_amount          Decimal?  @db.Decimal(18, 4)
+  sale_tax_amount      Decimal?  @db.Decimal(18, 4)
+  sale_currency        String?   @db.Char(3)
+  sale_ex_rate         Decimal?  @db.Decimal(20, 8)
+  cost_party_id        String?   @db.Uuid
+  cost_amount          Decimal?  @db.Decimal(18, 4)
+  cost_tax_amount      Decimal?  @db.Decimal(18, 4)
+  cost_currency        String?   @db.Char(3)
+  cost_ex_rate         Decimal?  @db.Decimal(20, 8)
+  gp_amount            Decimal?  @db.Decimal(18, 4)
   sort_order           Int       @default(0)
   created_at           DateTime  @default(now()) @db.Timestamptz
   updated_at           DateTime  @updatedAt @db.Timestamptz
@@ -4452,6 +4467,67 @@ model ShipmentCharge {
   @@index([tenant_id])
   @@index([tenant_id, shipment_id])
   @@map("shipment_charges")
+}
+
+/// Organization tab on shipment — same roles as JobOrganization.
+model ShipmentOrganization {
+  id                  String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id           String       @db.Uuid
+  shipment_id         String       @db.Uuid
+  org_type            JobPartyRole
+  party_id            String       @db.Uuid
+  is_primary_customer Boolean      @default(false)
+  party_snapshot      Json?
+  created_at          DateTime     @default(now()) @db.Timestamptz
+  updated_at          DateTime     @updatedAt @db.Timestamptz
+  created_by          String?      @db.Uuid
+  updated_by          String?      @db.Uuid
+  deleted_at          DateTime?    @db.Timestamptz
+
+  shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+  party    Party    @relation(fields: [party_id], references: [id], onDelete: Restrict)
+
+  @@unique([tenant_id, shipment_id, org_type])
+  @@index([tenant_id, shipment_id])
+  @@map("shipment_organizations")
+}
+
+/// Dimension lines on shipment — same shape as JobDimensionLine.
+model ShipmentDimensionLine {
+  id                    String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String               @db.Uuid
+  shipment_id           String               @db.Uuid
+  line_no               Int
+  length_unit           DimensionLengthUnit  @default(CM)
+  length                Decimal?             @db.Decimal(12, 3)
+  width                 Decimal?             @db.Decimal(12, 3)
+  height                Decimal?             @db.Decimal(12, 3)
+  no_of_pcs             Int                  @default(1)
+  package_type          DimensionPackageType @default(PACKAGES)
+  g_weight              Decimal?             @db.Decimal(12, 3)
+  g_weight_unit         DimensionWeightUnit  @default(KG)
+  v_weight              Decimal?             @db.Decimal(12, 3)
+  v_weight_unit         DimensionWeightUnit  @default(KG)
+  n_weight              Decimal?             @db.Decimal(12, 3)
+  n_weight_unit         DimensionWeightUnit  @default(KG)
+  total_weight          Decimal?             @db.Decimal(12, 3)
+  total_weight_unit     DimensionWeightUnit  @default(KG)
+  volume                Decimal?             @db.Decimal(12, 6)
+  volume_unit           DimensionVolumeUnit  @default(CBM)
+  hs_code               String?              @db.VarChar(12)
+  commodity             String?              @db.VarChar(500)
+  commodity_description String?              @db.Text
+  remarks               String?              @db.Text
+  created_at            DateTime             @default(now()) @db.Timestamptz
+  updated_at            DateTime             @updatedAt @db.Timestamptz
+  created_by            String?              @db.Uuid
+  updated_by            String?              @db.Uuid
+  deleted_at            DateTime?            @db.Timestamptz
+
+  shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, shipment_id])
+  @@map("shipment_dimension_lines")
 }
 
 enum ShipmentSplitLinkType {
@@ -4524,20 +4600,22 @@ model JobCustomsRef {
 }
 
 model ShipmentRoutingLeg {
-  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id     String    @db.Uuid
-  shipment_id   String    @db.Uuid
-  leg_sequence  Int       @default(1)
-  transport_mode String?  @db.VarChar(20)
-  port_id       String?   @db.Uuid
-  etd           DateTime? @db.Date
-  eta           DateTime? @db.Date
-  carrier_id    String?   @db.Uuid
-  vessel_name   String?   @db.VarChar(200)
-  voyage_number String?   @db.VarChar(50)
-  created_at    DateTime  @default(now()) @db.Timestamptz
-  updated_at    DateTime  @updatedAt @db.Timestamptz
-  deleted_at    DateTime? @db.Timestamptz
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String    @db.Uuid
+  shipment_id    String    @db.Uuid
+  leg_sequence   Int       @default(1)
+  transport_mode String?   @db.VarChar(20)
+  port_id        String?   @db.Uuid
+  origin_port_id String?   @db.Uuid
+  dest_port_id   String?   @db.Uuid
+  etd            DateTime? @db.Date
+  eta            DateTime? @db.Date
+  carrier_id     String?   @db.Uuid
+  vessel_name    String?   @db.VarChar(200)
+  voyage_number  String?   @db.VarChar(50)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+  deleted_at     DateTime? @db.Timestamptz
 
   shipment Shipment @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
 
@@ -4613,6 +4691,7 @@ model ShipmentCustomsRef {
   shipment_id     String    @db.Uuid
   sb_number       String?   @db.VarChar(50)
   boe_number      String?   @db.VarChar(50)
+  customs_house   String?   @db.VarChar(100)
   customs_status  String?   @db.VarChar(40)
   filed_at        DateTime? @db.Date
   cleared_at      DateTime? @db.Date

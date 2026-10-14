@@ -30,15 +30,23 @@ import {
 import { GenerateJobDocumentDto } from "../jobs/dto/generate-job-document.dto";
 import { ShipmentsService } from "./shipments.service";
 import { ShipmentDetailService } from "./shipment-detail.service";
+import { ShipmentTabParityService } from "./shipment-tab-parity.service";
 import {
   ChangeShipmentBlStatusDto,
-  ChangeShipmentDepartmentDto,
   MergeShipmentsDto,
   SplitShipmentDto,
-  UpsertShipmentRoutingLegDto,
 } from "./dto/shipment-detail.dto";
 import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
 import { BookingFormEntityService } from "../jobs/booking-forms/booking-form-entity.service";
+import { AddJobOrganizationDto } from "../jobs/dto/job-organization-tab.dto";
+import { UpsertJobDimensionLineDto } from "../jobs/dto/job-dimension.dto";
+import { CompositeJobChargeDto } from "../jobs/dto/job-costing.dto";
+import {
+  PatchJobDepartmentDto,
+  UpsertJobCustomsRefDto,
+  UpsertJobExchangeRateDto,
+  UpsertJobRoutingLegDto,
+} from "../jobs/dto/job-tab-panels.dto";
 
 @ApiTags("Shipments")
 @ApiBearerAuth()
@@ -48,6 +56,7 @@ export class ShipmentsController {
   constructor(
     private readonly service: ShipmentsService,
     private readonly detail: ShipmentDetailService,
+    private readonly tabParity: ShipmentTabParityService,
     private readonly bookingForms: BookingFormEntityService,
   ) {}
 
@@ -138,13 +147,84 @@ export class ShipmentsController {
     });
   }
 
+  @Post(":id/organizations")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Add organization on shipment (proxies to job when linked)",
+  })
+  addOrganization(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: AddJobOrganizationDto,
+  ) {
+    return this.tabParity.addOrganization(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/dimensions")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Add dimension line on shipment (proxies to job when linked)",
+  })
+  addDimension(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobDimensionLineDto,
+  ) {
+    return this.tabParity.addDimension(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/charges/composite")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Add paired sale/cost charge (proxies to job when linked)",
+  })
+  addCompositeCharge(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CompositeJobChargeDto,
+  ) {
+    return this.tabParity.addComposite(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/exchange-rates")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Upsert shipment exchange rate (proxies to job when linked)",
+  })
+  upsertExchangeRate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobExchangeRateDto,
+  ) {
+    return this.tabParity.upsertExchangeRate(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/customs-refs")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Add customs / SB / BOE ref (proxies to job when linked)",
+  })
+  createCustomsRef(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobCustomsRefDto,
+  ) {
+    return this.tabParity.createCustomsRef(tenantId, id, dto, actorId);
+  }
+
   @Post(":id/routing-legs")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
   createRoutingLeg(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: UpsertShipmentRoutingLegDto,
+    @Body() dto: UpsertJobRoutingLegDto,
   ) {
     return this.detail.createRoutingLeg(tenantId, id, dto, actorId);
   }
@@ -153,11 +233,12 @@ export class ShipmentsController {
   @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
   updateRoutingLeg(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("legId", ParseUUIDPipe) legId: string,
-    @Body() dto: UpsertShipmentRoutingLegDto,
+    @Body() dto: UpsertJobRoutingLegDto,
   ) {
-    return this.detail.updateRoutingLeg(tenantId, id, legId, dto);
+    return this.detail.updateRoutingLeg(tenantId, id, legId, dto, actorId);
   }
 
   @Post(":id/change-bl-status")
@@ -173,11 +254,15 @@ export class ShipmentsController {
 
   @Patch(":id/department")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Patch department tab (branch/company/department/salesperson; proxies to job when linked)",
+  })
   changeDepartment(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: ChangeShipmentDepartmentDto,
+    @Body() dto: PatchJobDepartmentDto,
   ) {
     return this.detail.changeDepartment(tenantId, id, dto, actorId);
   }
