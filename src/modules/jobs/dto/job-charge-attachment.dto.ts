@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsInt, IsOptional, IsString, Length, Min } from "class-validator";
+import { JobChargeAttachmentSide } from "@prisma/client";
+import { IsEnum, IsInt, IsOptional, IsString, Length, Min } from "class-validator";
 
 export class CreateJobChargeAttachmentDto {
   @ApiProperty()
@@ -27,4 +28,12 @@ export class CreateJobChargeAttachmentDto {
   @IsString()
   @Length(1, 100)
   mime_type?: string;
+
+  @ApiPropertyOptional({
+    enum: JobChargeAttachmentSide,
+    default: JobChargeAttachmentSide.CHARGE,
+  })
+  @IsOptional()
+  @IsEnum(JobChargeAttachmentSide)
+  side?: JobChargeAttachmentSide;
 }

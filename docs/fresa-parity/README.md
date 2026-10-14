@@ -19,7 +19,8 @@ Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATI
 | [shipment.md](./shipment.md) | Match |
 | [shipment-detail.md](./shipment-detail.md) | Match (detail tabs + toolbar + proxies) |
 | [job-console.md](./job-console.md) | Match |
-| [job-detail.md](./job-detail.md) | Match (detail tabs + status catalog + GPUM + booking form) |
+| [job-detail.md](./job-detail.md) | Match (detail tabs + status catalog + GPUM + booking form + thin tabs) |
+| [job-fe-shell.md](./job-fe-shell.md) | FE OpenAPI checklist (separate FE repo) |
 | [job-organization.md](./job-organization.md) | Organization tab (add/select/create party) |
 | [job-dimensions.md](./job-dimensions.md) | Dimension lines + upload |
 | [job-containers.md](./job-containers.md) | Container tab (job-scoped) |

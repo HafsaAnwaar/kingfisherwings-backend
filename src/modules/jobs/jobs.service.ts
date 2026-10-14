@@ -3046,6 +3046,11 @@ export class JobsService {
       const amount = quantity * dto.unit_price;
       const amountBase = amount * exchangeRate;
 
+      const isCost = dto.is_cost ?? false;
+      const maxLine = await tx.jobCharge.aggregate({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        _max: { line_no: true },
+      });
       const charge = await tx.jobCharge.create({
         data: {
           tenant_id: tenantId,
@@ -3060,12 +3065,51 @@ export class JobsService {
           amount_base_currency: amountBase,
           tax_rate_id: dto.tax_rate_id,
           tax_amount: taxAmount,
-          is_cost: dto.is_cost ?? false,
+          is_cost: isCost,
           is_provisional: dto.is_provisional ?? false,
           is_billable: dto.is_billable ?? true,
           party_id: dto.party_id,
+          line_no: (maxLine._max.line_no ?? 0) + 1,
+          unit: chargeCode?.unit ?? null,
+          freight_flag: chargeCode?.charge_group === "FREIGHT",
+          ...(isCost
+            ? {
+                cost_amount: amount,
+                cost_currency: dto.currency_code,
+                cost_ex_rate: exchangeRate,
+                cost_fcy_amount: amount,
+                cost_party_id: dto.party_id,
+                cost_tax_amount: taxAmount,
+                visible_to_customer: false,
+                visible_to_vendor: true,
+              }
+            : {
+                sale_amount: amount,
+                sale_qty: quantity,
+                sale_currency: dto.currency_code,
+                sale_ex_rate: exchangeRate,
+                sale_fcy_amount: amount,
+                sale_taxable_amount: amount,
+                sale_tax_amount: taxAmount,
+                sale_tax_rate_id: dto.tax_rate_id,
+                sale_party_id: dto.party_id,
+                visible_to_customer: true,
+                visible_to_vendor: false,
+              }),
+          gp_amount: isCost ? -amountBase : amountBase,
           created_by: actorId,
           updated_by: actorId,
+        },
+      });
+
+      await tx.jobChargeRevision.create({
+        data: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          job_charge_id: charge.id,
+          action: "CREATE",
+          after_json: charge as unknown as Prisma.InputJsonValue,
+          actor_id: actorId,
         },
       });
 
@@ -4749,9 +4793,18 @@ export class JobsService {
     let cost = 0;
 
     for (const charge of charges) {
-      const amount = Number(charge.amount_base_currency);
-      if (charge.is_cost) cost += amount;
-      else revenue += amount;
+      if (charge.sale_amount != null) {
+        revenue +=
+          Number(charge.sale_amount) * Number(charge.sale_ex_rate ?? 1);
+      } else if (!charge.is_cost) {
+        revenue += Number(charge.amount_base_currency);
+      }
+      if (charge.cost_amount != null) {
+        cost +=
+          Number(charge.cost_amount) * Number(charge.cost_ex_rate ?? 1);
+      } else if (charge.is_cost) {
+        cost += Number(charge.amount_base_currency);
+      }
     }
 
     const gp = revenue - cost;

@@ -895,6 +895,7 @@ export class DocumentGenerationService {
       CARGO_MANIFEST: "Cargo Manifest",
       JOB_CARD: "Job Card",
       JOB_PNL: "Job Profit & Loss",
+      JOB_PNL_CUSTOM_DUTY: "Job P&L — Custom Duty",
       PROFORMA_INVOICE: "Proforma Invoice",
     };
 
@@ -1064,6 +1065,7 @@ export class DocumentGenerationService {
       FREIGHT_MANIFEST: "Freight Manifest",
       JOB_CARD: "Job Card",
       JOB_PNL: "Job P&L Statement",
+      JOB_PNL_CUSTOM_DUTY: "Job P&L — Custom Duty",
       PROFORMA_INVOICE: "Proforma Invoice",
       PRE_ALERT: "Pre-Alert",
       VGM: "VGM Submission",

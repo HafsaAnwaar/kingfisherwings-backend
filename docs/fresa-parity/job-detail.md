@@ -16,9 +16,15 @@ Same as shipment where applicable: `show_all`, `info`, `organization`, `dimensio
 
 | Tab | Content |
 |-----|---------|
+| `department` | Branch/company/department/salesperson; `PATCH /jobs/:id/department` |
+| `ex_rate` | Persisted `job_exchange_rates` (+ charge-derived); upsert/delete APIs |
+| `routing` | Multi-leg `job_routing_legs` CRUD |
+| `customs` / `shipping_bill_boe` | `job_customs_refs` CRUD (SB/BOE/house/status) |
 | `history` | AuditLog rows for entity JOB |
-| `booking_form` | Form completeness + path hints to mode/air routes |
+| `booking_form` | Live form summary + `is_complete` + path hints to mode/air routes |
 | `shipments` | Shipments attached to this job |
+
+See also [job-fe-shell.md](./job-fe-shell.md) for FE wiring checklist.
 
 ## Toolbar actions
 

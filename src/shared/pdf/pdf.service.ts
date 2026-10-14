@@ -335,7 +335,9 @@ export class PdfService implements OnModuleDestroy {
       show_containers: (data.containers?.length ?? 0) > 0,
       show_charges: (data.charge_lines?.length ?? 0) > 0,
       show_pnl:
-        data.document_type === "JOB_PNL" || data.document_type === "JOB_CARD",
+        data.document_type === "JOB_PNL" ||
+        data.document_type === "JOB_PNL_CUSTOM_DUTY" ||
+        data.document_type === "JOB_CARD",
       show_load_list: (data.load_list_rows?.length ?? 0) > 0,
     });
 
@@ -367,7 +369,9 @@ export class PdfService implements OnModuleDestroy {
       show_stuffing: (data.stuffing_records?.length ?? 0) > 0,
       show_charges: (data.charge_lines?.length ?? 0) > 0,
       show_pnl:
-        data.document_type === "JOB_PNL" || data.document_type === "JOB_CARD",
+        data.document_type === "JOB_PNL" ||
+        data.document_type === "JOB_PNL_CUSTOM_DUTY" ||
+        data.document_type === "JOB_CARD",
       show_rider: !!data.rider_terms || data.document_type === "RIDER_BL",
       show_switch: data.document_type === "SWITCH_BL",
       show_proxy: data.document_type === "PROXY_BL",

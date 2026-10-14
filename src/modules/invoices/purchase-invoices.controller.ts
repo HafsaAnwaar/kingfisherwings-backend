@@ -54,6 +54,26 @@ export class PurchaseInvoicesController {
     return this.service.findOne(tenantId, id);
   }
 
+  @Post("from-job/:jobId")
+  @RequirePermissions(INVOICES_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary:
+      "Create draft purchase invoice from job cost lines (optional charge_ids)",
+  })
+  createFromJob(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("jobId", ParseUUIDPipe) jobId: string,
+    @Body() body?: { charge_ids?: string[] },
+  ) {
+    return this.service.createPurchaseFromJob(
+      tenantId,
+      jobId,
+      body?.charge_ids,
+      actorId,
+    );
+  }
+
   @Post()
   @RequirePermissions(INVOICES_PERMISSIONS.CREATE)
   @ApiOperation({ summary: "Create a draft purchase invoice" })
