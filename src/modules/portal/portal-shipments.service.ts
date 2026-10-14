@@ -17,6 +17,12 @@ import {
   portalShipmentOwnershipWhere,
 } from "./helpers/portal-ownership.helper";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
+import {
+  jobTrackRefOrClauses,
+  shipmentTrackRefOrClauses,
+  sortTrackHistory,
+  TrackHistoryEvent,
+} from "../track/tracking-ref.util";
 
 const JOB_DETAIL_INCLUDE = {
   air_details: {
@@ -486,6 +492,9 @@ export class PortalShipmentsService {
 
   async lookupByRef(user: CurrentPortalUser, ref: string) {
     const q = ref.trim();
+    if (q.length < 2) {
+      throw new NotFoundException("Shipment not found.");
+    }
 
     const shipment = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.shipment.findFirst({
@@ -493,51 +502,9 @@ export class PortalShipmentsService {
           tenant_id: user.tenantId,
           deleted_at: null,
           ...portalShipmentOwnershipWhere(user.partyId),
-          OR: [
-            { shipment_number: { equals: q, mode: "insensitive" } },
-            { hbl_number: { equals: q, mode: "insensitive" } },
-            {
-              job: {
-                job_number: { equals: q, mode: "insensitive" },
-              },
-            },
-            {
-              job: {
-                air_details: {
-                  hawb_number: { equals: q, mode: "insensitive" },
-                },
-              },
-            },
-            {
-              job: {
-                air_details: {
-                  mawb_number: { equals: q, mode: "insensitive" },
-                },
-              },
-            },
-            {
-              job: {
-                sea_fcl_details: {
-                  hbl_number: { equals: q, mode: "insensitive" },
-                },
-              },
-            },
-            {
-              job: {
-                sea_fcl_details: {
-                  mbl_number: { equals: q, mode: "insensitive" },
-                },
-              },
-            },
-            {
-              job: {
-                sea_fcl_details: {
-                  booking_number: { equals: q, mode: "insensitive" },
-                },
-              },
-            },
-          ],
+          OR: shipmentTrackRefOrClauses(q),
         },
+        orderBy: { updated_at: "desc" },
         select: {
           id: true,
           shipment_number: true,
@@ -560,6 +527,7 @@ export class PortalShipmentsService {
           job_number: shipment.job?.job_number ?? null,
           status: shipment.job?.status ?? shipment.status,
           job_type: shipment.job_type,
+          matched_ref: q,
         },
       };
     }
@@ -570,31 +538,9 @@ export class PortalShipmentsService {
           tenant_id: user.tenantId,
           deleted_at: null,
           ...portalJobOwnershipWhere(user.partyId),
-          OR: [
-            { job_number: { equals: q, mode: "insensitive" } },
-            {
-              air_details: { hawb_number: { equals: q, mode: "insensitive" } },
-            },
-            {
-              air_details: { mawb_number: { equals: q, mode: "insensitive" } },
-            },
-            {
-              sea_fcl_details: {
-                hbl_number: { equals: q, mode: "insensitive" },
-              },
-            },
-            {
-              sea_fcl_details: {
-                mbl_number: { equals: q, mode: "insensitive" },
-              },
-            },
-            {
-              sea_fcl_details: {
-                booking_number: { equals: q, mode: "insensitive" },
-              },
-            },
-          ],
+          OR: jobTrackRefOrClauses(q),
         },
+        orderBy: { updated_at: "desc" },
         select: { id: true, job_number: true, status: true, job_type: true },
       }),
     );
@@ -613,6 +559,7 @@ export class PortalShipmentsService {
         job_number: job.job_number,
         status: job.status,
         job_type: job.job_type,
+        matched_ref: q,
       },
     };
   }
@@ -630,40 +577,141 @@ export class PortalShipmentsService {
   async getMilestones(user: CurrentPortalUser, id: string) {
     const jobId = await this.resolveTrackingJobId(user, id);
     if (!jobId) {
-      return { success: true, data: [] };
+      return { success: true, data: [], history: [] };
     }
 
-    const milestones = await this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.jobMilestone.findMany({
-        where: {
-          tenant_id: user.tenantId,
-          job_id: jobId,
-          deleted_at: null,
-        },
-        orderBy: { created_at: "asc" },
-        select: {
-          id: true,
-          milestone: true,
-          planned_date: true,
-          actual_date: true,
-          notes: true,
-          created_at: true,
-          updated_at: true,
-        },
-      }),
-    );
+    const [milestones, checkpoints, containers] =
+      await this.prisma.runWithTenant(user.tenantId, async (tx) =>
+        Promise.all([
+          tx.jobMilestone.findMany({
+            where: {
+              tenant_id: user.tenantId,
+              job_id: jobId,
+              deleted_at: null,
+            },
+            orderBy: { created_at: "asc" },
+            select: {
+              id: true,
+              milestone: true,
+              planned_date: true,
+              actual_date: true,
+              notes: true,
+              created_at: true,
+              updated_at: true,
+            },
+          }),
+          tx.courierDeliveryCheckpoint.findMany({
+            where: {
+              tenant_id: user.tenantId,
+              job_id: jobId,
+              deleted_at: null,
+            },
+            orderBy: { scanned_at: "asc" },
+            select: {
+              checkpoint: true,
+              scanned_at: true,
+              location: true,
+              notes: true,
+            },
+          }),
+          tx.jobContainer.findMany({
+            where: {
+              tenant_id: user.tenantId,
+              job_id: jobId,
+              deleted_at: null,
+            },
+            orderBy: { created_at: "asc" },
+            select: {
+              container_number: true,
+              status: true,
+              gate_in_at: true,
+              returned_at: true,
+            },
+          }),
+        ]),
+      );
+
+    const milestoneRows = milestones.map((m) => ({
+      id: m.id,
+      milestone: m.milestone,
+      planned_date: m.planned_date,
+      actual_date: m.actual_date,
+      notes: m.notes,
+      is_completed: Boolean(m.actual_date),
+      created_at: m.created_at,
+      updated_at: m.updated_at,
+    }));
+
+    const history: TrackHistoryEvent[] = [];
+    for (const m of milestones) {
+      history.push({
+        type: "MILESTONE",
+        code: m.milestone,
+        label: m.milestone.replace(/_/g, " "),
+        planned_at: m.planned_date,
+        actual_at: m.actual_date,
+        is_completed: Boolean(m.actual_date),
+        notes: m.notes,
+      });
+    }
+    for (const cp of checkpoints) {
+      history.push({
+        type: "COURIER_CHECKPOINT",
+        code: cp.checkpoint,
+        label: cp.checkpoint.replace(/_/g, " "),
+        planned_at: null,
+        actual_at: cp.scanned_at,
+        is_completed: true,
+        location: cp.location,
+        notes: cp.notes,
+      });
+    }
+    for (const c of containers) {
+      if (!c.container_number) continue;
+      if (c.gate_in_at) {
+        history.push({
+          type: "CONTAINER",
+          code: "GATE_IN",
+          label: `Container ${c.container_number} gate in`,
+          planned_at: null,
+          actual_at: c.gate_in_at,
+          is_completed: true,
+          container_number: c.container_number,
+        });
+      }
+      if (c.returned_at) {
+        history.push({
+          type: "CONTAINER",
+          code: "RETURNED",
+          label: `Container ${c.container_number} returned`,
+          planned_at: null,
+          actual_at: c.returned_at,
+          is_completed: true,
+          container_number: c.container_number,
+        });
+      }
+      if (!c.gate_in_at && !c.returned_at) {
+        history.push({
+          type: "CONTAINER",
+          code: c.status,
+          label: `Container ${c.container_number} · ${c.status}`,
+          planned_at: null,
+          actual_at: null,
+          is_completed: false,
+          container_number: c.container_number,
+        });
+      }
+    }
 
     return {
       success: true,
-      data: milestones.map((m) => ({
-        id: m.id,
-        milestone: m.milestone,
-        planned_date: m.planned_date,
-        actual_date: m.actual_date,
-        notes: m.notes,
-        is_completed: Boolean(m.actual_date),
-        created_at: m.created_at,
-        updated_at: m.updated_at,
+      data: milestoneRows,
+      history: sortTrackHistory(history),
+      containers: containers.map((c) => ({
+        container_number: c.container_number,
+        status: c.status,
+        gate_in_at: c.gate_in_at,
+        returned_at: c.returned_at,
       })),
     };
   }
@@ -754,6 +802,24 @@ export class PortalShipmentsService {
         { shipment_number: { contains: q, mode: "insensitive" } },
         { commodity: { contains: q, mode: "insensitive" } },
         { hbl_number: { contains: q, mode: "insensitive" } },
+        { mbl_number: { contains: q, mode: "insensitive" } },
+        { container_numbers: { contains: q, mode: "insensitive" } },
+        {
+          container_actuals: {
+            some: {
+              deleted_at: null,
+              container_number: { contains: q, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          job_containers: {
+            some: {
+              deleted_at: null,
+              container_number: { contains: q, mode: "insensitive" },
+            },
+          },
+        },
         { job: { job_number: { contains: q, mode: "insensitive" } } },
         {
           job: {
@@ -783,6 +849,16 @@ export class PortalShipmentsService {
           job: {
             sea_fcl_details: {
               booking_number: { contains: q, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          job: {
+            containers_job: {
+              some: {
+                deleted_at: null,
+                container_number: { contains: q, mode: "insensitive" },
+              },
             },
           },
         },
@@ -852,6 +928,19 @@ export class PortalShipmentsService {
             {
               sea_fcl_details: {
                 booking_number: { contains: q, mode: "insensitive" },
+              },
+            },
+            {
+              containers_job: {
+                some: {
+                  deleted_at: null,
+                  container_number: { contains: q, mode: "insensitive" },
+                },
+              },
+            },
+            {
+              courier_details: {
+                tracking_number: { contains: q, mode: "insensitive" },
               },
             },
           ],

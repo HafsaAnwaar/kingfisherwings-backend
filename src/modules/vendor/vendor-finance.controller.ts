@@ -21,8 +21,11 @@ import {
 } from "@nestjs/swagger";
 import { Response } from "express";
 import "multer";
+import { InvoiceType, OpsUploaderSide } from "@prisma/client";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
 import { DashboardPeriodQueryDto } from "../../common/dto/dashboard-period-query.dto";
+import { InvoiceAttachmentService } from "../invoices/invoice-attachment.service";
+import { VoucherAttachmentService } from "../gl/voucher-attachment.service";
 import { CurrentVendor } from "./decorators/vendor.decorators";
 import {
   VendorInvoiceQueryDto,
@@ -49,6 +52,7 @@ export class VendorInvoicesController {
     private readonly ccp: VendorCcpService,
     private readonly share: VendorDocumentShareService,
     private readonly paymentStatus: InvoiceOnlinePaymentsService,
+    private readonly attachments: InvoiceAttachmentService,
   ) {}
 
   @Get("open-items")
@@ -169,6 +173,53 @@ export class VendorInvoicesController {
     @Res() res: Response,
   ) {
     return this.finance.downloadInvoicePdf(user, id, res);
+  }
+
+  @Get(":id/attachments")
+  @ApiOperation({ summary: "List supporting attachments on my purchase invoice" })
+  async listAttachments(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    await this.attachments.assertOwnedByParty(user.tenantId, id, user.partyId, [
+      InvoiceType.PURCHASE_INVOICE,
+    ]);
+    return this.attachments.list(user.tenantId, id);
+  }
+
+  @Post(":id/attachments")
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({ summary: "Upload supporting file on my purchase invoice" })
+  async uploadAttachment(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    await this.attachments.assertOwnedByParty(user.tenantId, id, user.partyId, [
+      InvoiceType.PURCHASE_INVOICE,
+    ]);
+    return this.attachments.upload(user.tenantId, id, file, {
+      userId: user.id,
+      side: OpsUploaderSide.VENDOR,
+      partyId: user.partyId,
+    });
+  }
+
+  @Get(":id/attachments/:attachmentId/download")
+  @ApiOperation({ summary: "Download purchase invoice supporting attachment" })
+  async downloadAttachment(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ) {
+    await this.attachments.assertOwnedByParty(user.tenantId, id, user.partyId, [
+      InvoiceType.PURCHASE_INVOICE,
+    ]);
+    return this.attachments.download(user.tenantId, id, attachmentId, res);
   }
 
   @Post(":id/send-email")
@@ -334,5 +385,71 @@ export class VendorPaymentsController {
   @ApiOperation({ summary: "TDS certificates (India Phase 3 placeholder)" })
   tds() {
     return this.finance.tdsPlaceholder();
+  }
+}
+
+@ApiTags("Vendor Vouchers")
+@ApiBearerAuth()
+@SkipStaffJwt()
+@UseGuards(VendorAuthGuard)
+@Controller("vendor/vouchers")
+export class VendorVouchersController {
+  constructor(private readonly attachments: VoucherAttachmentService) {}
+
+  @Get(":id/attachments")
+  @ApiOperation({
+    summary: "List attachments on a voucher linked to my vendor party",
+  })
+  async listAttachments(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    await this.attachments.assertOwnedByParty(
+      user.tenantId,
+      id,
+      user.partyId,
+    );
+    return this.attachments.list(user.tenantId, id);
+  }
+
+  @Post(":id/attachments")
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({
+    summary: "Upload supporting file on a voucher linked to my party",
+  })
+  async uploadAttachment(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    await this.attachments.assertOwnedByParty(
+      user.tenantId,
+      id,
+      user.partyId,
+    );
+    return this.attachments.upload(user.tenantId, id, file, {
+      userId: user.id,
+      side: OpsUploaderSide.VENDOR,
+      partyId: user.partyId,
+    });
+  }
+
+  @Get(":id/attachments/:attachmentId/download")
+  @ApiOperation({ summary: "Download a voucher attachment" })
+  async downloadAttachment(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ) {
+    await this.attachments.assertOwnedByParty(
+      user.tenantId,
+      id,
+      user.partyId,
+    );
+    return this.attachments.download(user.tenantId, id, attachmentId, res);
   }
 }

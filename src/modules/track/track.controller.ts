@@ -1,4 +1,12 @@
-import { Controller, Get, Header, Headers, Query, Res } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Header,
+  Headers,
+  Param,
+  Query,
+  Res,
+} from "@nestjs/common";
 import {
   ApiOperation,
   ApiProperty,
@@ -23,7 +31,8 @@ class TrackQueryDto {
 
   @ApiProperty({
     example: "KFW-J-00042",
-    description: "Job number, HAWB, MAWB, HBL, MBL, or booking #.",
+    description:
+      "Job / shipment number, HAWB, MAWB, HBL, MBL, booking, courier tracking, vehicle, or container number.",
   })
   @IsString()
   @Length(2, 100)
@@ -53,7 +62,7 @@ export class TrackController {
   @ApiOperation({
     summary: "Public shipment track by reference",
     description:
-      "Anyone with a job / BL / AWB reference can view a sanitized timeline. Resolve tenant via tenant_slug or Host/domain.",
+      "Anyone with a job, shipment, BL, AWB, booking, vehicle, courier tracking, or container number can view a sanitized timeline (milestones + courier + container events). Resolve tenant via tenant_slug or Host/domain.",
   })
   trackShipment(
     @Query() query: TrackQueryDto,
@@ -104,5 +113,24 @@ export class TrackController {
       host: tenantDomain || host,
     });
     res!.type("application/javascript").send(js);
+  }
+
+  @Get(":ref")
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({
+    summary: "Public track by path reference (token / job / container alias)",
+    description:
+      "Same as GET /track?ref=… — supports share links shaped as /track/{token}.",
+  })
+  trackByPath(
+    @Param("ref") ref: string,
+    @Query("tenant_slug") tenantSlug?: string,
+    @Headers("host") host?: string,
+    @Headers("x-tenant-domain") tenantDomain?: string,
+  ) {
+    return this.track.track(ref, {
+      tenantSlug,
+      host: tenantDomain || host,
+    });
   }
 }

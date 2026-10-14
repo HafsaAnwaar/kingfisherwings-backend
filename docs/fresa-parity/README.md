@@ -42,6 +42,7 @@ Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATI
 ## E2E
 
 - Skeleton: `src/test/fresa-flow-smoke.e2e-spec.ts` (enquiry→quote→verify→approve→shipment→job). Requires `DATABASE_URL` with the parity migration applied.
+- Typed uploads: `src/test/typed-document-uploads.e2e-spec.ts` (staff HAWB → portal download; portal booking commercial_invoice → staff `uploader_side=CUSTOMER`; vendor upload → staff).
 
 ## Parity legend
 

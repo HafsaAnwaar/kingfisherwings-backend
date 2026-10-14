@@ -27,6 +27,7 @@ import {
   PortalDebitNotesController,
   PortalInvoicesController,
   PortalPaymentsController,
+  PortalVouchersController,
 } from "./portal-finance.controller";
 import {
   PortalAdminInboxController,
@@ -97,6 +98,7 @@ import { ShipmentsModule } from "../shipments/shipments.module";
     PortalCreditNotesController,
     PortalDebitNotesController,
     PortalPaymentsController,
+    PortalVouchersController,
     PortalCreditController,
     PortalMessagesController,
     PortalDisputesController,

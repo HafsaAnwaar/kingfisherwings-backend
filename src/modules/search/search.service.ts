@@ -161,9 +161,47 @@ export class SearchService {
               sea_fcl_details: {
                 containers: {
                   some: {
+                    deleted_at: null,
                     container_number: { contains: term, mode: "insensitive" },
                   },
                 },
+              },
+            },
+            {
+              containers_job: {
+                some: {
+                  deleted_at: null,
+                  container_number: { contains: term, mode: "insensitive" },
+                },
+              },
+            },
+            {
+              sea_lcl_details: {
+                OR: [
+                  { hbl_number: { contains: term, mode: "insensitive" } },
+                  { mbl_number: { contains: term, mode: "insensitive" } },
+                  { booking_number: { contains: term, mode: "insensitive" } },
+                  {
+                    consolidation_number: {
+                      contains: term,
+                      mode: "insensitive",
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              nvocc_details: {
+                OR: [
+                  { hbl_number: { contains: term, mode: "insensitive" } },
+                  { mbl_number: { contains: term, mode: "insensitive" } },
+                  {
+                    carrier_booking_ref: {
+                      contains: term,
+                      mode: "insensitive",
+                    },
+                  },
+                ],
               },
             },
             {
@@ -719,10 +757,33 @@ export class SearchService {
             { shipment_number: { contains: term, mode: "insensitive" } },
             { commodity: { contains: term, mode: "insensitive" } },
             { hbl_number: { contains: term, mode: "insensitive" } },
+            { mbl_number: { contains: term, mode: "insensitive" } },
             { vessel_name: { contains: term, mode: "insensitive" } },
             { voyage_number: { contains: term, mode: "insensitive" } },
             { flight_number: { contains: term, mode: "insensitive" } },
             { container_numbers: { contains: term, mode: "insensitive" } },
+            {
+              container_actuals: {
+                some: {
+                  deleted_at: null,
+                  container_number: {
+                    contains: term,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            },
+            {
+              job_containers: {
+                some: {
+                  deleted_at: null,
+                  container_number: {
+                    contains: term,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            },
           ],
         },
         ...(query.status ? [{ status: query.status as never }] : []),

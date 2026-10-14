@@ -3,10 +3,17 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { CcDirection, JobType, Prisma, ServiceScope } from "@prisma/client";
+import {
+  CcDirection,
+  JobType,
+  OpsUploaderSide,
+  Prisma,
+  ServiceScope,
+} from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { StorageService } from "../../../shared/storage/storage.service";
 import { markJobMilestoneIfPresent } from "../utils/mark-milestone.util";
+import { JobDocumentUploadService } from "../job-document-upload.service";
 import {
   bookingDocsStatus,
   MODE_BOOKING_DOC_KINDS,
@@ -81,6 +88,7 @@ export class ModeBookingFormService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly documentUpload: JobDocumentUploadService,
   ) {}
 
   resolveKind(modePath: string): FormKind {
@@ -159,6 +167,7 @@ export class ModeBookingFormService {
     docKind: string,
     file: Express.Multer.File,
     actorId?: string,
+    actorMeta?: { side?: OpsUploaderSide; partyId?: string },
   ) {
     const jobId = await this.resolvePathJobId(tenantId, jobOrShipmentId);
     if (!MODE_BOOKING_DOC_KINDS.includes(docKind as ModeBookingDocKind)) {
@@ -179,8 +188,8 @@ export class ModeBookingFormService {
       file.mimetype || "application/octet-stream",
     );
 
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.assertJob(tx, tenantId, jobId, kind);
+    const result = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await this.assertJob(tx, tenantId, jobId, kind);
       let form = await this.findForm(tx, kind, tenantId, jobId);
       if (!form) {
         form = await this.createEmpty(tx, kind, tenantId, jobId, actorId);
@@ -195,12 +204,36 @@ export class ModeBookingFormService {
         kind: docKind,
         s3_key: stored.s3Key,
         file_url: stored.fileUrl,
+        job_type: job.job_type as JobType,
         form: {
           ...updated,
           documents: bookingDocsStatus(updated as never),
         },
       };
     });
+
+    if (actorId) {
+      await this.documentUpload.mirrorBookingUpload(
+        tenantId,
+        jobId,
+        docKind,
+        {
+          s3Key: stored.s3Key,
+          fileUrl: stored.fileUrl,
+          fileSize: stored.fileSize,
+          mimeType: stored.mimeType,
+        },
+        file.originalname || `${docKind}.bin`,
+        {
+          userId: actorId,
+          side: actorMeta?.side ?? OpsUploaderSide.STAFF,
+          partyId: actorMeta?.partyId,
+        },
+        result.job_type,
+      );
+    }
+
+    return result;
   }
 
   async upsert(
@@ -676,6 +709,7 @@ export class ModeBookingFormService {
         `Job not found or wrong type for ${kind} booking form.`,
       );
     }
+    return job;
   }
 
   private findForm(

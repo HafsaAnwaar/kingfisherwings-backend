@@ -617,6 +617,12 @@ enum DocumentGenerationStatus {
   FAILED
 }
 
+/// How a JobDocument / finance attachment was created.
+enum DocumentSource {
+  GENERATED
+  UPLOADED
+}
+
 /// FRESA report catalog families (platform template packs).
 enum ReportFamily {
   ops_list
@@ -4252,33 +4258,41 @@ model JobMilestone {
 }
 
 model JobDocument {
-  id                 String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id          String                   @db.Uuid
-  job_id             String                   @db.Uuid
-  document_type      DocumentType
-  reference_number   String?                  @db.VarChar(100)
-  file_name          String                   @db.VarChar(300)
-  file_url           String                   @db.Text
-  s3_key             String?                  @db.Text
-  file_size          Int?
-  mime_type          String?                  @db.VarChar(100)
-  version            Int                      @default(1)
-  is_original        Boolean                  @default(false)
-  layout_variant     String?                  @db.VarChar(50)
-  generation_status  DocumentGenerationStatus @default(COMPLETED)
-  generated_at       DateTime?                @db.Timestamptz
-  generation_task_id String?                  @db.Uuid
-  is_finalized       Boolean                  @default(false)
-  finalized_at       DateTime?                @db.Timestamptz
-  finalized_by       String?                  @db.Uuid
-  emailed_at         DateTime?                @db.Timestamptz
-  emailed_to         String?                  @db.VarChar(500)
-  uploaded_by        String                   @db.Uuid
-  created_at         DateTime                 @default(now()) @db.Timestamptz
-  updated_at         DateTime                 @updatedAt @db.Timestamptz
-  created_by         String?                  @db.Uuid
-  updated_by         String?                  @db.Uuid
-  deleted_at         DateTime?                @db.Timestamptz
+  id                   String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String                   @db.Uuid
+  job_id               String                   @db.Uuid
+  document_type        DocumentType
+  reference_number     String?                  @db.VarChar(100)
+  file_name            String                   @db.VarChar(300)
+  file_url             String                   @db.Text
+  s3_key               String?                  @db.Text
+  file_size            Int?
+  mime_type            String?                  @db.VarChar(100)
+  version              Int                      @default(1)
+  is_original          Boolean                  @default(false)
+  layout_variant       String?                  @db.VarChar(50)
+  generation_status    DocumentGenerationStatus @default(COMPLETED)
+  generated_at         DateTime?                @db.Timestamptz
+  generation_task_id   String?                  @db.Uuid
+  is_finalized         Boolean                  @default(false)
+  finalized_at         DateTime?                @db.Timestamptz
+  finalized_by         String?                  @db.Uuid
+  emailed_at           DateTime?                @db.Timestamptz
+  emailed_to           String?                  @db.VarChar(500)
+  uploaded_by          String                   @db.Uuid
+  /// GENERATED (PDF queue) vs UPLOADED (multipart / booking form).
+  source               DocumentSource           @default(GENERATED)
+  uploader_side        OpsUploaderSide?
+  uploaded_by_party_id String?                  @db.Uuid
+  visible_to_customer  Boolean                  @default(true)
+  visible_to_vendor    Boolean                  @default(false)
+  /// When mirrored from booking-form attach (e.g. commercial_invoice).
+  booking_form_kind    String?                  @db.VarChar(60)
+  created_at           DateTime                 @default(now()) @db.Timestamptz
+  updated_at           DateTime                 @updatedAt @db.Timestamptz
+  created_by           String?                  @db.Uuid
+  updated_by           String?                  @db.Uuid
+  deleted_at           DateTime?                @db.Timestamptz
 
   job              Job                     @relation(fields: [job_id], references: [id], onDelete: Cascade)
   generation_task  DocumentGenerationTask? @relation(fields: [generation_task_id], references: [id])
@@ -4286,6 +4300,7 @@ model JobDocument {
   @@index([tenant_id])
   @@index([tenant_id, job_id])
   @@index([tenant_id, generation_status])
+  @@index([tenant_id, job_id, uploader_side])
   @@map("job_documents")
 }
 
@@ -5279,6 +5294,7 @@ model Invoice {
   air_import_storage_for AirJobDetail[] @relation("AirImportStorageInvoice")
   sea_lcl_import_storage_for SeaLclJobDetail[] @relation("SeaLclImportStorageInvoice")
   wms_storage_charges    WmsStorageCharge[] @relation("WmsStorageInvoice")
+  attachments            InvoiceAttachment[]
 
   @@unique([tenant_id, invoice_number])
   @@unique([tenant_id, vendor_quote_id])
@@ -5291,6 +5307,30 @@ model Invoice {
   @@index([tenant_id, invoice_date])
   @@index([tenant_id, due_date])
   @@map("invoices")
+}
+
+/// Supporting files on an invoice (legal PDF stays on Invoice.pdf_*).
+model InvoiceAttachment {
+  id                   String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String          @db.Uuid
+  invoice_id           String          @db.Uuid
+  file_name            String          @db.VarChar(300)
+  file_url             String          @db.Text
+  s3_key               String?         @db.Text
+  mime_type            String?         @db.VarChar(120)
+  file_size            Int?
+  uploader_side        OpsUploaderSide @default(STAFF)
+  uploaded_by_party_id String?         @db.Uuid
+  uploaded_by          String          @db.Uuid
+  created_at           DateTime        @default(now()) @db.Timestamptz
+  updated_at           DateTime        @updatedAt @db.Timestamptz
+  deleted_at           DateTime?       @db.Timestamptz
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, invoice_id])
+  @@map("invoice_attachments")
 }
 
 model InvoiceLine {
@@ -5491,6 +5531,7 @@ model Voucher {
   reconciliation_lines BankReconciliationLine[]
   job_charges_sale JobCharge[] @relation("JobChargeSaleVoucher")
   job_charges_cost JobCharge[] @relation("JobChargeCostVoucher")
+  attachments      VoucherAttachment[]
 
   @@unique([tenant_id, voucher_number])
   @@index([tenant_id])
@@ -5502,6 +5543,30 @@ model Voucher {
   @@index([tenant_id, job_id])
   @@index([tenant_id, invoice_id])
   @@map("vouchers")
+}
+
+/// Supporting files on a GL voucher (scan / remittance proof).
+model VoucherAttachment {
+  id                   String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String          @db.Uuid
+  voucher_id           String          @db.Uuid
+  file_name            String          @db.VarChar(300)
+  file_url             String          @db.Text
+  s3_key               String?         @db.Text
+  mime_type            String?         @db.VarChar(120)
+  file_size            Int?
+  uploader_side        OpsUploaderSide @default(STAFF)
+  uploaded_by_party_id String?         @db.Uuid
+  uploaded_by          String          @db.Uuid
+  created_at           DateTime        @default(now()) @db.Timestamptz
+  updated_at           DateTime        @updatedAt @db.Timestamptz
+  deleted_at           DateTime?       @db.Timestamptz
+
+  voucher Voucher @relation(fields: [voucher_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, voucher_id])
+  @@map("voucher_attachments")
 }
 
 model VoucherLine {

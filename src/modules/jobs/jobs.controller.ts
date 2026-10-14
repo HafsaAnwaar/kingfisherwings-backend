@@ -21,7 +21,11 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
-import { JobChargeAttachmentSide, JobPartyRole } from "@prisma/client";
+import {
+  JobChargeAttachmentSide,
+  JobPartyRole,
+  OpsUploaderSide,
+} from "@prisma/client";
 import "multer";
 
 import { JobsService } from "./jobs.service";
@@ -116,7 +120,10 @@ import {
   CreateJobDocumentDto,
   UpdateJobDocumentDto,
   FinalizeJobDocumentDto,
+  ListJobDocumentsQueryDto,
+  PatchJobDocumentVisibilityDto,
 } from "./dto/job-document.dto";
+import { JobDocumentUploadService } from "./job-document-upload.service";
 import {
   BulkJobContainersDto,
   ConfirmContainerUploadDto,
@@ -242,6 +249,7 @@ export class JobsController {
     private readonly courier: CourierService,
     private readonly transport: TransportService,
     private readonly vendorQuotes: VendorQuotesService,
+    private readonly documentUpload: JobDocumentUploadService,
   ) {}
 
   @Get()
@@ -987,12 +995,16 @@ export class JobsController {
 
   @Get(":id/documents")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List documents attached to a job" })
+  @ApiOperation({
+    summary:
+      "List documents attached to a job (filter ?uploader_side=CUSTOMER|VENDOR|STAFF)",
+  })
   listDocuments(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query() query: ListJobDocumentsQueryDto,
   ) {
-    return this.service.listDocuments(tenantId, id);
+    return this.service.listDocuments(tenantId, id, query);
   }
 
   @Get(":id/containers/fill")
@@ -2076,6 +2088,70 @@ export class JobsController {
     @Body() dto: CreateJobDocumentDto,
   ) {
     return this.service.addDocument(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/documents/:documentType/upload")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({
+    summary:
+      "Multipart upload a typed job document (HAWB, MAWB, HBL, COMMERCIAL_INVOICE, …)",
+  })
+  uploadDocument(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("documentType") documentType: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.documentUpload.uploadForJob(
+      tenantId,
+      id,
+      documentType,
+      file,
+      { userId: actorId, side: OpsUploaderSide.STAFF },
+    );
+  }
+
+  @Get(":id/documents/:documentId/download")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Download a job document file" })
+  downloadDocument(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("documentId", ParseUUIDPipe) documentId: string,
+    @Res() res: Response,
+  ) {
+    return this.documentUpload.download(
+      tenantId,
+      id,
+      documentId,
+      res,
+      "STAFF",
+    );
+  }
+
+  @Patch(":id/documents/:documentId/visibility")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Set customer/vendor visibility flags on a job document",
+  })
+  patchDocumentVisibility(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("documentId", ParseUUIDPipe) documentId: string,
+    @Body() dto: PatchJobDocumentVisibilityDto,
+  ) {
+    return this.documentUpload.patchVisibility(
+      tenantId,
+      id,
+      documentId,
+      dto,
+      actorId,
+    );
   }
 
   @Patch(":id/documents/:documentId")

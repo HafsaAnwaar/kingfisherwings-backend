@@ -19,6 +19,7 @@ import { PartyVendorPermissionsController } from "./party-vendor-permissions.con
 import {
   VendorInvoicesController,
   VendorPaymentsController,
+  VendorVouchersController,
 } from "./vendor-finance.controller";
 import {
   VendorAdminDisputesController,
@@ -64,6 +65,7 @@ import { JobsModule } from "../jobs/jobs.module";
     PartyVendorPermissionsController,
     VendorInvoicesController,
     VendorPaymentsController,
+    VendorVouchersController,
     VendorDisputesController,
     VendorAdminDisputesController,
     VendorQuotesController,

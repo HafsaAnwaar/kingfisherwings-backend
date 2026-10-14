@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-import { DocumentType } from "@prisma/client";
+import { DocumentType, OpsUploaderSide } from "@prisma/client";
 import {
   IsBoolean,
   IsEnum,
@@ -57,4 +57,23 @@ export class FinalizeJobDocumentDto {
   @IsOptional()
   @IsBoolean()
   is_finalized?: boolean;
+}
+
+export class PatchJobDocumentVisibilityDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  visible_to_customer?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  visible_to_vendor?: boolean;
+}
+
+export class ListJobDocumentsQueryDto {
+  @ApiPropertyOptional({ enum: OpsUploaderSide })
+  @IsOptional()
+  @IsEnum(OpsUploaderSide)
+  uploader_side?: OpsUploaderSide;
 }

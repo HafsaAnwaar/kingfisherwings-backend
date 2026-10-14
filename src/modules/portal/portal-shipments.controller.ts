@@ -57,7 +57,7 @@ export class PortalShipmentsController {
   @ApiOperation({
     summary: "Find a shipment by reference number",
     description:
-      "Matches job number, HAWB, MAWB, HBL, MBL, or booking number for this customer only.",
+      "Matches shipment/job number, HAWB, MAWB, HBL, MBL, booking, courier tracking, vehicle, or container number for this customer only.",
   })
   lookup(
     @CurrentPortal() user: CurrentPortalUser,

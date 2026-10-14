@@ -96,7 +96,11 @@ export class PublicApiController {
 
   @Get("track/:token")
   @RequireApiScope("track.read")
-  @ApiOperation({ summary: "Track shipment by public token" })
+  @ApiOperation({
+    summary: "Track shipment by public token",
+    description:
+      "Returns job header plus sanitized history (milestones, courier checkpoints, container events).",
+  })
   async track(
     @Req() req: Request & { tenantId: string },
     @Param("token") token: string,
@@ -114,11 +118,125 @@ export class PublicApiController {
           status: true,
           etd: true,
           eta: true,
+          milestones: {
+            where: { deleted_at: null },
+            orderBy: { created_at: "asc" },
+            select: {
+              milestone: true,
+              planned_date: true,
+              actual_date: true,
+            },
+          },
+          courier_checkpoints: {
+            where: { deleted_at: null },
+            orderBy: { scanned_at: "asc" },
+            select: {
+              checkpoint: true,
+              scanned_at: true,
+              location: true,
+            },
+          },
+          containers_job: {
+            where: { deleted_at: null },
+            orderBy: { created_at: "asc" },
+            select: {
+              container_number: true,
+              status: true,
+              gate_in_at: true,
+              returned_at: true,
+            },
+          },
         },
       }),
     );
     if (!job) throw new NotFoundException("Tracking token not found.");
-    return job;
+
+    const history: Array<{
+      type: string;
+      code: string;
+      label: string;
+      planned_at: Date | null;
+      actual_at: Date | null;
+      is_completed: boolean;
+      location?: string | null;
+      container_number?: string | null;
+    }> = [];
+
+    for (const m of job.milestones) {
+      history.push({
+        type: "MILESTONE",
+        code: m.milestone,
+        label: m.milestone.replace(/_/g, " "),
+        planned_at: m.planned_date,
+        actual_at: m.actual_date,
+        is_completed: Boolean(m.actual_date),
+      });
+    }
+    for (const cp of job.courier_checkpoints) {
+      history.push({
+        type: "COURIER_CHECKPOINT",
+        code: cp.checkpoint,
+        label: cp.checkpoint.replace(/_/g, " "),
+        planned_at: null,
+        actual_at: cp.scanned_at,
+        is_completed: true,
+        location: cp.location,
+      });
+    }
+    for (const c of job.containers_job) {
+      if (!c.container_number) continue;
+      if (c.gate_in_at) {
+        history.push({
+          type: "CONTAINER",
+          code: "GATE_IN",
+          label: `Container ${c.container_number} gate in`,
+          planned_at: null,
+          actual_at: c.gate_in_at,
+          is_completed: true,
+          container_number: c.container_number,
+        });
+      }
+      if (c.returned_at) {
+        history.push({
+          type: "CONTAINER",
+          code: "RETURNED",
+          label: `Container ${c.container_number} returned`,
+          planned_at: null,
+          actual_at: c.returned_at,
+          is_completed: true,
+          container_number: c.container_number,
+        });
+      }
+    }
+
+    history.sort((a, b) => {
+      const ta =
+        (a.actual_at ?? a.planned_at)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const tb =
+        (b.actual_at ?? b.planned_at)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      return ta - tb;
+    });
+
+    return {
+      job_number: job.job_number,
+      job_type: job.job_type,
+      status: job.status,
+      etd: job.etd,
+      eta: job.eta,
+      containers: job.containers_job.map((c) => ({
+        container_number: c.container_number,
+        status: c.status,
+        gate_in_at: c.gate_in_at,
+        returned_at: c.returned_at,
+      })),
+      milestones: job.milestones.map((m) => ({
+        milestone: m.milestone,
+        planned_date: m.planned_date,
+        actual_date: m.actual_date,
+        is_completed: Boolean(m.actual_date),
+      })),
+      history,
+    };
   }
 }
 

@@ -23,8 +23,11 @@ import {
 import { Response } from "express";
 import { memoryStorage } from "multer";
 import "multer";
+import { InvoiceType, OpsUploaderSide } from "@prisma/client";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
 import { DashboardPeriodQueryDto } from "../../common/dto/dashboard-period-query.dto";
+import { InvoiceAttachmentService } from "../invoices/invoice-attachment.service";
+import { VoucherAttachmentService } from "../gl/voucher-attachment.service";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import {
   PortalCreditAgingQueryDto,
@@ -70,7 +73,10 @@ function portalPaymentProofInterceptor() {
 @UseGuards(PortalAuthGuard)
 @Controller("portal/invoices")
 export class PortalInvoicesController {
-  constructor(private readonly finance: PortalFinanceService) {}
+  constructor(
+    private readonly finance: PortalFinanceService,
+    private readonly attachments: InvoiceAttachmentService,
+  ) {}
 
   @Get("open-items")
   @ApiOperation({ summary: "Invoices with outstanding balance" })
@@ -129,6 +135,61 @@ export class PortalInvoicesController {
     @Res() res: Response,
   ) {
     return this.finance.downloadInvoicePdf(user, id, res);
+  }
+
+  @Get(":id/attachments")
+  @ApiOperation({ summary: "List supporting attachments on my invoice" })
+  async listAttachments(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    await this.attachments.assertOwnedByParty(user.tenantId, id, user.partyId, [
+      InvoiceType.CUSTOMER_INVOICE,
+      InvoiceType.CREDIT_NOTE,
+      InvoiceType.DEBIT_NOTE,
+    ]);
+    return this.attachments.list(user.tenantId, id);
+  }
+
+  @Post(":id/attachments")
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({
+    summary: "Upload a supporting file on my invoice (staff can always see)",
+  })
+  async uploadAttachment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    await this.attachments.assertOwnedByParty(user.tenantId, id, user.partyId, [
+      InvoiceType.CUSTOMER_INVOICE,
+      InvoiceType.CREDIT_NOTE,
+      InvoiceType.DEBIT_NOTE,
+    ]);
+    return this.attachments.upload(user.tenantId, id, file, {
+      userId: user.id,
+      side: OpsUploaderSide.CUSTOMER,
+      partyId: user.partyId,
+    });
+  }
+
+  @Get(":id/attachments/:attachmentId/download")
+  @ApiOperation({ summary: "Download a supporting attachment on my invoice" })
+  async downloadAttachment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ) {
+    await this.attachments.assertOwnedByParty(user.tenantId, id, user.partyId, [
+      InvoiceType.CUSTOMER_INVOICE,
+      InvoiceType.CREDIT_NOTE,
+      InvoiceType.DEBIT_NOTE,
+    ]);
+    return this.attachments.download(user.tenantId, id, attachmentId, res);
   }
 
   @Post(":id/payments")
@@ -342,5 +403,69 @@ export class PortalCreditController {
     @Res() res: Response,
   ) {
     return this.finance.downloadStatementPdf(user, query, res);
+  }
+}
+
+@ApiTags("Portal Vouchers")
+@ApiBearerAuth()
+@SkipStaffJwt()
+@UseGuards(PortalAuthGuard)
+@Controller("portal/vouchers")
+export class PortalVouchersController {
+  constructor(private readonly attachments: VoucherAttachmentService) {}
+
+  @Get(":id/attachments")
+  @ApiOperation({
+    summary: "List attachments on a voucher linked to my party",
+  })
+  async listAttachments(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    await this.attachments.assertOwnedByParty(
+      user.tenantId,
+      id,
+      user.partyId,
+    );
+    return this.attachments.list(user.tenantId, id);
+  }
+
+  @Post(":id/attachments")
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({ summary: "Upload an attachment on my linked voucher" })
+  async uploadAttachment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    await this.attachments.assertOwnedByParty(
+      user.tenantId,
+      id,
+      user.partyId,
+    );
+    return this.attachments.upload(user.tenantId, id, file, {
+      userId: user.id,
+      side: OpsUploaderSide.CUSTOMER,
+      partyId: user.partyId,
+    });
+  }
+
+  @Get(":id/attachments/:attachmentId/download")
+  @ApiOperation({ summary: "Download a voucher attachment" })
+  async downloadAttachment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ) {
+    await this.attachments.assertOwnedByParty(
+      user.tenantId,
+      id,
+      user.partyId,
+    );
+    return this.attachments.download(user.tenantId, id, attachmentId, res);
   }
 }

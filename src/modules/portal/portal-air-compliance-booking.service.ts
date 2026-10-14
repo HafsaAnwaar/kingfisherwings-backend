@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { JobType } from "@prisma/client";
+import { JobType, OpsUploaderSide } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { StorageService } from "../../shared/storage/storage.service";
 import { AirComplianceBookingFormService } from "../jobs/air-compliance-booking-form.service";
@@ -14,6 +14,7 @@ import {
   SubmitAirComplianceFormDto,
   UpsertAirComplianceBookingFormDto,
 } from "../jobs/booking-forms/dto/air-compliance-booking-form.dto";
+import { JobDocumentUploadService } from "../jobs/job-document-upload.service";
 import { QuotationsService } from "../quotations/quotations.service";
 import { ShipmentsService } from "../shipments/shipments.service";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
@@ -27,6 +28,7 @@ export class PortalAirComplianceBookingService {
     private readonly storage: StorageService,
     private readonly quotations: QuotationsService,
     private readonly shipments: ShipmentsService,
+    private readonly documentUpload: JobDocumentUploadService,
   ) {}
 
   /**
@@ -215,6 +217,24 @@ export class PortalAirComplianceBookingService {
       kind as ComplianceDocKind,
       stored.s3Key,
       user.id,
+    );
+    await this.documentUpload.mirrorBookingUpload(
+      user.tenantId,
+      jobId,
+      kind,
+      {
+        s3Key: stored.s3Key,
+        fileUrl: stored.fileUrl,
+        fileSize: stored.fileSize,
+        mimeType: stored.mimeType,
+      },
+      file.originalname || `${kind}.bin`,
+      {
+        userId: user.id,
+        side: OpsUploaderSide.CUSTOMER,
+        partyId: user.partyId,
+      },
+      JobType.AIR_EXPORT,
     );
     return {
       success: true,

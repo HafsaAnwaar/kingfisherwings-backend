@@ -11,6 +11,7 @@ import {
   DocumentType,
   Job,
   JobType,
+  OpsUploaderSide,
   Prisma,
   ServiceScope,
   CargoCategory,
@@ -31,6 +32,7 @@ import { seedJobTypeExtras } from "./utils/job-type-seed.util";
 import { mintTrackingToken } from "./utils/tracking-token.util";
 import { barcodeFromJobNumber } from "./utils/job-barcode.util";
 import { markJobMilestoneIfPresent } from "./utils/mark-milestone.util";
+import { defaultVisibleToCustomer } from "./utils/job-document-visibility.util";
 import {
   canSeeJobType,
   canWriteJobType,
@@ -819,37 +821,95 @@ export class JobsService {
       }
 
       if (query.search) {
+        const s = query.search;
         andFilters.push({
           OR: [
-            { job_number: { contains: query.search, mode: "insensitive" } },
-            { commodity: { contains: query.search, mode: "insensitive" } },
+            { job_number: { contains: s, mode: "insensitive" } },
+            { commodity: { contains: s, mode: "insensitive" } },
             {
               land_details: {
-                vehicle_number: { contains: query.search, mode: "insensitive" },
+                vehicle_number: { contains: s, mode: "insensitive" },
+              },
+            },
+            {
+              road_freight_details: {
+                vehicle_number: { contains: s, mode: "insensitive" },
               },
             },
             {
               courier_details: {
-                tracking_number: {
-                  contains: query.search,
-                  mode: "insensitive",
-                },
+                tracking_number: { contains: s, mode: "insensitive" },
               },
             },
             {
               courier_details: {
-                barcode_value: { contains: query.search, mode: "insensitive" },
+                barcode_value: { contains: s, mode: "insensitive" },
+              },
+            },
+            { barcode_value: { contains: s, mode: "insensitive" } },
+            {
+              air_details: {
+                OR: [
+                  { hawb_number: { contains: s, mode: "insensitive" } },
+                  { mawb_number: { contains: s, mode: "insensitive" } },
+                ],
               },
             },
             {
-              barcode_value: {
-                contains: query.search,
-                mode: "insensitive",
+              sea_fcl_details: {
+                OR: [
+                  { hbl_number: { contains: s, mode: "insensitive" } },
+                  { mbl_number: { contains: s, mode: "insensitive" } },
+                  { booking_number: { contains: s, mode: "insensitive" } },
+                ],
+              },
+            },
+            {
+              sea_lcl_details: {
+                OR: [
+                  { hbl_number: { contains: s, mode: "insensitive" } },
+                  { mbl_number: { contains: s, mode: "insensitive" } },
+                  { booking_number: { contains: s, mode: "insensitive" } },
+                  {
+                    consolidation_number: {
+                      contains: s,
+                      mode: "insensitive",
+                    },
+                  },
+                ],
               },
             },
             {
               nvocc_details: {
-                hbl_number: { contains: query.search, mode: "insensitive" },
+                OR: [
+                  { hbl_number: { contains: s, mode: "insensitive" } },
+                  { mbl_number: { contains: s, mode: "insensitive" } },
+                ],
+              },
+            },
+            {
+              containers_job: {
+                some: {
+                  deleted_at: null,
+                  container_number: { contains: s, mode: "insensitive" },
+                },
+              },
+            },
+            {
+              shipments: {
+                some: {
+                  deleted_at: null,
+                  OR: [
+                    { shipment_number: { contains: s, mode: "insensitive" } },
+                    { hbl_number: { contains: s, mode: "insensitive" } },
+                    {
+                      container_numbers: {
+                        contains: s,
+                        mode: "insensitive",
+                      },
+                    },
+                  ],
+                },
               },
             },
           ],
@@ -879,36 +939,42 @@ export class JobsService {
             : {}),
         };
 
+        const containerSome =
+          query.container_number || query.container_type_id
+            ? {
+                some: {
+                  deleted_at: null,
+                  ...(query.container_number
+                    ? {
+                        container_number: {
+                          contains: query.container_number,
+                          mode: "insensitive" as const,
+                        },
+                      }
+                    : {}),
+                  ...(query.container_type_id
+                    ? { container_type_id: query.container_type_id }
+                    : {}),
+                },
+              }
+            : null;
+
         andFilters.push({
           OR: [
             {
               sea_fcl_details: {
                 ...seaDetailFilter,
-                ...(query.container_number || query.container_type_id
-                  ? {
-                      containers: {
-                        some: {
-                          deleted_at: null,
-                          ...(query.container_number
-                            ? {
-                                container_number: {
-                                  contains: query.container_number,
-                                  mode: "insensitive" as const,
-                                },
-                              }
-                            : {}),
-                          ...(query.container_type_id
-                            ? { container_type_id: query.container_type_id }
-                            : {}),
-                        },
-                      },
-                    }
-                  : {}),
+                ...(containerSome ? { containers: containerSome } : {}),
               },
             },
-            ...(query.container_number || query.container_type_id
-              ? []
+            ...(containerSome
+              ? [{ containers_job: containerSome }]
               : [{ sea_lcl_details: seaDetailFilter }]),
+            ...(query.vessel_id ||
+            query.shipping_line_id ||
+            query.voyage_number
+              ? [{ sea_lcl_details: seaDetailFilter }]
+              : []),
           ],
         });
       }
@@ -4158,12 +4224,23 @@ export class JobsService {
   // DOCUMENTS
   // ============================================================
 
-  async listDocuments(tenantId: string, jobId: string) {
+  async listDocuments(
+    tenantId: string,
+    jobId: string,
+    query?: { uploader_side?: OpsUploaderSide },
+  ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getOrThrow(tx, tenantId, jobId);
 
       return tx.jobDocument.findMany({
-        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          ...(query?.uploader_side
+            ? { uploader_side: query.uploader_side }
+            : {}),
+        },
         orderBy: { created_at: "desc" },
       });
     });
@@ -4189,6 +4266,10 @@ export class JobsService {
           s3_key: dto.s3_key,
           file_size: dto.file_size,
           mime_type: dto.mime_type,
+          source: "UPLOADED",
+          uploader_side: OpsUploaderSide.STAFF,
+          visible_to_customer: defaultVisibleToCustomer(dto.document_type),
+          visible_to_vendor: false,
           uploaded_by: actorId,
           created_by: actorId,
           updated_by: actorId,
