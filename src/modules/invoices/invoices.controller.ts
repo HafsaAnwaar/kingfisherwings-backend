@@ -10,10 +10,12 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
   ApiBody,
@@ -22,8 +24,12 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
+import { OpsUploaderSide } from "@prisma/client";
+import { Response } from "express";
+import "multer";
 
 import { InvoicesService } from "./invoices.service";
+import { InvoiceAttachmentService } from "./invoice-attachment.service";
 import {
   CreateInvoiceDto,
   CreateInvoiceLineDto,
@@ -50,6 +56,7 @@ export class InvoicesController {
   constructor(
     private readonly service: InvoicesService,
     private readonly invoiceFormatPayload: InvoiceFormatPayloadService,
+    private readonly attachments: InvoiceAttachmentService,
   ) {}
 
   @Get()
@@ -314,5 +321,48 @@ export class InvoicesController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.cancel(tenantId, id, actorId);
+  }
+
+  @Get(":id/attachments")
+  @RequirePermissions(INVOICES_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List supporting files on an invoice" })
+  listAttachments(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.attachments.list(tenantId, id);
+  }
+
+  @Post(":id/attachments")
+  @RequirePermissions(INVOICES_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({
+    summary: "Upload a supporting attachment (legal PDF stays on POST …/pdf)",
+  })
+  uploadAttachment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.attachments.upload(tenantId, id, file, {
+      userId: actorId,
+      side: OpsUploaderSide.STAFF,
+    });
+  }
+
+  @Get(":id/attachments/:attachmentId/download")
+  @RequirePermissions(INVOICES_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Download an invoice supporting attachment" })
+  downloadAttachment(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ) {
+    return this.attachments.download(tenantId, id, attachmentId, res);
   }
 }

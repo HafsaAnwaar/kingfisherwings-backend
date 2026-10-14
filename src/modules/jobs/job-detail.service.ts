@@ -420,7 +420,9 @@ export class JobDetailService {
         switch_bl: `/jobs/${job.id}/documents/switch-bl`,
         bills_of_lading: `/jobs/${job.id}/bills-of-lading`,
         awb: isAir ? `/jobs/${job.id}/documents/e-awb` : null,
-        tracking: job.tracking_token ? `/track/${job.tracking_token}` : null,
+        tracking: job.tracking_token
+          ? `/track?ref=${encodeURIComponent(job.tracking_token)}`
+          : null,
         ops_attachments: `/ops/JOB/${job.id}/attachments`,
         ops_history: `/ops/JOB/${job.id}/history`,
         booking_form: this.bookingFormPathHints(job.job_type, job.id),

@@ -145,6 +145,7 @@ export class PortalDocumentsService {
           job_id: jobId,
           deleted_at: null,
           generation_status: "COMPLETED",
+          visible_to_customer: true,
         },
       }),
     );
@@ -298,6 +299,7 @@ export class PortalDocumentsService {
           tenant_id: user.tenantId,
           deleted_at: null,
           generation_status: "COMPLETED",
+          visible_to_customer: true,
           job: {
             deleted_at: null,
             ...portalJobOwnershipWhere(user.partyId),

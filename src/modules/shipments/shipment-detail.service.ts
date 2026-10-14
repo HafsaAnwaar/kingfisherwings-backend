@@ -462,7 +462,7 @@ export class ShipmentDetailService {
       success: true,
       data: {
         tracking_token: token,
-        public_url: token ? `/track/${token}` : null,
+        public_url: token ? `/track?ref=${encodeURIComponent(token)}` : null,
         job_id: shipment.job_id,
       },
     };

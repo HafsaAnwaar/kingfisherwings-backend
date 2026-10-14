@@ -26,6 +26,7 @@ import { JobContainerTabService } from "./job-container-tab.service";
 import { JobCostingService } from "./job-costing.service";
 import { JobProfitShareService } from "./job-profit-share.service";
 import { JobTabPanelsService } from "./job-tab-panels.service";
+import { JobDocumentUploadService } from "./job-document-upload.service";
 import { JobDateService } from "./job-date.service";
 import { SeaFclImportService } from "./sea-fcl-import.service";
 import { AirImportService } from "./air-import.service";
@@ -92,6 +93,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     JobCostingService,
     JobProfitShareService,
     JobTabPanelsService,
+    JobDocumentUploadService,
     JobDateService,
     JobsDashboardService,
     SeaFclImportService,
@@ -116,6 +118,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     JobDimensionService,
     JobContainerTabService,
     JobTabPanelsService,
+    JobDocumentUploadService,
     JobDateService,
     JobsDashboardService,
     SeaFclImportService,

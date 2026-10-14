@@ -10,15 +10,23 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { OpsUploaderSide } from "@prisma/client";
+import { Response } from "express";
+import "multer";
 import { RolesGuard } from "../users/guards/roles.guard";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { GL_PERMISSIONS } from "./constants/gl-permission.constants";
 import { VouchersService } from "./vouchers.service";
+import { VoucherAttachmentService } from "./voucher-attachment.service";
 import {
   CreateVoucherDto,
   CreateVoucherLineDto,
@@ -33,7 +41,10 @@ import {
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("gl/vouchers")
 export class VouchersController {
-  constructor(private readonly service: VouchersService) {}
+  constructor(
+    private readonly service: VouchersService,
+    private readonly attachments: VoucherAttachmentService,
+  ) {}
 
   @Get()
   @RequirePermissions(GL_PERMISSIONS.VIEW)
@@ -165,5 +176,46 @@ export class VouchersController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.reverse(tenantId, id, actorId);
+  }
+
+  @Get(":id/attachments")
+  @RequirePermissions(GL_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List voucher supporting attachments" })
+  listAttachments(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.attachments.list(tenantId, id);
+  }
+
+  @Post(":id/attachments")
+  @RequirePermissions(GL_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({ summary: "Upload a supporting file on a voucher" })
+  uploadAttachment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.attachments.upload(tenantId, id, file, {
+      userId: actorId,
+      side: OpsUploaderSide.STAFF,
+    });
+  }
+
+  @Get(":id/attachments/:attachmentId/download")
+  @RequirePermissions(GL_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Download a voucher attachment" })
+  downloadAttachment(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ) {
+    return this.attachments.download(tenantId, id, attachmentId, res);
   }
 }

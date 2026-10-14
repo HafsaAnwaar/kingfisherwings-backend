@@ -40,9 +40,12 @@ See also [job-fe-shell.md](./job-fe-shell.md) for FE wiring checklist.
 | Dimension / commodity | `PATCH /jobs/:id/dimensions` |
 | Cancel | `POST /jobs/:id/cancel` |
 | Copy | `POST /jobs/:id/copy` |
-| Docs | `/ops/JOB/:id/attachments` (bidirectional visibility) |
+| Docs (typed freight) | `GET/POST /jobs/:id/documents…` multipart upload + download + visibility; filter `?uploader_side=` |
+| Docs (untyped continuum) | `/ops/JOB/:id/attachments` (bidirectional visibility) |
 
 Detail `actions` also exposes path hints for switch-BL, BL entry, AWB, tracking, EDI.
+
+Public track path hint is `/track?ref={tracking_token}` (path form `/track/{token}` also works). Staff job/search list matches container numbers via `JobContainer` (`containers_job`) as well as BL/AWB/shipment refs.
 
 ## Generate Job from shipment
 

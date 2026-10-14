@@ -21,6 +21,7 @@ import {
   PurchaseInvoicePaymentProofsController,
 } from "./payment-proofs/payment-proofs.controller";
 import { InvoicesService } from "./invoices.service";
+import { InvoiceAttachmentService } from "./invoice-attachment.service";
 import { PaymentRequestsService } from "./payment-requests.service";
 import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
 
@@ -48,7 +49,17 @@ import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
     PaymentProofsController,
     InvoicePaymentProofsController,
   ],
-  providers: [InvoicesService, PaymentRequestsService, PaymentProofsService],
-  exports: [InvoicesService, PaymentRequestsService, PaymentProofsService],
+  providers: [
+    InvoicesService,
+    InvoiceAttachmentService,
+    PaymentRequestsService,
+    PaymentProofsService,
+  ],
+  exports: [
+    InvoicesService,
+    InvoiceAttachmentService,
+    PaymentRequestsService,
+    PaymentProofsService,
+  ],
 })
 export class InvoicesModule {}

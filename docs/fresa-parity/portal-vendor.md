@@ -9,6 +9,9 @@
 | Portal booking form (all modes) | GET/PUT/complete on shipment + quotation | Match |
 | Vendor pass-to-vendor | Requires Job (after generate) | Match |
 | Vendor / portal costing | `GET /portal/jobs/:id/costing` (sale only); `GET /vendor/jobs/:id/costing` (cost only, via vendor quote or cost_party) | Match |
+| Typed job documents | Portal/vendor multipart upload + list/download with ACL (`visible_to_*` / self-upload); staff sees all | Match |
+| Track & Trace lookup | Portal `lookup?ref=` accepts container # / shipment / BL / AWB / job; milestones return unified `history` | Match |
+| Invoice / voucher attachments | Portal invoice + voucher attachments; vendor purchase-invoice + linked voucher attachments | Match |
 
 ## API paths
 
@@ -23,6 +26,12 @@
 | Staff booking form (quotation) | GET/PUT/POST | `/quotations/:id/booking-form` (+ `/complete`) |
 | Staff pass-to-vendor | POST | `/jobs/:id/pass-to-vendor` (aliases: job-offers, send-to-vendor) |
 | Quote pass-to-vendor (legacy) | POST | `/quotations/:id/pass-to-vendor` → uses `ensureProvisionalJob` for backward compat |
+| Portal job doc upload / list / download | POST/GET | `/portal/jobs/:id/documents…` |
+| Vendor job doc upload / list / download | POST/GET | `/vendor/jobs/:id/documents…` |
+| Portal invoice attachments | GET/POST | `/portal/invoices/:id/attachments` (+ download) |
+| Portal voucher attachments | GET/POST | `/portal/vouchers/:id/attachments` (+ download) |
+| Vendor invoice attachments | GET/POST | `/vendor/invoices/:id/attachments` (+ download) |
+| Vendor voucher attachments | GET/POST | `/vendor/vouchers/:id/attachments` (+ download) |
 
 ## Notes
 

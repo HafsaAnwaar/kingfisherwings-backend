@@ -4,8 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { JobType, OpsUploaderSide } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { StorageService } from "../../shared/storage/storage.service";
+import { JobDocumentUploadService } from "../jobs/job-document-upload.service";
 import { NvoccBookingFormService } from "../nvocc/nvocc-booking-form.service";
 import {
   COMPLIANCE_DOC_KINDS,
@@ -21,6 +23,7 @@ export class PortalComplianceBookingService {
     private readonly prisma: PrismaService,
     private readonly forms: NvoccBookingFormService,
     private readonly storage: StorageService,
+    private readonly documentUpload: JobDocumentUploadService,
   ) {}
 
   private async assertOwnedBooking(user: CurrentPortalUser, bookingId: string) {
@@ -142,6 +145,33 @@ export class PortalComplianceBookingService {
       stored.s3Key,
       user.id,
     );
+
+    const booking = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.nvoccBooking.findFirst({
+        where: { id: bookingId, tenant_id: user.tenantId, deleted_at: null },
+        select: { converted_job_id: true, job_type: true },
+      }),
+    );
+    if (booking?.converted_job_id) {
+      await this.documentUpload.mirrorBookingUpload(
+        user.tenantId,
+        booking.converted_job_id,
+        kind,
+        {
+          s3Key: stored.s3Key,
+          fileUrl: stored.fileUrl,
+          fileSize: stored.fileSize,
+          mimeType: stored.mimeType,
+        },
+        file.originalname || `${kind}.bin`,
+        {
+          userId: user.id,
+          side: OpsUploaderSide.CUSTOMER,
+          partyId: user.partyId,
+        },
+        booking.job_type ?? JobType.NVOCC_EXPORT,
+      );
+    }
 
     return {
       success: true,

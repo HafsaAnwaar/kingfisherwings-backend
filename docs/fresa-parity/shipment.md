@@ -23,5 +23,7 @@
 | EDI facade | POST | `/shipments/:id/edi/:action` | Match |
 | Submaster / sub-job | POST | `/shipments/:id/create-submaster` | Match |
 | KPI / BL / AWB / track | GET | `/shipments/:id/kpi`, `…/bills-of-lading`, `…/awb`, `…/tracking` | Match |
+| Public Track & Trace | GET | `/track?ref=` (also `/track/:ref`) — job, shipment, BL/AWB, booking, vehicle, courier #, **container number**; returns milestones + courier + container `history` | Match |
+| Portal track lookup | GET | `/portal/shipments/lookup?ref=` — same keys, party-scoped; milestones include unified `history` | Match |
 
 Tab keys: `show_all`, `info`, `organization`, `dimensions`, `planned_container`, `actual_container`, `ex_rate`, `costing`, `department`, `shipping_bill_boe`, `routing`, `customs` (no job-only `history` / `booking_form` / `shipments`). Shared tabs use the same response shapes as job; when `job_id` is set they proxy to job services. See [shipment-detail.md](./shipment-detail.md).
