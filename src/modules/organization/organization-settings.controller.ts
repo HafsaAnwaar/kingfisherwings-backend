@@ -7,6 +7,7 @@ import { Roles } from "../users/decorators/roles.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { UpdateJobDateSettingsDto } from "./dto/job-date-settings.dto";
 import { UpdateDimensionSettingsDto } from "./dto/dimension-settings.dto";
+import { UpdateJobCreateSettingsDto } from "./dto/job-create-settings.dto";
 import { DEFAULT_VOLUMETRIC_DIVISOR_CM } from "../jobs/utils/job-dimension-calc.util";
 
 @ApiTags("Organization — Settings")
@@ -81,6 +82,38 @@ export class OrganizationSettingsController {
       where: { id: tenantId },
       data: { volumetric_divisor_cm: dto.volumetric_divisor_cm },
       select: { volumetric_divisor_cm: true },
+    });
+    return { success: true, data: tenant };
+  }
+
+  @Get("job-create")
+  @ApiOperation({
+    summary: "Job create settings (allow inline party create from org tab)",
+  })
+  async getJobCreate(@CurrentUser("tenantId") tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { allow_create_party_from_job: true },
+    });
+    return {
+      success: true,
+      data: {
+        allow_create_party_from_job:
+          tenant?.allow_create_party_from_job ?? true,
+      },
+    };
+  }
+
+  @Patch("job-create")
+  @ApiOperation({ summary: "Update allow_create_party_from_job" })
+  async patchJobCreate(
+    @CurrentUser("tenantId") tenantId: string,
+    @Body() dto: UpdateJobCreateSettingsDto,
+  ) {
+    const tenant = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { allow_create_party_from_job: dto.allow_create_party_from_job },
+      select: { allow_create_party_from_job: true },
     });
     return { success: true, data: tenant };
   }

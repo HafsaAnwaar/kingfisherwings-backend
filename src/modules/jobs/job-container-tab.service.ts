@@ -16,6 +16,7 @@ import {
   ConfirmContainerUploadDto,
   CreateJobContainerDto,
   PasteContainerUploadDto,
+  PushContainersToSubJobsDto,
   SyncContainersFromSubJobsDto,
   UpdateJobContainerDto,
   UpdateJobDetailsFromContainerTabDto,
@@ -84,7 +85,12 @@ export class JobContainerTabService {
           multiple_update: true,
           add: true,
           sync_from_sub_jobs: true,
+          push_to_sub_jobs: true,
           export: true,
+        },
+        path_hints: {
+          sync_from_sub_jobs: `/jobs/${jobId}/containers/sync-from-sub-jobs`,
+          push_to_sub_jobs: `/jobs/${jobId}/containers/push-to-sub-jobs`,
         },
       },
     };
@@ -347,23 +353,35 @@ export class JobContainerTabService {
   ) {
     await this.assertJob(tenantId, jobId);
     const matchingOnly = dto.matching_only !== false;
+    const includeHouses = dto.include_houses !== false;
+    const isSubJobOnly = dto.is_sub_job_only === true;
+    const rollupHeader = dto.rollup_header === true;
+
+    const childWhere: Prisma.JobWhereInput = {
+      tenant_id: tenantId,
+      parent_job_id: jobId,
+      deleted_at: null,
+    };
+    if (isSubJobOnly) {
+      childWhere.is_sub_job = true;
+    }
+
     const subJobs = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findMany({
-        where: {
-          tenant_id: tenantId,
-          parent_job_id: jobId,
-          deleted_at: null,
-        },
-        select: { id: true },
+        where: childWhere,
+        select: { id: true, is_sub_job: true },
       }),
     );
-    if (!subJobs.length) {
+    const filtered = includeHouses
+      ? subJobs
+      : subJobs.filter((j) => j.is_sub_job);
+    if (!filtered.length) {
       return {
         success: true,
         data: { updated: 0, message: "No sub-jobs found." },
       };
     }
-    const subIds = subJobs.map((j) => j.id);
+    const subIds = filtered.map((j) => j.id);
     const subContainers = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobContainer.findMany({
         where: {
@@ -443,7 +461,182 @@ export class JobContainerTabService {
       }
     }
 
-    return { success: true, data: { updated } };
+    if (rollupHeader) {
+      await this.rollupMasterHeaderFromContainers(tenantId, jobId, actorId);
+    }
+
+    return { success: true, data: { updated, rollup_header: rollupHeader } };
+  }
+
+  /**
+   * Reverse of sync-from-sub-jobs: push master container seal/status onto houses.
+   */
+  async pushToSubJobs(
+    tenantId: string,
+    jobId: string,
+    dto: PushContainersToSubJobsDto,
+    actorId?: string,
+  ) {
+    const job = await this.assertJob(tenantId, jobId);
+    if (job.parent_job_id) {
+      throw new BadRequestException(
+        "Container push is only allowed from a master (root) job.",
+      );
+    }
+
+    const matchingOnly = dto.matching_only !== false;
+    const includeHouses = dto.include_houses !== false;
+    const isSubJobOnly = dto.is_sub_job_only === true;
+
+    const childWhere: Prisma.JobWhereInput = {
+      tenant_id: tenantId,
+      parent_job_id: jobId,
+      deleted_at: null,
+    };
+    if (isSubJobOnly) {
+      childWhere.is_sub_job = true;
+    }
+
+    const children = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findMany({
+        where: childWhere,
+        select: { id: true, is_sub_job: true },
+      }),
+    );
+    const targets = includeHouses
+      ? children
+      : children.filter((j) => j.is_sub_job);
+    if (!targets.length) {
+      return {
+        success: true,
+        data: { updated: 0, targets: 0, message: "No sub-jobs found." },
+      };
+    }
+
+    const masterContainers = await this.listMapped(tenantId, jobId);
+    let updated = 0;
+
+    for (const child of targets) {
+      const childContainers = await this.listMapped(tenantId, child.id);
+      for (const mc of masterContainers) {
+        if (!mc.container_number && matchingOnly) continue;
+        const match = childContainers.find(
+          (c) =>
+            mc.container_number &&
+            c.container_number &&
+            c.container_number.toLowerCase() ===
+              mc.container_number.toLowerCase(),
+        );
+        if (match) {
+          await this.update(
+            tenantId,
+            child.id,
+            match.id,
+            {
+              seal_number: mc.seal_number ?? undefined,
+              actual_seal: mc.actual_seal ?? mc.seal_number ?? undefined,
+              status: mc.status as CreateJobContainerDto["status"],
+              packages: mc.packages ?? undefined,
+              hs_code: mc.hs_code ?? undefined,
+              gross_weight:
+                mc.gross_weight != null ? Number(mc.gross_weight) : undefined,
+              net_weight:
+                mc.net_weight != null ? Number(mc.net_weight) : undefined,
+              volume_weight:
+                mc.volume_weight != null
+                  ? Number(mc.volume_weight)
+                  : undefined,
+              cbm: mc.cbm != null ? Number(mc.cbm) : undefined,
+              chargeable_units:
+                mc.chargeable_units != null
+                  ? Number(mc.chargeable_units)
+                  : undefined,
+            },
+            actorId,
+          );
+          updated += 1;
+        } else if (!matchingOnly && mc.container_type_id) {
+          await this.add(
+            tenantId,
+            child.id,
+            {
+              container_type_id: mc.container_type_id,
+              container_kind: mc.container_kind,
+              container_number: mc.container_number ?? undefined,
+              seal_number: mc.seal_number ?? undefined,
+              actual_seal: mc.actual_seal ?? undefined,
+              packages: mc.packages ?? undefined,
+              hs_code: mc.hs_code ?? undefined,
+              gross_weight:
+                mc.gross_weight != null ? Number(mc.gross_weight) : undefined,
+              net_weight:
+                mc.net_weight != null ? Number(mc.net_weight) : undefined,
+              volume_weight:
+                mc.volume_weight != null
+                  ? Number(mc.volume_weight)
+                  : undefined,
+              cbm: mc.cbm != null ? Number(mc.cbm) : undefined,
+              chargeable_units:
+                mc.chargeable_units != null
+                  ? Number(mc.chargeable_units)
+                  : undefined,
+              status: mc.status as CreateJobContainerDto["status"],
+              is_soc: mc.is_soc,
+            },
+            actorId,
+          );
+          updated += 1;
+        }
+      }
+    }
+
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_CONTAINERS_PUSH_TO_SUBJOBS",
+          entity: "JOB",
+          entity_id: jobId,
+          metadata: {
+            targets: targets.length,
+            updated,
+          } as Prisma.InputJsonValue,
+        },
+      }),
+    );
+
+    return {
+      success: true,
+      data: { updated, targets: targets.length },
+    };
+  }
+
+  private async rollupMasterHeaderFromContainers(
+    tenantId: string,
+    jobId: string,
+    actorId?: string,
+  ) {
+    const containers = await this.listMapped(tenantId, jobId);
+    let pieces = 0;
+    let gross = 0;
+    let cbm = 0;
+    for (const c of containers) {
+      pieces += c.packages ?? 0;
+      gross += c.gross_weight != null ? Number(c.gross_weight) : 0;
+      cbm += c.cbm != null ? Number(c.cbm) : 0;
+    }
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.update({
+        where: { id: jobId },
+        data: {
+          pieces,
+          gross_weight: gross,
+          volume_cbm: cbm,
+          updated_by: actorId,
+        },
+      }),
+    );
   }
 
   async downloadSample(): Promise<{
@@ -826,7 +1019,7 @@ export class JobContainerTabService {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
-        select: { id: true, job_type: true },
+        select: { id: true, job_type: true, parent_job_id: true },
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");

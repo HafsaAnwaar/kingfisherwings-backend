@@ -33,13 +33,60 @@ export class DocumentEmailService {
     partyId: string,
     kind: "portal" | "vendor" | "any" = "any",
   ): Promise<string[]> {
+    const split = await this.resolvePartyEmailsToCc(tenantId, partyId, kind);
+    return [...new Set([...split.to, ...split.cc])];
+  }
+
+  /**
+   * Primary party_contacts → To; other contacts + portal/vendor users → CC.
+   * Party.email joins To when present.
+   */
+  async resolvePartyEmailsToCc(
+    tenantId: string,
+    partyId: string,
+    kind: "portal" | "vendor" | "any" = "any",
+  ): Promise<{ to: string[]; cc: string[] }> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const party = await tx.party.findFirst({
         where: { id: partyId, tenant_id: tenantId, deleted_at: null },
         select: { email: true },
       });
-      const emails = new Set<string>();
-      if (party?.email) emails.add(party.email.toLowerCase());
+      const to = new Set<string>();
+      const cc = new Set<string>();
+
+      const contacts = await tx.partyContact.findMany({
+        where: {
+          tenant_id: tenantId,
+          party_id: partyId,
+          deleted_at: null,
+          email: { not: null },
+        },
+        select: { email: true, is_primary: true },
+        orderBy: [{ is_primary: "desc" }, { created_at: "asc" }],
+        take: 50,
+      });
+
+      const primaryContacts = contacts.filter((c) => c.is_primary && c.email);
+      const otherContacts = contacts.filter((c) => !c.is_primary && c.email);
+
+      if (primaryContacts.length) {
+        for (const c of primaryContacts) {
+          to.add(c.email!.toLowerCase());
+        }
+      } else if (contacts[0]?.email) {
+        to.add(contacts[0].email.toLowerCase());
+      }
+
+      for (const c of otherContacts) {
+        const e = c.email!.toLowerCase();
+        if (!to.has(e)) cc.add(e);
+      }
+
+      if (party?.email) {
+        const pe = party.email.toLowerCase();
+        if (!to.size) to.add(pe);
+        else if (!to.has(pe)) cc.add(pe);
+      }
 
       if (kind === "portal" || kind === "any") {
         const portalUsers = await tx.portalUser.findMany({
@@ -53,7 +100,9 @@ export class DocumentEmailService {
           take: 50,
         });
         for (const u of portalUsers) {
-          if (u.email) emails.add(u.email.toLowerCase());
+          if (!u.email) continue;
+          const e = u.email.toLowerCase();
+          if (!to.has(e)) cc.add(e);
         }
       }
 
@@ -69,12 +118,59 @@ export class DocumentEmailService {
           take: 50,
         });
         for (const u of vendorUsers) {
-          if (u.email) emails.add(u.email.toLowerCase());
+          if (!u.email) continue;
+          const e = u.email.toLowerCase();
+          if (!to.has(e)) cc.add(e);
         }
       }
 
-      return [...emails];
+      return { to: [...to], cc: [...cc] };
     });
+  }
+
+  /**
+   * Merge To/CC from multiple parties (client / consignee / agent).
+   */
+  async resolveMultiPartyEmailsToCc(
+    tenantId: string,
+    partyIds: string[],
+    kind: "portal" | "vendor" | "any" = "any",
+  ): Promise<{ to: string[]; cc: string[] }> {
+    const to = new Set<string>();
+    const cc = new Set<string>();
+    for (const partyId of [...new Set(partyIds.filter(Boolean))]) {
+      const split = await this.resolvePartyEmailsToCc(tenantId, partyId, kind);
+      for (const e of split.to) to.add(e);
+      for (const e of split.cc) {
+        if (!to.has(e)) cc.add(e);
+      }
+    }
+    return {
+      to: [...to],
+      cc: [...cc].filter((e) => !to.has(e)),
+    };
+  }
+
+  pickRecipients(
+    dto: DocumentShareEmailDto,
+    fallbackTo: string[],
+    fallbackCc: string[] = [],
+  ): { to: string[]; cc: string[] } {
+    const to = (dto.to?.length ? dto.to : fallbackTo).map((e) =>
+      e.trim().toLowerCase(),
+    );
+    const ccSource = dto.cc?.length ? dto.cc : fallbackCc;
+    const cc = ccSource.map((e) => e.trim().toLowerCase());
+    const uniqueTo = [...new Set(to.filter(Boolean))];
+    const uniqueCc = [...new Set(cc.filter(Boolean))].filter(
+      (e) => !uniqueTo.includes(e),
+    );
+    if (!uniqueTo.length) {
+      throw new BadRequestException(
+        "No recipients. Provide `to` or ensure the party has an email / active users.",
+      );
+    }
+    return { to: uniqueTo, cc: uniqueCc };
   }
 
   async resolveTenantAdminEmails(tenantId: string): Promise<string[]> {
@@ -111,26 +207,6 @@ export class DocumentEmailService {
     });
 
     return [...emails];
-  }
-
-  pickRecipients(
-    dto: DocumentShareEmailDto,
-    fallback: string[],
-  ): { to: string[]; cc: string[] } {
-    const to = (dto.to?.length ? dto.to : fallback).map((e) =>
-      e.trim().toLowerCase(),
-    );
-    const cc = (dto.cc ?? []).map((e) => e.trim().toLowerCase());
-    const uniqueTo = [...new Set(to.filter(Boolean))];
-    const uniqueCc = [...new Set(cc.filter(Boolean))].filter(
-      (e) => !uniqueTo.includes(e),
-    );
-    if (!uniqueTo.length) {
-      throw new BadRequestException(
-        "No recipients. Provide `to` or ensure the party has an email / active users.",
-      );
-    }
-    return { to: uniqueTo, cc: uniqueCc };
   }
 
   async sendDocument(options: {

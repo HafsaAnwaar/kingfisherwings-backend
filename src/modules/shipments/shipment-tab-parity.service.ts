@@ -850,6 +850,9 @@ export class ShipmentTabParityService {
     if (orgType === JobPartyRole.CONSIGNEE) data.consignee_id = partyId;
     if (orgType === JobPartyRole.NOTIFY) data.notify_party_id = partyId;
     if (orgType === JobPartyRole.AGENT) data.delivery_agent_id = partyId;
+    if (orgType === JobPartyRole.OVERSEAS_AGENT) {
+      data.carrier_agent_id = partyId;
+    }
     if (Object.keys(data).length) {
       await tx.shipment.update({ where: { id: shipmentId }, data });
     }

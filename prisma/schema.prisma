@@ -89,12 +89,16 @@ enum JobPartyRole {
   BILLING_PARTY
   AGENT
   NOTIFY
+  OVERSEAS_AGENT
 }
 
 enum JobPartyReferenceType {
   PO_NUMBER
   CUSTOMER_REF
   OTHER
+  SABER
+  RA_CODE
+  ISF
 }
 
 enum JobContainerKind {
@@ -849,6 +853,8 @@ model Tenant {
   job_date_source      JobDateSource @default(SYSTEM_DATE)
   /// Volumetric weight divisor when dims are in cm → kg (IATA default 6000; some use 5000/366).
   volumetric_divisor_cm Int @default(6000)
+  /// When false, POST /jobs/:id/organizations with create_party requires parties.create.
+  allow_create_party_from_job Boolean @default(true)
 
   // Business Registration
   vat_number String? @db.VarChar(50)
@@ -2622,6 +2628,8 @@ model Job {
   /// Bill-to / paying customer — optional third ownership key for portal visibility.
   billing_party_id  String?   @db.Uuid
   agent_id          String?   @db.Uuid
+  /// Overseas agent party (Organization tab OVERSEAS_AGENT).
+  overseas_agent_id String?   @db.Uuid
   salesperson_id    String?   @db.Uuid
   ops_user_id       String?   @db.Uuid
   origin_port_id    String?   @db.Uuid
@@ -4222,6 +4230,10 @@ model JobImportDeliveryDetail {
   do_status            String?   @db.VarChar(40)
   number_of_pallets    Int?
   cargo_delivered_date DateTime? @db.Date
+  /// Closed-job override: empty return to terminal
+  return_to_terminal_date DateTime? @db.Date
+  /// Closed-job override: loaded onboard date
+  load_onboard_date       DateTime? @db.Date
   truck_details        String?   @db.VarChar(500)
   driver_name          String?   @db.VarChar(200)
   remarks              String?   @db.Text

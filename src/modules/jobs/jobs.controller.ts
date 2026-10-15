@@ -36,9 +36,11 @@ import {
   ReopenJobDto,
   StopJobDto,
 } from "./dto/job-detail.dto";
+import { PatchJobClosedOverridesDto } from "./dto/job-closed-overrides.dto";
 import {
   PatchJobDimensionsDto,
   UpsertJobPartyReferenceDto,
+  UpsertTypedJobReferenceDto,
 } from "./dto/job-organization.dto";
 import {
   AddJobOrganizationDto,
@@ -82,6 +84,7 @@ import {
 } from "./dto/job-costing.dto";
 import {
   PatchJobDepartmentDto,
+  PushRoutingToSubJobsDto,
   UpsertJobCustomsRefDto,
   UpsertJobExchangeRateDto,
   UpsertJobRoutingLegDto,
@@ -129,6 +132,7 @@ import {
   ConfirmContainerUploadDto,
   CreateJobContainerDto,
   PasteContainerUploadDto,
+  PushContainersToSubJobsDto,
   SyncContainersFromSubJobsDto,
   UpdateJobContainerDto,
   UpdateJobDetailsFromContainerTabDto,
@@ -413,9 +417,32 @@ export class JobsController {
   })
   getDetail(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.detail.getDetail(tenantId, id);
+    return this.detail.getDetail(tenantId, id, permissions);
+  }
+
+  @Patch(":id/closed-overrides")
+  @RequirePermissions(JOBS_PERMISSIONS.CLOSED_DELIVERY_EDIT)
+  @ApiOperation({
+    summary:
+      "Allowlisted closed-job edits (delivery dates, DO remarks, commodity note)",
+  })
+  patchClosedOverrides(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PatchJobClosedOverridesDto,
+  ) {
+    return this.detail.patchClosedOverrides(
+      tenantId,
+      id,
+      dto,
+      actorId,
+      permissions,
+    );
   }
 
   @Post(":id/change-status")
@@ -445,7 +472,7 @@ export class JobsController {
 
   @Patch(":id/organization/client-reference")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Upsert client reference (e.g. PO Number)" })
+  @ApiOperation({ summary: "Upsert client reference (e.g. PO Number, SABER, RA, ISF)" })
   patchClientReference(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -453,6 +480,43 @@ export class JobsController {
     @Body() dto: UpsertJobPartyReferenceDto,
   ) {
     return this.detail.patchOrganizationReference(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/references")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List party + ops typed references for a job" })
+  listJobReferences(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.listReferences(tenantId, id);
+  }
+
+  @Put(":id/references")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Upsert a typed job reference (body includes type)" })
+  upsertJobReference(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobPartyReferenceDto,
+  ) {
+    return this.detail.patchOrganizationReference(tenantId, id, dto, actorId);
+  }
+
+  @Put(":id/references/:type")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Upsert typed job reference by type (SABER, RA_CODE, ISF, …)",
+  })
+  upsertJobReferenceByType(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("type") type: string,
+    @Body() dto: UpsertTypedJobReferenceDto,
+  ) {
+    return this.detail.upsertTypedReference(tenantId, id, type, dto, actorId);
   }
 
   @Get(":id/organizations")
@@ -473,10 +537,11 @@ export class JobsController {
   addOrganization(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: AddJobOrganizationDto,
   ) {
-    return this.organizations.add(tenantId, id, dto, actorId);
+    return this.organizations.add(tenantId, id, dto, actorId, permissions);
   }
 
   @Put(":id/organizations/:orgType")
@@ -485,6 +550,7 @@ export class JobsController {
   replaceOrganization(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Param("orgType") orgType: string,
     @Body() dto: ReplaceJobOrganizationDto,
@@ -493,7 +559,14 @@ export class JobsController {
     if (!Object.values(JobPartyRole).includes(role)) {
       throw new BadRequestException(`Invalid org_type: ${orgType}`);
     }
-    return this.organizations.replace(tenantId, id, role, dto, actorId);
+    return this.organizations.replace(
+      tenantId,
+      id,
+      role,
+      dto,
+      actorId,
+      permissions,
+    );
   }
 
   @Delete(":id/organizations/:orgType")
@@ -808,6 +881,20 @@ export class JobsController {
     await this.tabPanels.deleteRoutingLeg(tenantId, id, legId, actorId);
   }
 
+  @Post(":id/routing-legs/push-to-subjobs")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Push master routing legs onto house / sub-jobs (Fresa)",
+  })
+  pushRoutingToSubJobs(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PushRoutingToSubJobsDto,
+  ) {
+    return this.tabPanels.pushRoutingToSubJobs(tenantId, id, dto, actorId);
+  }
+
   @Post(":id/customs-refs")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({ summary: "Add customs / SB / BOE reference on job" })
@@ -1005,6 +1092,19 @@ export class JobsController {
     @Query() query: ListJobDocumentsQueryDto,
   ) {
     return this.service.listDocuments(tenantId, id, query);
+  }
+
+  @Get(":id/email-recipients/suggest")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Suggest To/CC emails from job org party contacts (Fresa multi-email)",
+  })
+  suggestEmailRecipients(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.suggestEmailRecipients(tenantId, id);
   }
 
   @Get(":id/containers/fill")
@@ -2996,6 +3096,20 @@ export class JobsController {
     @Body() dto: SyncContainersFromSubJobsDto,
   ) {
     return this.containerTab.syncFromSubJobs(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/containers/push-to-sub-jobs")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Push master container seal/status onto house / sub-jobs",
+  })
+  pushContainersToSubJobs(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PushContainersToSubJobsDto,
+  ) {
+    return this.containerTab.pushToSubJobs(tenantId, id, dto, actorId);
   }
 
   @Get(":id/containers/:containerId")

@@ -30,6 +30,23 @@ export class UpsertJobPartyReferenceDto {
   reference_no!: string;
 }
 
+export class UpsertTypedJobReferenceDto {
+  @ApiProperty({ description: "Reference value (SABER / RA / ISF / etc.)" })
+  @IsString()
+  @Length(1, 100)
+  reference_no!: string;
+
+  @ApiPropertyOptional({ enum: JobPartyRole, default: JobPartyRole.CLIENT })
+  @IsOptional()
+  @IsEnum(JobPartyRole)
+  party_role?: JobPartyRole;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  party_id?: string;
+}
+
 export class PatchJobDimensionsDto {
   @ApiPropertyOptional({ description: "Commodity description on Dimension tab" })
   @IsOptional()

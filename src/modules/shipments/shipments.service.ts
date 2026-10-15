@@ -173,6 +173,22 @@ export class ShipmentsService {
       ...(query.customer_id ? { customer_id: query.customer_id } : {}),
       ...(query.job_id ? { job_id: query.job_id } : {}),
       ...(query.quotation_id ? { quotation_id: query.quotation_id } : {}),
+      ...(query.voyage_number
+        ? {
+            voyage_number: {
+              contains: query.voyage_number.trim(),
+              mode: "insensitive",
+            },
+          }
+        : {}),
+      ...(query.vessel_name
+        ? {
+            vessel_name: {
+              contains: query.vessel_name.trim(),
+              mode: "insensitive",
+            },
+          }
+        : {}),
       ...(query.search
         ? {
             OR: [

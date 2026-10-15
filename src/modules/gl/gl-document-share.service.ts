@@ -57,12 +57,16 @@ export class GlDocumentShareService {
       throw new NotFoundException("Party not found");
     }
 
-    const fallback = await this.documentEmail.resolvePartyEmails(
+    const fallback = await this.documentEmail.resolvePartyEmailsToCc(
       tenantId,
       partyId,
       side === "AR" ? "portal" : "vendor",
     );
-    const { to, cc } = this.documentEmail.pickRecipients(dto, fallback);
+    const { to, cc } = this.documentEmail.pickRecipients(
+      dto,
+      fallback.to,
+      fallback.cc,
+    );
 
     const asOf =
       typeof statement.as_of === "string"
@@ -116,12 +120,16 @@ export class GlDocumentShareService {
       );
     }
 
-    const fallback = await this.documentEmail.resolvePartyEmails(
+    const fallback = await this.documentEmail.resolvePartyEmailsToCc(
       tenantId,
       payment.party_id,
       "vendor",
     );
-    const { to, cc } = this.documentEmail.pickRecipients(dto, fallback);
+    const { to, cc } = this.documentEmail.pickRecipients(
+      dto,
+      fallback.to,
+      fallback.cc,
+    );
 
     const includePdf = dto.include_pdf !== false;
     let attachmentBuffer: Buffer | undefined;
@@ -174,12 +182,16 @@ export class GlDocumentShareService {
       }),
     );
 
-    const fallback = await this.documentEmail.resolvePartyEmails(
+    const fallback = await this.documentEmail.resolvePartyEmailsToCc(
       tenantId,
       partyId,
       "portal",
     );
-    const { to, cc } = this.documentEmail.pickRecipients(dto, fallback);
+    const { to, cc } = this.documentEmail.pickRecipients(
+      dto,
+      fallback.to,
+      fallback.cc,
+    );
 
     const creditLimit =
       partyFull?.credit_limit != null ? Number(partyFull.credit_limit) : null;

@@ -382,6 +382,20 @@ export class ShipmentQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({
+    description: "Contains filter on voyage_number (case-insensitive)",
+  })
+  @IsOptional()
+  @IsString()
+  voyage_number?: string;
+
+  @ApiPropertyOptional({
+    description: "Contains filter on vessel_name (case-insensitive)",
+  })
+  @IsOptional()
+  @IsString()
+  vessel_name?: string;
 }
 
 export class ChangeShipmentStatusDto {

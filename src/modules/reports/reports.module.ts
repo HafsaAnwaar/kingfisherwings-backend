@@ -31,6 +31,7 @@ import { ReportsJobsService } from "./reports-jobs.service";
 import { ReportsTemplatesController } from "./reports-templates.controller";
 import { ReportsTemplatesService } from "./reports-templates.service";
 import { ReportsSeedService } from "./seed/reports.seed";
+import { OperationsFresaReportsService } from "./operations-fresa-reports.service";
 
 const redisEnabled = isRedisEnabledEnv();
 
@@ -80,6 +81,7 @@ const queueProviders = redisEnabled
     CommercialDataPackService,
     AirDocsDataPackService,
     QuotationDataPackService,
+    OperationsFresaReportsService,
     FinanceDataPackService,
     WmsDataPackService,
     OtherDataPackService,
@@ -92,6 +94,7 @@ const queueProviders = redisEnabled
     InvoiceFormatPayloadService,
     ReportDataPackRegistry,
     ReportsGenerateService,
+    OperationsFresaReportsService,
   ],
 })
 export class ReportsModule {}
