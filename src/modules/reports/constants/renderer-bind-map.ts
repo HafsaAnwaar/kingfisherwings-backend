@@ -38,6 +38,12 @@ const EXACT: Record<string, string> = {
   FINANCE_PAYMENT_VOUCHER: "finance.payment_voucher",
   FINANCE_RECEIPT_VOUCHER: "finance.receipt_voucher",
   FINANCE_OUTSTANDING_LETTER: "finance.outstanding_letter",
+  AR_JOB_NOT_INVOICE_REPORT_FORMAT: "finance.job_not_invoice_do",
+  JOB_FINANCE_BY_SHIPMENT_DATE_REPORT_FORMAT:
+    "finance.job_finance_shipment_date",
+  EXCEPTION_REPORT_FORMAT: "finance.exception_report",
+  KPI_STATUS_BY_COMPLETED_DATE_REPORT_FORMAT: "finance.kpi_status",
+  JOB_LIST_SUMMARY_REPORT_FORMAT: "finance.job_list_summary",
   WMS_ASN: "wms.asn",
   WMS_GRN: "wms.grn",
   WMS_GDO: "wms.gdo",

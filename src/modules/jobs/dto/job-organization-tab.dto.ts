@@ -20,6 +20,13 @@ export const JOB_ORGANIZATION_TYPES: JobPartyRole[] = [
   JobPartyRole.NOTIFY,
   JobPartyRole.BILLING_PARTY,
   JobPartyRole.AGENT,
+  JobPartyRole.OVERSEAS_AGENT,
+];
+
+/** Party types allowed for OVERSEAS_AGENT org role. */
+export const OVERSEAS_AGENT_PARTY_TYPES: PartyType[] = [
+  PartyType.OVERSEAS_AGENT,
+  PartyType.AGENT,
 ];
 
 /** Inline party create for Organization Add flow (subset of CreatePartyDto). */

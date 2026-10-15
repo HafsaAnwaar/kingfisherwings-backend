@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -10,10 +11,13 @@ import {
   ChangeJobStatusDto,
   ReopenJobDto,
 } from "./dto/job-detail.dto";
+import { PatchJobClosedOverridesDto } from "./dto/job-closed-overrides.dto";
 import {
   PatchJobDimensionsDto,
   UpsertJobPartyReferenceDto,
+  UpsertTypedJobReferenceDto,
 } from "./dto/job-organization.dto";
+import { JobPartyReferenceType } from "@prisma/client";
 import { JobStatusCatalogService } from "./job-status-catalog.service";
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobOrganizationService } from "./job-organization.service";
@@ -23,7 +27,8 @@ import { JobCostingService } from "./job-costing.service";
 import { JobTabPanelsService } from "./job-tab-panels.service";
 import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
-import { JobContainerKind } from "@prisma/client";
+import { JobContainerKind, JobPartyRole } from "@prisma/client";
+import { DocumentEmailService } from "../../shared/email/document-email.service";
 
 const DETAIL_TABS = [
   "show_all",
@@ -59,9 +64,10 @@ export class JobDetailService {
     private readonly containerTab: JobContainerTabService,
     private readonly costing: JobCostingService,
     private readonly tabPanels: JobTabPanelsService,
+    private readonly documentEmail: DocumentEmailService,
   ) {}
 
-  async getDetail(tenantId: string, id: string) {
+  async getDetail(tenantId: string, id: string, permissions?: string[]) {
     const job = await this.loadJob(tenantId, id);
     const links = await this.resolveLinks(tenantId, job);
     return {
@@ -69,7 +75,7 @@ export class JobDetailService {
       data: {
         job: this.headerPayload(job),
         links,
-        actions: this.actionFlags(job),
+        actions: this.actionFlags(job, permissions),
         sections: await this.sectionSummaries(tenantId, job),
         tabs: DETAIL_TABS,
       },
@@ -244,6 +250,7 @@ export class JobDetailService {
     dto: UpsertJobPartyReferenceDto,
     actorId?: string,
   ) {
+    this.assertReferenceNo(dto.reference_no);
     await this.loadJob(tenantId, jobId);
     const role = dto.party_role ?? "CLIENT";
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -259,7 +266,7 @@ export class JobDetailService {
         return tx.jobPartyReference.update({
           where: { id: existing.id },
           data: {
-            reference_no: dto.reference_no,
+            reference_no: dto.reference_no.trim(),
             party_id: dto.party_id,
             updated_by: actorId,
           },
@@ -272,13 +279,236 @@ export class JobDetailService {
           party_role: role,
           party_id: dto.party_id,
           reference_type: dto.reference_type,
-          reference_no: dto.reference_no,
+          reference_no: dto.reference_no.trim(),
           created_by: actorId,
           updated_by: actorId,
         },
       });
     });
     return { success: true, data: row };
+  }
+
+  async listReferences(tenantId: string, jobId: string) {
+    await this.loadJob(tenantId, jobId);
+    const [partyRefs, opsRefs] = await this.prisma.runWithTenant(
+      tenantId,
+      async (tx) => {
+        const party = await tx.jobPartyReference.findMany({
+          where: { tenant_id: tenantId, job_id: jobId },
+          orderBy: [{ reference_type: "asc" }, { created_at: "desc" }],
+        });
+        const continuum = await tx.opsEntityReference.findMany({
+          where: {
+            tenant_id: tenantId,
+            entity_type: "JOB",
+            entity_id: jobId,
+            deleted_at: null,
+          },
+          orderBy: { created_at: "desc" },
+        });
+        return [party, continuum] as const;
+      },
+    );
+    return {
+      success: true,
+      data: {
+        party_references: partyRefs,
+        ops_references: opsRefs,
+      },
+    };
+  }
+
+  async upsertTypedReference(
+    tenantId: string,
+    jobId: string,
+    type: string,
+    dto: UpsertTypedJobReferenceDto,
+    actorId?: string,
+  ) {
+    const referenceType = type.toUpperCase() as JobPartyReferenceType;
+    if (!Object.values(JobPartyReferenceType).includes(referenceType)) {
+      throw new BadRequestException(`Invalid reference type: ${type}`);
+    }
+    return this.patchOrganizationReference(
+      tenantId,
+      jobId,
+      {
+        reference_type: referenceType,
+        reference_no: dto.reference_no,
+        party_role: dto.party_role,
+        party_id: dto.party_id,
+      },
+      actorId,
+    );
+  }
+
+  private assertReferenceNo(value: string) {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed || trimmed.length > 100) {
+      throw new BadRequestException(
+        "reference_no must be non-empty and at most 100 characters.",
+      );
+    }
+  }
+
+  /**
+   * Allowlisted edits on closed jobs (requires jobs.closed_delivery.edit).
+   */
+  async patchClosedOverrides(
+    tenantId: string,
+    jobId: string,
+    dto: PatchJobClosedOverridesDto,
+    actorId?: string,
+    permissions?: string[],
+  ) {
+    if (!permissions?.includes(JOBS_PERMISSIONS.CLOSED_DELIVERY_EDIT)) {
+      throw new ForbiddenException(
+        "jobs.closed_delivery.edit permission required.",
+      );
+    }
+    const job = await this.loadJob(tenantId, jobId);
+    const closed =
+      job.status === "COMPLETED" ||
+      job.status === "CANCELLED" ||
+      job.status === "DELIVERED";
+    if (!closed) {
+      throw new BadRequestException(
+        "Closed overrides apply only when job is completed, cancelled, or delivered. Use normal edit otherwise.",
+      );
+    }
+
+    const hasDeliveryField =
+      dto.cargo_delivered_date !== undefined ||
+      dto.do_status !== undefined ||
+      dto.remarks !== undefined ||
+      dto.return_to_terminal_date !== undefined ||
+      dto.load_onboard_date !== undefined;
+    const hasCommodity = dto.commodity_note !== undefined;
+    if (!hasDeliveryField && !hasCommodity) {
+      throw new BadRequestException("Provide at least one allowlisted field.");
+    }
+
+    const data = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      let delivery = null as Awaited<
+        ReturnType<typeof tx.jobImportDeliveryDetail.upsert>
+      > | null;
+
+      if (hasDeliveryField) {
+        const deliveryData = {
+          ...(dto.do_status !== undefined ? { do_status: dto.do_status } : {}),
+          ...(dto.remarks !== undefined ? { remarks: dto.remarks } : {}),
+          ...(dto.cargo_delivered_date !== undefined
+            ? {
+                cargo_delivered_date: dto.cargo_delivered_date
+                  ? new Date(dto.cargo_delivered_date)
+                  : null,
+              }
+            : {}),
+          ...(dto.return_to_terminal_date !== undefined
+            ? {
+                return_to_terminal_date: dto.return_to_terminal_date
+                  ? new Date(dto.return_to_terminal_date)
+                  : null,
+              }
+            : {}),
+          ...(dto.load_onboard_date !== undefined
+            ? {
+                load_onboard_date: dto.load_onboard_date
+                  ? new Date(dto.load_onboard_date)
+                  : null,
+              }
+            : {}),
+          updated_by: actorId,
+        };
+        delivery = await tx.jobImportDeliveryDetail.upsert({
+          where: { job_id: jobId },
+          create: {
+            tenant_id: tenantId,
+            job_id: jobId,
+            ...deliveryData,
+          },
+          update: deliveryData,
+        });
+      }
+
+      let commodity: string | null | undefined;
+      if (hasCommodity) {
+        const updated = await tx.job.update({
+          where: { id: jobId },
+          data: {
+            commodity: dto.commodity_note ?? null,
+            updated_by: actorId,
+          },
+          select: { commodity: true },
+        });
+        commodity = updated.commodity;
+      }
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_CLOSED_OVERRIDES",
+          entity: "JOB",
+          entity_id: jobId,
+          metadata: { fields: Object.keys(dto) } as Prisma.InputJsonValue,
+        },
+      });
+
+      return { delivery, commodity };
+    });
+
+    return { success: true, data };
+  }
+
+  /**
+   * Preview To/CC for document email from job org parties (client/consignee/agent).
+   */
+  async suggestEmailRecipients(tenantId: string, jobId: string) {
+    const job = await this.loadJob(tenantId, jobId);
+    const orgs = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobOrganization.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          org_type: {
+            in: [
+              JobPartyRole.CLIENT,
+              JobPartyRole.CONSIGNEE,
+              JobPartyRole.AGENT,
+              JobPartyRole.SHIPPER,
+              JobPartyRole.BILLING_PARTY,
+            ],
+          },
+        },
+        select: { org_type: true, party_id: true },
+      }),
+    );
+    const partyIds = [
+      ...orgs.map((o) => o.party_id),
+      job.billing_party_id,
+      job.shipper_id,
+      job.consignee_id,
+      job.agent_id,
+    ].filter((id): id is string => !!id);
+
+    const { to, cc } = await this.documentEmail.resolveMultiPartyEmailsToCc(
+      tenantId,
+      partyIds,
+      "any",
+    );
+    return {
+      success: true,
+      data: {
+        to,
+        cc,
+        parties: orgs,
+        path_hints: {
+          send: `/jobs/${jobId}/documents`,
+        },
+      },
+    };
   }
 
   async patchDimensions(
@@ -385,14 +615,20 @@ export class JobDetailService {
     };
   }
 
-  private actionFlags(job: Awaited<ReturnType<typeof this.loadJob>>) {
+  private actionFlags(
+    job: Awaited<ReturnType<typeof this.loadJob>>,
+    permissions?: string[],
+  ) {
     const closed =
       job.status === "COMPLETED" || job.status === "CANCELLED";
     const isAir = AIR_JOB_TYPES.includes(job.job_type);
+    const isMaster = !job.parent_job_id;
+    const canEditClosedDelivery =
+      !!permissions?.includes(JOBS_PERMISSIONS.CLOSED_DELIVERY_EDIT);
     return {
       can_edit_header: !closed,
       can_edit: !closed,
-      can_edit_closed_delivery: true,
+      can_edit_closed_delivery: canEditClosedDelivery,
       can_delete: !closed,
       can_change_status: true,
       can_reopen:
@@ -409,6 +645,11 @@ export class JobDetailService {
       can_bl_entry: true,
       can_awb: isAir,
       can_track: !!job.tracking_token,
+      routing_push_to_subjobs: isMaster,
+      containers_sync_from_sub_jobs: isMaster,
+      containers_push_to_sub_jobs: isMaster,
+      job_not_invoiced_do: true,
+      job_finance_report: true,
       path_hints: {
         close: `/jobs/${job.id}/close`,
         reopen: `/jobs/${job.id}/reopen`,
@@ -423,9 +664,18 @@ export class JobDetailService {
         tracking: job.tracking_token
           ? `/track?ref=${encodeURIComponent(job.tracking_token)}`
           : null,
+        docs_upload: `/jobs/${job.id}/documents/upload`,
         ops_attachments: `/ops/JOB/${job.id}/attachments`,
         ops_history: `/ops/JOB/${job.id}/history`,
         booking_form: this.bookingFormPathHints(job.job_type, job.id),
+        job_not_invoiced_do: `/operations/job-not-invoiced-do`,
+        job_finance_report: `/operations/job-finance-report`,
+        routing_push_to_subjobs: `/jobs/${job.id}/routing-legs/push-to-subjobs`,
+        containers_sync_from_sub_jobs: `/jobs/${job.id}/containers/sync-from-sub-jobs`,
+        containers_push_to_sub_jobs: `/jobs/${job.id}/containers/push-to-sub-jobs`,
+        email_recipients_suggest: `/jobs/${job.id}/email-recipients/suggest`,
+        closed_overrides: `/jobs/${job.id}/closed-overrides`,
+        references: `/jobs/${job.id}/references`,
       },
     };
   }

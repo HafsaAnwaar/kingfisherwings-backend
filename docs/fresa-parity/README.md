@@ -2,6 +2,8 @@
 
 Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATION%20TRAINING_BLOGS.pdf).
 
+> **Client demos:** use [WAVE_STATUS.md](./WAVE_STATUS.md) for current coverage. The July `Fresa-Feature-Specification-Coverage-Report.md` PDF is **stale** — do not cite its headline %.
+
 ## Locked decisions
 
 - Staff path: Enquiry → Quotation (Verified → Approved) → **Shipment** → **Job**
@@ -26,6 +28,7 @@ Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATI
 | [job-containers.md](./job-containers.md) | Container tab (job-scoped) |
 | [job-fresa-blog-features.md](./job-fresa-blog-features.md) | Blog → API map (11 topics) |
 | [job-module-route-map.md](./job-module-route-map.md) | FE screen → routes |
+| [WAVE_STATUS.md](./WAVE_STATUS.md) | Waves 1–3 demo status (supersedes stale PDF %) |
 | [costing.md](./costing.md) | Match |
 | [docs-reports.md](./docs-reports.md) | Match |
 | [masters-crm.md](./masters-crm.md) | Match |
@@ -43,6 +46,7 @@ Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATI
 
 - Skeleton: `src/test/fresa-flow-smoke.e2e-spec.ts` (enquiry→quote→verify→approve→shipment→job). Requires `DATABASE_URL` with the parity migration applied.
 - Typed uploads: `src/test/typed-document-uploads.e2e-spec.ts` (staff HAWB → portal download; portal booking commercial_invoice → staff `uploader_side=CUSTOMER`; vendor upload → staff).
+- Wave 1 parity: `src/test/fresa-wave1-parity.e2e-spec.ts` (DO-not-invoiced, finance report, routing push, typed refs).
 
 ## Parity legend
 

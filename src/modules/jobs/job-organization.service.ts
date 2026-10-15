@@ -1,12 +1,17 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { JobPartyRole, Prisma } from "@prisma/client";
+import { JobPartyRole, PartyType, Prisma } from "@prisma/client";
+import {
+  OVERSEAS_AGENT_PARTY_TYPES,
+} from "./dto/job-organization-tab.dto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PartiesService } from "../parties/parties.service";
 import { CreatePartyDto } from "../parties/dto/party.dto";
+import { PARTIES_PERMISSIONS } from "../parties/constants/parties-permission.constants";
 import {
   AddJobOrganizationDto,
   CopyJobOrganizationsDto,
@@ -109,12 +114,16 @@ export class JobOrganizationService {
     jobId: string,
     dto: AddJobOrganizationDto,
     actorId?: string,
+    actorPermissions?: string[],
   ) {
     await this.assertJob(tenantId, jobId);
     if (!dto.party_id && !dto.create_party) {
       throw new BadRequestException(
         "Provide party_id or create_party to add an organization.",
       );
+    }
+    if (dto.create_party) {
+      await this.assertAllowCreatePartyFromJob(tenantId, actorPermissions);
     }
 
     const partyId = await this.resolvePartyId(
@@ -123,6 +132,7 @@ export class JobOrganizationService {
       dto.create_party,
       actorId,
     );
+    await this.assertOrgPartyType(tenantId, dto.org_type, partyId);
 
     const isPrimary =
       dto.is_primary_customer ?? dto.org_type === JobPartyRole.CLIENT;
@@ -195,6 +205,21 @@ export class JobOrganizationService {
           } as Prisma.InputJsonValue,
         },
       });
+      if (dto.create_party) {
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            user_id: actorId ?? null,
+            action: "JOB_ORG_PARTY_CREATED",
+            entity: "JOB",
+            entity_id: jobId,
+            metadata: {
+              org_type: dto.org_type,
+              party_id: partyId,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      }
       return created;
     });
 
@@ -207,10 +232,14 @@ export class JobOrganizationService {
     orgType: JobPartyRole,
     dto: ReplaceJobOrganizationDto,
     actorId?: string,
+    actorPermissions?: string[],
   ) {
     await this.assertJob(tenantId, jobId);
     if (!dto.party_id && !dto.create_party) {
       throw new BadRequestException("Provide party_id or create_party.");
+    }
+    if (dto.create_party) {
+      await this.assertAllowCreatePartyFromJob(tenantId, actorPermissions);
     }
     const partyId = await this.resolvePartyId(
       tenantId,
@@ -218,6 +247,7 @@ export class JobOrganizationService {
       dto.create_party,
       actorId,
     );
+    await this.assertOrgPartyType(tenantId, orgType, partyId);
     const isPrimary =
       dto.is_primary_customer ?? orgType === JobPartyRole.CLIENT;
 
@@ -315,6 +345,7 @@ export class JobOrganizationService {
       if (orgType === JobPartyRole.SHIPPER) clear.shipper_id = null;
       if (orgType === JobPartyRole.CONSIGNEE) clear.consignee_id = null;
       if (orgType === JobPartyRole.AGENT) clear.agent_id = null;
+      if (orgType === JobPartyRole.OVERSEAS_AGENT) clear.overseas_agent_id = null;
       if (
         orgType === JobPartyRole.CLIENT ||
         orgType === JobPartyRole.BILLING_PARTY ||
@@ -574,6 +605,9 @@ export class JobOrganizationService {
     if (orgType === JobPartyRole.SHIPPER) data.shipper_id = partyId;
     if (orgType === JobPartyRole.CONSIGNEE) data.consignee_id = partyId;
     if (orgType === JobPartyRole.AGENT) data.agent_id = partyId;
+    if (orgType === JobPartyRole.OVERSEAS_AGENT) {
+      data.overseas_agent_id = partyId;
+    }
     if (
       orgType === JobPartyRole.CLIENT ||
       orgType === JobPartyRole.BILLING_PARTY ||
@@ -583,6 +617,45 @@ export class JobOrganizationService {
     }
     if (Object.keys(data).length) {
       await tx.job.update({ where: { id: jobId }, data });
+    }
+  }
+
+  private async assertOrgPartyType(
+    tenantId: string,
+    orgType: JobPartyRole,
+    partyId: string,
+  ) {
+    if (orgType !== JobPartyRole.OVERSEAS_AGENT) return;
+    const party = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.party.findFirst({
+        where: { id: partyId, tenant_id: tenantId, deleted_at: null },
+        select: { party_type: true },
+      }),
+    );
+    if (!party) throw new NotFoundException("Party not found.");
+    if (
+      !OVERSEAS_AGENT_PARTY_TYPES.includes(party.party_type as PartyType)
+    ) {
+      throw new BadRequestException(
+        "OVERSEAS_AGENT must be PartyType OVERSEAS_AGENT or AGENT.",
+      );
+    }
+  }
+
+  private async assertAllowCreatePartyFromJob(
+    tenantId: string,
+    actorPermissions?: string[],
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { allow_create_party_from_job: true },
+    });
+    if (tenant?.allow_create_party_from_job !== false) return;
+    const perms = actorPermissions ?? [];
+    if (!perms.includes(PARTIES_PERMISSIONS.CREATE)) {
+      throw new ForbiddenException(
+        "Inline party create from job is disabled. parties.create required.",
+      );
     }
   }
 
@@ -597,6 +670,7 @@ export class JobOrganizationService {
           consignee_id: true,
           billing_party_id: true,
           agent_id: true,
+          overseas_agent_id: true,
           status: true,
         },
       }),

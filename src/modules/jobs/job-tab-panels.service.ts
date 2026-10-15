@@ -9,6 +9,7 @@ import { ModeBookingFormService } from "./booking-forms/mode-booking-form.servic
 import { AirComplianceBookingFormService } from "./air-compliance-booking-form.service";
 import {
   PatchJobDepartmentDto,
+  PushRoutingToSubJobsDto,
   UpsertJobCustomsRefDto,
   UpsertJobExchangeRateDto,
   UpsertJobRoutingLegDto,
@@ -354,16 +355,140 @@ export class JobTabPanelsService {
       legs = [seeded];
     }
 
+    const isMaster = !job.parent_job_id;
     return {
       success: true,
       data: {
         legs,
-        actions: { add: true, update: true, delete: true },
+        actions: {
+          add: true,
+          update: true,
+          delete: true,
+          push_to_subjobs: isMaster,
+        },
         path_hints: {
           add: `/jobs/${jobId}/routing-legs`,
+          push_to_subjobs: `/jobs/${jobId}/routing-legs/push-to-subjobs`,
         },
       },
     };
+  }
+
+  /**
+   * Fresa "Update Sub Job Details" for routing: copy master legs onto houses.
+   */
+  async pushRoutingToSubJobs(
+    tenantId: string,
+    jobId: string,
+    dto: PushRoutingToSubJobsDto,
+    actorId?: string,
+  ) {
+    const job = await this.assertJob(tenantId, jobId);
+    if (job.parent_job_id) {
+      throw new BadRequestException(
+        "Routing push is only allowed from a master (root) job.",
+      );
+    }
+
+    const replaceAll = dto.replace_all !== false;
+    const includeHouses = dto.include_houses !== false;
+    const isSubJobOnly = dto.is_sub_job_only === true;
+    const syncHeader = dto.sync_header !== false;
+
+    if (!includeHouses && !isSubJobOnly) {
+      throw new BadRequestException(
+        "Select include_houses and/or is_sub_job_only.",
+      );
+    }
+
+    const result = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const masterLegs = await tx.jobRoutingLeg.findMany({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        orderBy: { leg_sequence: "asc" },
+      });
+      if (!masterLegs.length) {
+        throw new BadRequestException("Master job has no routing legs to push.");
+      }
+
+      const childWhere: Prisma.JobWhereInput = {
+        tenant_id: tenantId,
+        parent_job_id: jobId,
+        deleted_at: null,
+      };
+      if (isSubJobOnly) {
+        childWhere.is_sub_job = true;
+      }
+
+      const children = await tx.job.findMany({
+        where: childWhere,
+        select: { id: true, job_number: true, is_sub_job: true },
+      });
+
+      let legsCopied = 0;
+      let skipped = 0;
+      const targets: string[] = [];
+
+      for (const child of children) {
+        if (!includeHouses && !child.is_sub_job) {
+          skipped += 1;
+          continue;
+        }
+
+        if (replaceAll) {
+          await tx.jobRoutingLeg.updateMany({
+            where: {
+              tenant_id: tenantId,
+              job_id: child.id,
+              deleted_at: null,
+            },
+            data: { deleted_at: new Date() },
+          });
+        }
+
+        for (const leg of masterLegs) {
+          const created = await tx.jobRoutingLeg.create({
+            data: {
+              tenant_id: tenantId,
+              job_id: child.id,
+              leg_sequence: leg.leg_sequence,
+              transport_mode: leg.transport_mode,
+              port_id: leg.port_id,
+              origin_port_id: leg.origin_port_id,
+              dest_port_id: leg.dest_port_id,
+              etd: leg.etd,
+              eta: leg.eta,
+              carrier_id: leg.carrier_id,
+              vessel_name: leg.vessel_name,
+              voyage_number: leg.voyage_number,
+            },
+          });
+          if (syncHeader && created.leg_sequence === 1) {
+            await this.maybeSyncJobRoute(tx, child.id, created);
+          }
+          legsCopied += 1;
+        }
+        targets.push(child.id);
+      }
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_ROUTING_PUSH_TO_SUBJOBS",
+          entity: "JOB",
+          entity_id: jobId,
+          metadata: {
+            targets: targets.length,
+            legs_copied: legsCopied,
+            skipped,
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      return { targets: targets.length, legs_copied: legsCopied, skipped };
+    });
+
+    return { success: true, data: result };
   }
 
   async createRoutingLeg(

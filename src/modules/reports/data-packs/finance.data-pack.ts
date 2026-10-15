@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { OperationsFresaReportsService } from "../operations-fresa-reports.service";
 import { REPORT_ROW_LIMIT } from "../constants/reports.constants";
 import { loadReportBranding } from "../helpers/report-branding.helper";
 import { ReportDataset, ReportListRow } from "../types/report.types";
@@ -9,7 +10,10 @@ type Ctx = { party_id?: string; invoice_id?: string };
 
 @Injectable()
 export class FinanceDataPackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fresaOps: OperationsFresaReportsService,
+  ) {}
 
   supports(rendererKey: string): boolean {
     return rendererKey.startsWith("finance.");
@@ -25,6 +29,103 @@ export class FinanceDataPackService {
     const generated_at = new Date().toISOString();
 
     switch (rendererKey) {
+      case "finance.job_not_invoice_do":
+        return {
+          kind: "list",
+          title: "Job Not Invoiced Against DO Release",
+          columns: [
+            { key: "job_number", label: "Job #" },
+            { key: "job_type", label: "Type" },
+            { key: "status", label: "Status" },
+            { key: "do_issued_at", label: "DO Issued" },
+            { key: "uninvoiced_amount", label: "Uninvoiced" },
+            { key: "aging_days_since_do", label: "Aging Days" },
+          ],
+          rows: (await this.fresaOps.jobNotInvoicedDoRows(
+            tenantId,
+            parameters,
+          )) as ReportListRow[],
+          branding,
+          generated_at,
+        };
+      case "finance.job_finance_shipment_date":
+        return {
+          kind: "list",
+          title: "Job Finance Report (Shipment Date)",
+          columns: [
+            { key: "job_number", label: "Job #" },
+            { key: "shipment_numbers", label: "Shipments" },
+            { key: "shipment_date", label: "Shipment Date" },
+            { key: "revenue", label: "Revenue" },
+            { key: "cost", label: "Cost" },
+            { key: "gp", label: "GP" },
+            { key: "gp_percent", label: "GP %" },
+            { key: "uninvoiced_sale", label: "Uninvoiced Sale" },
+          ],
+          rows: (await this.fresaOps.jobFinanceRows(
+            tenantId,
+            parameters,
+          )) as ReportListRow[],
+          branding,
+          generated_at,
+        };
+      case "finance.exception_report":
+        return {
+          kind: "list",
+          title: "Job Exception Report",
+          columns: [
+            { key: "job_number", label: "Job #" },
+            { key: "job_type", label: "Type" },
+            { key: "status", label: "Status" },
+            { key: "rule", label: "Rule" },
+            { key: "detail", label: "Detail" },
+          ],
+          rows: (await this.fresaOps.exceptionRows(
+            tenantId,
+            parameters,
+          )) as ReportListRow[],
+          branding,
+          generated_at,
+        };
+      case "finance.kpi_status":
+        return {
+          kind: "list",
+          title: "KPI Status by Completed / Job Date",
+          columns: [
+            { key: "job_number", label: "Job #" },
+            { key: "status", label: "Status" },
+            { key: "job_date", label: "Job Date" },
+            { key: "completed_at", label: "Completed" },
+            { key: "milestone_pct", label: "Milestone %" },
+            { key: "on_time_ata", label: "On-time ATA" },
+          ],
+          rows: (await this.fresaOps.kpiStatusRows(
+            tenantId,
+            parameters,
+          )) as ReportListRow[],
+          branding,
+          generated_at,
+        };
+      case "finance.job_list_summary":
+        return {
+          kind: "list",
+          title: "Job List Summary",
+          columns: [
+            { key: "job_number", label: "Job #" },
+            { key: "job_type", label: "Type" },
+            { key: "status", label: "Status" },
+            { key: "chargeable_units", label: "Chargeable Units" },
+            { key: "revenue_total", label: "Revenue" },
+            { key: "cost_total", label: "Cost" },
+            { key: "gp_amount", label: "GP" },
+          ],
+          rows: (await this.fresaOps.jobListSummaryRows(
+            tenantId,
+            parameters,
+          )) as ReportListRow[],
+          branding,
+          generated_at,
+        };
       case "finance.aging":
       case "finance.soa":
         return {

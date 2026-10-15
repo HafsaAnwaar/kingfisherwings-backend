@@ -119,6 +119,40 @@ export class UpsertJobRoutingLegDto {
   voyage_number?: string;
 }
 
+export class PushRoutingToSubJobsDto {
+  @ApiPropertyOptional({
+    description: "Replace existing child legs before copy. Default true.",
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  replace_all?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Include house jobs (all parent_job_id children). Default true.",
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  include_houses?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Only push to is_sub_job children",
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  is_sub_job_only?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Sync child job header ports/ETD/ETA from leg 1",
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  sync_header?: boolean;
+}
+
 export class UpsertJobCustomsRefDto {
   @ApiPropertyOptional()
   @IsOptional()

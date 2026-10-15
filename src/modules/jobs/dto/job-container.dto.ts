@@ -222,6 +222,48 @@ export class SyncContainersFromSubJobsDto {
   @IsOptional()
   @IsBoolean()
   matching_only?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Include house jobs (parent_job_id children). Default true.",
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  include_houses?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Only children with is_sub_job=true",
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  is_sub_job_only?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      "After sync, roll up pieces/gross_weight/volume_cbm onto master job header",
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  rollup_header?: boolean;
+}
+
+export class PushContainersToSubJobsDto {
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  matching_only?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  include_houses?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  is_sub_job_only?: boolean;
 }
 
 export class UpdateJobDetailsFromContainerTabDto {

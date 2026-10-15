@@ -12,7 +12,11 @@
 | Costing | tab `costing`; `GET /jobs/:id/charges`; composite `POST .../charges/composite`; sale/cost PATCH; get-charges / get-job-charges; profit-share; vouchers (`auto_post`); sale/purchase invoices; custom-duty P&L — see [costing.md](./costing.md) |
 | Department | tab `department`; `PATCH /jobs/:id/department` |
 | Exchange rates | tab `ex_rate`; `POST /jobs/:id/exchange-rates`; `DELETE .../exchange-rates/:rateId` |
-| Routing | tab `routing`; `POST/PATCH/DELETE /jobs/:id/routing-legs` |
+| Routing | tab `routing`; `POST/PATCH/DELETE /jobs/:id/routing-legs`; `POST .../routing-legs/push-to-subjobs` |
+| Containers sync | `POST .../containers/sync-from-sub-jobs`, `POST .../containers/push-to-sub-jobs` |
+| Typed refs | `GET/PUT /jobs/:id/references`, `PUT .../references/:type` |
+| Closed overrides | `PATCH /jobs/:id/closed-overrides` |
+| Email recipients | `GET /jobs/:id/email-recipients/suggest` |
 | Customs / SB-BOE | tabs `customs` / `shipping_bill_boe`; `POST/PATCH/DELETE /jobs/:id/customs-refs` |
 | Shipment shared tabs | Same tabs/DTOs on `/shipments/:id/detail/:tab` (excl. history/booking_form/shipments); proxy when linked — see [shipment-detail.md](./shipment-detail.md) |
 | Booking form | tab `booking_form` (summary + completeness); mode forms under `/jobs/:id/{mode}/booking-form` |
@@ -36,6 +40,10 @@
 | Import Cargo Delivery | `GET/PATCH /operations/import-cargo-delivery` |
 | Ops dashboard | `GET /operations/dashboard` |
 | Closed job report | `GET /operations/closed-job-report`, download wrapper |
+| DO not invoiced | `GET/POST /operations/job-not-invoiced-do` (+ `/download`) |
+| Job finance report | `GET/POST /operations/job-finance-report` (+ `/download`) |
+| Exceptions / KPI | `GET/POST /operations/exceptions`, `kpi-status`, `job-list-summary` |
+| Voyage jobs+shipments | `GET /operations/voyage-jobs-shipments` |
 
 ## Mode-specific (job type)
 
