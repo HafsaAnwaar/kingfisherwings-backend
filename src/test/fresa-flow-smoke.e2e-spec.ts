@@ -314,8 +314,25 @@ describe("Fresa flow smoke (e2e)", () => {
       expect(costingTab.body.data?.actions?.get_job_charges).toBe(true);
       expect(costingTab.body.data?.lines?.length).toBeGreaterThan(0);
 
-      await request(app.getHttpServer())
+      const chargesList = await request(app.getHttpServer())
         .get(`/jobs/${jobId}/charges`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      const chargeRow = chargesList.body.data?.[0];
+      if (chargeRow) {
+        expect(chargeRow).toHaveProperty("prorated_status");
+        expect(chargeRow).toHaveProperty("charge");
+        expect(chargeRow).toHaveProperty("sale");
+        expect(chargeRow).toHaveProperty("cost");
+      }
+
+      await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/profit-share/calculator`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/profit-share/accounts`)
         .set("Authorization", `Bearer ${token}`)
         .expect(200);
 
@@ -329,11 +346,16 @@ describe("Fresa flow smoke (e2e)", () => {
         })
         .expect((res) => expect([200, 201]).toContain(res.status));
 
-      await request(app.getHttpServer())
+      const psPreview = await request(app.getHttpServer())
         .post(`/jobs/${jobId}/profit-share/preview`)
         .set("Authorization", `Bearer ${token}`)
         .send({ charge_code_id: chargeCodeId })
         .expect((res) => expect([200, 201]).toContain(res.status));
+      expect(psPreview.body.data).toHaveProperty("declared_sale_lines");
+      expect(psPreview.body.data).toHaveProperty("declared_cost_lines");
+      expect(psPreview.body.data).toHaveProperty("our_profit_share");
+      expect(psPreview.body.data).toHaveProperty("shipment_no");
+      expect(psPreview.body.data).toHaveProperty("calculator");
 
       await request(app.getHttpServer())
         .post(`/jobs/${jobId}/profit-share/add`)

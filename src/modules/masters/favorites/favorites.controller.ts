@@ -26,7 +26,11 @@ export class FavoritesController {
   constructor(private readonly service: FavoritesService) {}
 
   @Get()
-  @ApiOperation({ summary: "List current user favorites" })
+  @ApiOperation({
+    summary:
+      "List favorites (compat proxy → /favourites; prefer /favourites)",
+    deprecated: true,
+  })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") userId: string,

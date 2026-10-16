@@ -15,7 +15,8 @@ Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATI
 | Matrix | Status |
 |--------|--------|
 | [enquiry.md](./enquiry.md) | Match (5-step wizard + detail actions) |
-| [ops-continuum.md](./ops-continuum.md) | Match (shared side panels) |
+| [ops-continuum.md](./ops-continuum.md) | Match (shared side panels + comments) |
+| [favourites.md](./favourites.md) | Unified `/favourites` (+ masters proxy) |
 | [quotation.md](./quotation.md) | Match |
 | [quotation-detail.md](./quotation-detail.md) | Match (detail tabs + toolbar) |
 | [shipment.md](./shipment.md) | Match |
@@ -47,6 +48,7 @@ Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATI
 - Skeleton: `src/test/fresa-flow-smoke.e2e-spec.ts` (enquiry→quote→verify→approve→shipment→job). Requires `DATABASE_URL` with the parity migration applied.
 - Typed uploads: `src/test/typed-document-uploads.e2e-spec.ts` (staff HAWB → portal download; portal booking commercial_invoice → staff `uploader_side=CUSTOMER`; vendor upload → staff).
 - Wave 1 parity: `src/test/fresa-wave1-parity.e2e-spec.ts` (DO-not-invoiced, finance report, routing push, typed refs).
+- Continuum + favourites: `src/test/ops-continuum-favourites.e2e-spec.ts` (JOB comments, `/favourites/toggle`, detail path_hints).
 
 ## Parity legend
 

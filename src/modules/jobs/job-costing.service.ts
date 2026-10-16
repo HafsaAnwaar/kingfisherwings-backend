@@ -111,6 +111,8 @@ export class JobCostingService {
         get_job_charges: `/jobs/${jobId}/get-job-charges`,
         profit_share_preview: `/jobs/${jobId}/profit-share/preview`,
         profit_share_add: `/jobs/${jobId}/profit-share/add`,
+        profit_share_calculator: `/jobs/${jobId}/profit-share/calculator`,
+        profit_share_accounts: `/jobs/${jobId}/profit-share/accounts`,
         vouchers: `/jobs/${jobId}/vouchers`,
         generate_voucher: `/jobs/${jobId}/vouchers/generate`,
         sale_invoice: `/jobs/${jobId}/invoices/sale`,
@@ -131,13 +133,31 @@ export class JobCostingService {
 
   async listCharges(tenantId: string, jobId: string) {
     await this.assertJob(tenantId, jobId);
-    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+    const charges = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobCharge.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
         orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+        include: {
+          attachments: { where: { deleted_at: null } },
+          sale_voucher: { select: { id: true, voucher_number: true } },
+          cost_voucher: { select: { id: true, voucher_number: true } },
+        },
       }),
     );
-    return { success: true, data: rows };
+    const revCounts = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobChargeRevision.groupBy({
+        by: ["job_charge_id"],
+        where: { tenant_id: tenantId, job_id: jobId },
+        _count: { _all: true },
+      }),
+    );
+    const revMap = new Map(
+      revCounts.map((r) => [r.job_charge_id, r._count._all]),
+    );
+    return {
+      success: true,
+      data: charges.map((c) => this.mapGridLine(c, revMap.get(c.id) ?? 0)),
+    };
   }
 
   async addComposite(
@@ -856,6 +876,7 @@ export class JobCostingService {
             remarks: c.sale_remarks,
             attachments: saleAtt,
             voucher_no: c.sale_voucher?.voucher_number ?? null,
+            gross_profit: c.gp_amount,
           }
         : null,
       cost: c.cost_amount != null || c.is_cost

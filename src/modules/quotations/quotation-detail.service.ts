@@ -8,6 +8,10 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { QuotationsService } from "./quotations.service";
 import { quotationActionFlags } from "./quotation-action-flags";
 import { ChangeQuotationStatusDto } from "./dto/quotation-detail.dto";
+import {
+  opsContinuumActions,
+  opsContinuumPathHints,
+} from "../ops-activity/ops-continuum-path-hints";
 
 const DETAIL_TABS = ["info", "costing", "organization", "routing"] as const;
 export type QuotationDetailTab = (typeof DETAIL_TABS)[number];
@@ -36,6 +40,11 @@ export class QuotationDetailService {
           ...flags,
           can_copy: quote.status !== "CONVERTED",
           can_change_status: true,
+          ...opsContinuumActions(),
+          path_hints: {
+            ops_continuum: opsContinuumPathHints("QUOTATION", quote.id),
+            favourite_toggle: `/favourites/toggle`,
+          },
         },
         sections: this.buildSectionSummaries(quote),
         tabs: DETAIL_TABS,

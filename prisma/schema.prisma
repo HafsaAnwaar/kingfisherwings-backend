@@ -6697,6 +6697,23 @@ model OpsEntityLink {
   @@map("ops_entity_links")
 }
 
+/// Shared staff continuum comments (Enquiry / Quotation / Shipment / Job).
+model OpsEntityComment {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String        @db.Uuid
+  entity_type OpsEntityType
+  entity_id   String        @db.Uuid
+  body        String        @db.Text
+  created_at  DateTime      @default(now()) @db.Timestamptz
+  updated_at  DateTime      @updatedAt @db.Timestamptz
+  created_by  String?       @db.Uuid
+  updated_by  String?       @db.Uuid
+  deleted_at  DateTime?     @db.Timestamptz
+
+  @@index([tenant_id, entity_type, entity_id])
+  @@map("ops_entity_comments")
+}
+
 model OpsEntityLike {
   id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id   String        @db.Uuid

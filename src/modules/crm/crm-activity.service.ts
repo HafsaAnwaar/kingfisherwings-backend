@@ -27,6 +27,10 @@ import {
   allOperationsServices,
   visibleJobTypes,
 } from "../../common/constants/module-permission-tree";
+import {
+  opsContinuumActions,
+  opsContinuumPathHints,
+} from "../ops-activity/ops-continuum-path-hints";
 
 @Injectable()
 export class CrmActivityService {
@@ -576,6 +580,11 @@ export class CrmActivityService {
           can_generate_quotation: !enquiry.quotation_id && enquiry.status !== "CANCELLED",
           can_generate_shipment: enquiry.status !== "CANCELLED",
           can_generate_job: enquiry.status !== "CANCELLED",
+          ...opsContinuumActions(),
+          path_hints: {
+            ops_continuum: opsContinuumPathHints("ENQUIRY", enquiry.id),
+            favourite_toggle: `/favourites/toggle`,
+          },
         },
         sections: {
           organization: {

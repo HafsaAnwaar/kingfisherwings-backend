@@ -28,11 +28,13 @@ import { RolesGuard } from "../users/guards/roles.guard";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import {
   CreateOpsAttachmentMetaDto,
+  CreateOpsCommentDto,
   CreateOpsComplaintDto,
   CreateOpsFollowUpDto,
   CreateOpsLinkDto,
   CreateOpsReferenceDto,
   CreateOpsTagDto,
+  PatchOpsCommentDto,
   PatchOpsComplaintDto,
 } from "./dto/ops-activity.dto";
 import { OpsActivityService } from "./ops-activity.service";
@@ -356,6 +358,76 @@ export class OpsActivityController {
       entityId,
       complaintId,
       dto,
+      actorId,
+    );
+  }
+
+  @Get(":entityType/:entityId/comments")
+  @ApiOperation({ summary: "List shared staff comments on entity" })
+  listComments(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("entityType", new ParseEnumPipe(OpsEntityType))
+    entityType: OpsEntityType,
+    @Param("entityId", ParseUUIDPipe) entityId: string,
+  ) {
+    return this.service.listComments(tenantId, entityType, entityId);
+  }
+
+  @Post(":entityType/:entityId/comments")
+  @ApiOperation({ summary: "Add shared staff comment" })
+  addComment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("entityType", new ParseEnumPipe(OpsEntityType))
+    entityType: OpsEntityType,
+    @Param("entityId", ParseUUIDPipe) entityId: string,
+    @Body() dto: CreateOpsCommentDto,
+  ) {
+    return this.service.addComment(
+      tenantId,
+      entityType,
+      entityId,
+      dto,
+      actorId,
+    );
+  }
+
+  @Patch(":entityType/:entityId/comments/:commentId")
+  @ApiOperation({ summary: "Edit own continuum comment" })
+  patchComment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("entityType", new ParseEnumPipe(OpsEntityType))
+    entityType: OpsEntityType,
+    @Param("entityId", ParseUUIDPipe) entityId: string,
+    @Param("commentId", ParseUUIDPipe) commentId: string,
+    @Body() dto: PatchOpsCommentDto,
+  ) {
+    return this.service.patchComment(
+      tenantId,
+      entityType,
+      entityId,
+      commentId,
+      dto,
+      actorId,
+    );
+  }
+
+  @Delete(":entityType/:entityId/comments/:commentId")
+  @ApiOperation({ summary: "Soft-delete own continuum comment" })
+  removeComment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("entityType", new ParseEnumPipe(OpsEntityType))
+    entityType: OpsEntityType,
+    @Param("entityId", ParseUUIDPipe) entityId: string,
+    @Param("commentId", ParseUUIDPipe) commentId: string,
+  ) {
+    return this.service.removeComment(
+      tenantId,
+      entityType,
+      entityId,
+      commentId,
       actorId,
     );
   }

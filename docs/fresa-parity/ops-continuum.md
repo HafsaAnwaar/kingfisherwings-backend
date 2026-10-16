@@ -4,6 +4,7 @@ Shared side-panel APIs. `entityType` = `ENQUIRY` | `QUOTATION` | `SHIPMENT` | `J
 
 | Feature | Method | Path |
 |---|---|---|
+| Comments (shared staff) | GET/POST/PATCH/DELETE | `/ops/:entityType/:entityId/comments` (+ `/:commentId`) |
 | Follow-ups | GET/POST | `/ops/:entityType/:entityId/follow-ups` |
 | Attachments list | GET | `/ops/:entityType/:entityId/attachments` |
 | Attachments metadata | POST | `/ops/:entityType/:entityId/attachments` |
@@ -42,7 +43,12 @@ Ownership: customer must be party on enquiry/quote/shipment/job; vendor must hav
 
 `GET …/history` returns `AuditLog` rows (creates/updates + continuum actions).
 
+## FE path_hints
+
+Detail payloads expose `actions.path_hints.ops_continuum` (and `can_*` flags) via `opsContinuumPathHints` for enquiry / quotation / shipment / job. Favourites use `/favourites/toggle` (see [favourites.md](./favourites.md)); continuum **likes** remain separate.
+
 ## Notes
 
 - Existing `GET/POST /crm/follow-ups` still works for CRM calendar; continuum path is preferred on the entity screen.
-- Migration: `20261009180000_ops_attachment_visibility`.
+- Migration: `20261009180000_ops_attachment_visibility`, `20261016120000_ops_entity_comments`.
+- Job notes (`/jobs/:id/notes`) are legacy and separate from continuum comments.
