@@ -15,6 +15,10 @@ import { PRIORITY_PACKS_SEED } from "./seed/priority-packs.seed";
 import { resolveRendererKeyForCode } from "./constants/renderer-bind-map";
 import { canAccessReportFamily } from "./constants/report-family-module-map";
 import { normalizeEnabledModules } from "../../common/constants/tenant-enabled-modules";
+import {
+  favouriteActions,
+  favouriteTarget,
+} from "../favourites/favourite-actions";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -258,6 +262,11 @@ export class ReportsTemplatesService {
   }
 
   private toListItem(t: ReportTemplate) {
+    const fav = favouriteActions(
+      "report_template",
+      favouriteTarget("report_template", t.code),
+      t.name,
+    );
     return {
       id: t.id,
       code: t.code,
@@ -267,6 +276,18 @@ export class ReportsTemplatesService {
       formats: t.formats,
       description: t.description,
       is_active: t.is_active,
+      actions: {
+        can_edit: true,
+        can_delete: false,
+        can_generate: t.is_active,
+        ...fav,
+      },
+      favourite: fav.favourite,
+      path_hints: {
+        generate: "/reports/generate",
+        detail: `/reports/templates/${t.code}`,
+        ...fav.path_hints,
+      },
     };
   }
 

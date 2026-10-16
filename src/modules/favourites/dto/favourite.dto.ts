@@ -17,6 +17,9 @@ export const FAVOURITE_KINDS = [
   "job",
   "report_template",
   "report",
+  "document",
+  "custom_report",
+  "saved_report",
   "menu",
   "party",
   "other",
@@ -37,7 +40,7 @@ export class CreateFavouriteDto {
   @ApiProperty({
     example: "job:550e8400-e29b-41d4-a716-446655440000",
     description:
-      "Stable key — entities: `{kind}:{uuid}`; reports: `report_template:{code}`; menu: `menu:{route_key}`",
+      "Stable key — entities: `{kind}:{uuid}`; report formats: `report_template:{code}`; docs: `document:{code}`; menu: `menu:{route_key}`",
   })
   @IsString()
   @Length(1, 200)
@@ -88,13 +91,16 @@ export class FavouriteQueryDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ default: 50 })
+  @ApiPropertyOptional({
+    default: 500,
+    description: "Cap. Omit page to load the full Favourites section at once.",
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
-  limit?: number = 50;
+  @Max(2000)
+  limit?: number = 500;
 
   @ApiPropertyOptional({ enum: FAVOURITE_KINDS })
   @IsOptional()

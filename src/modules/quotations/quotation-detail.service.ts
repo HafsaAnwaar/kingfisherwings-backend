@@ -12,6 +12,7 @@ import {
   opsContinuumActions,
   opsContinuumPathHints,
 } from "../ops-activity/ops-continuum-path-hints";
+import { MasterLabelService } from "../masters/master-label.service";
 
 const DETAIL_TABS = ["info", "costing", "organization", "routing"] as const;
 export type QuotationDetailTab = (typeof DETAIL_TABS)[number];
@@ -25,6 +26,7 @@ export class QuotationDetailService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quotations: QuotationsService,
+    private readonly labels: MasterLabelService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -34,7 +36,7 @@ export class QuotationDetailService {
     return {
       success: true,
       data: {
-        quotation: this.headerPayload(quote),
+        quotation: await this.headerPayload(tenantId, quote),
         links,
         actions: {
           ...flags,
@@ -46,7 +48,7 @@ export class QuotationDetailService {
             favourite_toggle: `/favourites/toggle`,
           },
         },
-        sections: this.buildSectionSummaries(quote),
+        sections: await this.buildSectionSummaries(tenantId, quote),
         tabs: DETAIL_TABS,
       },
     };
@@ -61,7 +63,7 @@ export class QuotationDetailService {
     }
     const quote = await this.loadQuotation(tenantId, id);
     if (normalized === "info") {
-      return { success: true, data: this.headerPayload(quote) };
+      return { success: true, data: await this.headerPayload(tenantId, quote) };
     }
     if (normalized === "costing") {
       return {
@@ -80,7 +82,7 @@ export class QuotationDetailService {
     if (normalized === "organization") {
       return {
         success: true,
-        data: {
+        data: await this.labels.enrichOne(tenantId, {
           company_id: quote.company_id,
           branch_id: quote.branch_id,
           department_id: quote.department_id,
@@ -90,12 +92,12 @@ export class QuotationDetailService {
           shipper_id: quote.shipper_id,
           consignee_id: quote.consignee_id,
           carrier_id: quote.carrier_id,
-        },
+        }),
       };
     }
     return {
       success: true,
-      data: {
+      data: await this.labels.enrichOne(tenantId, {
         origin_port_id: quote.origin_port_id,
         dest_port_id: quote.dest_port_id,
         por_port_id: quote.por_port_id,
@@ -109,7 +111,7 @@ export class QuotationDetailService {
         transit_time_days: quote.transit_time_days,
         routing_notes: quote.routing_notes,
         carrier_preference: quote.carrier_preference,
-      },
+      }),
     };
   }
 
@@ -190,15 +192,17 @@ export class QuotationDetailService {
     return quote;
   }
 
-  private headerPayload(quote: QuotationWithLines) {
-    return {
+  private headerPayload(tenantId: string, quote: QuotationWithLines) {
+    return this.labels.enrichOne(tenantId, {
       id: quote.id,
       quotation_number: quote.quotation_number,
       quotation_date: quote.quotation_date,
       status: quote.status,
       job_type: quote.job_type,
+      company_id: quote.company_id,
       branch_id: quote.branch_id,
       department_id: quote.department_id,
+      salesperson_id: quote.salesperson_id,
       customer_id: quote.customer_id,
       customer_address: quote.customer_address,
       origin_port_id: quote.origin_port_id,
@@ -224,21 +228,30 @@ export class QuotationDetailService {
       source_enquiry_id: quote.source_enquiry_id,
       converted_shipment_id: quote.converted_shipment_id,
       converted_job_id: quote.converted_job_id,
-    };
+      shipper_id: quote.shipper_id,
+      consignee_id: quote.consignee_id,
+    });
   }
 
-  private buildSectionSummaries(quote: QuotationWithLines) {
-    return {
-      costing: { line_count: quote.lines.length },
-      organization: {
+  private async buildSectionSummaries(
+    tenantId: string,
+    quote: QuotationWithLines,
+  ) {
+    const [organization, routing] = await Promise.all([
+      this.labels.enrichOne(tenantId, {
         company_id: quote.company_id,
         branch_id: quote.branch_id,
         department_id: quote.department_id,
-      },
-      routing: {
+      }),
+      this.labels.enrichOne(tenantId, {
         por_port_id: quote.por_port_id,
         pof_port_id: quote.pof_port_id,
-      },
+      }),
+    ]);
+    return {
+      costing: { line_count: quote.lines.length },
+      organization,
+      routing,
     };
   }
 

@@ -5,6 +5,7 @@ import { QueueModule } from "../../shared/queue/queue.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { PartiesModule } from "../parties/parties.module";
+import { MastersModule } from "../masters/masters.module";
 import { DocumentationEdiService } from "../documentation/documentation-edi.service";
 import { OpsActivityModule } from "../ops-activity/ops-activity.module";
 import { ShipmentsController } from "./shipments.controller";
@@ -26,6 +27,7 @@ import { ShipmentEdiService } from "./shipment-edi.service";
     QueueModule,
     StorageModule,
     PartiesModule,
+    MastersModule,
     OpsActivityModule,
     forwardRef(() => JobsModule),
   ],

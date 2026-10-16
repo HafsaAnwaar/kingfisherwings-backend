@@ -24,6 +24,10 @@ import {
   UpdateCustomReportMasterDto,
 } from "../dto/custom-report-master.dto";
 import { CustomReportMastersService } from "./custom-reports.service";
+import {
+  favouriteActions,
+  favouriteTarget,
+} from "../../favourites/favourite-actions";
 
 @ApiTags("Masters — Custom Reports")
 @ApiBearerAuth()
@@ -35,21 +39,26 @@ export class CustomReportMastersController {
   @Get()
   @RequirePermissions(MASTERS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "list custom report masters" })
-  findAll(
+  async findAll(
     @CurrentUser("tenantId") tenantId: string,
     @Query() query: MasterQueryDto,
   ) {
-    return this.service.findAll(tenantId, query);
+    const result = await this.service.findAll(tenantId, query);
+    return {
+      ...result,
+      data: result.data.map((row) => this.withFavourite(row)),
+    };
   }
 
   @Get(":id")
   @RequirePermissions(MASTERS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "Get a record by id" })
-  findOne(
+  async findOne(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id);
+    const row = await this.service.findOne(tenantId, id);
+    return this.withFavourite(row);
   }
 
   @Post()
@@ -85,5 +94,27 @@ export class CustomReportMastersController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     await this.service.softDelete(tenantId, id, actorId);
+  }
+
+  private withFavourite(row: {
+    id: string;
+    code?: string | null;
+    name?: string | null;
+  }) {
+    const fav = favouriteActions(
+      "custom_report",
+      favouriteTarget("custom_report", row.id),
+      row.name ?? row.code ?? null,
+    );
+    return {
+      ...row,
+      actions: {
+        can_edit: true,
+        can_delete: true,
+        ...fav,
+      },
+      favourite: fav.favourite,
+      path_hints: fav.path_hints,
+    };
   }
 }

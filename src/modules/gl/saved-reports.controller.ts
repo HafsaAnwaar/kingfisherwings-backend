@@ -24,6 +24,10 @@ import {
   SavedReportQueryDto,
   UpdateSavedReportDto,
 } from "./dto/financial-reports.dto";
+import {
+  favouriteActions,
+  favouriteTarget,
+} from "../favourites/favourite-actions";
 
 @ApiTags("GL — My Reports")
 @ApiBearerAuth()
@@ -37,22 +41,24 @@ export class SavedReportsController {
   @ApiOperation({
     summary: "List saved / shared report configurations (Ch.23 My Reports)",
   })
-  findAll(
+  async findAll(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") userId: string,
     @Query() query: SavedReportQueryDto,
   ) {
-    return this.service.findAll(tenantId, userId, query);
+    const rows = await this.service.findAll(tenantId, userId, query);
+    return rows.map((row) => this.withFavourite(row));
   }
 
   @Get(":id")
   @RequirePermissions(GL_PERMISSIONS.VIEW_REPORTS)
   @ApiOperation({ summary: "Get a saved report by id" })
-  findOne(
+  async findOne(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id);
+    const row = await this.service.findOne(tenantId, id);
+    return this.withFavourite(row);
   }
 
   @Post()
@@ -88,5 +94,23 @@ export class SavedReportsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     await this.service.softDelete(tenantId, id, actorId);
+  }
+
+  private withFavourite(row: { id: string; name?: string | null }) {
+    const fav = favouriteActions(
+      "saved_report",
+      favouriteTarget("saved_report", row.id),
+      row.name ?? null,
+    );
+    return {
+      ...row,
+      actions: {
+        can_edit: true,
+        can_delete: true,
+        ...fav,
+      },
+      favourite: fav.favourite,
+      path_hints: fav.path_hints,
+    };
   }
 }

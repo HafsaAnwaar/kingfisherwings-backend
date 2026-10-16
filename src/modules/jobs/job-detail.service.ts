@@ -35,6 +35,7 @@ import {
   opsContinuumActions,
   opsContinuumPathHints,
 } from "../ops-activity/ops-continuum-path-hints";
+import { MasterLabelService } from "../masters/master-label.service";
 
 const DETAIL_TABS = [
   "show_all",
@@ -73,6 +74,7 @@ export class JobDetailService {
     private readonly tabPanels: JobTabPanelsService,
     private readonly documentEmail: DocumentEmailService,
     private readonly timeline: EntityTimelineService,
+    private readonly labels: MasterLabelService,
   ) {}
 
   async getDetail(tenantId: string, id: string, permissions?: string[]) {
@@ -81,7 +83,7 @@ export class JobDetailService {
     return {
       success: true,
       data: {
-        job: this.headerPayload(job),
+        job: await this.headerPayload(tenantId, job),
         links,
         actions: this.actionFlags(job, permissions),
         sections: await this.sectionSummaries(tenantId, job),
@@ -100,7 +102,7 @@ export class JobDetailService {
     const job = await this.loadJob(tenantId, id);
 
     if (normalized === "show_all" || normalized === "info") {
-      return { success: true, data: this.headerPayload(job) };
+      return { success: true, data: await this.headerPayload(tenantId, job) };
     }
     if (normalized === "organization") {
       return this.organizations.getTab(tenantId, id);
@@ -577,9 +579,12 @@ export class JobDetailService {
     return job;
   }
 
-  private headerPayload(job: Awaited<ReturnType<typeof this.loadJob>>) {
+  private async headerPayload(
+    tenantId: string,
+    job: Awaited<ReturnType<typeof this.loadJob>>,
+  ) {
     const sea = job.sea_fcl_details;
-    return {
+    return this.labels.enrichOne(tenantId, {
       id: job.id,
       job_number: job.job_number,
       status: job.status,
@@ -588,6 +593,8 @@ export class JobDetailService {
       branch_id: job.branch_id,
       department_id: job.department_id,
       company_id: job.company_id,
+      salesperson_id: job.salesperson_id,
+      ops_user_id: job.ops_user_id,
       shipper_id: job.shipper_id,
       consignee_id: job.consignee_id,
       billing_party_id: job.billing_party_id,
@@ -605,7 +612,7 @@ export class JobDetailService {
       created_from_quote_id: job.created_from_quote_id,
       parent_job_id: job.parent_job_id,
       tracking_token: job.tracking_token,
-    };
+    });
   }
 
   private actionFlags(

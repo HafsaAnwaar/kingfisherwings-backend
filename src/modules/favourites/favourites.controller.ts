@@ -29,7 +29,8 @@ export class FavouritesController {
 
   @Get()
   @ApiOperation({
-    summary: "List current user favourites (Favourites section)",
+    summary:
+      "List all current-user favourites at once (grouped by kind). Star reports/docs/jobs via POST /favourites/toggle — not Masters.",
   })
   list(
     @CurrentUser("tenantId") tenantId: string,

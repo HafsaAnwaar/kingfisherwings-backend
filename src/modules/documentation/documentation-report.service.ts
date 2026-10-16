@@ -6,6 +6,10 @@ import {
   DocumentationPaginationDto,
   paginated,
 } from "./dto/documentation-pagination.dto";
+import {
+  favouriteActions,
+  favouriteTarget,
+} from "../favourites/favourite-actions";
 
 export class DocumentationReportQueryDto extends DocumentationPaginationDto {
   branch_id?: string;
@@ -19,6 +23,30 @@ export class DocumentationReportService {
   constructor(private readonly prisma: PrismaService) {}
 
   listReports() {
+    const withFavourite = (
+      item: Record<string, unknown> & { code: string; name: string; path: string },
+    ) => {
+      const kind = item.report_template ? "report_template" : "document";
+      const key = item.report_template
+        ? favouriteTarget("report_template", String(item.report_template))
+        : favouriteTarget("document", item.code);
+      const fav = favouriteActions(kind, key, item.name);
+      return {
+        ...item,
+        actions: {
+          can_edit: false,
+          can_delete: false,
+          can_open: true,
+          ...fav,
+        },
+        favourite: fav.favourite,
+        path_hints: {
+          open: item.path,
+          ...fav.path_hints,
+        },
+      };
+    };
+
     return {
       items: [
         { code: "eta-followup", name: "ETA Follow-up", path: "/documentation/reports/eta-followup" },
@@ -74,7 +102,7 @@ export class DocumentationReportService {
           report_template: "OPS_LIST_REPORT_FORMAT_1",
           note: "Use report catalog templates (DSR_*, OPS_LIST_*, JOB_CARD_REPORT_FORMAT) via POST /reports/generate",
         },
-      ],
+      ].map(withFavourite),
     };
   }
 

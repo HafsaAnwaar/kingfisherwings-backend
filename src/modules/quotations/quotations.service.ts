@@ -343,7 +343,7 @@ export class QuotationsService {
       ]);
 
       return {
-        data,
+        data: await this.masterLabels.enrichRows(tenantId, data, tx),
         meta: {
           page: query.page,
           limit: query.limit,
@@ -386,7 +386,7 @@ export class QuotationsService {
       ]);
 
       return {
-        data,
+        data: await this.masterLabels.enrichRows(tenantId, data, tx),
         meta: {
           page: query.page,
           limit: query.limit,
@@ -575,6 +575,35 @@ export class QuotationsService {
         total_amount: totals.total_amount,
         negotiation_pricing: buildNegotiationPricingView(quotation),
         actions: quotationActionFlags(quotation.status),
+        ...this.masterLabels.displayOverlay(
+          await this.masterLabels.resolveDisplayMaps(
+            tenantId,
+            {
+              company_ids: [quotation.company_id],
+              branch_ids: [quotation.branch_id],
+              department_ids: [quotation.department_id],
+              user_ids: [quotation.salesperson_id],
+              party_ids: [
+                quotation.shipper_id,
+                quotation.consignee_id,
+                quotation.carrier_id,
+              ],
+              port_ids: [quotation.por_port_id, quotation.pof_port_id],
+            },
+            tx,
+          ),
+          {
+            company_id: quotation.company_id,
+            branch_id: quotation.branch_id,
+            department_id: quotation.department_id,
+            salesperson_id: quotation.salesperson_id,
+            shipper_id: quotation.shipper_id,
+            consignee_id: quotation.consignee_id,
+            carrier_id: quotation.carrier_id,
+            por_port_id: quotation.por_port_id,
+            pof_port_id: quotation.pof_port_id,
+          },
+        ),
       };
     });
   }

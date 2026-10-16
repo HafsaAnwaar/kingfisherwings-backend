@@ -16,7 +16,7 @@ Living docs for 1A backend parity with [OPERATION TRAINING_BLOGS.pdf](../OPERATI
 |--------|--------|
 | [enquiry.md](./enquiry.md) | Match (5-step wizard + detail actions) |
 | [ops-continuum.md](./ops-continuum.md) | Match (shared side panels + comments) |
-| [favourites.md](./favourites.md) | Unified `/favourites` (+ masters proxy) |
+| [favourites.md](./favourites.md) | Unified `/favourites` (reports/docs/jobs; not Masters) |
 | [quotation.md](./quotation.md) | Match |
 | [quotation-detail.md](./quotation-detail.md) | Match (detail tabs + toolbar) |
 | [shipment.md](./shipment.md) | Match |
