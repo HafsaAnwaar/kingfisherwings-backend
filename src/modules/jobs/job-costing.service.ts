@@ -101,6 +101,7 @@ export class JobCostingService {
         generate_voucher: true,
         generate_sale_invoice: true,
         generate_purchase_invoice: true,
+        generate_bulk_purchase_invoice: true,
         job_profit_sheet: true,
         job_profit_sheet_custom_duty: true,
         costing_history: true,
@@ -117,6 +118,7 @@ export class JobCostingService {
         generate_voucher: `/jobs/${jobId}/vouchers/generate`,
         sale_invoice: `/jobs/${jobId}/invoices/sale`,
         purchase_invoice: `/jobs/${jobId}/invoices/purchase`,
+        bulk_purchase_invoice: `/jobs/${jobId}/invoices/purchase/bulk`,
         pnl: `/jobs/${jobId}/pnl`,
         pnl_custom_duty: `/jobs/${jobId}/pnl/custom-duty`,
         history: `/jobs/${jobId}/charges/history`,
@@ -581,6 +583,186 @@ export class JobCostingService {
       dto.charge_ids,
       actorId,
     );
+  }
+
+  /**
+   * Fresa Generate Bulk PI dialog: vouchers + pending cost lines grouped by vendor.
+   */
+  async previewBulkPurchaseInvoice(tenantId: string, jobId: string) {
+    await this.assertJob(tenantId, jobId);
+
+    const vouchersRes = await this.listVouchers(tenantId, jobId);
+    const charges = await this.invoices.findPendingPurchaseCharges(
+      tenantId,
+      jobId,
+    );
+
+    const vendorIds = [
+      ...new Set(
+        charges
+          .map((c) => c.cost_party_id ?? c.party_id)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+
+    const [parties, shipments, jobMeta] = await this.prisma.runWithTenant(
+      tenantId,
+      async (tx) => {
+        const partyRows = vendorIds.length
+          ? await tx.party.findMany({
+              where: { tenant_id: tenantId, id: { in: vendorIds } },
+              select: { id: true, name: true, code: true },
+            })
+          : [];
+        const shipmentRows = await tx.shipment.findMany({
+          where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+          orderBy: { created_at: "asc" },
+          select: {
+            shipment_number: true,
+            mbl_number: true,
+            hbl_number: true,
+          },
+        });
+        const job = await tx.job.findFirst({
+          where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+          select: {
+            job_number: true,
+            sea_fcl_details: {
+              select: { mbl_number: true, hbl_number: true },
+            },
+            sea_lcl_details: {
+              select: { mbl_number: true, hbl_number: true },
+            },
+            air_details: {
+              select: { mawb_number: true, hawb_number: true },
+            },
+            nvocc_details: {
+              select: { mbl_number: true, hbl_number: true },
+            },
+          },
+        });
+        return [partyRows, shipmentRows, job] as const;
+      },
+    );
+
+    const partyMap = new Map(parties.map((p) => [p.id, p]));
+    const primaryShipment = shipments[0] ?? null;
+    const blNo =
+      primaryShipment?.mbl_number ??
+      primaryShipment?.hbl_number ??
+      jobMeta?.sea_fcl_details?.mbl_number ??
+      jobMeta?.sea_lcl_details?.mbl_number ??
+      jobMeta?.nvocc_details?.mbl_number ??
+      jobMeta?.air_details?.mawb_number ??
+      jobMeta?.sea_fcl_details?.hbl_number ??
+      jobMeta?.sea_lcl_details?.hbl_number ??
+      jobMeta?.air_details?.hawb_number ??
+      null;
+    const shipmentNo =
+      primaryShipment?.shipment_number ?? jobMeta?.job_number ?? null;
+
+    type Group = {
+      vendor_id: string | null;
+      vendor_name: string | null;
+      reference_no: string | null;
+      currency: string;
+      lines: Array<{
+        charge_id: string;
+        shipment_no: string | null;
+        bl_no: string | null;
+        line_no: number | null;
+        description: string;
+        quantity: number | null;
+        unit: string | null;
+        currency: string;
+        ex_rate: number;
+        amount: number;
+        fcy_amount: number | null;
+        amount_local: number;
+        ofd_type: string | null;
+        pp_cc: string | null;
+        remarks: string | null;
+      }>;
+      shipment_total: number;
+      group_total: number;
+    };
+
+    const groupsMap = new Map<string, Group>();
+    for (const c of charges) {
+      const vendorId = c.cost_party_id ?? c.party_id ?? null;
+      const currency = c.cost_currency ?? c.currency_code;
+      const key = `${vendorId ?? "none"}::${currency}`;
+      const amount = Number(c.cost_amount ?? c.amount);
+      const exRate = Number(c.cost_ex_rate ?? c.exchange_rate ?? 1);
+      const fcy =
+        c.cost_fcy_amount != null ? Number(c.cost_fcy_amount) : null;
+      const amountLocal = Math.round(amount * exRate * 10000) / 10000;
+      const party = vendorId ? partyMap.get(vendorId) : null;
+      const ref = c.cost_reference_no ?? null;
+
+      let group = groupsMap.get(key);
+      if (!group) {
+        group = {
+          vendor_id: vendorId,
+          vendor_name: party?.name ?? null,
+          reference_no: ref,
+          currency,
+          lines: [],
+          shipment_total: 0,
+          group_total: 0,
+        };
+        groupsMap.set(key, group);
+      } else if (!group.reference_no && ref) {
+        group.reference_no = ref;
+      }
+
+      group.lines.push({
+        charge_id: c.id,
+        shipment_no: shipmentNo,
+        bl_no: blNo,
+        line_no: c.line_no,
+        description: c.description,
+        quantity: c.quantity != null ? Number(c.quantity) : null,
+        unit: c.unit,
+        currency,
+        ex_rate: exRate,
+        amount,
+        fcy_amount: fcy,
+        amount_local: amountLocal,
+        ofd_type: c.ofd_type,
+        pp_cc: c.pp_cc,
+        remarks: c.cost_remarks ?? c.remarks,
+      });
+      group.shipment_total += amountLocal;
+      group.group_total += amountLocal;
+    }
+
+    const groups = [...groupsMap.values()];
+    const grand_total = groups.reduce((s, g) => s + g.group_total, 0);
+
+    return {
+      success: true,
+      data: {
+        vouchers: vouchersRes.data,
+        groups,
+        grand_total,
+      },
+    };
+  }
+
+  async createBulkPurchaseInvoice(
+    tenantId: string,
+    jobId: string,
+    dto: JobInvoiceFromChargesDto,
+    actorId?: string,
+  ) {
+    const invoices = await this.invoices.createBulkPurchaseFromJob(
+      tenantId,
+      jobId,
+      dto.charge_ids,
+      actorId,
+    );
+    return { success: true, data: { invoices } };
   }
 
   async getHistory(tenantId: string, jobId: string, chargeId?: string) {

@@ -41,7 +41,17 @@ Ownership: customer must be party on enquiry/quote/shipment/job; vendor must hav
 
 ## History
 
-`GET …/history` returns `AuditLog` rows (creates/updates + continuum actions).
+`GET …/history` returns a **unified timeline** (`data.events[]`):
+
+| Field | Meaning |
+|-------|---------|
+| `at` | ISO date/time |
+| `action` / `summary` | Machine + human-readable what happened |
+| `actor.id` / `actor.name` | Staff who did it |
+| `source` | `AUDIT` \| `COSTING` \| `STATUS` \| `ENTITY` |
+| `old_values` / `new_values` | Before/after when available |
+
+Job timeline also merges costing revisions; quotation merges `quotation_status_history`. Same shape as `GET /jobs/:id/detail/history` and `GET /shipments/:id/detail/history`.
 
 ## FE path_hints
 

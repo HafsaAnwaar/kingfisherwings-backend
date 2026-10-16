@@ -6,10 +6,12 @@ import { StorageModule } from "../../shared/storage/storage.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { PartiesModule } from "../parties/parties.module";
 import { DocumentationEdiService } from "../documentation/documentation-edi.service";
+import { OpsActivityModule } from "../ops-activity/ops-activity.module";
 import { ShipmentsController } from "./shipments.controller";
 import { ShipmentsService } from "./shipments.service";
 import { ShipmentDetailService } from "./shipment-detail.service";
 import { ShipmentTabParityService } from "./shipment-tab-parity.service";
+import { ShipmentEdiService } from "./shipment-edi.service";
 
 /**
  * Avoid importing DocumentationModule here: it imports JobsModule, and JobsModule
@@ -24,6 +26,7 @@ import { ShipmentTabParityService } from "./shipment-tab-parity.service";
     QueueModule,
     StorageModule,
     PartiesModule,
+    OpsActivityModule,
     forwardRef(() => JobsModule),
   ],
   controllers: [ShipmentsController],
@@ -31,8 +34,14 @@ import { ShipmentTabParityService } from "./shipment-tab-parity.service";
     ShipmentsService,
     ShipmentDetailService,
     ShipmentTabParityService,
+    ShipmentEdiService,
     DocumentationEdiService,
   ],
-  exports: [ShipmentsService, ShipmentDetailService, ShipmentTabParityService],
+  exports: [
+    ShipmentsService,
+    ShipmentDetailService,
+    ShipmentTabParityService,
+    ShipmentEdiService,
+  ],
 })
 export class ShipmentsModule {}

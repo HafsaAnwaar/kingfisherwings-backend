@@ -20,7 +20,7 @@ Same as shipment where applicable: `show_all`, `info`, `organization`, `dimensio
 | `ex_rate` | Persisted `job_exchange_rates` (+ charge-derived); upsert/delete APIs |
 | `routing` | Multi-leg `job_routing_legs` CRUD |
 | `customs` / `shipping_bill_boe` | `job_customs_refs` CRUD (SB/BOE/house/status) |
-| `history` | AuditLog rows for entity JOB |
+| `history` | Unified timeline: create, status, costing revisions, continuum actions — with staff name, date/time |
 | `booking_form` | Live form summary + `is_complete` + path hints to mode/air routes |
 | `shipments` | Shipments attached to this job |
 
@@ -44,6 +44,19 @@ See also [job-fe-shell.md](./job-fe-shell.md) for FE wiring checklist.
 | Docs (untyped continuum) | `/ops/JOB/:id/attachments` (bidirectional visibility) |
 
 Detail `actions` also exposes path hints for switch-BL, BL entry, AWB, tracking, EDI.
+
+## Generate EDI (job)
+
+EDI = Electronic Data Interchange (customs/carrier file), not purchase invoice.
+
+| Action | Method | Path |
+|---|---|---|
+| Eligible types | GET | `/jobs/:id/edi/types` |
+| Generate | POST | `/jobs/:id/edi/generate` body `{ edi_type }` |
+| List submissions | GET | `/jobs/:id/edi/submissions` |
+| Download | GET | `/jobs/:id/edi/submissions/:submissionId/download` |
+
+Detail `actions.can_edi` is true when any type is eligible; `actions.edi_types` lists them. Path hints: `edi_types`, `edi_generate`, `edi_submissions`. Delegates to documentation EDI stub payloads.
 
 Public track path hint is `/track?ref={tracking_token}` (path form `/track/{token}` also works). Staff job/search list matches container numbers via `JobContainer` (`containers_job`) as well as BL/AWB/shipment refs.
 

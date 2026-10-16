@@ -23,6 +23,7 @@ import {
   PatchOpsCommentDto,
   PatchOpsComplaintDto,
 } from "./dto/ops-activity.dto";
+import { EntityTimelineService } from "./entity-timeline.service";
 
 export type OpsAttachmentAudience = "STAFF" | "CUSTOMER" | "VENDOR";
 
@@ -31,6 +32,7 @@ export class OpsActivityService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly timeline: EntityTimelineService,
   ) {}
 
   private async assertEntityExists(
@@ -985,20 +987,7 @@ export class OpsActivityService {
     entityType: OpsEntityType,
     entityId: string,
   ) {
-    await this.assertEntityExists(tenantId, entityType, entityId);
-    const entities = [entityType, entityType.toLowerCase(), `Ops${entityType}`];
-    const data = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.auditLog.findMany({
-        where: {
-          tenant_id: tenantId,
-          entity_id: entityId,
-          OR: entities.map((e) => ({ entity: { equals: e, mode: "insensitive" } })),
-        },
-        orderBy: { created_at: "desc" },
-        take: 200,
-      }),
-    );
-    return { success: true, data };
+    return this.timeline.getTimeline(tenantId, entityType, entityId);
   }
 
   private async writeHistory(

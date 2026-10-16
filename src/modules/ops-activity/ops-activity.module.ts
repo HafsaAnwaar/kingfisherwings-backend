@@ -6,6 +6,7 @@ import { PortalAuthGuard } from "../portal/guards/portal-auth.guard";
 import { VendorAuthGuard } from "../vendor/guards/vendor-auth.guard";
 import { OpsActivityController } from "./ops-activity.controller";
 import { OpsActivityService } from "./ops-activity.service";
+import { EntityTimelineService } from "./entity-timeline.service";
 import { PortalOpsActivityController } from "./portal-ops-activity.controller";
 import { VendorOpsActivityController } from "./vendor-ops-activity.controller";
 
@@ -16,7 +17,12 @@ import { VendorOpsActivityController } from "./vendor-ops-activity.controller";
     PortalOpsActivityController,
     VendorOpsActivityController,
   ],
-  providers: [OpsActivityService, PortalAuthGuard, VendorAuthGuard],
-  exports: [OpsActivityService],
+  providers: [
+    OpsActivityService,
+    EntityTimelineService,
+    PortalAuthGuard,
+    VendorAuthGuard,
+  ],
+  exports: [OpsActivityService, EntityTimelineService],
 })
 export class OpsActivityModule {}

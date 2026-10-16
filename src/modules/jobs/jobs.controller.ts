@@ -78,7 +78,9 @@ import { JobDimensionService } from "./job-dimension.service";
 import { JobContainerTabService } from "./job-container-tab.service";
 import { JobCostingService } from "./job-costing.service";
 import { JobProfitShareService } from "./job-profit-share.service";
+import { JobEdiService } from "./job-edi.service";
 import { JobTabPanelsService } from "./job-tab-panels.service";
+import { GenerateJobEdiDto } from "./dto/job-edi.dto";
 import {
   CompositeJobChargeDto,
   CostSectionDto,
@@ -255,6 +257,7 @@ export class JobsController {
     private readonly containerTab: JobContainerTabService,
     private readonly costing: JobCostingService,
     private readonly profitShare: JobProfitShareService,
+    private readonly jobEdi: JobEdiService,
     private readonly tabPanels: JobTabPanelsService,
     private readonly seaFclImport: SeaFclImportService,
     private readonly airImport: AirImportService,
@@ -2002,6 +2005,49 @@ export class JobsController {
     return this.service.copyCharges(tenantId, id, dto, actorId);
   }
 
+  @Get(":id/edi/types")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Eligible EDI types for this job (Generate EDI picker)" })
+  listJobEdiTypes(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.jobEdi.listTypes(tenantId, id);
+  }
+
+  @Post(":id/edi/generate")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Generate EDI file for this job" })
+  generateJobEdi(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: GenerateJobEdiDto,
+  ) {
+    return this.jobEdi.generate(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/edi/submissions")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List EDI submissions for this job" })
+  listJobEdiSubmissions(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.jobEdi.listSubmissions(tenantId, id);
+  }
+
+  @Get(":id/edi/submissions/:submissionId/download")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Download URL for a job EDI submission" })
+  downloadJobEdiSubmission(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("submissionId", ParseUUIDPipe) submissionId: string,
+  ) {
+    return this.jobEdi.download(tenantId, id, submissionId);
+  }
+
   @Get(":id/profit-share/calculator")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
   @ApiOperation({
@@ -2095,6 +2141,39 @@ export class JobsController {
     @Body() dto: JobInvoiceFromChargesDto,
   ) {
     return this.costing.createSaleInvoice(tenantId, id, dto ?? {}, actorId);
+  }
+
+  @Get(":id/invoices/purchase/bulk")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Bulk PI preview — vouchers + pending cost lines by vendor",
+    description:
+      "Fresa Generate Bulk Purchase Invoice dialog payload (groups, totals, voucher list)",
+  })
+  previewBulkPurchaseInvoice(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.costing.previewBulkPurchaseInvoice(tenantId, id);
+  }
+
+  @Post(":id/invoices/purchase/bulk")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Generate bulk purchase invoices (one DRAFT PI per vendor + currency)",
+  })
+  generateBulkPurchaseInvoice(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: JobInvoiceFromChargesDto,
+  ) {
+    return this.costing.createBulkPurchaseInvoice(
+      tenantId,
+      id,
+      dto ?? {},
+      actorId,
+    );
   }
 
   @Post(":id/invoices/purchase")
