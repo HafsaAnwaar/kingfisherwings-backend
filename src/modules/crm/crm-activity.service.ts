@@ -31,6 +31,7 @@ import {
   opsContinuumActions,
   opsContinuumPathHints,
 } from "../ops-activity/ops-continuum-path-hints";
+import { MasterLabelService } from "../masters/master-label.service";
 
 @Injectable()
 export class CrmActivityService {
@@ -41,6 +42,7 @@ export class CrmActivityService {
     private readonly jobs: JobsService,
     private readonly leads: CrmLeadsService,
     private readonly notifications: NotificationEmitterService,
+    private readonly labels: MasterLabelService,
   ) {}
 
   async createCallLog(
@@ -542,7 +544,7 @@ export class CrmActivityService {
     );
     return {
       success: true,
-      data,
+      data: await this.labels.enrichRows(user.tenantId, data),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
     };
   }
@@ -563,7 +565,10 @@ export class CrmActivityService {
       }),
     );
     if (!enquiry) throw new NotFoundException("Enquiry not found.");
-    return { success: true, data: enquiry };
+    return {
+      success: true,
+      data: await this.labels.enrichOne(user.tenantId, enquiry),
+    };
   }
 
   /** Detail tabs: organization, dimensions, planned consignee, costing, department. */
@@ -587,7 +592,7 @@ export class CrmActivityService {
           },
         },
         sections: {
-          organization: {
+          organization: await this.labels.enrichOne(user.tenantId, {
             company_id: enquiry.company_id,
             branch_id: enquiry.branch_id,
             department_id: enquiry.department_id,
@@ -596,8 +601,8 @@ export class CrmActivityService {
             enquiry_date: enquiry.enquiry_date,
             service_type: enquiry.service_type,
             currency_code: enquiry.currency_code,
-          },
-          port_details: {
+          }),
+          port_details: await this.labels.enrichOne(user.tenantId, {
             branch_id: enquiry.branch_id,
             department_id: enquiry.department_id,
             enquiry_date: enquiry.enquiry_date,
@@ -616,7 +621,7 @@ export class CrmActivityService {
             eta: enquiry.eta,
             payable_at: enquiry.payable_at,
             dispatch_at: enquiry.dispatch_at,
-          },
+          }),
           dimensions: {
             pieces: enquiry.pieces,
             unit_price: enquiry.unit_price,
@@ -632,7 +637,7 @@ export class CrmActivityService {
             container_count: enquiry.container_count,
             cargo_details: enquiry.cargo_details,
           },
-          planned_consignee: {
+          planned_consignee: await this.labels.enrichOne(user.tenantId, {
             customer_id: enquiry.party_id,
             department_id: enquiry.department_id,
             sales_coordinator_id: enquiry.sales_coordinator_id,
@@ -645,17 +650,18 @@ export class CrmActivityService {
             consignee_address: enquiry.consignee_address,
             shipper_id: enquiry.shipper_id,
             shipper_address: enquiry.shipper_address,
-          },
+          }),
           costing: {
             currency_code: enquiry.currency_code,
             charges: enquiry.charges,
             standard_charges_snapshot: enquiry.standard_charges_snapshot,
           },
-          department: {
+          department: await this.labels.enrichOne(user.tenantId, {
             department_id: enquiry.department_id,
             branch_id: enquiry.branch_id,
             company_id: enquiry.company_id,
-          },
+            salesperson_id: enquiry.salesperson_id,
+          }),
         },
       },
     };

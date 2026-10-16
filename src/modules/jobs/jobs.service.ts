@@ -513,6 +513,8 @@ export class JobsService {
         company_id: job.company_id,
         branch_id: job.branch_id,
         department_id: job.department_id,
+        salesperson_id: job.salesperson_id,
+        ops_user_id: job.ops_user_id,
         parent_job_id: job.parent_job_id,
         // Cargo measures
         pieces: job.pieces,
@@ -542,8 +544,25 @@ export class JobsService {
         consignee,
         billing_party: billingParty,
         agent,
-        salesperson_id: job.salesperson_id,
-        ops_user_id: job.ops_user_id,
+        ...(await this.masterLabels.displayOverlay(
+          await this.masterLabels.resolveDisplayMaps(
+            tenantId,
+            {
+              company_ids: [job.company_id],
+              branch_ids: [job.branch_id],
+              department_ids: [job.department_id],
+              user_ids: [job.salesperson_id, job.ops_user_id],
+            },
+            tx,
+          ),
+          {
+            company_id: job.company_id,
+            branch_id: job.branch_id,
+            department_id: job.department_id,
+            salesperson_id: job.salesperson_id,
+            ops_user_id: job.ops_user_id,
+          },
+        )),
         // Mode-specific snapshots
         mode_details: {
           air: job.air_details
@@ -1039,7 +1058,7 @@ export class JobsService {
       ]);
 
       return {
-        data,
+        data: await this.masterLabels.enrichRows(tenantId, data, tx),
         meta: {
           page: query.page,
           limit: query.limit,

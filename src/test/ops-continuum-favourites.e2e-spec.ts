@@ -142,13 +142,14 @@ describe("Ops continuum comments + favourites (e2e)", () => {
 
     const list = await request(app.getHttpServer())
       .get("/favourites")
-      .query({ kind: "job" })
       .set(auth())
       .expect(200);
     const rows = list.body.data ?? [];
+    expect(list.body.grouped).toBeTruthy();
     expect(
       rows.some(
-        (r: { target_key?: string }) => r.target_key === targetKey,
+        (r: { target_key?: string; href?: string }) =>
+          r.target_key === targetKey && !!r.href,
       ),
     ).toBe(true);
 
@@ -160,6 +161,17 @@ describe("Ops continuum comments + favourites (e2e)", () => {
         expect([200, 201]).toContain(res.status);
       });
     expect(toggleOff.body.favourited).toBe(false);
+
+    const catalog = await request(app.getHttpServer())
+      .get("/reports/templates")
+      .set(auth())
+      .expect(200);
+    const first = catalog.body.data?.[0];
+    if (first) {
+      expect(first.actions?.can_favourite).toBe(true);
+      expect(first.favourite?.kind).toBe("report_template");
+      expect(first.path_hints?.favourite_toggle).toBe("/favourites/toggle");
+    }
   });
 
   it("GET /jobs/:id/detail exposes ops_continuum path_hints", async () => {

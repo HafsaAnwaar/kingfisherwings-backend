@@ -14,6 +14,7 @@ import {
   UpsertJobExchangeRateDto,
   UpsertJobRoutingLegDto,
 } from "./dto/job-tab-panels.dto";
+import { MasterLabelService } from "../masters/master-label.service";
 
 type ModeFormKind =
   | "sea_fcl"
@@ -30,19 +31,23 @@ export class JobTabPanelsService {
     private readonly prisma: PrismaService,
     private readonly modeBookingForms: ModeBookingFormService,
     private readonly airCompliance: AirComplianceBookingFormService,
+    private readonly labels: MasterLabelService,
   ) {}
 
   // ─── Department ─────────────────────────────────────────────
 
   async getDepartmentTab(tenantId: string, jobId: string) {
     const job = await this.assertJob(tenantId, jobId);
+    const named = await this.labels.enrichOne(tenantId, {
+      branch_id: job.branch_id,
+      company_id: job.company_id,
+      department_id: job.department_id,
+      salesperson_id: job.salesperson_id,
+    });
     return {
       success: true,
       data: {
-        branch_id: job.branch_id,
-        company_id: job.company_id,
-        department_id: job.department_id,
-        salesperson_id: job.salesperson_id,
+        ...named,
         actions: { can_patch: true },
         path_hints: { patch: `/jobs/${jobId}/department` },
       },
@@ -356,10 +361,11 @@ export class JobTabPanelsService {
     }
 
     const isMaster = !job.parent_job_id;
+    const namedLegs = await this.labels.enrichRows(tenantId, legs);
     return {
       success: true,
       data: {
-        legs,
+        legs: namedLegs,
         actions: {
           add: true,
           update: true,

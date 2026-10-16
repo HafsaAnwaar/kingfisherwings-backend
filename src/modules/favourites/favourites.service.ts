@@ -7,11 +7,13 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   CreateFavouriteDto,
+  FAVOURITE_KINDS,
   FavouriteCheckQueryDto,
   FavouriteQueryDto,
   ToggleFavouriteDto,
   entityFavouriteTargetKey,
 } from "./dto/favourite.dto";
+import { favouriteHref } from "./favourite-actions";
 
 @Injectable()
 export class FavouritesService {
@@ -19,7 +21,7 @@ export class FavouritesService {
 
   async list(tenantId: string, userId: string, query: FavouriteQueryDto) {
     const page = query.page ?? 1;
-    const limit = query.limit ?? 50;
+    const limit = query.limit ?? 500;
     const where: Prisma.UserFavouriteWhereInput = {
       tenant_id: tenantId,
       user_id: userId,
@@ -93,20 +95,57 @@ export class FavouritesService {
         })
         .filter((r) => !seen.has(`${r.kind}:${r.target_key}`.toLowerCase()));
 
-      const data = [...canonical, ...mergedLegacy].slice(0, limit);
+      const combined = [...canonical, ...mergedLegacy].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
       const total = totalCanonical + mergedLegacy.length;
+      const start = (page - 1) * limit;
+      const pageRows = combined.slice(start, start + limit);
+      const data = pageRows.map((row) => this.toListItem(row));
+      const grouped: Record<string, typeof data> = {};
+      for (const item of data) {
+        const bucket = grouped[item.kind] ?? [];
+        bucket.push(item);
+        grouped[item.kind] = bucket;
+      }
 
       return {
         success: true,
         data,
+        grouped,
         meta: {
           page,
           limit,
           total,
           totalPages: Math.ceil(total / limit) || 1,
+          all_at_once: page === 1 && data.length === total,
         },
       };
     });
+  }
+
+  private toListItem(row: {
+    id: string;
+    tenant_id: string;
+    user_id: string;
+    kind: string;
+    target_key: string;
+    label: string | null;
+    created_at: Date;
+    _legacy?: boolean;
+  }) {
+    return {
+      id: row.id,
+      tenant_id: row.tenant_id,
+      user_id: row.user_id,
+      kind: row.kind,
+      target_key: row.target_key,
+      label: row.label,
+      href: favouriteHref(row.kind, row.target_key),
+      created_at: row.created_at,
+      ...(row._legacy ? { _legacy: true } : {}),
+    };
   }
 
   async create(tenantId: string, userId: string, dto: CreateFavouriteDto) {
@@ -242,7 +281,7 @@ export class FavouritesService {
     });
   }
 
-  /** Compat helper for masters/favorites proxy */
+  /** Add favourite from entity type + id (jobs, parties, custom reports, …). */
   async createFromEntity(
     tenantId: string,
     userId: string,
@@ -251,17 +290,7 @@ export class FavouritesService {
     label?: string,
   ) {
     const raw = entityType.trim().toLowerCase();
-    const allowed = new Set([
-      "enquiry",
-      "quotation",
-      "shipment",
-      "job",
-      "report_template",
-      "report",
-      "menu",
-      "party",
-      "other",
-    ]);
+    const allowed = new Set<string>(FAVOURITE_KINDS);
     const kind = (allowed.has(raw) ? raw : "other") as CreateFavouriteDto["kind"];
     return this.create(tenantId, userId, {
       kind,

@@ -15,6 +15,28 @@ export type NamedLabel = {
   name: string;
 };
 
+/** Keep the UUID (for PATCH) and add display name. */
+export function withName(
+  id: string | null | undefined,
+  map: Map<string, NamedLabel>,
+): {
+  id: string | null;
+  name: string | null;
+  code: string | null;
+  label: NamedLabel | null;
+} {
+  if (!id) {
+    return { id: null, name: null, code: null, label: null };
+  }
+  const label = map.get(id) ?? null;
+  return {
+    id,
+    name: label?.name ?? null,
+    code: label?.code ?? null,
+    label,
+  };
+}
+
 export type PartyBillTo = {
   id: string;
   name: string;
@@ -212,6 +234,284 @@ export class MasterLabelService {
       );
     };
     return tx ? run(tx) : this.prisma.runWithTenant(tenantId, run);
+  }
+
+  async resolveCompanies(
+    tenantId: string,
+    ids: Array<string | null | undefined>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Map<string, NamedLabel>> {
+    const unique = uniq(ids);
+    if (!unique.length) return new Map();
+    const run = async (client: Prisma.TransactionClient) => {
+      const rows = await client.company.findMany({
+        where: { tenant_id: tenantId, id: { in: unique }, deleted_at: null },
+        select: { id: true, code: true, name: true },
+      });
+      return toMap(
+        rows.map((row) => ({
+          id: row.id,
+          code: row.code,
+          name: row.name,
+        })),
+      );
+    };
+    return tx ? run(tx) : this.prisma.runWithTenant(tenantId, run);
+  }
+
+  async resolveBranches(
+    tenantId: string,
+    ids: Array<string | null | undefined>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Map<string, NamedLabel>> {
+    const unique = uniq(ids);
+    if (!unique.length) return new Map();
+    const run = async (client: Prisma.TransactionClient) => {
+      const rows = await client.branch.findMany({
+        where: { tenant_id: tenantId, id: { in: unique }, deleted_at: null },
+        select: { id: true, code: true, name: true },
+      });
+      return toMap(
+        rows.map((row) => ({
+          id: row.id,
+          code: row.code,
+          name: row.name,
+        })),
+      );
+    };
+    return tx ? run(tx) : this.prisma.runWithTenant(tenantId, run);
+  }
+
+  async resolveDepartments(
+    tenantId: string,
+    ids: Array<string | null | undefined>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Map<string, NamedLabel>> {
+    const unique = uniq(ids);
+    if (!unique.length) return new Map();
+    const run = async (client: Prisma.TransactionClient) => {
+      const rows = await client.department.findMany({
+        where: { tenant_id: tenantId, id: { in: unique }, deleted_at: null },
+        select: { id: true, code: true, name: true },
+      });
+      return toMap(
+        rows.map((row) => ({
+          id: row.id,
+          code: row.code,
+          name: row.name,
+        })),
+      );
+    };
+    return tx ? run(tx) : this.prisma.runWithTenant(tenantId, run);
+  }
+
+  async resolveUsers(
+    tenantId: string,
+    ids: Array<string | null | undefined>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Map<string, NamedLabel>> {
+    const unique = uniq(ids);
+    if (!unique.length) return new Map();
+    const run = async (client: Prisma.TransactionClient) => {
+      const rows = await client.user.findMany({
+        where: { tenant_id: tenantId, id: { in: unique } },
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+        },
+      });
+      return toMap(
+        rows.map((row) => ({
+          id: row.id,
+          code: row.email,
+          name:
+            [row.first_name, row.last_name].filter(Boolean).join(" ").trim() ||
+            row.email,
+        })),
+      );
+    };
+    return tx ? run(tx) : this.prisma.runWithTenant(tenantId, run);
+  }
+
+  async resolveParties(
+    tenantId: string,
+    ids: Array<string | null | undefined>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Map<string, NamedLabel>> {
+    const unique = uniq(ids);
+    if (!unique.length) return new Map();
+    const run = async (client: Prisma.TransactionClient) => {
+      const rows = await client.party.findMany({
+        where: { tenant_id: tenantId, id: { in: unique }, deleted_at: null },
+        select: { id: true, code: true, name: true },
+      });
+      return toMap(
+        rows.map((row) => ({
+          id: row.id,
+          code: row.code,
+          name: row.name,
+        })),
+      );
+    };
+    return tx ? run(tx) : this.prisma.runWithTenant(tenantId, run);
+  }
+
+  /**
+   * Batch-resolve org + people + parties + ports for display next to IDs.
+   */
+  async resolveDisplayMaps(
+    tenantId: string,
+    ids: {
+      company_ids?: Array<string | null | undefined>;
+      branch_ids?: Array<string | null | undefined>;
+      department_ids?: Array<string | null | undefined>;
+      user_ids?: Array<string | null | undefined>;
+      party_ids?: Array<string | null | undefined>;
+      port_ids?: Array<string | null | undefined>;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const [companies, branches, departments, users, parties, ports] =
+      await Promise.all([
+        this.resolveCompanies(tenantId, ids.company_ids ?? [], tx),
+        this.resolveBranches(tenantId, ids.branch_ids ?? [], tx),
+        this.resolveDepartments(tenantId, ids.department_ids ?? [], tx),
+        this.resolveUsers(tenantId, ids.user_ids ?? [], tx),
+        this.resolveParties(tenantId, ids.party_ids ?? [], tx),
+        this.resolvePorts(tenantId, ids.port_ids ?? [], tx),
+      ]);
+    return { companies, branches, departments, users, parties, ports };
+  }
+
+  /**
+   * Keep every `*_id` and add `*_name` plus a `{ id, name, code }` object
+   * when the row does not already include a richer nested value.
+   */
+  displayOverlay(
+    maps: Awaited<ReturnType<MasterLabelService["resolveDisplayMaps"]>>,
+    row: Record<string, unknown>,
+  ) {
+    const out: Record<string, unknown> = {};
+    const add = (
+      key: string,
+      map: Map<string, { id: string; name: string; code?: string | null }>,
+    ) => {
+      const idKey = `${key}_id`;
+      if (!(idKey in row)) return;
+      const n = withName(
+        row[idKey] as string | null | undefined,
+        map as Map<string, NamedLabel>,
+      );
+      out[`${key}_name`] = n.name;
+      if (!(key in row) || row[key] == null) {
+        out[key] = n.label;
+      }
+    };
+    add("company", maps.companies);
+    add("branch", maps.branches);
+    add("department", maps.departments);
+    add("salesperson", maps.users);
+    add("ops_user", maps.users);
+    add("sales_coordinator", maps.users);
+    add("price_coordinator", maps.users);
+    add("assigned_salesperson", maps.users);
+    add("customer", maps.parties);
+    add("party", maps.parties);
+    add("shipper", maps.parties);
+    add("consignee", maps.parties);
+    add("billing_party", maps.parties);
+    add("agent", maps.parties);
+    add("carrier", maps.parties);
+    add("origin_port", maps.ports);
+    add("dest_port", maps.ports);
+    add("por_port", maps.ports);
+    add("pof_port", maps.ports);
+    return out;
+  }
+
+  async enrichRows<T extends object>(
+    tenantId: string,
+    rows: T[],
+    tx?: Prisma.TransactionClient,
+  ): Promise<Array<T & Record<string, unknown>>> {
+    if (!rows.length) return [];
+    const pick = (key: string) =>
+      rows.map((row) => (row as Record<string, unknown>)[key] as string | null);
+    const maps = await this.resolveDisplayMaps(
+      tenantId,
+      {
+        company_ids: pick("company_id"),
+        branch_ids: pick("branch_id"),
+        department_ids: pick("department_id"),
+        user_ids: [
+          ...pick("salesperson_id"),
+          ...pick("ops_user_id"),
+          ...pick("sales_coordinator_id"),
+          ...pick("price_coordinator_id"),
+          ...pick("assigned_salesperson_id"),
+        ],
+        party_ids: [
+          ...pick("customer_id"),
+          ...pick("party_id"),
+          ...pick("shipper_id"),
+          ...pick("consignee_id"),
+          ...pick("billing_party_id"),
+          ...pick("agent_id"),
+          ...pick("carrier_id"),
+        ],
+        port_ids: [
+          ...pick("origin_port_id"),
+          ...pick("dest_port_id"),
+          ...pick("por_port_id"),
+          ...pick("pof_port_id"),
+        ],
+      },
+      tx,
+    );
+    return rows.map((row) => ({
+      ...row,
+      ...this.displayOverlay(maps, row as Record<string, unknown>),
+    }));
+  }
+
+  async enrichOne<T extends object>(
+    tenantId: string,
+    row: T,
+    tx?: Prisma.TransactionClient,
+  ): Promise<T & Record<string, unknown>> {
+    const [enriched] = await this.enrichRows(tenantId, [row], tx);
+    return enriched;
+  }
+
+  departmentTabLabels(
+    maps: Awaited<ReturnType<MasterLabelService["resolveDisplayMaps"]>>,
+    row: {
+      branch_id?: string | null;
+      company_id?: string | null;
+      department_id?: string | null;
+      salesperson_id?: string | null;
+    },
+  ) {
+    const branch = withName(row.branch_id, maps.branches);
+    const company = withName(row.company_id, maps.companies);
+    const department = withName(row.department_id, maps.departments);
+    const salesperson = withName(row.salesperson_id, maps.users);
+    return {
+      branch_id: branch.id,
+      branch_name: branch.name,
+      branch: branch.label,
+      company_id: company.id,
+      company_name: company.name,
+      company: company.label,
+      department_id: department.id,
+      department_name: department.name,
+      department: department.label,
+      salesperson_id: salesperson.id,
+      salesperson_name: salesperson.name,
+      salesperson: salesperson.label,
+    };
   }
 
   async resolveChargeCodes(

@@ -18,6 +18,7 @@ import { seedJobTypeExtras } from "../jobs/utils/job-type-seed.util";
 import { resolveJobDate } from "../jobs/utils/job-date.util";
 import { assertDocumentAllowedForJobType } from "../jobs/constants/job-document-allowlist";
 import { GenerateJobDocumentDto } from "../jobs/dto/generate-job-document.dto";
+import { MasterLabelService } from "../masters/master-label.service";
 import {
   ChangeShipmentStatusDto,
   CopyShipmentChargesDto,
@@ -53,6 +54,7 @@ export class ShipmentsService {
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
     private readonly documentGeneration: DocumentGenerationService,
+    private readonly labels: MasterLabelService,
   ) {}
 
   async create(tenantId: string, dto: CreateShipmentDto, actorId?: string) {
@@ -236,7 +238,7 @@ export class ShipmentsService {
       ]);
       return {
         success: true,
-        data,
+        data: await this.labels.enrichRows(tenantId, data, tx),
         meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
       };
     });
@@ -252,7 +254,7 @@ export class ShipmentsService {
       }),
     );
     if (!row) throw new NotFoundException("Shipment not found.");
-    return row;
+    return this.labels.enrichOne(tenantId, row);
   }
 
   async update(

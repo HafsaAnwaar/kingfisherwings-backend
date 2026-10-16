@@ -35,6 +35,7 @@ import {
   DEFAULT_VOLUMETRIC_DIVISOR_CM,
 } from "../jobs/utils/job-dimension-calc.util";
 import { PartiesService } from "../parties/parties.service";
+import { MasterLabelService } from "../masters/master-label.service";
 
 /**
  * Shared detail tabs (except job-only history/booking_form/shipments):
@@ -56,6 +57,7 @@ export class ShipmentTabParityService {
     private readonly jobCosting: JobCostingService,
     @Inject(forwardRef(() => JobTabPanelsService))
     private readonly jobPanels: JobTabPanelsService,
+    private readonly labels: MasterLabelService,
   ) {}
 
   private async owner(tenantId: string, shipmentId: string) {
@@ -503,13 +505,16 @@ export class ShipmentTabParityService {
   async getDepartment(tenantId: string, shipmentId: string) {
     const s = await this.owner(tenantId, shipmentId);
     if (s.job_id) return this.jobPanels.getDepartmentTab(tenantId, s.job_id);
+    const named = await this.labels.enrichOne(tenantId, {
+      branch_id: s.branch_id,
+      company_id: s.company_id,
+      department_id: s.department_id,
+      salesperson_id: s.salesperson_id,
+    });
     return {
       success: true,
       data: {
-        branch_id: s.branch_id,
-        company_id: s.company_id,
-        department_id: s.department_id,
-        salesperson_id: s.salesperson_id,
+        ...named,
         actions: { can_patch: true },
         path_hints: { patch: `/shipments/${shipmentId}/department` },
         source: "shipment",
@@ -658,10 +663,11 @@ export class ShipmentTabParityService {
       );
       legs = [seeded];
     }
+    const namedLegs = await this.labels.enrichRows(tenantId, legs);
     return {
       success: true,
       data: {
-        legs,
+        legs: namedLegs,
         actions: { add: true, update: true, delete: true },
         path_hints: { add: `/shipments/${shipmentId}/routing-legs` },
         source: "shipment",

@@ -2,8 +2,6 @@ import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { NotificationsModule } from "../notifications/notifications.module";
-import { FavouritesModule } from "../favourites/favourites.module";
-
 import { CountriesController } from "./countries/countries.controller";
 import { CountriesService } from "./countries/countries.service";
 
@@ -108,8 +106,6 @@ import { MastersSearchController } from "./search/masters-search.controller";
 import { MastersSearchService } from "./search/masters-search.service";
 import { ContainerInventoryController } from "./container-inventory/container-inventory.controller";
 import { ContainerInventoryService } from "./container-inventory/container-inventory.service";
-import { FavoritesController } from "./favorites/favorites.controller";
-import { FavoritesService } from "./favorites/favorites.service";
 import { TrackingUsersController } from "./tracking-users/tracking-users.controller";
 import { TrackingUsersService } from "./tracking-users/tracking-users.service";
 import { WhatsappSmsHistoryController } from "./whatsapp-sms-history/whatsapp-sms-history.controller";
@@ -162,7 +158,6 @@ const CONTROLLERS = [
   SalesCallActivityTypesController,
   MastersSearchController,
   ContainerInventoryController,
-  FavoritesController,
   TrackingUsersController,
   WhatsappSmsHistoryController,
   MastersOrganizationController,
@@ -214,7 +209,6 @@ const SERVICES = [
   SalesCallActivityTypesService,
   MastersSearchService,
   ContainerInventoryService,
-  FavoritesService,
   TrackingUsersService,
   WhatsappSmsHistoryService,
   OrganizationGroupsService,
@@ -226,7 +220,6 @@ const SERVICES = [
     PrismaModule,
     OrganizationModule,
     NotificationsModule,
-    FavouritesModule,
   ],
   controllers: CONTROLLERS,
   providers: SERVICES,

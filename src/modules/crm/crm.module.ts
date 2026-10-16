@@ -7,6 +7,7 @@ import { JobsModule } from "../jobs/jobs.module";
 import { PartiesModule } from "../parties/parties.module";
 import { QuotationsModule } from "../quotations/quotations.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { MastersModule } from "../masters/masters.module";
 import { ShipmentsModule } from "../shipments/shipments.module";
 import {
   CrmCallLogsController,
@@ -29,6 +30,7 @@ import { CrmLeadsService } from "./crm-leads.service";
     EmailModule,
     QueueModule,
     PartiesModule,
+    MastersModule,
     QuotationsModule,
     NotificationsModule,
     forwardRef(() => ShipmentsModule),

@@ -28,6 +28,7 @@ import {
 } from "../ops-activity/ops-continuum-path-hints";
 import { eligibleEdiTypes } from "../jobs/utils/edi-eligibility.util";
 import { EntityTimelineService } from "../ops-activity/entity-timeline.service";
+import { MasterLabelService } from "../masters/master-label.service";
 
 const DETAIL_TABS = [
   "show_all",
@@ -57,6 +58,7 @@ export class ShipmentDetailService {
     private readonly edi: DocumentationEdiService,
     private readonly tabParity: ShipmentTabParityService,
     private readonly timeline: EntityTimelineService,
+    private readonly labels: MasterLabelService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -65,7 +67,11 @@ export class ShipmentDetailService {
     return {
       success: true,
       data: {
-        shipment: this.headerPayload(shipment, links.job?.job_number ?? null),
+        shipment: await this.headerPayload(
+          tenantId,
+          shipment,
+          links.job?.job_number ?? null,
+        ),
         links,
         actions: this.actionFlags(shipment),
         sections: await this.sectionSummaries(tenantId, shipment),
@@ -87,7 +93,11 @@ export class ShipmentDetailService {
       const links = await this.resolveLinks(tenantId, shipment);
       return {
         success: true,
-        data: this.headerPayload(shipment, links.job?.job_number ?? null),
+        data: await this.headerPayload(
+          tenantId,
+          shipment,
+          links.job?.job_number ?? null,
+        ),
       };
     }
     if (normalized === "organization") {
@@ -527,19 +537,25 @@ export class ShipmentDetailService {
     return row;
   }
 
-  private headerPayload(
+  private async headerPayload(
+    tenantId: string,
     shipment: Awaited<ReturnType<typeof this.loadShipment>>,
     jobNumber?: string | null,
   ) {
-    return {
+    return this.labels.enrichOne(tenantId, {
       id: shipment.id,
       shipment_number: shipment.shipment_number,
       shipment_date: shipment.shipment_date,
       status: shipment.status,
       job_type: shipment.job_type,
+      company_id: shipment.company_id,
       branch_id: shipment.branch_id,
       department_id: shipment.department_id,
+      salesperson_id: shipment.salesperson_id,
       customer_id: shipment.customer_id,
+      shipper_id: shipment.shipper_id,
+      consignee_id: shipment.consignee_id,
+      carrier_id: shipment.carrier_id,
       customer_address: shipment.customer_address,
       freight_terms: shipment.freight_terms,
       freight_payable_at: shipment.freight_payable_at,
@@ -569,7 +585,7 @@ export class ShipmentDetailService {
           }
         : null,
       enquiry_id: shipment.enquiry_id,
-    };
+    });
   }
 
   private actionFlags(shipment: Awaited<ReturnType<typeof this.loadShipment>>) {

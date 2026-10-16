@@ -3,8 +3,7 @@
 | Fresa action | Method | Path | Status |
 |---|---|---|---|
 | Global search (+ enquiry/shipment) | GET | `/search` | Match |
-| Favourites | GET/POST/DELETE | `/favourites` | Match |
-| Masters entity favorites (legacy) | CRUD | `/masters/favorites` | Match |
+| Favourites | GET/POST/DELETE | `/favourites` | Match (not under Masters) |
 | Call sheet / follow-up | CRM | `/crm/*` | Partial |
 | Party standard charges | existing | `/parties/:id/standard-charges` | Match |
 
@@ -22,4 +21,4 @@ Default `types` includes all six entity groups. Enquiry matches commodity/cargo/
 | POST | `/favourites` | Body: `kind`, `target_key`, optional `label` |
 | DELETE | `/favourites/:id` | Own favourite only |
 
-Uses `user_favourites` (`kind` + `target_key`). Distinct from `/masters/favorites` (`user_favorites` entity bookmarks).
+Uses `user_favourites` (`kind` + `target_key`). Favourites are **not** a Masters module. Report/doc rows expose `actions.can_favourite` + `POST /favourites/toggle`. See [favourites.md](./favourites.md).
