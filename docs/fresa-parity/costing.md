@@ -23,6 +23,8 @@ Staff costing is paired **charge + sale + cost** on `JobCharge`, with toolbar ac
 | Portal / vendor costing | GET | `/portal/jobs/:id/costing`, `/vendor/jobs/:id/costing` | Match |
 | Sale invoice (selected lines) | POST | `/jobs/:id/invoices/sale` or `/invoices/from-job/:jobId` | Match |
 | Purchase invoice (cost lines) | POST | `/jobs/:id/invoices/purchase` or `/purchase-invoices/from-job/:jobId` | Match |
+| Bulk PI preview (vouchers + pending by vendor) | GET | `/jobs/:id/invoices/purchase/bulk` | Match |
+| Bulk PI generate (one DRAFT per vendor+currency) | POST | `/jobs/:id/invoices/purchase/bulk` | Match |
 | Job profit sheet | GET | `/jobs/:id/pnl` + `POST .../documents/job-pnl` | Match |
 | Custom-duty profit sheet | GET | `/jobs/:id/pnl/custom-duty` + `POST .../documents/job-pnl-custom-duty` | Match |
 | Shipment sale/cost | CRUD | `/shipments/:id/charges` | Match |
@@ -31,7 +33,8 @@ Staff costing is paired **charge + sale + cost** on `JobCharge`, with toolbar ac
 
 - `lines[]`: `charge`, `sale`, `cost`, `gp`, `freight`, `prorated_status`, `history_count`, voucher nos, attachment counts
 - `vouchers[]`: job-scoped snippet
-- `actions` + `path_hints`: toolbar capability map for FE
+- `actions` + `path_hints`: toolbar capability map for FE (`generate_bulk_purchase_invoice`, `bulk_purchase_invoice`)
+- Bulk PI pending lines = cost side present and not already on any non-cancelled invoice line (`InvoiceLine.job_charge_id` is unique, so a prior sale invoice on the same charge also excludes it until dual-side linking exists)
 
 ## Visibility
 

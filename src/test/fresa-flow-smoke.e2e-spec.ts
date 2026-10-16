@@ -148,6 +148,30 @@ describe("Fresa flow smoke (e2e)", () => {
     expect(shipDetail.body.data?.shipment?.shipment_number).toBeTruthy();
     expect(shipDetail.body.data?.links?.job?.job_number).toBeTruthy();
     expect(shipDetail.body.data?.actions?.default_generate_mode).toBe("DIRECT");
+    expect(shipDetail.body.data?.actions?.can_edi).toBe(true);
+    expect(shipDetail.body.data?.actions?.path_hints?.edi_generate).toContain(
+      "/edi/generate",
+    );
+
+    const shipEdiTypes = await request(app.getHttpServer())
+      .get(`/shipments/${shipmentId}/edi/types`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(shipEdiTypes.body.data?.edi_types?.length).toBeGreaterThan(0);
+    const shipEdiType = shipEdiTypes.body.data.edi_types[0].edi_type;
+    const shipEdiGen = await request(app.getHttpServer())
+      .post(`/shipments/${shipmentId}/edi/generate`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ edi_type: shipEdiType })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+    if (shipEdiGen.body.data?.id) {
+      await request(app.getHttpServer())
+        .get(
+          `/shipments/${shipmentId}/edi/submissions/${shipEdiGen.body.data.id}/download`,
+        )
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+    }
 
     await request(app.getHttpServer())
       .post(`/shipments/${shipmentId}/change-bl-status`)
@@ -249,7 +273,18 @@ describe("Fresa flow smoke (e2e)", () => {
       .get(`/jobs/${jobId}/detail/history`)
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
-    expect(Array.isArray(history.body.data)).toBe(true);
+    expect(Array.isArray(history.body.data?.events)).toBe(true);
+    expect(history.body.data.events.length).toBeGreaterThan(0);
+    expect(history.body.data.events[0]).toHaveProperty("at");
+    expect(history.body.data.events[0]).toHaveProperty("summary");
+    expect(history.body.data.events[0]).toHaveProperty("actor");
+
+    const shipHistory = await request(app.getHttpServer())
+      .get(`/shipments/${shipmentId}/detail/history`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(Array.isArray(shipHistory.body.data?.events)).toBe(true);
+    expect(shipHistory.body.data.events.length).toBeGreaterThan(0);
 
     // --- Job Costing tab parity smoke ---
     const chargeCode = await request(app.getHttpServer())
@@ -366,6 +401,40 @@ describe("Fresa flow smoke (e2e)", () => {
           profit_share_agent_id: vendorId,
         })
         .expect((res) => expect([200, 201]).toContain(res.status));
+
+      const bulkPreview = await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/invoices/purchase/bulk`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      expect(bulkPreview.body.data).toHaveProperty("groups");
+      expect(bulkPreview.body.data).toHaveProperty("vouchers");
+
+      await request(app.getHttpServer())
+        .post(`/jobs/${jobId}/invoices/purchase/bulk`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({})
+        .expect((res) => expect([200, 201, 400]).toContain(res.status));
+
+      const ediTypes = await request(app.getHttpServer())
+        .get(`/jobs/${jobId}/edi/types`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      expect(ediTypes.body.data).toHaveProperty("edi_types");
+      const firstEdi = ediTypes.body.data?.edi_types?.[0]?.edi_type;
+      if (firstEdi) {
+        const gen = await request(app.getHttpServer())
+          .post(`/jobs/${jobId}/edi/generate`)
+          .set("Authorization", `Bearer ${token}`)
+          .send({ edi_type: firstEdi })
+          .expect((res) => expect([200, 201]).toContain(res.status));
+        const submissionId = gen.body.data?.id;
+        if (submissionId) {
+          await request(app.getHttpServer())
+            .get(`/jobs/${jobId}/edi/submissions/${submissionId}/download`)
+            .set("Authorization", `Bearer ${token}`)
+            .expect(200);
+        }
+      }
 
       if (chargeId) {
         await request(app.getHttpServer())

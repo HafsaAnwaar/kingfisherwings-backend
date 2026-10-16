@@ -155,6 +155,22 @@ export class ShipmentsService {
         });
       }
 
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "SHIPMENT_CREATED",
+          entity: "SHIPMENT",
+          entity_id: shipment.id,
+          new_values: {
+            shipment_number: shipment.shipment_number,
+            job_type: shipment.job_type,
+            status: shipment.status,
+          },
+          metadata: { number: shipment.shipment_number },
+        },
+      });
+
       return tx.shipment.findFirstOrThrow({
         where: { id: shipment.id },
         include: { charges: { where: { deleted_at: null } } },
@@ -350,13 +366,29 @@ export class ShipmentsService {
     dto: ChangeShipmentStatusDto,
     actorId?: string,
   ) {
-    await this.findOne(tenantId, id);
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.shipment.update({
+    const current = await this.findOne(tenantId, id);
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const updated = await tx.shipment.update({
         where: { id },
         data: { status: dto.status, notes: dto.remarks, updated_by: actorId },
-      }),
-    );
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "SHIPMENT_STATUS_CHANGE",
+          entity: "SHIPMENT",
+          entity_id: id,
+          old_values: { status: current.status },
+          new_values: { status: dto.status, remarks: dto.remarks ?? null },
+          metadata: {
+            from_status: current.status,
+            to_status: dto.status,
+          },
+        },
+      });
+      return updated;
+    });
   }
 
   async generateJob(
@@ -542,6 +574,39 @@ export class ShipmentsService {
           data: { job_id: job.id, status: "BOOKED", updated_by: actorId },
         });
       }
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "SHIPMENT_GENERATE_JOB",
+          entity: "SHIPMENT",
+          entity_id: id,
+          new_values: {
+            job_id: job.id,
+            job_number: job.job_number,
+            mode,
+          },
+          metadata: { number: job.job_number, mode },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_CREATED",
+          entity: "JOB",
+          entity_id: job.id,
+          new_values: {
+            job_number: job.job_number,
+            job_type: job.job_type,
+            status: job.status,
+            from_shipment_id: id,
+          },
+          metadata: { number: job.job_number, from_shipment_id: id },
+        },
+      });
 
       return {
         success: true,

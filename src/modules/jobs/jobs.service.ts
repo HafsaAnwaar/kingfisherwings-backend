@@ -309,6 +309,22 @@ export class JobsService {
 
       await seedJobTypeExtras(tx, tenantId, job.id, dto.job_type, actorId);
 
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_CREATED",
+          entity: "JOB",
+          entity_id: job.id,
+          new_values: {
+            job_number: job.job_number,
+            job_type: job.job_type,
+            status: job.status,
+          },
+          metadata: { number: job.job_number },
+        },
+      });
+
       return job;
     });
   }
@@ -1424,6 +1440,19 @@ export class JobsService {
         );
       }
 
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_CLOSED",
+          entity: "JOB",
+          entity_id: id,
+          old_values: { status: job.status },
+          new_values: { status: "COMPLETED" },
+          metadata: { force: force === true },
+        },
+      });
+
       return updated;
     });
   }
@@ -1444,10 +1473,24 @@ export class JobsService {
         throw new ConflictException("Job is already cancelled.");
       }
 
-      return tx.job.update({
+      const updated = await tx.job.update({
         where: { id },
         data: { status: "CANCELLED", updated_by: actorId },
       });
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_CANCELLED",
+          entity: "JOB",
+          entity_id: id,
+          old_values: { status: job.status },
+          new_values: { status: "CANCELLED" },
+        },
+      });
+
+      return updated;
     });
   }
 
@@ -1468,6 +1511,18 @@ export class JobsService {
       await tx.job.update({
         where: { id },
         data: { deleted_at: new Date(), updated_by: actorId },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_DELETED",
+          entity: "JOB",
+          entity_id: id,
+          old_values: { status: job.status },
+          new_values: { deleted: true },
+        },
       });
     });
   }

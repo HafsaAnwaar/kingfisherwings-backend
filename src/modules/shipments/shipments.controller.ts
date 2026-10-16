@@ -31,6 +31,8 @@ import { GenerateJobDocumentDto } from "../jobs/dto/generate-job-document.dto";
 import { ShipmentsService } from "./shipments.service";
 import { ShipmentDetailService } from "./shipment-detail.service";
 import { ShipmentTabParityService } from "./shipment-tab-parity.service";
+import { ShipmentEdiService } from "./shipment-edi.service";
+import { GenerateShipmentEdiDto } from "./dto/shipment-edi.dto";
 import {
   ChangeShipmentBlStatusDto,
   MergeShipmentsDto,
@@ -57,6 +59,7 @@ export class ShipmentsController {
     private readonly service: ShipmentsService,
     private readonly detail: ShipmentDetailService,
     private readonly tabParity: ShipmentTabParityService,
+    private readonly shipmentEdi: ShipmentEdiService,
     private readonly bookingForms: BookingFormEntityService,
   ) {}
 
@@ -300,8 +303,59 @@ export class ShipmentsController {
     return this.detail.switchBl(tenantId, id, dto, actorId);
   }
 
+  @Get(":id/edi/types")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Eligible EDI types for this shipment (Fresa Generate EDI picker)",
+  })
+  listShipmentEdiTypes(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.shipmentEdi.listTypes(tenantId, id);
+  }
+
+  @Post(":id/edi/generate")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Generate EDI for shipment (uses linked job; pick type → download)",
+  })
+  generateShipmentEdi(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: GenerateShipmentEdiDto,
+  ) {
+    return this.shipmentEdi.generate(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/edi/submissions")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List EDI submissions for this shipment / linked job" })
+  listShipmentEdiSubmissions(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.shipmentEdi.listSubmissions(tenantId, id);
+  }
+
+  @Get(":id/edi/submissions/:submissionId/download")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Download URL for a shipment EDI submission" })
+  downloadShipmentEdiSubmission(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("submissionId", ParseUUIDPipe) submissionId: string,
+  ) {
+    return this.shipmentEdi.download(tenantId, id, submissionId);
+  }
+
   @Post(":id/edi/:action")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Legacy EDI action facade (bayan-generate, ccn-fwb, …). Prefer POST …/edi/generate",
+  })
   ediAction(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,

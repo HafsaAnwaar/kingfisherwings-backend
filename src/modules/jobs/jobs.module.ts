@@ -25,9 +25,12 @@ import { JobDimensionService } from "./job-dimension.service";
 import { JobContainerTabService } from "./job-container-tab.service";
 import { JobCostingService } from "./job-costing.service";
 import { JobProfitShareService } from "./job-profit-share.service";
+import { JobEdiService } from "./job-edi.service";
 import { JobTabPanelsService } from "./job-tab-panels.service";
 import { JobDocumentUploadService } from "./job-document-upload.service";
 import { JobDateService } from "./job-date.service";
+import { DocumentationEdiService } from "../documentation/documentation-edi.service";
+import { OpsActivityModule } from "../ops-activity/ops-activity.module";
 import { SeaFclImportService } from "./sea-fcl-import.service";
 import { AirImportService } from "./air-import.service";
 import { SeaLclService } from "./sea-lcl.service";
@@ -65,6 +68,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     InvoicesModule,
     GlModule,
     StorageModule,
+    OpsActivityModule,
     TransportModule,
     forwardRef(() => VendorModule),
     MastersModule,
@@ -92,6 +96,9 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     JobContainerTabService,
     JobCostingService,
     JobProfitShareService,
+    JobEdiService,
+    /** Avoid DocumentationModule cycle (it imports JobsModule). */
+    DocumentationEdiService,
     JobTabPanelsService,
     JobDocumentUploadService,
     JobDateService,

@@ -324,37 +324,77 @@ export class InvoicesService {
     return this.createFromJob(tenantId, jobId, actorId, chargeIds);
   }
 
+  /**
+   * Cost lines eligible for purchase invoice: have a cost side and are not
+   * already on a non-cancelled PURCHASE_INVOICE (sale invoices must not block PI).
+   */
+  async findPendingPurchaseCharges(
+    tenantId: string,
+    jobId: string,
+    chargeIds?: string[],
+  ) {
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      this.findPendingPurchaseChargesTx(tx, tenantId, jobId, chargeIds),
+    );
+  }
+
+  private async findPendingPurchaseChargesTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+    chargeIds?: string[],
+  ) {
+    const charges = await tx.jobCharge.findMany({
+      where: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        deleted_at: null,
+        OR: [{ is_cost: true }, { cost_amount: { not: null } }],
+        ...(chargeIds?.length ? { id: { in: chargeIds } } : {}),
+      },
+      orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+    });
+    if (!charges.length) return [];
+
+    // InvoiceLine.job_charge_id is unique — any active invoice line blocks a new PI line.
+    const linked = await tx.invoiceLine.findMany({
+      where: {
+        tenant_id: tenantId,
+        job_charge_id: { in: charges.map((c) => c.id) },
+        deleted_at: null,
+        invoice: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          status: { notIn: ["CANCELLED", "VOID"] },
+        },
+      },
+      select: { job_charge_id: true },
+    });
+    const taken = new Set(
+      linked.map((l) => l.job_charge_id).filter(Boolean) as string[],
+    );
+    return charges.filter(
+      (c) => (c.is_cost || c.cost_amount != null) && !taken.has(c.id),
+    );
+  }
+
   async createPurchaseFromJob(
     tenantId: string,
     jobId: string,
     chargeIds: string[] | undefined,
     actorId?: string,
   ) {
-    const invoiceNumber = await this.numberGenerator.generate(
-      tenantId,
-      "PURCHASE_INVOICE",
-    );
-
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
-        include: {
-          charges: {
-            where: {
-              deleted_at: null,
-              is_invoiced: false,
-              OR: [
-                { is_cost: true },
-                { cost_amount: { not: null } },
-              ],
-              ...(chargeIds?.length ? { id: { in: chargeIds } } : {}),
-            },
-          },
-        },
       });
       if (!job) throw new NotFoundException("Job not found.");
-      const charges = job.charges.filter(
-        (c) => c.is_cost || c.cost_amount != null,
+
+      const charges = await this.findPendingPurchaseChargesTx(
+        tx,
+        tenantId,
+        jobId,
+        chargeIds,
       );
       if (!charges.length) {
         throw new BadRequestException(
@@ -369,82 +409,192 @@ export class InvoicesService {
         );
       }
 
-      const defaultTax = await tx.taxRate.findFirst({
-        where: {
-          tenant_id: tenantId,
-          deleted_at: null,
-          is_active: true,
-          is_default: true,
-        },
-        orderBy: { effective_from: "desc" },
-      });
-      const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
+      // Single-PI path: only charges matching the first vendor + currency
       const currency =
         charges[0].cost_currency ?? charges[0].currency_code;
-      const exRate = Number(
-        charges[0].cost_ex_rate ?? charges[0].exchange_rate ?? 1,
-      );
+      const sameGroup = charges.filter((c) => {
+        const v = c.cost_party_id ?? c.party_id;
+        const cur = c.cost_currency ?? c.currency_code;
+        return v === vendorId && cur === currency;
+      });
 
-      const invoice = await tx.invoice.create({
+      return this.createPurchaseInvoiceFromChargesTx(
+        tx,
+        tenantId,
+        job,
+        sameGroup,
+        vendorId,
+        actorId,
+      );
+    });
+  }
+
+  /**
+   * One DRAFT PURCHASE_INVOICE per vendor + currency group.
+   */
+  async createBulkPurchaseFromJob(
+    tenantId: string,
+    jobId: string,
+    chargeIds: string[] | undefined,
+    actorId?: string,
+  ) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
+
+      const charges = await this.findPendingPurchaseChargesTx(
+        tx,
+        tenantId,
+        jobId,
+        chargeIds,
+      );
+      if (!charges.length) {
+        throw new BadRequestException(
+          "No pending cost charges for bulk purchase invoice.",
+        );
+      }
+
+      const missingVendor = charges.filter(
+        (c) => !(c.cost_party_id ?? c.party_id),
+      );
+      if (missingVendor.length) {
+        throw new BadRequestException(
+          `${missingVendor.length} cost charge(s) missing vendor (cost_party_id).`,
+        );
+      }
+
+      const groups = new Map<string, typeof charges>();
+      for (const c of charges) {
+        const vendorId = (c.cost_party_id ?? c.party_id)!;
+        const currency = c.cost_currency ?? c.currency_code;
+        const key = `${vendorId}::${currency}`;
+        const list = groups.get(key) ?? [];
+        list.push(c);
+        groups.set(key, list);
+      }
+
+      const invoices = [];
+      for (const group of groups.values()) {
+        const vendorId = (group[0].cost_party_id ?? group[0].party_id)!;
+        invoices.push(
+          await this.createPurchaseInvoiceFromChargesTx(
+            tx,
+            tenantId,
+            job,
+            group,
+            vendorId,
+            actorId,
+          ),
+        );
+      }
+      return invoices;
+    });
+  }
+
+  private async createPurchaseInvoiceFromChargesTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    job: { id: string; company_id: string | null; branch_id: string | null; department_id: string | null },
+    charges: Array<{
+      id: string;
+      charge_code_id: string;
+      description: string;
+      quantity: Prisma.Decimal | null;
+      amount: Prisma.Decimal;
+      tax_amount: Prisma.Decimal | null;
+      tax_rate_id: string | null;
+      cost_amount: Prisma.Decimal | null;
+      cost_tax_amount: Prisma.Decimal | null;
+      cost_currency: string | null;
+      currency_code: string;
+      cost_ex_rate: Prisma.Decimal | null;
+      exchange_rate: Prisma.Decimal | null;
+    }>,
+    vendorId: string,
+    actorId?: string,
+  ) {
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      "PURCHASE_INVOICE",
+    );
+
+    const defaultTax = await tx.taxRate.findFirst({
+      where: {
+        tenant_id: tenantId,
+        deleted_at: null,
+        is_active: true,
+        is_default: true,
+      },
+      orderBy: { effective_from: "desc" },
+    });
+    const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
+    const currency =
+      charges[0].cost_currency ?? charges[0].currency_code;
+    const exRate = Number(
+      charges[0].cost_ex_rate ?? charges[0].exchange_rate ?? 1,
+    );
+
+    const invoice = await tx.invoice.create({
+      data: {
+        tenant_id: tenantId,
+        company_id: job.company_id,
+        invoice_number: invoiceNumber,
+        invoice_type: "PURCHASE_INVOICE",
+        status: "DRAFT",
+        job_id: job.id,
+        party_id: vendorId,
+        branch_id: job.branch_id,
+        department_id: job.department_id,
+        currency_code: currency,
+        exchange_rate: exRate,
+        vat_rate: defaultVatRate,
+        created_by: actorId,
+        updated_by: actorId,
+      },
+    });
+
+    for (const [index, charge] of charges.entries()) {
+      const amount = Number(charge.cost_amount ?? charge.amount);
+      const tax = Number(charge.cost_tax_amount ?? charge.tax_amount ?? 0);
+      const qty = Number(charge.quantity ?? 1);
+      const unitPrice = qty > 0 ? amount / qty : amount;
+      const lineTaxRate =
+        amount > 0 && tax > 0
+          ? Math.round((tax / amount) * 10000) / 100
+          : tax > 0
+            ? defaultVatRate
+            : 0;
+
+      await tx.invoiceLine.create({
         data: {
           tenant_id: tenantId,
-          company_id: job.company_id,
-          invoice_number: invoiceNumber,
-          invoice_type: "PURCHASE_INVOICE",
-          status: "DRAFT",
-          job_id: jobId,
-          party_id: vendorId,
-          branch_id: job.branch_id,
-          department_id: job.department_id,
-          currency_code: currency,
-          exchange_rate: exRate,
-          vat_rate: defaultVatRate,
+          invoice_id: invoice.id,
+          job_id: job.id,
+          job_charge_id: charge.id,
+          charge_code_id: charge.charge_code_id,
+          description: charge.description,
+          quantity: qty,
+          unit_price: unitPrice,
+          amount,
+          tax_rate_id: charge.tax_rate_id,
+          tax_rate: lineTaxRate,
+          tax_amount: tax,
+          is_taxable: tax > 0,
+          sort_order: index,
           created_by: actorId,
           updated_by: actorId,
         },
       });
 
-      for (const [index, charge] of charges.entries()) {
-        const amount = Number(charge.cost_amount ?? charge.amount);
-        const tax = Number(charge.cost_tax_amount ?? charge.tax_amount ?? 0);
-        const qty = Number(charge.quantity ?? 1);
-        const unitPrice = qty > 0 ? amount / qty : amount;
-        const lineTaxRate =
-          amount > 0 && tax > 0
-            ? Math.round((tax / amount) * 10000) / 100
-            : tax > 0
-              ? defaultVatRate
-              : 0;
+      await tx.jobCharge.update({
+        where: { id: charge.id },
+        data: { is_invoiced: true, updated_by: actorId },
+      });
+    }
 
-        await tx.invoiceLine.create({
-          data: {
-            tenant_id: tenantId,
-            invoice_id: invoice.id,
-            job_id: jobId,
-            job_charge_id: charge.id,
-            charge_code_id: charge.charge_code_id,
-            description: charge.description,
-            quantity: qty,
-            unit_price: unitPrice,
-            amount,
-            tax_rate_id: charge.tax_rate_id,
-            tax_rate: lineTaxRate,
-            tax_amount: tax,
-            is_taxable: tax > 0,
-            sort_order: index,
-            created_by: actorId,
-            updated_by: actorId,
-          },
-        });
-
-        await tx.jobCharge.update({
-          where: { id: charge.id },
-          data: { is_invoiced: true, updated_by: actorId },
-        });
-      }
-
-      return this.recalculateAndReturn(tx, tenantId, invoice.id);
-    });
+    return this.recalculateAndReturn(tx, tenantId, invoice.id);
   }
 
   async createFromJob(

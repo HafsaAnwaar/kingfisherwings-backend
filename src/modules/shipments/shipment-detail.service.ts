@@ -26,6 +26,8 @@ import {
   opsContinuumActions,
   opsContinuumPathHints,
 } from "../ops-activity/ops-continuum-path-hints";
+import { eligibleEdiTypes } from "../jobs/utils/edi-eligibility.util";
+import { EntityTimelineService } from "../ops-activity/entity-timeline.service";
 
 const DETAIL_TABS = [
   "show_all",
@@ -40,6 +42,7 @@ const DETAIL_TABS = [
   "shipping_bill_boe",
   "routing",
   "customs",
+  "history",
 ] as const;
 
 const AIR_JOB_TYPES: JobType[] = ["AIR_EXPORT", "AIR_IMPORT"];
@@ -53,6 +56,7 @@ export class ShipmentDetailService {
     private readonly jobs: JobsService,
     private readonly edi: DocumentationEdiService,
     private readonly tabParity: ShipmentTabParityService,
+    private readonly timeline: EntityTimelineService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -121,7 +125,14 @@ export class ShipmentDetailService {
     if (normalized === "customs" || normalized === "shipping_bill_boe") {
       return this.tabParity.getCustoms(tenantId, id);
     }
+    if (normalized === "history") {
+      return this.history(tenantId, id);
+    }
     return { success: true, data: {} };
+  }
+
+  async history(tenantId: string, id: string) {
+    return this.timeline.getTimeline(tenantId, "SHIPMENT", id);
   }
 
   createRoutingLeg(
@@ -155,9 +166,9 @@ export class ShipmentDetailService {
     dto: ChangeShipmentBlStatusDto,
     actorId?: string,
   ) {
-    await this.shipments.findOne(tenantId, id);
-    return this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.shipment.update({
+    const current = await this.shipments.findOne(tenantId, id);
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const updated = await tx.shipment.update({
         where: { id },
         data: {
           bl_status: dto.bl_status,
@@ -167,8 +178,27 @@ export class ShipmentDetailService {
             : {}),
           updated_by: actorId,
         },
-      }),
-    );
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "SHIPMENT_BL_STATUS_CHANGE",
+          entity: "SHIPMENT",
+          entity_id: id,
+          old_values: { bl_status: current.bl_status },
+          new_values: {
+            bl_status: dto.bl_status,
+            hbl_number: dto.hbl_number ?? null,
+          },
+          metadata: {
+            from_status: current.bl_status,
+            to_status: dto.bl_status,
+          },
+        },
+      });
+      return updated;
+    });
   }
 
   async changeDepartment(
@@ -545,6 +575,8 @@ export class ShipmentDetailService {
   private actionFlags(shipment: Awaited<ReturnType<typeof this.loadShipment>>) {
     const hasJob = !!shipment.job_id;
     const isAir = AIR_JOB_TYPES.includes(shipment.job_type);
+    // House flag needs linked job; without job treat as master for type list.
+    const ediTypes = eligibleEdiTypes(shipment.job_type, false);
     return {
       can_copy: true,
       can_generate_job: !hasJob && shipment.status !== "CANCELLED",
@@ -556,7 +588,8 @@ export class ShipmentDetailService {
       can_split: shipment.status !== "CANCELLED",
       can_merge: shipment.status !== "CANCELLED",
       can_switch_bl: hasJob,
-      can_edi: hasJob,
+      can_edi: hasJob && ediTypes.length > 0,
+      edi_types: hasJob ? ediTypes : [],
       can_create_submaster: true,
       can_kpi: true,
       can_bl_entry: hasJob,
@@ -567,6 +600,10 @@ export class ShipmentDetailService {
       path_hints: {
         ops_continuum: opsContinuumPathHints("SHIPMENT", shipment.id),
         favourite_toggle: `/favourites/toggle`,
+        edi_types: `/shipments/${shipment.id}/edi/types`,
+        edi_generate: `/shipments/${shipment.id}/edi/generate`,
+        edi_submissions: `/shipments/${shipment.id}/edi/submissions`,
+        edi_legacy_action: `/shipments/${shipment.id}/edi/:action`,
       },
     };
   }

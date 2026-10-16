@@ -6,7 +6,7 @@
 
 ## Shared tabs (same shape as job)
 
-Except job-only `history`, `booking_form`, and `shipments`, shipment detail tabs match job:
+Except job-only `booking_form` and `shipments`, shipment detail tabs match job (including **`history`**):
 
 | Tab | Behavior |
 |-----|----------|
@@ -47,7 +47,9 @@ Except job-only `history`, `booking_form`, and `shipments`, shipment detail tabs
 
 ## Toolbar actions
 
-Copy, generate job (`DIRECT` default / `HOUSE`), change status, change BL status, department, split, merge, switch BL, EDI (`bayan-generate`, `bayan-submit`, `ccn-fwb`, `ccn-submit`, `eqo-dubai-generate`), create submaster, KPI, BL list, AWB (air + job), track-trace, booking form (`GET/PUT /shipments/:id/booking-form`).
+Copy, generate job (`DIRECT` default / `HOUSE`), change status, change BL status, department, split, merge, switch BL, **Generate EDI** (Fresa: pick type → generate → download via `/shipments/:id/edi/types|generate|submissions|…/download`; requires linked job; legacy `POST …/edi/:action` still works), create submaster, KPI, BL list, AWB (air + job), track-trace, booking form (`GET/PUT /shipments/:id/booking-form`).
+
+Detail `actions.can_edi` / `edi_types` + path hints `edi_types`, `edi_generate`, `edi_submissions` (parity with job Generate EDI).
 
 ## Job No link
 

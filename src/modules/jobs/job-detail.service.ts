@@ -24,7 +24,9 @@ import { JobOrganizationService } from "./job-organization.service";
 import { JobDimensionService } from "./job-dimension.service";
 import { JobContainerTabService } from "./job-container-tab.service";
 import { JobCostingService } from "./job-costing.service";
+import { JobEdiService } from "./job-edi.service";
 import { JobTabPanelsService } from "./job-tab-panels.service";
+import { EntityTimelineService } from "../ops-activity/entity-timeline.service";
 import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
 import { JobContainerKind, JobPartyRole } from "@prisma/client";
@@ -67,8 +69,10 @@ export class JobDetailService {
     private readonly dimensions: JobDimensionService,
     private readonly containerTab: JobContainerTabService,
     private readonly costing: JobCostingService,
+    private readonly jobEdi: JobEdiService,
     private readonly tabPanels: JobTabPanelsService,
     private readonly documentEmail: DocumentEmailService,
+    private readonly timeline: EntityTimelineService,
   ) {}
 
   async getDetail(tenantId: string, id: string, permissions?: string[]) {
@@ -552,22 +556,7 @@ export class JobDetailService {
   }
 
   async history(tenantId: string, id: string) {
-    await this.loadJob(tenantId, id);
-    const entities = ["JOB", "job", "Job", "OpsJOB"];
-    const data = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.auditLog.findMany({
-        where: {
-          tenant_id: tenantId,
-          entity_id: id,
-          OR: entities.map((e) => ({
-            entity: { equals: e, mode: "insensitive" },
-          })),
-        },
-        orderBy: { created_at: "desc" },
-        take: 200,
-      }),
-    );
-    return { success: true, data };
+    return this.timeline.getTimeline(tenantId, "JOB", id);
   }
 
   private async loadJob(tenantId: string, id: string) {
@@ -629,6 +618,7 @@ export class JobDetailService {
     const isMaster = !job.parent_job_id;
     const canEditClosedDelivery =
       !!permissions?.includes(JOBS_PERMISSIONS.CLOSED_DELIVERY_EDIT);
+    const ediTypes = this.jobEdi.eligibleTypes(job.job_type, !isMaster);
     return {
       can_edit_header: !closed,
       can_edit: !closed,
@@ -644,7 +634,8 @@ export class JobDetailService {
       can_upload_docs: true,
       can_booking_form: true,
       can_switch_bl: true,
-      can_edi: true,
+      can_edi: ediTypes.length > 0,
+      edi_types: ediTypes,
       can_kpi: true,
       can_bl_entry: true,
       can_awb: isAir,
@@ -682,6 +673,9 @@ export class JobDetailService {
         closed_overrides: `/jobs/${job.id}/closed-overrides`,
         references: `/jobs/${job.id}/references`,
         favourite_toggle: `/favourites/toggle`,
+        edi_types: `/jobs/${job.id}/edi/types`,
+        edi_generate: `/jobs/${job.id}/edi/generate`,
+        edi_submissions: `/jobs/${job.id}/edi/submissions`,
       },
       ...opsContinuumActions(),
     };

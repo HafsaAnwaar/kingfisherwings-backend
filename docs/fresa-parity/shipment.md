@@ -20,10 +20,11 @@
 | Change department | PATCH | `/shipments/:id/department` | Match |
 | Split / merge | POST | `/shipments/:id/split`, `/shipments/:id/merge` | Match |
 | Switch BL (job proxy) | POST | `/shipments/:id/switch-bl` | Match |
-| EDI facade | POST | `/shipments/:id/edi/:action` | Match |
+| Generate EDI (types / generate / list / download) | GET/POST | `/shipments/:id/edi/types`, `…/generate`, `…/submissions`, `…/submissions/:id/download` | Match (same steps as job; needs linked job) |
+| EDI legacy action facade | POST | `/shipments/:id/edi/:action` | Match (prefer typed generate) |
 | Submaster / sub-job | POST | `/shipments/:id/create-submaster` | Match |
 | KPI / BL / AWB / track | GET | `/shipments/:id/kpi`, `…/bills-of-lading`, `…/awb`, `…/tracking` | Match |
 | Public Track & Trace | GET | `/track?ref=` (also `/track/:ref`) — job, shipment, BL/AWB, booking, vehicle, courier #, **container number**; returns milestones + courier + container `history` | Match |
 | Portal track lookup | GET | `/portal/shipments/lookup?ref=` — same keys, party-scoped; milestones include unified `history` | Match |
 
-Tab keys: `show_all`, `info`, `organization`, `dimensions`, `planned_container`, `actual_container`, `ex_rate`, `costing`, `department`, `shipping_bill_boe`, `routing`, `customs` (no job-only `history` / `booking_form` / `shipments`). Shared tabs use the same response shapes as job; when `job_id` is set they proxy to job services. See [shipment-detail.md](./shipment-detail.md).
+Tab keys: `show_all`, `info`, `organization`, `dimensions`, `planned_container`, `actual_container`, `ex_rate`, `costing`, `department`, `shipping_bill_boe`, `routing`, `customs`, `history` (no job-only `booking_form` / `shipments`). History is the unified timeline (`GET /shipments/:id/detail/history` or `/ops/SHIPMENT/:id/history`). Shared tabs use the same response shapes as job; when `job_id` is set they proxy to job services. See [shipment-detail.md](./shipment-detail.md).
