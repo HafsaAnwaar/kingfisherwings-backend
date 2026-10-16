@@ -14,11 +14,13 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { StorageService } from "../../shared/storage/storage.service";
 import {
   CreateOpsAttachmentMetaDto,
+  CreateOpsCommentDto,
   CreateOpsComplaintDto,
   CreateOpsFollowUpDto,
   CreateOpsLinkDto,
   CreateOpsReferenceDto,
   CreateOpsTagDto,
+  PatchOpsCommentDto,
   PatchOpsComplaintDto,
 } from "./dto/ops-activity.dto";
 
@@ -801,6 +803,183 @@ export class OpsActivityService {
   /**
    * History = AuditLog rows for this entity (field changes + continuum actions).
    */
+  async listComments(
+    tenantId: string,
+    entityType: OpsEntityType,
+    entityId: string,
+  ) {
+    await this.assertEntityExists(tenantId, entityType, entityId);
+    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.opsEntityComment.findMany({
+        where: {
+          tenant_id: tenantId,
+          entity_type: entityType,
+          entity_id: entityId,
+          deleted_at: null,
+        },
+        orderBy: { created_at: "asc" },
+      }),
+    );
+    const authorIds = [
+      ...new Set(
+        rows
+          .map((r) => r.created_by)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const authors =
+      authorIds.length === 0
+        ? []
+        : await this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.user.findMany({
+              where: { id: { in: authorIds }, tenant_id: tenantId },
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            }),
+          );
+    const byId = new Map(authors.map((a) => [a.id, a]));
+    const data = rows.map((r) => {
+      const author = r.created_by ? byId.get(r.created_by) : null;
+      return {
+        ...r,
+        author: author
+          ? {
+              id: author.id,
+              name: [author.first_name, author.last_name]
+                .filter(Boolean)
+                .join(" ")
+                .trim() || author.email,
+              email: author.email,
+            }
+          : null,
+      };
+    });
+    return { success: true, data };
+  }
+
+  async addComment(
+    tenantId: string,
+    entityType: OpsEntityType,
+    entityId: string,
+    dto: CreateOpsCommentDto,
+    actorId: string,
+  ) {
+    await this.assertEntityExists(tenantId, entityType, entityId);
+    const body = dto.body.trim();
+    if (!body) throw new BadRequestException("Comment body is required.");
+    const data = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.opsEntityComment.create({
+        data: {
+          tenant_id: tenantId,
+          entity_type: entityType,
+          entity_id: entityId,
+          body,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      }),
+    );
+    await this.writeHistory(
+      tenantId,
+      entityType,
+      entityId,
+      actorId,
+      "OPS_COMMENT_CREATE",
+      { comment_id: data.id },
+    );
+    return { success: true, data };
+  }
+
+  async patchComment(
+    tenantId: string,
+    entityType: OpsEntityType,
+    entityId: string,
+    commentId: string,
+    dto: PatchOpsCommentDto,
+    actorId: string,
+  ) {
+    await this.assertEntityExists(tenantId, entityType, entityId);
+    const body = dto.body.trim();
+    if (!body) throw new BadRequestException("Comment body is required.");
+
+    const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.opsEntityComment.findFirst({
+        where: {
+          id: commentId,
+          tenant_id: tenantId,
+          entity_type: entityType,
+          entity_id: entityId,
+          deleted_at: null,
+        },
+      }),
+    );
+    if (!existing) throw new NotFoundException("Comment not found.");
+    if (existing.created_by && existing.created_by !== actorId) {
+      throw new ForbiddenException("You can only edit your own comments.");
+    }
+
+    const data = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.opsEntityComment.update({
+        where: { id: commentId },
+        data: { body, updated_by: actorId },
+      }),
+    );
+    await this.writeHistory(
+      tenantId,
+      entityType,
+      entityId,
+      actorId,
+      "OPS_COMMENT_UPDATE",
+      { comment_id: commentId },
+    );
+    return { success: true, data };
+  }
+
+  async removeComment(
+    tenantId: string,
+    entityType: OpsEntityType,
+    entityId: string,
+    commentId: string,
+    actorId: string,
+  ) {
+    await this.assertEntityExists(tenantId, entityType, entityId);
+    const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.opsEntityComment.findFirst({
+        where: {
+          id: commentId,
+          tenant_id: tenantId,
+          entity_type: entityType,
+          entity_id: entityId,
+          deleted_at: null,
+        },
+      }),
+    );
+    if (!existing) throw new NotFoundException("Comment not found.");
+    if (existing.created_by && existing.created_by !== actorId) {
+      throw new ForbiddenException("You can only delete your own comments.");
+    }
+
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.opsEntityComment.update({
+        where: { id: commentId },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      }),
+    );
+    await this.writeHistory(
+      tenantId,
+      entityType,
+      entityId,
+      actorId,
+      "OPS_COMMENT_DELETE",
+      { comment_id: commentId },
+    );
+    return { success: true };
+  }
+
   async listHistory(
     tenantId: string,
     entityType: OpsEntityType,

@@ -1,55 +1,49 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
-import { PrismaService } from "../../../prisma/prisma.service";
+import { Injectable } from "@nestjs/common";
+import { FavouritesService } from "../../favourites/favourites.service";
 import { CreateUserFavoriteDto } from "../dto/user-favorite.dto";
 import { MasterQueryDto } from "../dto/master-query.dto";
+import { entityFavouriteTargetKey } from "../../favourites/dto/favourite.dto";
 
+/**
+ * Compat proxy → UserFavourite via /favourites.
+ * Prefer /favourites for new FE work.
+ */
 @Injectable()
 export class FavoritesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly favourites: FavouritesService) {}
 
   async list(tenantId: string, userId: string, query: MasterQueryDto) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const where = {
-        tenant_id: tenantId,
-        user_id: userId,
-        deleted_at: null,
-        ...(query.search
-          ? {
-              OR: [
-                { label: { contains: query.search, mode: "insensitive" as const } },
-                {
-                  entity_type: {
-                    contains: query.search,
-                    mode: "insensitive" as const,
-                  },
-                },
-              ],
-            }
-          : {}),
-      };
-      const [data, total] = await Promise.all([
-        tx.userFavorite.findMany({
-          where,
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-          orderBy: { created_at: "desc" },
-        }),
-        tx.userFavorite.count({ where }),
-      ]);
+    const res = await this.favourites.list(tenantId, userId, {
+      page: query.page,
+      limit: query.limit,
+      search: query.search,
+    });
+    // Shape closer to legacy UserFavorite list for old FE
+    const data = (res.data ?? []).map((row: {
+      id: string;
+      kind: string;
+      target_key: string;
+      label: string | null;
+      created_at: Date;
+    }) => {
+      const colon = row.target_key.indexOf(":");
+      const entity_id =
+        colon > 0 ? row.target_key.slice(colon + 1) : row.target_key;
       return {
-        data,
-        meta: {
-          page: query.page,
-          limit: query.limit,
-          total,
-          totalPages: Math.ceil(total / query.limit) || 0,
-        },
+        id: row.id,
+        entity_type: row.kind,
+        entity_id,
+        label: row.label,
+        created_at: row.created_at,
+        target_key: row.target_key,
       };
     });
+    return {
+      data,
+      meta: res.meta,
+      deprecated: true,
+      prefer: "/favourites",
+    };
   }
 
   async create(
@@ -57,43 +51,27 @@ export class FavoritesService {
     userId: string,
     dto: CreateUserFavoriteDto,
   ) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      try {
-        return await tx.userFavorite.create({
-          data: {
-            tenant_id: tenantId,
-            user_id: userId,
-            entity_type: dto.entity_type,
-            entity_id: dto.entity_id,
-            label: dto.label,
-            created_by: userId,
-            updated_by: userId,
-          },
-        });
-      } catch (error: any) {
-        if (error?.code === "P2002") {
-          throw new ConflictException("Favorite already exists.");
-        }
-        throw error;
-      }
-    });
+    const created = await this.favourites.createFromEntity(
+      tenantId,
+      userId,
+      dto.entity_type,
+      dto.entity_id,
+      dto.label,
+    );
+    return {
+      ...created.data,
+      entity_type: dto.entity_type.toLowerCase(),
+      entity_id: dto.entity_id,
+      target_key: entityFavouriteTargetKey(
+        dto.entity_type,
+        dto.entity_id,
+      ),
+      deprecated: true,
+      prefer: "/favourites",
+    };
   }
 
   async remove(tenantId: string, userId: string, id: string) {
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const existing = await tx.userFavorite.findFirst({
-        where: {
-          id,
-          tenant_id: tenantId,
-          user_id: userId,
-          deleted_at: null,
-        },
-      });
-      if (!existing) throw new NotFoundException("Favorite not found");
-      await tx.userFavorite.update({
-        where: { id },
-        data: { deleted_at: new Date(), updated_by: userId },
-      });
-    });
+    await this.favourites.remove(tenantId, userId, id);
   }
 }

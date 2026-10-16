@@ -22,6 +22,10 @@ import {
   PatchJobDepartmentDto,
   UpsertJobRoutingLegDto,
 } from "../jobs/dto/job-tab-panels.dto";
+import {
+  opsContinuumActions,
+  opsContinuumPathHints,
+} from "../ops-activity/ops-continuum-path-hints";
 
 const DETAIL_TABS = [
   "show_all",
@@ -559,6 +563,11 @@ export class ShipmentDetailService {
       can_awb: hasJob && isAir,
       can_track: hasJob,
       can_booking_form: true,
+      ...opsContinuumActions(),
+      path_hints: {
+        ops_continuum: opsContinuumPathHints("SHIPMENT", shipment.id),
+        favourite_toggle: `/favourites/toggle`,
+      },
     };
   }
 

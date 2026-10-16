@@ -12,7 +12,12 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RolesGuard } from "../users/guards/roles.guard";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
-import { CreateFavouriteDto, FavouriteQueryDto } from "./dto/favourite.dto";
+import {
+  CreateFavouriteDto,
+  FavouriteCheckQueryDto,
+  FavouriteQueryDto,
+  ToggleFavouriteDto,
+} from "./dto/favourite.dto";
 import { FavouritesService } from "./favourites.service";
 
 @ApiTags("Favourites")
@@ -23,13 +28,25 @@ export class FavouritesController {
   constructor(private readonly service: FavouritesService) {}
 
   @Get()
-  @ApiOperation({ summary: "List current user favourites (UserFavourite)" })
+  @ApiOperation({
+    summary: "List current user favourites (Favourites section)",
+  })
   list(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") userId: string,
     @Query() query: FavouriteQueryDto,
   ) {
     return this.service.list(tenantId, userId, query);
+  }
+
+  @Get("check")
+  @ApiOperation({ summary: "Check if target is favourited (star UI)" })
+  check(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Query() query: FavouriteCheckQueryDto,
+  ) {
+    return this.service.check(tenantId, userId, query);
   }
 
   @Post()
@@ -40,6 +57,18 @@ export class FavouritesController {
     @Body() dto: CreateFavouriteDto,
   ) {
     return this.service.create(tenantId, userId, dto);
+  }
+
+  @Post("toggle")
+  @ApiOperation({
+    summary: "Toggle favourite — returns { favourited: boolean }",
+  })
+  toggle(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Body() dto: ToggleFavouriteDto,
+  ) {
+    return this.service.toggle(tenantId, userId, dto);
   }
 
   @Delete(":id")

@@ -29,6 +29,10 @@ import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
 import { JobContainerKind, JobPartyRole } from "@prisma/client";
 import { DocumentEmailService } from "../../shared/email/document-email.service";
+import {
+  opsContinuumActions,
+  opsContinuumPathHints,
+} from "../ops-activity/ops-continuum-path-hints";
 
 const DETAIL_TABS = [
   "show_all",
@@ -667,6 +671,7 @@ export class JobDetailService {
         docs_upload: `/jobs/${job.id}/documents/upload`,
         ops_attachments: `/ops/JOB/${job.id}/attachments`,
         ops_history: `/ops/JOB/${job.id}/history`,
+        ops_continuum: opsContinuumPathHints("JOB", job.id),
         booking_form: this.bookingFormPathHints(job.job_type, job.id),
         job_not_invoiced_do: `/operations/job-not-invoiced-do`,
         job_finance_report: `/operations/job-finance-report`,
@@ -676,7 +681,9 @@ export class JobDetailService {
         email_recipients_suggest: `/jobs/${job.id}/email-recipients/suggest`,
         closed_overrides: `/jobs/${job.id}/closed-overrides`,
         references: `/jobs/${job.id}/references`,
+        favourite_toggle: `/favourites/toggle`,
       },
+      ...opsContinuumActions(),
     };
   }
 

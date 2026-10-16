@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Length,
   MaxLength,
 } from "class-validator";
 
@@ -153,4 +154,18 @@ export class PatchOpsComplaintDto {
   @IsOptional()
   @IsIn(["OPEN", "IN_PROGRESS", "CLOSED"])
   status?: string;
+}
+
+export class CreateOpsCommentDto {
+  @ApiProperty({ description: "Shared staff comment body" })
+  @IsString()
+  @Length(1, 4000)
+  body!: string;
+}
+
+export class PatchOpsCommentDto {
+  @ApiProperty({ description: "Updated comment body" })
+  @IsString()
+  @Length(1, 4000)
+  body!: string;
 }

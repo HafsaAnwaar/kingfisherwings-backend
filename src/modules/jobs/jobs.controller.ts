@@ -19,7 +19,14 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Response } from "express";
 import {
   JobChargeAttachmentSide,
@@ -77,9 +84,14 @@ import {
   CostSectionDto,
   GenerateJobVoucherDto,
   GetJobChargesFromShipmentDto,
+  JobChargesListResponseDto,
   JobInvoiceFromChargesDto,
+  ProfitShareAccountsQueryDto,
+  ProfitShareAccountsResponseDto,
   ProfitShareAddDto,
+  ProfitShareCalculatorResponseDto,
   ProfitSharePreviewDto,
+  ProfitSharePreviewResponseDto,
   SaleSectionDto,
 } from "./dto/job-costing.dto";
 import {
@@ -1857,7 +1869,12 @@ export class JobsController {
 
   @Get(":id/charges")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List job charge lines (costing grid)" })
+  @ApiOperation({
+    summary: "List job charge lines (costing grid)",
+    description:
+      "Typed sale/cost sides with tax, Dr/Cr, GP, prorated_status, line_no, unit, pp_cc",
+  })
+  @ApiOkResponse({ type: JobChargesListResponseDto })
   listCharges(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
@@ -1985,9 +2002,45 @@ export class JobsController {
     return this.service.copyCharges(tenantId, id, dto, actorId);
   }
 
+  @Get(":id/profit-share/calculator")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
+  @ApiOperation({
+    summary: "Profit-share calculator header weights",
+    description:
+      "G.Weight / N.Weight (container rollup) / Volume / Chargeable Weight / pieces",
+  })
+  @ApiOkResponse({ type: ProfitShareCalculatorResponseDto })
+  profitShareCalculator(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.profitShare.calculator(tenantId, id);
+  }
+
+  @Get(":id/profit-share/accounts")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Profit Share A/C — Party Account (Chart of Accounts)",
+    description:
+      "Postable GL accounts for profit_share_account_id (not party UUIDs)",
+  })
+  @ApiOkResponse({ type: ProfitShareAccountsResponseDto })
+  profitShareAccounts(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query() query: ProfitShareAccountsQueryDto,
+  ) {
+    return this.profitShare.listAccounts(tenantId, id, query);
+  }
+
   @Post(":id/profit-share/preview")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW_GP)
-  @ApiOperation({ summary: "Profit share calculator preview" })
+  @ApiOperation({
+    summary: "Profit share calculator preview",
+    description:
+      "Declared Sale/Cost lines, Our Profit Share, Shipment No., calculator weights",
+  })
+  @ApiOkResponse({ type: ProfitSharePreviewResponseDto })
   profitSharePreview(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,

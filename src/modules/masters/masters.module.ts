@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { FavouritesModule } from "../favourites/favourites.module";
 
 import { CountriesController } from "./countries/countries.controller";
 import { CountriesService } from "./countries/countries.service";
@@ -221,7 +222,12 @@ const SERVICES = [
 ];
 
 @Module({
-  imports: [PrismaModule, OrganizationModule, NotificationsModule],
+  imports: [
+    PrismaModule,
+    OrganizationModule,
+    NotificationsModule,
+    FavouritesModule,
+  ],
   controllers: CONTROLLERS,
   providers: SERVICES,
   exports: SERVICES,
