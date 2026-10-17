@@ -433,7 +433,17 @@ export class PortalQuotationsService {
         negotiation_pricing: buildNegotiationPricingView(quotation),
         customer_pdf_url: quotation.customer_pdf_url,
         has_pdf: Boolean(quotation.customer_pdf_url),
-        actions: quotationActionFlags(quotation.status),
+        actions: {
+          ...quotationActionFlags(quotation.status),
+          // Customer portal: accept stops at APPROVED; ops continuum is staff-only.
+          can_generate_shipment: false,
+          can_generate_job: false,
+          can_convert_to_job: false,
+          can_verify: false,
+          can_admin_accept: false,
+          can_admin_reject: false,
+          can_change_status: false,
+        },
         created_at: quotation.created_at,
         updated_at: quotation.updated_at,
       },
@@ -497,29 +507,16 @@ export class PortalQuotationsService {
       { fromPortal: true },
     );
 
-    // Fresa 2C: Shipment (booking) on accept — Generate Job after form complete.
-    const shipment = await this.shipments.createFromQuotation(
-      user.tenantId,
-      quotationId,
-      user.id,
-    );
-
+    // Status only — staff generate shipment / job from the admin ops flow.
     return {
       success: true,
       message:
-        "Quotation accepted. Complete the booking form on the shipment, then Generate Job.",
+        "Quotation approved. Our team will continue with shipment and booking.",
       data: {
         id: updated.id,
         quotation_number: updated.quotation_number,
         status: "APPROVED",
         won_at: updated.won_at,
-        shipment_id: shipment.id,
-        shipment_number: shipment.shipment_number,
-        shipment: {
-          id: shipment.id,
-          shipment_number: shipment.shipment_number,
-          job_id: shipment.job_id,
-        },
       },
     };
   }
@@ -534,7 +531,7 @@ export class PortalQuotationsService {
     }
     if (quotation.status !== "APPROVED") {
       throw new BadRequestException(
-        "Accept the quotation and submit the booking form before converting to a job.",
+        "Quotation must be APPROVED before converting to a job.",
       );
     }
 

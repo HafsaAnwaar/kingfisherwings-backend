@@ -2387,12 +2387,7 @@ export class QuotationsService {
       "QUOTATION_APPROVED",
       "Quotation accepted",
     );
-    // Fresa 2C: create Shipment (booking) on accept — not provisional Job-only.
-    const shipment = await this.shipments.createFromQuotation(
-      tenantId,
-      id,
-      actorId,
-    );
+    // Status only — Generate Shipment / Job stay on the ops continuum after APPROVED.
     const refreshed = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -2404,12 +2399,8 @@ export class QuotationsService {
     return {
       success: true,
       data: refreshed ?? updated,
-      shipment: {
-        shipmentId: shipment.id,
-        shipmentNumber: shipment.shipment_number,
-      },
       message:
-        "Quotation approved. Complete the booking form on the shipment, then Generate Job.",
+        "Quotation approved. Use Generate Shipment (then Generate Job) when ready.",
     };
   }
 
@@ -2651,10 +2642,8 @@ export class QuotationsService {
   // ============================================================
   // CONVERT TO JOB
   //
-  // Accept / negotiation-accept create a *provisional* job (linked via
-  // converted_job_id) while the quotation stays APPROVED so the customer
-  // can complete the mode booking form. CONVERTED is set only after
-  // convertToJob confirms the booking form is submitted.
+  // Accept / negotiation-accept set APPROVED only. Generate Shipment / Job
+  // (and optional convertToJob) are separate staff/ops steps afterward.
   // ============================================================
 
   /**
