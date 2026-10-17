@@ -6,10 +6,14 @@ import {
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PutJobGpumDto } from "./dto/job-gpum.dto";
+import { JobLookupsService } from "./job-lookups.service";
 
 @Injectable()
 export class JobGpumService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly lookups: JobLookupsService,
+  ) {}
 
   async get(tenantId: string, jobId: string) {
     await this.assertJob(tenantId, jobId);
@@ -30,15 +34,17 @@ export class JobGpumService {
       }),
     );
     const total = rows.reduce((s, r) => s + Number(r.gp_percent), 0);
+    const dropdowns = await this.lookups.dropdowns(tenantId);
     return {
       success: true,
       data: {
         allocations: rows.map((r) => ({
-          user_id: r.user_id,
-          employee_name: `${r.user.first_name} ${r.user.last_name}`.trim(),
+          employee_name:
+            `${r.user.first_name} ${r.user.last_name}`.trim() || r.user.email,
           gp_percent: Number(r.gp_percent),
         })),
         total_gp_percent: Math.round(total * 10000) / 10000,
+        employees: dropdowns.data.employees,
       },
     };
   }
@@ -57,17 +63,25 @@ export class JobGpumService {
         where: { tenant_id: tenantId, job_id: jobId },
       });
       for (const line of dto.allocations) {
-        const user = await tx.user.findFirst({
-          where: { id: line.user_id, tenant_id: tenantId, deleted_at: null },
-        });
-        if (!user) {
-          throw new NotFoundException(`User ${line.user_id} not found.`);
+        if (!line.employee_name && !line.user_id) {
+          throw new BadRequestException(
+            "Each allocation needs employee_name (from the employees dropdown).",
+          );
+        }
+        const userId = await this.lookups.resolveUser(
+          tx,
+          tenantId,
+          line.user_id,
+          line.employee_name,
+        );
+        if (!userId) {
+          throw new NotFoundException("Employee not found.");
         }
         await tx.jobGpumAllocation.create({
           data: {
             tenant_id: tenantId,
             job_id: jobId,
-            user_id: line.user_id,
+            user_id: userId,
             gp_percent: line.gp_percent,
             created_by: actorId,
             updated_by: actorId,

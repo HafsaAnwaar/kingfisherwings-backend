@@ -8,8 +8,10 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RolesGuard } from "../users/guards/roles.guard";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
@@ -40,6 +42,7 @@ import {
 } from "./dto/shipment-detail.dto";
 import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
 import { BookingFormEntityService } from "../jobs/booking-forms/booking-form-entity.service";
+import { OpsSectionAttachmentsService } from "../jobs/ops-section-attachments.service";
 import { AddJobOrganizationDto } from "../jobs/dto/job-organization-tab.dto";
 import { UpsertJobDimensionLineDto } from "../jobs/dto/job-dimension.dto";
 import { CompositeJobChargeDto } from "../jobs/dto/job-costing.dto";
@@ -61,6 +64,7 @@ export class ShipmentsController {
     private readonly tabParity: ShipmentTabParityService,
     private readonly shipmentEdi: ShipmentEdiService,
     private readonly bookingForms: BookingFormEntityService,
+    private readonly sectionFiles: OpsSectionAttachmentsService,
   ) {}
 
   @Get()
@@ -341,13 +345,17 @@ export class ShipmentsController {
 
   @Get(":id/edi/submissions/:submissionId/download")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Download URL for a shipment EDI submission" })
+  @ApiOperation({
+    summary:
+      "Download shipment EDI as PDF (authenticated stream). Do not fetch S3 URLs from the browser.",
+  })
   downloadShipmentEdiSubmission(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("submissionId", ParseUUIDPipe) submissionId: string,
+    @Res() res: Response,
   ) {
-    return this.shipmentEdi.download(tenantId, id, submissionId);
+    return this.shipmentEdi.download(tenantId, id, submissionId, res);
   }
 
   @Post(":id/edi/:action")
@@ -387,11 +395,19 @@ export class ShipmentsController {
 
   @Get(":id/bills-of-lading")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
-  listBl(
+  async listBl(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.detail.listBillsOfLading(tenantId, id);
+    const rows = await this.detail.listBillsOfLading(tenantId, id);
+    const list = Array.isArray(rows) ? rows : [rows];
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "SHIPMENT",
+      id,
+      "bills_of_lading",
+      list as object[],
+    );
   }
 
   @Get(":id/awb")

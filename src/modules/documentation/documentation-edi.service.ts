@@ -13,6 +13,8 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { StorageService } from "../../shared/storage/storage.service";
+import { PdfService } from "../../shared/pdf/pdf.service";
+import { ediTypeLabel } from "../jobs/utils/edi-eligibility.util";
 import {
   DocumentationPaginationDto,
   paginated,
@@ -30,6 +32,7 @@ export class DocumentationEdiService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly config: ConfigService,
+    private readonly pdf: PdfService,
   ) {}
 
   async listJobsForEdi(
@@ -259,25 +262,70 @@ export class DocumentationEdiService {
     );
   }
 
-  async getDownloadUrl(tenantId: string, submissionId: string) {
+  /**
+   * Stream a printable PDF through the API (Bearer auth).
+   * Do not return S3/presigned URLs — the SPA fetching those hits CORS.
+   */
+  async streamFile(
+    tenantId: string,
+    submissionId: string,
+    res: import("express").Response,
+  ) {
     const submission = await this.findSubmission(tenantId, submissionId);
     if (!submission.file_storage_key) {
       throw new BadRequestException("No file generated for this submission.");
     }
-    try {
-      const url = await this.storage.presignedGetUrl(
-        submission.file_storage_key,
-      );
-      return { url, submission_id: submissionId };
-    } catch {
-      const filename =
-        submission.file_storage_key.split("/").pop() ?? "edi.xml";
-      const base = this.config.get<string>("storage.publicBaseUrl") ?? "";
-      return {
-        url: `${base}/${tenantId}/${encodeURIComponent(filename)}`,
-        submission_id: submissionId,
-      };
-    }
+    const storedName =
+      submission.file_storage_key.split("/").pop() ?? "edi.xml";
+    const file = await this.storage.readByStoredFile(tenantId, {
+      file_name: storedName,
+      file_url: submission.file_storage_key,
+      s3_key: submission.file_storage_key,
+      mime_type: "application/xml",
+    });
+
+    const xml = file.buffer.toString("utf8");
+    const pdfName = storedName.replace(/\.xml$/i, ".pdf");
+    const pdfBuffer = await this.pdf.renderHtmlToPdf(
+      this.ediXmlToPdfHtml(submission.edi_type, submission.status, xml),
+    );
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${pdfName.replace(/"/g, "")}"`,
+    );
+    res.setHeader("Cache-Control", "no-store");
+    res.send(pdfBuffer);
+  }
+
+  private ediXmlToPdfHtml(
+    ediType: DocumentationEdiType,
+    status: string,
+    xml: string,
+  ) {
+    const escaped = xml
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; padding: 24px; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    .meta { color: #555; margin-bottom: 16px; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 10px;
+          background: #f6f6f6; border: 1px solid #ddd; padding: 12px; }
+  </style>
+</head>
+<body>
+  <h1>EDI ${ediTypeLabel(ediType)}</h1>
+  <div class="meta">${ediType} · Status: ${status}</div>
+  <pre>${escaped}</pre>
+</body>
+</html>`;
   }
 
   private async findSubmission(tenantId: string, id: string) {

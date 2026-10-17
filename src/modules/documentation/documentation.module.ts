@@ -3,6 +3,7 @@ import { BullModule, getQueueToken } from "@nestjs/bull";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { StorageModule } from "../../shared/storage/storage.module";
+import { PdfModule } from "../../shared/pdf/pdf.module";
 import { JobsModule } from "../jobs/jobs.module";
 import redisConfig from "../../config/redis.config";
 import {
@@ -67,6 +68,7 @@ const uploadQueueProviders = redisEnabled
   imports: [
     PrismaModule,
     StorageModule,
+    PdfModule,
     forwardRef(() => JobsModule),
     ConfigModule.forFeature(redisConfig),
     ...uploadQueueImports,

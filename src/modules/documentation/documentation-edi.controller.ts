@@ -5,8 +5,10 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RolesGuard } from "../users/guards/roles.guard";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
@@ -83,11 +85,16 @@ export class DocumentationEdiController {
 
   @Get("submissions/:submissionId/download")
   @RequirePermissions(DOCUMENTATION_PERMISSIONS.EDI_READ)
+  @ApiOperation({
+    summary:
+      "Download EDI as PDF (authenticated stream). Do not fetch S3 URLs from the browser.",
+  })
   download(
     @CurrentUser("tenantId") tenantId: string,
     @Param("submissionId", ParseUUIDPipe) submissionId: string,
+    @Res() res: Response,
   ) {
-    return this.ediService.getDownloadUrl(tenantId, submissionId);
+    return this.ediService.streamFile(tenantId, submissionId, res);
   }
 
   @Get("ccn/jobs")

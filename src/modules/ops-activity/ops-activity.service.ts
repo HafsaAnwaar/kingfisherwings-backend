@@ -440,9 +440,14 @@ export class OpsActivityService {
     });
 
     res.setHeader("Content-Type", file.mimeType);
+    const inline =
+      !!file.mimeType &&
+      (file.mimeType.startsWith("image/") ||
+        file.mimeType === "application/pdf" ||
+        file.mimeType.startsWith("text/"));
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${file.fileName.replace(/"/g, "")}"`,
+      `${inline ? "inline" : "attachment"}; filename="${file.fileName.replace(/"/g, "")}"`,
     );
     res.send(file.buffer);
   }

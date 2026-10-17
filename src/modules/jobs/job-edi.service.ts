@@ -64,6 +64,8 @@ export class JobEdiService {
       data: {
         ...submission,
         download: `/jobs/${jobId}/edi/submissions/${submission.id}/download`,
+        mime_type: "application/pdf",
+        filename: `${dto.edi_type.toLowerCase()}-${jobId.slice(0, 8)}.pdf`,
       },
     };
   }
@@ -82,10 +84,22 @@ export class JobEdiService {
         take: 100,
       }),
     );
-    return { success: true, data: rows };
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        download: `/jobs/${jobId}/edi/submissions/${row.id}/download`,
+        mime_type: "application/pdf",
+      })),
+    };
   }
 
-  async download(tenantId: string, jobId: string, submissionId: string) {
+  async download(
+    tenantId: string,
+    jobId: string,
+    submissionId: string,
+    res: import("express").Response,
+  ) {
     await this.assertJob(tenantId, jobId);
     const submission = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentationEdiSubmission.findFirst({
@@ -100,7 +114,7 @@ export class JobEdiService {
     if (!submission) {
       throw new NotFoundException("EDI submission not found for this job.");
     }
-    return this.edi.getDownloadUrl(tenantId, submissionId);
+    return this.edi.streamFile(tenantId, submissionId, res);
   }
 
   private async assertJob(tenantId: string, jobId: string) {

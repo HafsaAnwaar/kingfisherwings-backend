@@ -74,6 +74,8 @@ export class ShipmentEdiService {
         shipment_id: shipmentId,
         job_id: ctx.jobId,
         download: `/shipments/${shipmentId}/edi/submissions/${submission.id}/download`,
+        mime_type: "application/pdf",
+        filename: `${dto.edi_type.toLowerCase()}-${shipmentId.slice(0, 8)}.pdf`,
       },
     };
   }
@@ -100,13 +102,21 @@ export class ShipmentEdiService {
         take: 100,
       }),
     );
-    return { success: true, data: rows };
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        download: `/shipments/${shipmentId}/edi/submissions/${row.id}/download`,
+        mime_type: "application/pdf",
+      })),
+    };
   }
 
   async download(
     tenantId: string,
     shipmentId: string,
     submissionId: string,
+    res: import("express").Response,
   ) {
     const ctx = await this.resolveContext(tenantId, shipmentId, true);
     const submission = await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -127,7 +137,7 @@ export class ShipmentEdiService {
         "EDI submission not found for this shipment.",
       );
     }
-    return this.edi.getDownloadUrl(tenantId, submissionId);
+    return this.edi.streamFile(tenantId, submissionId, res);
   }
 
   private async resolveContext(

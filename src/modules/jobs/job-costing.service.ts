@@ -1228,6 +1228,7 @@ export class JobCostingService {
 export const PROFIT_SHARE_AGENT_TYPES: PartyType[] = [
   PartyType.AGENT,
   PartyType.SUPPLIER,
+  PartyType.VENDOR,
   PartyType.SHIPPING_LINE,
   PartyType.AIRLINE,
   PartyType.OVERSEAS_AGENT,

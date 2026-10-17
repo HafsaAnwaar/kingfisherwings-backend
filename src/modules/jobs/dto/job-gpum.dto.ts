@@ -1,19 +1,37 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
   IsNumber,
+  IsOptional,
+  IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
 
 export class JobGpumLineDto {
-  @ApiProperty({ format: "uuid" })
+  @ApiProperty({
+    example: "Ayesha Khan",
+    description:
+      "Employee full name or email from GET /jobs/lookups/dropdowns (employees). Preferred over user_id.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  employee_name?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    deprecated: true,
+    description: "Optional. Prefer employee_name.",
+  })
+  @IsOptional()
   @IsUUID()
-  user_id!: string;
+  user_id?: string;
 
   @ApiProperty({ example: 50 })
   @IsNumber()

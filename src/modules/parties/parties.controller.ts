@@ -31,6 +31,7 @@ import {
   UpsertPartyEdiCodeDto,
 } from "./party-extensions.service";
 
+import { PartyType } from "@prisma/client";
 import { CreatePartyDto, UpdatePartyDto } from "./dto/party.dto";
 import { PartyQueryDto } from "./dto/party-query.dto";
 import { UpdateCreditStatusDto } from "./dto/update-credit-status.dto";
@@ -87,6 +88,24 @@ export class PartiesController {
     @Query() query: PartyQueryDto,
   ) {
     return this.service.exportCsv(tenantId, query);
+  }
+
+  @Get("types")
+  @RequirePermissions(PARTIES_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Party types for create/select dropdowns (includes Vendor)",
+  })
+  listTypes() {
+    return {
+      success: true,
+      data: Object.values(PartyType).map((code) => ({
+        code,
+        label: code
+          .split("_")
+          .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
+          .join(" "),
+      })),
+    };
   }
 
   @Get(":id/history")

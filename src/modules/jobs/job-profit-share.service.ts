@@ -109,7 +109,7 @@ export class JobProfitShareService {
     if (!agent) throw new NotFoundException("Profit share agent not found.");
     if (!PROFIT_SHARE_AGENT_TYPES.includes(agent.party_type as PartyType)) {
       throw new BadRequestException(
-        "Profit Share Agent must be a Carrier, Agent, or Supplier (shipping line / airline / agent / supplier / overseas agent).",
+        "Profit Share Agent must be a Carrier, Agent, Vendor, or Supplier (shipping line / airline / agent / vendor / supplier / overseas agent).",
       );
     }
 

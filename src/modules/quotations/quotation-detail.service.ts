@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, QuotationStatus } from "@prisma/client";
+import { PartyType, Prisma, QuotationStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { QuotationsService } from "./quotations.service";
 import { quotationActionFlags } from "./quotation-action-flags";
@@ -46,6 +46,15 @@ export class QuotationDetailService {
           path_hints: {
             ops_continuum: opsContinuumPathHints("QUOTATION", quote.id),
             favourite_toggle: `/favourites/toggle`,
+            ...(flags.can_generate_shipment
+              ? { generate_shipment: `/quotations/${quote.id}/generate-shipment` }
+              : {}),
+            ...(flags.can_generate_job
+              ? { generate_job: `/quotations/${quote.id}/generate-job` }
+              : {}),
+            ...(flags.can_convert_to_job
+              ? { convert_to_job: `/quotations/${quote.id}/convert-to-job` }
+              : {}),
           },
         },
         sections: await this.buildSectionSummaries(tenantId, quote),
@@ -82,17 +91,20 @@ export class QuotationDetailService {
     if (normalized === "organization") {
       return {
         success: true,
-        data: await this.labels.enrichOne(tenantId, {
-          company_id: quote.company_id,
-          branch_id: quote.branch_id,
-          department_id: quote.department_id,
-          customer_id: quote.customer_id,
-          customer_address: quote.customer_address,
-          salesperson_id: quote.salesperson_id,
-          shipper_id: quote.shipper_id,
-          consignee_id: quote.consignee_id,
-          carrier_id: quote.carrier_id,
-        }),
+        data: {
+          ...(await this.labels.enrichOne(tenantId, {
+            company_id: quote.company_id,
+            branch_id: quote.branch_id,
+            department_id: quote.department_id,
+            customer_id: quote.customer_id,
+            customer_address: quote.customer_address,
+            salesperson_id: quote.salesperson_id,
+            shipper_id: quote.shipper_id,
+            consignee_id: quote.consignee_id,
+            carrier_id: quote.carrier_id,
+          })),
+          party_types: Object.values(PartyType),
+        },
       };
     }
     return {
