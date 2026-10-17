@@ -493,7 +493,9 @@ export class QuotationsController {
   @Post(":id/negotiation/accept")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.SEND)
   @ApiOperation({
-    summary: "Accept customer counter-offer and convert quotation to job",
+    summary: "Accept customer counter-offer (sets APPROVED only)",
+    description:
+      "Applies the customer proposed total and marks APPROVED. Does not create shipment or job — use Generate Shipment / Generate Job next.",
   })
   negotiationAccept(
     @CurrentUser("tenantId") tenantId: string,
