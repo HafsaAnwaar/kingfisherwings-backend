@@ -31,6 +31,12 @@ import {
   UpdateShipmentDto,
 } from "./dto/shipment.dto";
 
+/** Generate Job is allowed only after staff confirm/approve the booking. */
+export const SHIPMENT_GENERATE_JOB_STATUSES: ShipmentStatus[] = [
+  "CONFIRMED",
+  "APPROVED",
+];
+
 const JOB_TYPE_CODE: Record<JobType, string> = {
   AIR_EXPORT: "AE",
   AIR_IMPORT: "AI",
@@ -401,6 +407,13 @@ export class ShipmentsService {
   ) {
     const mode = dto.mode ?? "DIRECT";
     const shipment = await this.findOne(tenantId, id);
+    if (
+      !SHIPMENT_GENERATE_JOB_STATUSES.includes(shipment.status as ShipmentStatus)
+    ) {
+      throw new BadRequestException(
+        "Confirm or approve the shipment before generating a job. Change status to CONFIRMED or APPROVED first.",
+      );
+    }
     if (shipment.job_id && mode === "DIRECT") {
       throw new ConflictAlreadyLinked(shipment.job_id);
     }
@@ -1073,15 +1086,9 @@ export class ShipmentsService {
       }),
     );
     if (!quote) throw new NotFoundException("Quotation not found.");
-    if (quote.status !== "APPROVED" && quote.status !== "VERIFIED") {
+    if (quote.status !== "APPROVED") {
       throw new BadRequestException(
-        "Only VERIFIED or APPROVED quotations can generate a shipment.",
-      );
-    }
-    // Fresa: Approved unlocks generate — treat VERIFIED as needing approve first for staff-strict path
-    if (quote.status === "VERIFIED") {
-      throw new BadRequestException(
-        "Approve the quotation (Approved) before Generate Shipment.",
+        "Approve the quotation before Generate Shipment.",
       );
     }
 

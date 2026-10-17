@@ -595,7 +595,11 @@ export class ShipmentDetailService {
     const ediTypes = eligibleEdiTypes(shipment.job_type, false);
     return {
       can_copy: true,
-      can_generate_job: !hasJob && shipment.status !== "CANCELLED",
+      can_generate_job:
+        !hasJob &&
+        (shipment.status === "CONFIRMED" || shipment.status === "APPROVED"),
+      can_confirm_shipment: !hasJob && shipment.status === "BOOKED",
+      generate_job_requires_status: ["CONFIRMED", "APPROVED"] as const,
       generate_job_modes: ["DIRECT", "HOUSE"] as const,
       default_generate_mode: "DIRECT" as const,
       can_change_status: shipment.status !== "CANCELLED",
@@ -620,6 +624,10 @@ export class ShipmentDetailService {
         edi_generate: `/shipments/${shipment.id}/edi/generate`,
         edi_submissions: `/shipments/${shipment.id}/edi/submissions`,
         edi_legacy_action: `/shipments/${shipment.id}/edi/:action`,
+        ...(!hasJob &&
+        (shipment.status === "CONFIRMED" || shipment.status === "APPROVED")
+          ? { generate_job: `/shipments/${shipment.id}/generate-job` }
+          : {}),
       },
     };
   }

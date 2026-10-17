@@ -26,6 +26,7 @@ export const DEFAULT_VENDOR_DOCUMENT_TYPES = [
 ] as const;
 
 export const VENDOR_ELIGIBLE_PARTY_TYPES = [
+  "VENDOR",
   "SUPPLIER",
   "AIRLINE",
   "SHIPPING_LINE",

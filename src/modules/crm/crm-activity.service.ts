@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { EnquiryStatus, FollowUpStatus, Prisma } from "@prisma/client";
+import { EnquiryStatus, FollowUpStatus, PartyType, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { JobsService } from "../jobs/jobs.service";
@@ -574,6 +574,7 @@ export class CrmActivityService {
   /** Detail tabs: organization, dimensions, planned consignee, costing, department. */
   async getEnquiryDetailSections(user: CurrentUser, id: string) {
     const { data: enquiry } = await this.getEnquiry(user, id);
+    const conversion = await this.enquiryConversionFlags(user.tenantId, enquiry);
     return {
       success: true,
       data: {
@@ -582,26 +583,40 @@ export class CrmActivityService {
           can_edit: enquiry.status !== "CANCELLED",
           can_report: true,
           can_copy: true,
-          can_generate_quotation: !enquiry.quotation_id && enquiry.status !== "CANCELLED",
-          can_generate_shipment: enquiry.status !== "CANCELLED",
-          can_generate_job: enquiry.status !== "CANCELLED",
+          can_generate_quotation: conversion.can_generate_quotation,
+          can_generate_shipment: conversion.can_generate_shipment,
+          can_generate_job: conversion.can_generate_job,
+          generate_shipment_requires_quotation_status: "APPROVED",
+          generate_job_requires_shipment_status: ["CONFIRMED", "APPROVED"],
           ...opsContinuumActions(),
           path_hints: {
             ops_continuum: opsContinuumPathHints("ENQUIRY", enquiry.id),
             favourite_toggle: `/favourites/toggle`,
+            ...(conversion.can_generate_quotation
+              ? { generate_quotation: `/crm/enquiries/${enquiry.id}/generate-quotation` }
+              : {}),
+            ...(conversion.can_generate_shipment
+              ? { generate_shipment: `/crm/enquiries/${enquiry.id}/generate-shipment` }
+              : {}),
+            ...(conversion.can_generate_job
+              ? { generate_job: `/crm/enquiries/${enquiry.id}/generate-job` }
+              : {}),
           },
         },
         sections: {
-          organization: await this.labels.enrichOne(user.tenantId, {
-            company_id: enquiry.company_id,
-            branch_id: enquiry.branch_id,
-            department_id: enquiry.department_id,
-            party_id: enquiry.party_id,
-            customer_address: enquiry.customer_address,
-            enquiry_date: enquiry.enquiry_date,
-            service_type: enquiry.service_type,
-            currency_code: enquiry.currency_code,
-          }),
+          organization: {
+            ...(await this.labels.enrichOne(user.tenantId, {
+              company_id: enquiry.company_id,
+              branch_id: enquiry.branch_id,
+              department_id: enquiry.department_id,
+              party_id: enquiry.party_id,
+              customer_address: enquiry.customer_address,
+              enquiry_date: enquiry.enquiry_date,
+              service_type: enquiry.service_type,
+              currency_code: enquiry.currency_code,
+            })),
+            party_types: Object.values(PartyType),
+          },
           port_details: await this.labels.enrichOne(user.tenantId, {
             branch_id: enquiry.branch_id,
             department_id: enquiry.department_id,
@@ -1022,49 +1037,21 @@ export class CrmActivityService {
     if (enquiry.shipment_id) {
       throw new BadRequestException("Enquiry already has a shipment.");
     }
-
-    const customerId = await this.resolveCustomerId(user, enquiry);
-    const shipment = await this.shipments.create(
+    if (!enquiry.quotation_id) {
+      throw new BadRequestException(
+        "Generate a quotation from this enquiry, then approve it before generating a shipment.",
+      );
+    }
+    const result = await this.quotations.generateShipment(
       user.tenantId,
-      {
-        job_type: enquiry.service_type,
-        customer_id: customerId,
-        enquiry_id: enquiry.id,
-        quotation_id: enquiry.quotation_id ?? undefined,
-        company_id: enquiry.company_id ?? undefined,
-        branch_id: enquiry.branch_id ?? undefined,
-        department_id: enquiry.department_id ?? undefined,
-        shipper_id: enquiry.shipper_id ?? customerId,
-        consignee_id: enquiry.consignee_id ?? undefined,
-        salesperson_id: enquiry.salesperson_id ?? user.id,
-        carrier_id: enquiry.carrier_id ?? undefined,
-        origin_port_id: enquiry.origin_port_id ?? undefined,
-        dest_port_id: enquiry.dest_port_id ?? undefined,
-        por_port_id: enquiry.por_port_id ?? undefined,
-        etd: enquiry.etd?.toISOString().slice(0, 10),
-        eta: enquiry.eta?.toISOString().slice(0, 10),
-        vessel_name: enquiry.vessel_name ?? undefined,
-        voyage_number: enquiry.voyage_number ?? undefined,
-        commodity: enquiry.commodity ?? enquiry.cargo_details ?? undefined,
-        hs_code: enquiry.hs_code ?? undefined,
-        gross_weight: enquiry.gross_weight
-          ? Number(enquiry.gross_weight)
-          : undefined,
-        chargeable_weight: enquiry.chargeable_weight
-          ? Number(enquiry.chargeable_weight)
-          : undefined,
-        volume_cbm: enquiry.volume_cbm ? Number(enquiry.volume_cbm) : undefined,
-        pieces: enquiry.pieces ?? undefined,
-        container_type_id: enquiry.container_type_id ?? undefined,
-        container_count: enquiry.container_count ?? undefined,
-        incoterms: enquiry.incoterms ?? undefined,
-        notes: enquiry.special_requirements ?? undefined,
-      },
+      enquiry.quotation_id,
       user.id,
     );
-
     const updated = await this.requireEnquiry(user, id);
-    return { success: true, data: { enquiry: updated, shipment } };
+    return {
+      success: true,
+      data: { enquiry: updated, shipment: result.data },
+    };
   }
 
   async generateJob(user: CurrentUser, id: string) {
@@ -1075,59 +1062,28 @@ export class CrmActivityService {
     if (enquiry.job_id) {
       throw new BadRequestException("Enquiry already has a job.");
     }
-
-    const customerId = await this.resolveCustomerId(user, enquiry);
-    const job = await this.jobs.create(user.tenantId, {
-      job_type: enquiry.service_type,
-      company_id: enquiry.company_id ?? undefined,
-      branch_id: enquiry.branch_id ?? undefined,
-      department_id: enquiry.department_id ?? undefined,
-      shipper_id: customerId,
-      salesperson_id: enquiry.salesperson_id ?? user.id,
-      origin_port_id: enquiry.origin_port_id ?? undefined,
-      dest_port_id: enquiry.dest_port_id ?? undefined,
-      commodity: enquiry.commodity ?? enquiry.cargo_details ?? undefined,
-      gross_weight: enquiry.gross_weight
-        ? Number(enquiry.gross_weight)
-        : undefined,
-      chargeable_weight: enquiry.chargeable_weight
-        ? Number(enquiry.chargeable_weight)
-        : undefined,
-      volume_cbm: enquiry.volume_cbm ? Number(enquiry.volume_cbm) : undefined,
-      pieces: enquiry.pieces ?? undefined,
-      container_type_id: enquiry.container_type_id ?? undefined,
-      container_count: enquiry.container_count ?? undefined,
-      incoterms: enquiry.incoterms ?? undefined,
-      notes: enquiry.special_requirements ?? undefined,
-      etd: enquiry.etd?.toISOString(),
-      eta: enquiry.eta?.toISOString(),
-    }, user.id);
-
-    const updated = await this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.enquiry.update({
-        where: { id },
-        data: {
-          job_id: job.id,
-          status: "BOOKED",
-          updated_by: user.id,
-        },
-      }),
-    );
-
-    if (enquiry.shipment_id) {
-      await this.prisma.runWithTenant(user.tenantId, (tx) =>
-        tx.shipment.updateMany({
-          where: {
-            id: enquiry.shipment_id!,
-            tenant_id: user.tenantId,
-            job_id: null,
-          },
-          data: { job_id: job.id, updated_by: user.id },
-        }),
+    if (!enquiry.quotation_id) {
+      throw new BadRequestException(
+        "Generate a quotation from this enquiry, then approve it before generating a job.",
       );
     }
-
-    return { success: true, data: { enquiry: updated, job } };
+    if (enquiry.shipment_id) {
+      const jobResult = await this.shipments.generateJob(
+        user.tenantId,
+        enquiry.shipment_id,
+        { mode: "DIRECT" },
+        user.id,
+      );
+      const updated = await this.requireEnquiry(user, id);
+      return { success: true, data: { enquiry: updated, job: jobResult } };
+    }
+    const result = await this.quotations.generateJobFromQuotation(
+      user.tenantId,
+      enquiry.quotation_id,
+      user.id,
+    );
+    const updated = await this.requireEnquiry(user, id);
+    return { success: true, data: { enquiry: updated, job: result.data } };
   }
 
   async openEnquiriesReport(user: CurrentUser, query: EnquiryQueryDto) {
@@ -1232,6 +1188,53 @@ export class CrmActivityService {
       }
     }
     return notified;
+  }
+
+  private async enquiryConversionFlags(
+    tenantId: string,
+    enquiry: {
+      id: string;
+      status: string;
+      quotation_id: string | null;
+      shipment_id: string | null;
+      job_id: string | null;
+    },
+  ) {
+    const cancelled = enquiry.status === "CANCELLED";
+    let quoteStatus: string | null = null;
+    if (enquiry.quotation_id) {
+      const quote = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.quotation.findFirst({
+          where: { id: enquiry.quotation_id!, tenant_id: tenantId },
+          select: { status: true },
+        }),
+      );
+      quoteStatus = quote?.status ?? null;
+    }
+    const quoteApproved =
+      quoteStatus === "APPROVED" || quoteStatus === "CONVERTED";
+    let shipmentStatus: string | null = null;
+    if (enquiry.shipment_id) {
+      const shipment = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.shipment.findFirst({
+          where: { id: enquiry.shipment_id!, tenant_id: tenantId },
+          select: { status: true },
+        }),
+      );
+      shipmentStatus = shipment?.status ?? null;
+    }
+    const shipmentReady =
+      shipmentStatus === "CONFIRMED" || shipmentStatus === "APPROVED";
+    return {
+      can_generate_quotation: !enquiry.quotation_id && !cancelled,
+      can_generate_shipment:
+        !cancelled && quoteApproved && !enquiry.shipment_id,
+      can_generate_job:
+        !cancelled &&
+        !enquiry.job_id &&
+        quoteApproved &&
+        (!enquiry.shipment_id || shipmentReady),
+    };
   }
 
   private async resolveCustomerId(

@@ -21,6 +21,7 @@ export const JOB_ORGANIZATION_TYPES: JobPartyRole[] = [
   JobPartyRole.BILLING_PARTY,
   JobPartyRole.AGENT,
   JobPartyRole.OVERSEAS_AGENT,
+  JobPartyRole.VENDOR,
 ];
 
 /** Party types allowed for OVERSEAS_AGENT org role. */

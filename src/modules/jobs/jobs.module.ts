@@ -9,7 +9,12 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { InvoicesModule } from "../invoices/invoices.module";
 import { GlModule } from "../gl/gl.module";
 import { StorageModule } from "../../shared/storage/storage.module";
+import { PdfModule } from "../../shared/pdf/pdf.module";
 import { JobsController } from "./jobs.controller";
+import { JobLookupsController } from "./job-lookups.controller";
+import { JobOpsAttachmentsController } from "./job-ops-attachments.controller";
+import { JobLookupsService } from "./job-lookups.service";
+import { OpsSectionAttachmentsService } from "./ops-section-attachments.service";
 import {
   JobsSeaScansController,
   SeaKpiReportController,
@@ -68,6 +73,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     InvoicesModule,
     GlModule,
     StorageModule,
+    PdfModule,
     OpsActivityModule,
     TransportModule,
     forwardRef(() => VendorModule),
@@ -77,6 +83,8 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
   ],
   controllers: [
     CustomsClearanceQueueController,
+    JobLookupsController,
+    JobOpsAttachmentsController,
     JobsController,
     JobsSeaScansController,
     SeaKpiReportController,
@@ -89,6 +97,8 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     JobDetailService,
     JobStatusCatalogService,
     JobGpumService,
+    JobLookupsService,
+    OpsSectionAttachmentsService,
     JobChargeAttachmentService,
     JobContainerStorageCostingService,
     JobOrganizationService,
@@ -126,6 +136,8 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     JobContainerTabService,
     JobTabPanelsService,
     JobDocumentUploadService,
+    JobLookupsService,
+    OpsSectionAttachmentsService,
     JobDateService,
     JobsDashboardService,
     SeaFclImportService,

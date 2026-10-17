@@ -90,6 +90,7 @@ enum JobPartyRole {
   AGENT
   NOTIFY
   OVERSEAS_AGENT
+  VENDOR
 }
 
 enum JobPartyReferenceType {
@@ -206,6 +207,7 @@ enum PartyType {
   WAREHOUSE
   SUPPLIER
   OVERSEAS_AGENT
+  VENDOR
   OTHER
 }
 
@@ -293,6 +295,8 @@ enum QuotationStatus {
 /// Fresa Shipment (booking / HBL) lifecycle — distinct from Job (MBL / confirmation).
 enum ShipmentStatus {
   BOOKED
+  CONFIRMED
+  APPROVED
   IN_PROGRESS
   COMPLETED
   CANCELLED

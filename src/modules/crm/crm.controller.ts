@@ -358,7 +358,10 @@ export class CrmEnquiriesController {
 
   @Post(":id/generate-shipment")
   @RequirePermissions(CRM_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Generate shipment from enquiry (status BOOKED)" })
+  @ApiOperation({
+    summary:
+      "Generate shipment from enquiry — requires an APPROVED quotation first",
+  })
   generateShipment(
     @CurrentUser() user: CurrentUserType,
     @Param("id", ParseUUIDPipe) id: string,
@@ -368,7 +371,10 @@ export class CrmEnquiriesController {
 
   @Post(":id/generate-job")
   @RequirePermissions(CRM_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Generate job from enquiry (status BOOKED)" })
+  @ApiOperation({
+    summary:
+      "Generate job from enquiry — quotation must be APPROVED; if a shipment exists it must be CONFIRMED or APPROVED",
+  })
   generateJob(
     @CurrentUser() user: CurrentUserType,
     @Param("id", ParseUUIDPipe) id: string,

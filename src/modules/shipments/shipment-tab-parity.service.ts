@@ -8,6 +8,7 @@ import {
 import {
   JobContainerKind,
   JobPartyRole,
+  PartyType,
   Prisma,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -91,6 +92,7 @@ export class ShipmentTabParityService {
           customer?.party_display?.name ?? customer?.party?.name ?? null,
         customer_party: customer?.party_display ?? customer?.party ?? null,
         organization_types: JOB_ORGANIZATION_TYPES,
+        party_types: Object.values(PartyType),
         shipment_fks: {
           customer_id: s.customer_id,
           shipper_id: s.shipper_id,

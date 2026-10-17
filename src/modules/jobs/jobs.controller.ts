@@ -141,6 +141,7 @@ import {
   PatchJobDocumentVisibilityDto,
 } from "./dto/job-document.dto";
 import { JobDocumentUploadService } from "./job-document-upload.service";
+import { OpsSectionAttachmentsService } from "./ops-section-attachments.service";
 import {
   BulkJobContainersDto,
   ConfirmContainerUploadDto,
@@ -269,6 +270,7 @@ export class JobsController {
     private readonly transport: TransportService,
     private readonly vendorQuotes: VendorQuotesService,
     private readonly documentUpload: JobDocumentUploadService,
+    private readonly sectionFiles: OpsSectionAttachmentsService,
   ) {}
 
   @Get()
@@ -1172,21 +1174,35 @@ export class JobsController {
   @Get(":id/bills-of-lading")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "List bills of lading on a Sea FCL job" })
-  listBillsOfLading(
+  async listBillsOfLading(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.listBillsOfLading(tenantId, id);
+    const rows = await this.service.listBillsOfLading(tenantId, id);
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "JOB",
+      id,
+      "bills_of_lading",
+      rows,
+    );
   }
 
   @Get(":id/stuffing-records")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "List stuffing records on a Sea FCL job" })
-  listStuffingRecords(
+  async listStuffingRecords(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.listStuffingRecords(tenantId, id);
+    const rows = await this.service.listStuffingRecords(tenantId, id);
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "JOB",
+      id,
+      "stuffing_records",
+      rows,
+    );
   }
 
   @Post()
@@ -2039,13 +2055,17 @@ export class JobsController {
 
   @Get(":id/edi/submissions/:submissionId/download")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Download URL for a job EDI submission" })
+  @ApiOperation({
+    summary:
+      "Download job EDI as PDF (authenticated stream). Do not fetch S3 URLs from the browser.",
+  })
   downloadJobEdiSubmission(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("submissionId", ParseUUIDPipe) submissionId: string,
+    @Res() res: Response,
   ) {
-    return this.jobEdi.download(tenantId, id, submissionId);
+    return this.jobEdi.download(tenantId, id, submissionId, res);
   }
 
   @Get(":id/profit-share/calculator")
@@ -2890,11 +2910,18 @@ export class JobsController {
   @Get(":id/sub-jobs")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "List operational sub-jobs under this parent" })
-  listSubJobs(
+  async listSubJobs(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.listSubJobs(tenantId, id);
+    const rows = await this.service.listSubJobs(tenantId, id);
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "JOB",
+      id,
+      "sub_jobs",
+      rows,
+    );
   }
 
   @Post(":id/sub-jobs")
@@ -3457,11 +3484,18 @@ export class JobsController {
     summary:
       "List per-container free days + demurrage/detention accrual (traffic light)",
   })
-  listFreeDays(
+  async listFreeDays(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.seaFclImport.listFreeDays(tenantId, id);
+    const rows = await this.seaFclImport.listFreeDays(tenantId, id);
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "JOB",
+      id,
+      "free_days",
+      rows,
+    );
   }
 
   @Post(":id/free-days")
@@ -3496,11 +3530,18 @@ export class JobsController {
   @ApiOperation({
     summary: "List customs / port deposits with expiry alert bands",
   })
-  listDeposits(
+  async listDeposits(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.seaFclImport.listDeposits(tenantId, id);
+    const rows = await this.seaFclImport.listDeposits(tenantId, id);
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "JOB",
+      id,
+      "deposits",
+      rows,
+    );
   }
 
   @Post(":id/deposits")
@@ -3584,11 +3625,18 @@ export class JobsController {
   @Get(":id/part-deliveries")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "List part deliveries" })
-  listPartDeliveries(
+  async listPartDeliveries(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.seaFclImport.listPartDeliveries(tenantId, id);
+    const rows = await this.seaFclImport.listPartDeliveries(tenantId, id);
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "JOB",
+      id,
+      "part_deliveries",
+      rows,
+    );
   }
 
   @Post(":id/part-deliveries")
@@ -3609,11 +3657,18 @@ export class JobsController {
   @Get(":id/pods")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "List proofs of delivery" })
-  listPods(
+  async listPods(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.seaFclImport.listPods(tenantId, id);
+    const rows = await this.seaFclImport.listPods(tenantId, id);
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "JOB",
+      id,
+      "pods",
+      rows,
+    );
   }
 
   @Post(":id/pods")
@@ -3631,11 +3686,18 @@ export class JobsController {
   @Get(":id/damage-reports")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "List damage reports" })
-  listDamageReports(
+  async listDamageReports(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.seaFclImport.listDamageReports(tenantId, id);
+    const rows = await this.seaFclImport.listDamageReports(tenantId, id);
+    return this.sectionFiles.decorateList(
+      tenantId,
+      "JOB",
+      id,
+      "damage_reports",
+      rows,
+    );
   }
 
   @Post(":id/damage-reports")

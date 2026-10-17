@@ -12,22 +12,48 @@ import {
 } from "class-validator";
 
 export class PatchJobDepartmentDto {
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({ description: "Branch name or code (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  branch_name?: string | null;
+
+  @ApiPropertyOptional({ format: "uuid", deprecated: true })
   @IsOptional()
   @IsUUID()
   branch_id?: string | null;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({ description: "Company name or code (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  company_name?: string | null;
+
+  @ApiPropertyOptional({ format: "uuid", deprecated: true })
   @IsOptional()
   @IsUUID()
   company_id?: string | null;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({ description: "Department name or code (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  department_name?: string | null;
+
+  @ApiPropertyOptional({ format: "uuid", deprecated: true })
   @IsOptional()
   @IsUUID()
   department_id?: string | null;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    description: "Salesperson full name or email (preferred)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  salesperson_name?: string | null;
+
+  @ApiPropertyOptional({ format: "uuid", deprecated: true })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string | null;

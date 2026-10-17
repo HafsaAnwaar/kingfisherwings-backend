@@ -15,6 +15,7 @@ import {
   UpsertJobRoutingLegDto,
 } from "./dto/job-tab-panels.dto";
 import { MasterLabelService } from "../masters/master-label.service";
+import { JobLookupsService } from "./job-lookups.service";
 
 type ModeFormKind =
   | "sea_fcl"
@@ -32,6 +33,7 @@ export class JobTabPanelsService {
     private readonly modeBookingForms: ModeBookingFormService,
     private readonly airCompliance: AirComplianceBookingFormService,
     private readonly labels: MasterLabelService,
+    private readonly lookups: JobLookupsService,
   ) {}
 
   // ─── Department ─────────────────────────────────────────────
@@ -44,12 +46,24 @@ export class JobTabPanelsService {
       department_id: job.department_id,
       salesperson_id: job.salesperson_id,
     });
+    const dropdowns = await this.lookups.dropdowns(tenantId);
     return {
       success: true,
       data: {
-        ...named,
+        company_name: named.company_name,
+        company: named.company,
+        branch_name: named.branch_name,
+        branch: named.branch,
+        department_name: named.department_name,
+        department: named.department,
+        salesperson_name: named.salesperson_name,
+        salesperson: named.salesperson,
+        dropdowns: dropdowns.data,
         actions: { can_patch: true },
-        path_hints: { patch: `/jobs/${jobId}/department` },
+        path_hints: {
+          patch: `/jobs/${jobId}/department`,
+          dropdowns: `/jobs/lookups/dropdowns`,
+        },
       },
     };
   }
@@ -65,59 +79,54 @@ export class JobTabPanelsService {
       dto.branch_id === undefined &&
       dto.company_id === undefined &&
       dto.department_id === undefined &&
-      dto.salesperson_id === undefined
+      dto.salesperson_id === undefined &&
+      dto.branch_name === undefined &&
+      dto.company_name === undefined &&
+      dto.department_name === undefined &&
+      dto.salesperson_name === undefined
     ) {
-      throw new BadRequestException("Provide at least one department field.");
+      throw new BadRequestException(
+        "Provide at least one name (company_name, branch_name, department_name, salesperson_name).",
+      );
     }
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
-      if (dto.branch_id) {
-        const b = await tx.branch.findFirst({
-          where: { id: dto.branch_id, tenant_id: tenantId, deleted_at: null },
-        });
-        if (!b) throw new NotFoundException("Branch not found.");
-      }
-      if (dto.company_id) {
-        const c = await tx.company.findFirst({
-          where: { id: dto.company_id, tenant_id: tenantId, deleted_at: null },
-        });
-        if (!c) throw new NotFoundException("Company not found.");
-      }
-      if (dto.department_id) {
-        const d = await tx.department.findFirst({
-          where: {
-            id: dto.department_id,
-            tenant_id: tenantId,
-            deleted_at: null,
-          },
-        });
-        if (!d) throw new NotFoundException("Department not found.");
-      }
-      if (dto.salesperson_id) {
-        const u = await tx.user.findFirst({
-          where: {
-            id: dto.salesperson_id,
-            tenant_id: tenantId,
-          },
-        });
-        if (!u) throw new NotFoundException("Salesperson not found.");
-      }
+      const companyId = await this.lookups.resolveCompany(
+        tx,
+        tenantId,
+        dto.company_id,
+        dto.company_name,
+      );
+      const branchId = await this.lookups.resolveBranch(
+        tx,
+        tenantId,
+        dto.branch_id,
+        dto.branch_name,
+      );
+      const departmentId = await this.lookups.resolveDepartment(
+        tx,
+        tenantId,
+        dto.department_id,
+        dto.department_name,
+      );
+      const salespersonId = await this.lookups.resolveUser(
+        tx,
+        tenantId,
+        dto.salesperson_id,
+        dto.salesperson_name,
+      );
 
       const before = await tx.job.findFirst({ where: { id: jobId } });
       const updated = await tx.job.update({
         where: { id: jobId },
         data: {
-          ...(dto.branch_id !== undefined
-            ? { branch_id: dto.branch_id }
+          ...(branchId !== undefined ? { branch_id: branchId } : {}),
+          ...(companyId !== undefined ? { company_id: companyId } : {}),
+          ...(departmentId !== undefined
+            ? { department_id: departmentId }
             : {}),
-          ...(dto.company_id !== undefined
-            ? { company_id: dto.company_id }
-            : {}),
-          ...(dto.department_id !== undefined
-            ? { department_id: dto.department_id }
-            : {}),
-          ...(dto.salesperson_id !== undefined
-            ? { salesperson_id: dto.salesperson_id }
+          ...(salespersonId !== undefined
+            ? { salesperson_id: salespersonId }
             : {}),
           updated_by: actorId,
         },

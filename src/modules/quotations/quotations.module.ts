@@ -12,6 +12,7 @@ import { ShipmentsModule } from "../shipments/shipments.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { CronSecretGuard } from "../../common/guards/cron-secret.guard";
 import { QuotationsController } from "./quotations.controller";
+import { QuotationOpsAttachmentsController } from "./quotation-ops-attachments.controller";
 import { QuotationsService } from "./quotations.service";
 import { QuotationDetailService } from "./quotation-detail.service";
 import { TariffsController } from "./tariffs/tariffs.controller";
@@ -43,6 +44,7 @@ import { BookingFormGateService } from "../../common/services/booking-form-gate.
     ServiceCatalogController,
     TariffsController,
     ZipDistancesController,
+    QuotationOpsAttachmentsController,
     QuotationsController,
   ],
   providers: [

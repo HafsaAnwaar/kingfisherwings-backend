@@ -2801,6 +2801,21 @@ export class QuotationsService {
         },
       });
 
+      if (quotation.source_enquiry_id) {
+        await tx.enquiry.updateMany({
+          where: {
+            id: quotation.source_enquiry_id,
+            tenant_id: tenantId,
+            job_id: null,
+          },
+          data: {
+            job_id: job.id,
+            status: "BOOKED",
+            updated_by: actorId,
+          },
+        });
+      }
+
       this.logger.log(
         `[PROVISIONAL_JOB] Quotation ${quotation.quotation_number} -> Job ${jobNumber} (still APPROVED)`,
       );

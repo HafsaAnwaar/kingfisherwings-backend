@@ -86,6 +86,7 @@ export class JobOrganizationService {
         customer_name: customer?.party_display?.name ?? customer?.party?.name ?? null,
         customer_party: customer?.party_display ?? customer?.party ?? null,
         organization_types: JOB_ORGANIZATION_TYPES,
+        party_types: Object.values(PartyType),
         job_fks: {
           shipper_id: job.shipper_id,
           consignee_id: job.consignee_id,
