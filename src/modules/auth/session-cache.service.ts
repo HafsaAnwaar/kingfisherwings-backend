@@ -7,6 +7,10 @@ export type CachedStaffSession = {
   tenantId: string;
   role: string;
   twoFactorEnabled: boolean;
+  /** ISO timestamp — absolute session expiry */
+  expiresAt?: string;
+  /** ISO timestamp — last authenticated activity (idle logout) */
+  lastUsedAt?: string;
 };
 
 export type CachedSuperAdminSession = {

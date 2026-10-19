@@ -1237,33 +1237,109 @@ export class JobsService {
 
       const charges = await tx.jobCharge.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
-        orderBy: { created_at: "asc" },
+        orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
       });
+
+      // Dual-sided costing: a single charge may have both sale_amount and cost_amount.
+      const toRevenueLine = (c: (typeof charges)[number]) => {
+        const hasSale =
+          c.sale_amount != null || (!c.is_cost && c.amount != null);
+        if (!hasSale) return null;
+        const amount = Number(
+          c.sale_amount ?? (!c.is_cost ? c.amount : 0) ?? 0,
+        );
+        const ex = Number(c.sale_ex_rate ?? c.exchange_rate ?? 1);
+        return {
+          id: c.id,
+          charge_code_id: c.charge_code_id,
+          description: c.description,
+          amount,
+          currency: c.sale_currency ?? c.currency_code,
+          amount_base: amount * ex,
+          party_id: c.sale_party_id ?? c.party_id,
+          is_provisional: c.is_provisional,
+        };
+      };
+      const toCostLine = (c: (typeof charges)[number]) => {
+        const hasCost =
+          c.cost_amount != null || (c.is_cost && c.amount != null);
+        if (!hasCost) return null;
+        const amount = Number(
+          c.cost_amount ?? (c.is_cost ? c.amount : 0) ?? 0,
+        );
+        const ex = Number(c.cost_ex_rate ?? c.exchange_rate ?? 1);
+        return {
+          id: c.id,
+          charge_code_id: c.charge_code_id,
+          description: c.description,
+          amount,
+          currency: c.cost_currency ?? c.currency_code,
+          amount_base: amount * ex,
+          party_id: c.cost_party_id ?? c.party_id,
+          is_provisional: c.is_provisional,
+        };
+      };
 
       const confirmed = charges.filter((c) => !c.is_provisional);
       const provisional = charges.filter((c) => c.is_provisional);
-      const revenueLines = confirmed.filter((c) => !c.is_cost);
-      const costLines = confirmed.filter((c) => c.is_cost);
-      const provisionalRevenue = provisional.filter((c) => !c.is_cost);
-      const provisionalCost = provisional.filter((c) => c.is_cost);
-      const provRev = provisionalRevenue.reduce(
-        (s, c) => s + Number(c.amount_base_currency),
-        0,
-      );
-      const provCost = provisionalCost.reduce(
-        (s, c) => s + Number(c.amount_base_currency),
-        0,
-      );
+
+      const revenueLines = confirmed
+        .map(toRevenueLine)
+        .filter((x): x is NonNullable<typeof x> => x != null);
+      const costLines = confirmed
+        .map(toCostLine)
+        .filter((x): x is NonNullable<typeof x> => x != null);
+      const provisionalRevenue = provisional
+        .map(toRevenueLine)
+        .filter((x): x is NonNullable<typeof x> => x != null);
+      const provisionalCost = provisional
+        .map(toCostLine)
+        .filter((x): x is NonNullable<typeof x> => x != null);
+
+      const sumBase = (rows: { amount_base: number }[]) =>
+        rows.reduce((s, r) => s + r.amount_base, 0);
+
+      const revenueTotal = sumBase(revenueLines);
+      const costTotal = sumBase(costLines);
+      const gpAmount = revenueTotal - costTotal;
+      const provRev = sumBase(provisionalRevenue);
+      const provCost = sumBase(provisionalCost);
+
+      // Keep job totals in sync when P&L is opened (demo / ops convenience).
+      if (
+        Math.abs(Number(job.revenue_total) - revenueTotal) > 0.01 ||
+        Math.abs(Number(job.cost_total) - costTotal) > 0.01
+      ) {
+        await tx.job.update({
+          where: { id: jobId },
+          data: {
+            revenue_total: revenueTotal,
+            cost_total: costTotal,
+            gp_amount: gpAmount,
+            gp_percent:
+              revenueTotal > 0 ? (gpAmount / revenueTotal) * 100 : 0,
+          },
+        });
+      }
 
       return {
         job_id: job.id,
         job_number: job.job_number,
-        revenue_total: Number(job.revenue_total),
-        cost_total: Number(job.cost_total),
-        gp_amount: Number(job.gp_amount),
-        gp_percent: Number(job.gp_percent),
+        revenue_total: revenueTotal,
+        cost_total: costTotal,
+        gp_amount: gpAmount,
+        gp_percent: revenueTotal > 0 ? (gpAmount / revenueTotal) * 100 : 0,
         revenue_lines: revenueLines,
         cost_lines: costLines,
+        lines: charges.map((c) => ({
+          id: c.id,
+          description: c.description,
+          charge_code_id: c.charge_code_id,
+          sale: toRevenueLine(c),
+          cost: toCostLine(c),
+          gp_amount: c.gp_amount != null ? Number(c.gp_amount) : null,
+          is_provisional: c.is_provisional,
+        })),
         provisional: {
           revenue_total: provRev,
           cost_total: provCost,
@@ -2596,6 +2672,44 @@ export class JobsService {
         orderBy: { created_at: "asc" },
       }),
     );
+  }
+
+  async assertCargoOnJob(tenantId: string, jobId: string, cargoId: string) {
+    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobCargo.findFirst({
+        where: {
+          id: cargoId,
+          job_id: jobId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
+        select: { id: true },
+      }),
+    );
+    if (!row) throw new NotFoundException("Cargo line not found on this job.");
+    return row;
+  }
+
+  async listCargoDocuments(tenantId: string, jobId: string, cargoId: string) {
+    await this.assertCargoOnJob(tenantId, jobId, cargoId);
+    const docs = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobDocument.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          OR: [
+            { reference_number: `CARGO:${cargoId}` },
+            {
+              booking_form_kind: "cargo_line",
+              reference_number: { contains: cargoId },
+            },
+          ],
+        },
+        orderBy: { created_at: "desc" },
+      }),
+    );
+    return { success: true, data: docs };
   }
 
   async addCargo(

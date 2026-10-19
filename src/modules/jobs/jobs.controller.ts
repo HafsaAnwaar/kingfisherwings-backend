@@ -3418,6 +3418,62 @@ export class JobsController {
     return this.service.addCargo(tenantId, id, dto, actorId);
   }
 
+  @Post(":id/cargo/:cargoId/documents/upload")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        document_type: {
+          type: "string",
+          description: "Optional DocumentType (default OTHER)",
+        },
+      },
+    },
+  })
+  @ApiOperation({
+    summary: "Upload a document attached to a cargo line (stored as job document)",
+  })
+  async uploadCargoDocument(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("cargoId", ParseUUIDPipe) cargoId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body("document_type") documentType?: string,
+  ) {
+    await this.service.assertCargoOnJob(tenantId, id, cargoId);
+    return this.documentUpload.uploadForJob(
+      tenantId,
+      id,
+      documentType?.trim() || "OTHER",
+      file,
+      { userId: actorId, side: OpsUploaderSide.STAFF },
+      {
+        skip_allowlist: true,
+        reference_number: `CARGO:${cargoId}`,
+        booking_form_kind: "cargo_line",
+      },
+    );
+  }
+
+  @Get(":id/cargo/:cargoId/documents")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List documents uploaded for a cargo line" })
+  listCargoDocuments(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("cargoId", ParseUUIDPipe) cargoId: string,
+  ) {
+    return this.service.listCargoDocuments(tenantId, id, cargoId);
+  }
+
   @Patch(":id/cargo/:cargoId")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({ summary: "Update an FCL cargo line" })

@@ -1730,14 +1730,58 @@ export class JobCostingService {
       tx.chargeCode.findFirst({
         where: { id: chargeCodeId, tenant_id: tenantId },
         select: {
+          id: true,
           gl_revenue_account_id: true,
           gl_cost_account_id: true,
         },
       }),
     );
-    return side === "SALE"
-      ? code?.gl_revenue_account_id ?? null
-      : code?.gl_cost_account_id ?? null;
+    const mapped =
+      side === "SALE"
+        ? code?.gl_revenue_account_id ?? null
+        : code?.gl_cost_account_id ?? null;
+    if (mapped) return mapped;
+
+    // Demo / ops safety: fall back to seeded Freight Revenue (4100) / Freight Cost (5100)
+    // and backfill the charge code so voucher generate does not hard-fail.
+    const fallback = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const preferredCodes =
+        side === "SALE" ? ["4100", "4200"] : ["5100", "6100"];
+      let account =
+        (await tx.chartOfAccount.findFirst({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            is_active: true,
+            is_postable: true,
+            account_code: { in: preferredCodes },
+          },
+          orderBy: { account_code: "asc" },
+        })) ??
+        (await tx.chartOfAccount.findFirst({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            is_active: true,
+            is_postable: true,
+            account_group: side === "SALE" ? "REVENUE" : "EXPENSES",
+          },
+          orderBy: { account_code: "asc" },
+        }));
+
+      if (!account || !code?.id) return account?.id ?? null;
+
+      await tx.chargeCode.update({
+        where: { id: code.id },
+        data:
+          side === "SALE"
+            ? { gl_revenue_account_id: account.id }
+            : { gl_cost_account_id: account.id },
+      });
+      return account.id;
+    });
+
+    return fallback;
   }
 
   private async resolveControlAccount(
