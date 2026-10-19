@@ -697,4 +697,204 @@ export class JobInvoiceFromChargesDto {
   charge_ids?: string[];
 }
 
+/** Pricing table row for job invoice form (purchase / sale). */
+export class JobInvoiceFormLineDto {
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  job_charge_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  charge_code_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  shipment_no?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  unit?: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  quantity?: number;
+
+  @ApiPropertyOptional({ example: "AED" })
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency_code?: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  exchange_rate?: number;
+
+  @ApiPropertyOptional({ enum: JobChargeDrCr })
+  @IsOptional()
+  @IsEnum(JobChargeDrCr)
+  dr_cr?: JobChargeDrCr;
+
+  @ApiProperty({ example: 100 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  amount!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  fcy_amount?: number;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  tax_rate_id?: string;
+
+  @ApiPropertyOptional({ enum: JobChargePpCc })
+  @IsOptional()
+  @IsEnum(JobChargePpCc)
+  pp_cc?: JobChargePpCc;
+}
+
+/**
+ * Form-first save for Generate Purchase / Sale / Vendor invoice upload.
+ * When `lines` is omitted and only `charge_ids` is set, legacy instant-from-charges path runs.
+ */
+export class JobInvoiceFormSaveDto {
+  @ApiPropertyOptional({
+    type: [String],
+    description: "Legacy: create from these charge ids when lines omitted",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  charge_ids?: string[];
+
+  @ApiPropertyOptional({ format: "uuid", description: "Organization / party" })
+  @IsOptional()
+  @IsUUID()
+  organization_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  party_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  branch_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  company_id?: string;
+
+  @ApiPropertyOptional({
+    description: "Display voucher type (PURCHASE_INVOICE / SALES_INVOICE)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  voucher_type?: string;
+
+  @ApiPropertyOptional({ description: "V Date (invoice date)" })
+  @IsOptional()
+  @IsDateString()
+  v_date?: string;
+
+  @ApiPropertyOptional({ description: "GL Date (stored in internal_notes if no column)" })
+  @IsOptional()
+  @IsDateString()
+  gl_date?: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  exchange_rate?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  bill_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  remarks?: string;
+
+  @ApiPropertyOptional({ description: "Books / ledger label" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  books?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ example: "AED" })
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  narration?: string;
+
+  @ApiPropertyOptional({ description: "Ref No / LPO" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ref_no?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  vendor_quote_id?: string;
+
+  @ApiPropertyOptional({ type: [JobInvoiceFormLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => JobInvoiceFormLineDto)
+  lines?: JobInvoiceFormLineDto[];
+}
+
+export class JobInvoiceFormQueryDto {
+  @ApiPropertyOptional({
+    description: "Comma-separated or repeated charge ids to prefill",
+  })
+  @IsOptional()
+  @IsString()
+  charge_ids?: string;
+}
+
 export type CostingVisibilityAudience = "STAFF" | "CUSTOMER" | "VENDOR";

@@ -303,11 +303,24 @@ export class InvoicesService {
             tx,
             tenantId,
             invoice.id,
-            line,
+            {
+              ...line,
+              job_id: line.job_id ?? dto.job_id,
+            },
             actorId,
             index,
             invoice.vat_rate,
           );
+          if (line.job_charge_id) {
+            await tx.jobCharge.updateMany({
+              where: {
+                id: line.job_charge_id,
+                tenant_id: tenantId,
+                deleted_at: null,
+              },
+              data: { is_invoiced: true, updated_by: actorId },
+            });
+          }
         }
       }
 
@@ -1893,6 +1906,8 @@ export class InvoicesService {
       data: {
         tenant_id: tenantId,
         invoice_id: invoiceId,
+        job_id: dto.job_id,
+        job_charge_id: dto.job_charge_id,
         charge_code_id: dto.charge_code_id,
         description: dto.description,
         quantity,

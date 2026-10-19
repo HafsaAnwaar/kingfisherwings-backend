@@ -56,6 +56,16 @@ export class CreateInvoiceLineDto {
   @IsOptional()
   @IsInt()
   sort_order?: number;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  job_charge_id?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  job_id?: string;
 }
 
 export class UpdateInvoiceLineDto extends PartialType(CreateInvoiceLineDto) {}

@@ -64,6 +64,7 @@ import {
 import { BookingFormGateService } from "../../common/services/booking-form-gate.service";
 import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
 import { ShipmentsService } from "../shipments/shipments.service";
+import { JobCostingService } from "../jobs/job-costing.service";
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -123,6 +124,8 @@ export class QuotationsService {
     private readonly masterLabels: MasterLabelService,
     private readonly bookingFormGate: BookingFormGateService,
     private readonly shipments: ShipmentsService,
+    @Inject(forwardRef(() => JobCostingService))
+    private readonly jobCosting: JobCostingService,
     @Inject(forwardRef(() => PortalService))
     private readonly portal: PortalService,
   ) {}
@@ -2192,6 +2195,12 @@ export class QuotationsService {
       return result;
     });
 
+    await this.jobCosting.syncQuotationRevenueToJobCharges(
+      tenantId,
+      id,
+      actorId,
+    );
+
     return {
       success: true,
       message: "Counter-offer submitted.",
@@ -2306,6 +2315,11 @@ export class QuotationsService {
       "QUOTATION_REVISED",
       "Revised quotation sent",
     );
+    await this.jobCosting.syncQuotationRevenueToJobCharges(
+      tenantId,
+      id,
+      actorId,
+    );
     return {
       success: true,
       message: "Revised quotation sent to customer.",
@@ -2386,6 +2400,11 @@ export class QuotationsService {
       updated,
       "QUOTATION_APPROVED",
       "Quotation accepted",
+    );
+    await this.jobCosting.syncQuotationRevenueToJobCharges(
+      tenantId,
+      id,
+      actorId,
     );
     // Status only — Generate Shipment / Job stay on the ops continuum after APPROVED.
     const refreshed = await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -2678,6 +2697,11 @@ export class QuotationsService {
         }),
       );
       if (existing) {
+        await this.jobCosting.syncQuotationRevenueToJobCharges(
+          tenantId,
+          id,
+          actorId,
+        );
         return { jobId: existing.id, jobNumber: existing.job_number };
       }
     }
@@ -2700,6 +2724,11 @@ export class QuotationsService {
         }),
       );
       if (existing) {
+        await this.jobCosting.syncQuotationRevenueToJobCharges(
+          tenantId,
+          id,
+          actorId,
+        );
         return { jobId: existing.id, jobNumber: existing.job_number };
       }
     }
