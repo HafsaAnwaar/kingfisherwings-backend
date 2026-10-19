@@ -73,9 +73,10 @@ export function resolveSmtpSettings() {
   let host = trimEnv("SMTP_HOST") ?? "localhost";
   const user = trimEnv("SMTP_USER");
   const pass = normalizeSmtpPass(trimEnv("SMTP_PASS") ?? trimEnv("SMTP_pass"));
-  const fromName = trimEnv("SMTP_FROM_NAME") ?? "KingFisher Wings";
+  const fromName =
+    trimEnv("SMTP_FROM_NAME") ?? "King Fisher Technologies";
   const fromEmail =
-    trimEnv("SMTP_FROM_EMAIL") ?? user ?? "kingfisherwings@gmail.com";
+    trimEnv("SMTP_FROM_EMAIL") ?? user ?? "support@kingfisherwings.com";
 
   if (host.includes("@")) {
     console.warn(

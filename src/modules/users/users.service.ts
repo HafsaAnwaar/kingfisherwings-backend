@@ -6,7 +6,13 @@ import {
   ForbiddenException,
   BadRequestException,
   UnauthorizedException,
+  Optional,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { EmailService } from "../../shared/email/email.service";
+import {
+  buildPasswordResetEmail,
+} from "../../shared/email/branded-email.template";
 
 import {
   Prisma,
@@ -80,6 +86,8 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly repository: UsersRepository,
+    @Optional() private readonly email?: EmailService,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   // ============================================================
@@ -976,8 +984,12 @@ export class UsersService {
     );
     const passwordHash = await PasswordUtil.hash(temporaryPassword);
 
-    await this.prisma.runWithTenant(tenantId, async (tx) => {
-      await this.getExistingOrThrow(tx, tenantId, targetUserId);
+    const user = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const existing = await this.getExistingOrThrow(
+        tx,
+        tenantId,
+        targetUserId,
+      );
 
       await this.repository.updatePassword(tx, targetUserId, passwordHash, {
         updatedBy: adminId,
@@ -994,12 +1006,42 @@ export class UsersService {
           reason: "ADMIN_RESET",
         },
       });
+
+      return existing;
     });
 
     this.log(
       "ADMIN_RESET_PASSWORD",
       `Password reset for ${targetUserId} by ${adminId}`,
     );
+
+    if (this.email && user.email) {
+      const fullName =
+        [user.first_name, user.last_name].filter(Boolean).join(" ") ||
+        user.email;
+      const branded = buildPasswordResetEmail({
+        audience: "STAFF",
+        recipientName: fullName,
+        email: user.email,
+        temporaryPassword,
+      });
+      try {
+        await this.email.send({
+          tenantId,
+          eventType: "OTHER",
+          to: user.email,
+          subject: branded.subject,
+          body: branded.html,
+          createdBy: adminId,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `Admin password-reset email failed for ${user.email}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
 
     return { temporaryPassword };
   }
@@ -1014,7 +1056,7 @@ export class UsersService {
   ): Promise<{ token: string } | null> {
     await this.validateTenant(tenantId);
 
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const issued = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const user = await this.repository.findByEmail(tx, tenantId, email);
 
       if (!user) {
@@ -1036,8 +1078,48 @@ export class UsersService {
         `Reset token issued for user ${user.id}`,
       );
 
-      return { token };
+      return {
+        token,
+        expiresAt,
+        userId: user.id,
+        email: user.email,
+        fullName:
+          [user.first_name, user.last_name].filter(Boolean).join(" ") ||
+          user.email,
+      };
     });
+
+    if (issued && this.email) {
+      const appUrl =
+        this.config?.get<string>("APP_URL") ??
+        this.config?.get<string>("PUBLIC_API_URL") ??
+        "http://localhost:3000";
+      const resetUrl = `${appUrl.replace(/\/$/, "")}/reset-password?token=${issued.token}`;
+      const branded = buildPasswordResetEmail({
+        audience: "STAFF",
+        recipientName: issued.fullName,
+        email: issued.email,
+        resetUrl,
+        expiresAt: issued.expiresAt,
+      });
+      try {
+        await this.email.send({
+          tenantId,
+          eventType: "OTHER",
+          to: issued.email,
+          subject: branded.subject,
+          body: branded.html,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `Password reset email failed for ${issued.email}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    return issued ? { token: issued.token } : null;
   }
 
   /**

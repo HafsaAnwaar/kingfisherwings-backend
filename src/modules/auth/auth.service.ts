@@ -17,6 +17,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { PasswordUtil } from "../../common/utils/password.util";
 import { TwoFactorCrypto } from "../../common/utils/two-factor-crypto.util";
 import { EmailService } from "../../shared/email/email.service";
+import { buildStaffInviteEmail } from "../../shared/email/branded-email.template";
 import { collectEffectivePermissionCodes } from "../../common/constants/effective-permissions";
 
 import { UsersService } from "../users/users.service";
@@ -1303,12 +1304,21 @@ export class AuthService {
       const to = dto.email ?? user.email;
       const appUrl =
         this.configService.get<string>("APP_URL") ?? "http://localhost:3000";
+      const inviteUrl = `${appUrl.replace(/\/$/, "")}/accept-invite?token=${token}`;
+      const recipientName =
+        [user.first_name, user.last_name].filter(Boolean).join(" ") ||
+        user.email;
+      const branded = buildStaffInviteEmail({
+        recipientName,
+        inviteUrl,
+        expiresAt,
+      });
       await this.emailService.send({
         tenantId,
         eventType: "USER_INVITE",
         to,
-        subject: "You are invited to FreightSaas",
-        body: `You have been invited. Open ${appUrl}/accept-invite?token=${token} and set your password. This link expires at ${expiresAt.toISOString()}.`,
+        subject: branded.subject,
+        body: branded.html,
         createdBy: actorId,
       });
 
