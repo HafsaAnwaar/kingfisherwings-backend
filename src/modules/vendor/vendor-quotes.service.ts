@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from "@nestjs/common";
 import {
   Prisma,
@@ -30,6 +32,7 @@ import {
   normalizeVendorLines,
 } from "./vendor-quote-negotiation-pricing.util";
 import { vendorQuoteActionFlags } from "./vendor-quote-action-flags";
+import { JobCostingService } from "../jobs/job-costing.service";
 
 const VENDOR_ACTIONABLE: VendorQuoteStatus[] = [
   "SENT",
@@ -72,6 +75,8 @@ export class VendorQuotesService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationEmitterService,
     private readonly invoices: InvoicesService,
+    @Inject(forwardRef(() => JobCostingService))
+    private readonly jobCosting: JobCostingService,
   ) {}
 
   resolveVendorPartyId(dto: SendJobToVendorDto): string {
@@ -391,6 +396,12 @@ export class VendorQuotesService {
       },
     );
 
+    await this.jobCosting.syncVendorQuoteCostToJobCharges(
+      tenantId,
+      quoteId,
+      actorId,
+    );
+
     return { success: true, data: this.toSharedView(updated) };
   }
 
@@ -462,6 +473,12 @@ export class VendorQuotesService {
         entity_id: updated.id,
         link_path: `/vendor/job-offers/${updated.id}`,
       },
+    );
+
+    await this.jobCosting.syncVendorQuoteCostToJobCharges(
+      tenantId,
+      updated.id,
+      actorId,
     );
 
     const purchaseInvoice = await this.ensurePurchaseInvoiceFromApproval(
@@ -610,6 +627,8 @@ export class VendorQuotesService {
       return result;
     });
 
+    await this.jobCosting.syncVendorQuoteCostToJobCharges(tenantId, updated.id);
+
     const purchaseInvoice = await this.ensurePurchaseInvoiceFromApproval(
       tenantId,
       updated.id,
@@ -746,6 +765,11 @@ export class VendorQuotesService {
 
       return result;
     });
+
+    await this.jobCosting.syncVendorQuoteCostToJobCharges(
+      tenantId,
+      quoteId,
+    );
 
     return { success: true, data: this.toSharedView(updated) };
   }

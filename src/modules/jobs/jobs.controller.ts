@@ -87,6 +87,7 @@ import {
   GenerateJobVoucherDto,
   GetJobChargesFromShipmentDto,
   JobChargesListResponseDto,
+  JobInvoiceFormSaveDto,
   JobInvoiceFromChargesDto,
   ProfitShareAccountsQueryDto,
   ProfitShareAccountsResponseDto,
@@ -2149,16 +2150,34 @@ export class JobsController {
     return this.costing.generateVoucher(tenantId, id, dto, actorId);
   }
 
+  @Get(":id/invoices/sale/form")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Sales invoice form preview (autofill from costing/quotation; empty form if none)",
+  })
+  saleInvoiceForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("charge_ids") chargeIds?: string,
+  ) {
+    const ids = chargeIds
+      ? chargeIds.split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined;
+    return this.costing.getSaleInvoiceForm(tenantId, id, ids);
+  }
+
   @Post(":id/invoices/sale")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Generate sale invoice from selected (or all) billable sale lines",
+    summary:
+      "Save sales invoice form (DRAFT/CREATE) or legacy generate from charge_ids",
   })
   generateSaleInvoice(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: JobInvoiceFromChargesDto,
+    @Body() dto: JobInvoiceFormSaveDto,
   ) {
     return this.costing.createSaleInvoice(tenantId, id, dto ?? {}, actorId);
   }
@@ -2196,18 +2215,55 @@ export class JobsController {
     );
   }
 
+  @Get(":id/invoices/purchase/form")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Purchase / vendor invoice form preview (vendor offer → costing → empty)",
+  })
+  purchaseInvoiceForm(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("charge_ids") chargeIds?: string,
+  ) {
+    const ids = chargeIds
+      ? chargeIds.split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined;
+    return this.costing.getPurchaseInvoiceForm(tenantId, id, ids);
+  }
+
   @Post(":id/invoices/purchase")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiConsumes("application/json", "multipart/form-data")
+  @UseInterceptors(FileInterceptor("file"))
   @ApiOperation({
-    summary: "Generate purchase invoice from selected (or all) cost lines",
+    summary:
+      "Save purchase / vendor invoice form (DRAFT/CREATE); optional PDF upload field `file`",
   })
   generatePurchaseInvoice(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: JobInvoiceFromChargesDto,
+    @Body() dto: JobInvoiceFormSaveDto & { data?: string },
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.costing.createPurchaseInvoice(tenantId, id, dto ?? {}, actorId);
+    let body: JobInvoiceFormSaveDto = dto ?? {};
+    if (typeof dto?.data === "string" && dto.data.trim()) {
+      try {
+        body = JSON.parse(dto.data) as JobInvoiceFormSaveDto;
+      } catch {
+        throw new BadRequestException(
+          "multipart field `data` must be a JSON string of the invoice form.",
+        );
+      }
+    }
+    return this.costing.createPurchaseInvoice(
+      tenantId,
+      id,
+      body,
+      actorId,
+      file,
+    );
   }
 
   @Get(":id/pnl/custom-duty")
