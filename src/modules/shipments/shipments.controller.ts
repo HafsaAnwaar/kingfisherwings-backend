@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -34,6 +35,11 @@ import { ShipmentsService } from "./shipments.service";
 import { ShipmentDetailService } from "./shipment-detail.service";
 import { ShipmentTabParityService } from "./shipment-tab-parity.service";
 import { ShipmentEdiService } from "./shipment-edi.service";
+import { ShipmentStatusCatalogService } from "./shipment-status-catalog.service";
+import {
+  CreateStatusCatalogDto,
+  UpdateStatusCatalogDto,
+} from "../jobs/dto/status-catalog.dto";
 import { GenerateShipmentEdiDto } from "./dto/shipment-edi.dto";
 import {
   ChangeShipmentBlStatusDto,
@@ -65,7 +71,47 @@ export class ShipmentsController {
     private readonly shipmentEdi: ShipmentEdiService,
     private readonly bookingForms: BookingFormEntityService,
     private readonly sectionFiles: OpsSectionAttachmentsService,
+    private readonly statusCatalog: ShipmentStatusCatalogService,
   ) {}
+
+  @Get("status-options")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Shipment status catalog (system + custom)" })
+  statusOptions(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query("shipment_id") shipmentId?: string,
+  ) {
+    return this.statusCatalog.listOptions(tenantId, shipmentId);
+  }
+
+  @Post("status-catalog")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Add a custom shipment status" })
+  createStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Body() dto: CreateStatusCatalogDto,
+  ) {
+    return this.statusCatalog.createCustom(tenantId, dto);
+  }
+
+  @Patch("status-catalog/:catalogId")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  updateStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("catalogId", ParseUUIDPipe) catalogId: string,
+    @Body() dto: UpdateStatusCatalogDto,
+  ) {
+    return this.statusCatalog.updateCustom(tenantId, catalogId, dto);
+  }
+
+  @Delete("status-catalog/:catalogId")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  deactivateStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("catalogId", ParseUUIDPipe) catalogId: string,
+  ) {
+    return this.statusCatalog.deactivate(tenantId, catalogId);
+  }
 
   @Get()
   @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)

@@ -60,6 +60,7 @@ import { BookingFormEntityService } from "./booking-forms/booking-form-entity.se
 import { CustomsClearanceService } from "./customs-clearance/customs-clearance.service";
 import { CustomsClearanceController } from "./customs-clearance/customs-clearance.controller";
 import { CustomsClearanceQueueController } from "./customs-clearance/customs-clearance-queue.controller";
+import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     BookingFormEntityService,
     CourierService,
     CustomsClearanceService,
+    DeliveryAcknowledgementService,
   ],
   exports: [
     JobsService,
@@ -153,6 +155,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
     BookingFormEntityService,
     CourierService,
     CustomsClearanceService,
+    DeliveryAcknowledgementService,
   ],
 })
 export class JobsModule {}

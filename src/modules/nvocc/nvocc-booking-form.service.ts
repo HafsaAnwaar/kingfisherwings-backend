@@ -34,7 +34,31 @@ export class NvoccBookingFormService {
         include: { parties: true },
       });
       if (!form) throw new NotFoundException("Booking form not found.");
-      return { ...form, documents: bookingDocsStatus(form) };
+      const booking = await tx.nvoccBooking.findFirst({
+        where: { id: bookingId, tenant_id: tenantId },
+        select: { converted_job_id: true },
+      });
+      const jobId = booking?.converted_job_id ?? null;
+      const jobDocuments = jobId
+        ? await tx.jobDocument.findMany({
+            where: {
+              tenant_id: tenantId,
+              job_id: jobId,
+              deleted_at: null,
+              booking_form_kind: { not: null },
+            },
+            select: {
+              id: true,
+              booking_form_kind: true,
+              file_url: true,
+              s3_key: true,
+            },
+          })
+        : [];
+      return {
+        ...form,
+        documents: bookingDocsStatus(form, { jobId, jobDocuments }),
+      };
     });
   }
 
@@ -45,7 +69,31 @@ export class NvoccBookingFormService {
         include: { parties: true },
       });
       if (!form) return form;
-      return { ...form, documents: bookingDocsStatus(form) };
+      const booking = await tx.nvoccBooking.findFirst({
+        where: { id: bookingId, tenant_id: tenantId },
+        select: { converted_job_id: true },
+      });
+      const jobId = booking?.converted_job_id ?? null;
+      const jobDocuments = jobId
+        ? await tx.jobDocument.findMany({
+            where: {
+              tenant_id: tenantId,
+              job_id: jobId,
+              deleted_at: null,
+              booking_form_kind: { not: null },
+            },
+            select: {
+              id: true,
+              booking_form_kind: true,
+              file_url: true,
+              s3_key: true,
+            },
+          })
+        : [];
+      return {
+        ...form,
+        documents: bookingDocsStatus(form, { jobId, jobDocuments }),
+      };
     });
   }
 

@@ -27,7 +27,11 @@ describe("mandatory-booking-docs", () => {
       doc_uat_tax_certificate_key: "e",
     };
     expect(missingMandatoryBookingDocs(form)).toEqual([]);
-    expect(bookingDocsStatus(form).uploaded).toHaveLength(5);
+    const status = bookingDocsStatus(form);
+    expect(status.uploaded).toHaveLength(5);
+    expect(status.files.some((f) => f.kind === "commercial_invoice" && f.attached)).toBe(
+      true,
+    );
   });
 
   it("accepts mode-form bl_awb_copy for bill_of_lading", () => {

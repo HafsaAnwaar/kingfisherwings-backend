@@ -1,8 +1,10 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { QueueModule } from "../../shared/queue/queue.module";
 import { EmailModule } from "../../shared/email/email.module";
+import { StorageModule } from "../../shared/storage/storage.module";
+import { JobsModule } from "../jobs/jobs.module";
 import { NvoccVoyagesController } from "./nvocc-voyages.controller";
 import { NvoccEnquiriesController } from "./nvocc-enquiries.controller";
 import { NvoccBookingsController } from "./nvocc-bookings.controller";
@@ -24,7 +26,14 @@ import { NvoccBookingFormService } from "./nvocc-booking-form.service";
 import { NvoccContainerRequestService } from "./nvocc-container-request.service";
 
 @Module({
-  imports: [PrismaModule, OrganizationModule, QueueModule, EmailModule],
+  imports: [
+    PrismaModule,
+    OrganizationModule,
+    QueueModule,
+    EmailModule,
+    StorageModule,
+    forwardRef(() => JobsModule),
+  ],
   controllers: [
     NvoccTariffsController,
     NvoccVoyagesController,

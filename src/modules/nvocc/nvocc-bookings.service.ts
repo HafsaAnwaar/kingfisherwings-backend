@@ -3,12 +3,16 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
-import { JobType, NvoccBooking, Prisma } from "@prisma/client";
+import { JobType, NvoccBooking, OpsUploaderSide, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import { EmailService } from "../../shared/email/email.service";
 import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
+import { StorageService } from "../../shared/storage/storage.service";
+import { JobDocumentUploadService } from "../jobs/job-document-upload.service";
+import { listAttachedFormDocs } from "../../common/constants/mandatory-booking-docs";
 import { seedJobTypeExtras } from "../jobs/utils/job-type-seed.util";
 import { mintTrackingToken } from "../jobs/utils/tracking-token.util";
 import {
@@ -35,6 +39,8 @@ export class NvoccBookingsService {
     private readonly tariffsService: NvoccTariffsService,
     private readonly emailService: EmailService,
     private readonly documentGeneration: DocumentGenerationService,
+    @Optional() private readonly storage?: StorageService,
+    @Optional() private readonly documentUpload?: JobDocumentUploadService,
   ) {}
 
   async create(
@@ -399,19 +405,114 @@ export class NvoccBookingsService {
     actorId?: string,
   ): Promise<{ jobId: string; jobNumber: string }> {
     const booking = await this.findOne(tenantId, id);
+    if (booking.booking_status === "CONVERTED") {
+      throw new ConflictException(
+        "Booking has already been converted to a job.",
+      );
+    }
     if (booking.booking_status !== "CONFIRMED") {
       throw new BadRequestException(
         "Only confirmed bookings can be converted to a job.",
       );
     }
+
+    const voyage = booking.voyage!;
+    const jobType = (booking.job_type ?? "NVOCC_EXPORT") as JobType;
+
+    // Reuse provisional job created during portal compliance uploads.
+    if (booking.converted_job_id) {
+      const provisional = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.findFirst({
+          where: {
+            id: booking.converted_job_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { id: true, job_number: true },
+        }),
+      );
+      if (provisional) {
+        await this.prisma.runWithTenant(tenantId, async (tx) => {
+          await tx.job.update({
+            where: { id: provisional.id },
+            data: {
+              company_id: dto.company_id,
+              branch_id: dto.branch_id,
+              department_id: dto.department_id,
+              shipper_id: booking.shipper_id,
+              consignee_id: booking.consignee_id,
+              agent_id: booking.agent_pol_id,
+              origin_port_id: voyage.pol_id,
+              dest_port_id: voyage.pod_id,
+              commodity: booking.commodity,
+              hs_code: booking.hs_code,
+              gross_weight: booking.gross_weight,
+              volume_cbm: booking.cbm_allocated,
+              pieces: booking.pieces,
+              container_type_id: booking.container_type_id,
+              container_count: booking.container_count,
+              incoterms: booking.incoterms,
+              is_dg: booking.is_dg,
+              dg_class: booking.dg_class,
+              etd: voyage.etd ? new Date(voyage.etd) : undefined,
+              eta: voyage.eta ? new Date(voyage.eta) : undefined,
+              updated_by: actorId,
+            },
+          });
+
+          const detail = await tx.nvoccJobDetail.findFirst({
+            where: { job_id: provisional.id, tenant_id: tenantId },
+          });
+          if (!detail) {
+            await tx.nvoccJobDetail.create({
+              data: {
+                tenant_id: tenantId,
+                job_id: provisional.id,
+                voyage_id: booking.voyage_id,
+                booking_id: booking.id,
+                hbl_number: booking.nvocc_hbl_number,
+                mbl_number: voyage.mbl_number,
+                created_by: actorId,
+                updated_by: actorId,
+              },
+            });
+          }
+
+          await tx.nvoccBooking.update({
+            where: { id },
+            data: {
+              booking_status: "CONVERTED",
+              converted_job_id: provisional.id,
+              updated_by: actorId,
+            },
+          });
+
+          if (booking.enquiry_id) {
+            await tx.nvoccEnquiry.update({
+              where: { id: booking.enquiry_id },
+              data: { enquiry_status: "CONVERTED", updated_by: actorId },
+            });
+          }
+        });
+
+        await this.backfillBookingFormDocuments(
+          tenantId,
+          id,
+          provisional.id,
+          jobType,
+          actorId,
+        );
+
+        return { jobId: provisional.id, jobNumber: provisional.job_number };
+      }
+    }
+
     if (booking.converted_job_id) {
       throw new ConflictException(
         "Booking has already been converted to a job.",
       );
     }
 
-    const voyage = booking.voyage!;
-    const jobType = (booking.job_type ?? "NVOCC_EXPORT") as JobType;
     const branchCode = dto.branch_id
       ? (
           await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -435,7 +536,7 @@ export class NvoccBookingsService {
       },
     );
 
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
+    const created = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.create({
         data: {
           tenant_id: tenantId,
@@ -534,6 +635,56 @@ export class NvoccBookingsService {
 
       return { jobId: job.id, jobNumber };
     });
+
+    await this.backfillBookingFormDocuments(
+      tenantId,
+      id,
+      created.jobId,
+      jobType,
+      actorId,
+    );
+
+    return created;
+  }
+
+  /** Mirror form doc_*_key files into JobDocument rows (CUSTOMER) after convert. */
+  private async backfillBookingFormDocuments(
+    tenantId: string,
+    bookingId: string,
+    jobId: string,
+    jobType: JobType,
+    actorId?: string,
+  ) {
+    if (!this.documentUpload || !this.storage) return;
+
+    const form = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.nvoccBookingForm.findFirst({
+        where: { booking_id: bookingId, tenant_id: tenantId, deleted_at: null },
+      }),
+    );
+    if (!form) return;
+
+    const attached = listAttachedFormDocs(form as unknown as Record<string, unknown>);
+    for (const { kind, s3Key } of attached) {
+      const fileUrl = await this.storage.resolveUrlForKey(s3Key);
+      await this.documentUpload.mirrorBookingUpload(
+        tenantId,
+        jobId,
+        kind,
+        {
+          s3Key,
+          fileUrl,
+          fileSize: 0,
+          mimeType: "application/octet-stream",
+        },
+        `${kind}.bin`,
+        {
+          userId: actorId ?? jobId,
+          side: OpsUploaderSide.CUSTOMER,
+        },
+        jobType,
+      );
+    }
   }
 
   async sendCutoffReminder(

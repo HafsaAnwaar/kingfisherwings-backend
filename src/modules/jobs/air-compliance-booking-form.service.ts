@@ -31,17 +31,36 @@ export class AirComplianceBookingFormService {
 
   async getOrEmpty(tenantId: string, jobId: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      return tx.airComplianceBookingForm.findFirst({
+      const form = await tx.airComplianceBookingForm.findFirst({
         where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
         include: { parties: true },
       });
+      if (!form) return form;
+      const jobDocuments = await tx.jobDocument.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          booking_form_kind: { not: null },
+        },
+        select: {
+          id: true,
+          booking_form_kind: true,
+          file_url: true,
+          s3_key: true,
+        },
+      });
+      return {
+        ...form,
+        documents: bookingDocsStatus(form, { jobId, jobDocuments }),
+      };
     });
   }
 
   async get(tenantId: string, jobId: string) {
     const form = await this.getOrEmpty(tenantId, jobId);
     if (!form) throw new NotFoundException("Air compliance booking form not found.");
-    return { ...form, documents: bookingDocsStatus(form) };
+    return form;
   }
 
   /** Staff correction — complete only with Admin override. */

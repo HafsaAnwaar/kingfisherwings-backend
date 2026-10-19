@@ -218,7 +218,7 @@ export class PortalAirComplianceBookingService {
       stored.s3Key,
       user.id,
     );
-    await this.documentUpload.mirrorBookingUpload(
+    const jobDocument = await this.documentUpload.mirrorBookingUpload(
       user.tenantId,
       jobId,
       kind,
@@ -240,8 +240,12 @@ export class PortalAirComplianceBookingService {
       success: true,
       data: {
         kind,
+        id: jobDocument.id,
+        document_type: jobDocument.document_type,
         s3_key: stored.s3Key,
         file_url: stored.fileUrl,
+        job_id: jobId,
+        download_path: `/jobs/${jobId}/documents/${jobDocument.id}/download`,
         form,
       },
     };

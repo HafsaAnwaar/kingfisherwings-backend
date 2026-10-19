@@ -15,6 +15,7 @@ import { ShipmentsService } from "./shipments.service";
 import { ShipmentDetailService } from "./shipment-detail.service";
 import { ShipmentTabParityService } from "./shipment-tab-parity.service";
 import { ShipmentEdiService } from "./shipment-edi.service";
+import { ShipmentStatusCatalogService } from "./shipment-status-catalog.service";
 
 /**
  * Avoid importing DocumentationModule here: it imports JobsModule, and JobsModule
@@ -41,12 +42,14 @@ import { ShipmentEdiService } from "./shipment-edi.service";
     ShipmentTabParityService,
     ShipmentEdiService,
     DocumentationEdiService,
+    ShipmentStatusCatalogService,
   ],
   exports: [
     ShipmentsService,
     ShipmentDetailService,
     ShipmentTabParityService,
     ShipmentEdiService,
+    ShipmentStatusCatalogService,
   ],
 })
 export class ShipmentsModule {}
