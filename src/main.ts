@@ -3,6 +3,8 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import { join } from "path";
 import compression = require("compression");
 import helmet from "helmet";
 
@@ -84,11 +86,18 @@ async function bootstrap() {
   initSentry();
   // rawBody: keeps the exact request bytes on req.rawBody so Stripe webhook
   // signatures can be verified (JSON parsing is otherwise unchanged).
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   const config = app.get(ConfigService);
 
   validatePortalVendorJwtSecrets(config);
+
+  // Public branding assets for transactional emails (King Fisher logo, etc.)
+  app.useStaticAssets(join(process.cwd(), "public", "branding"), {
+    prefix: "/branding/",
+  });
 
   const http = app.getHttpAdapter().getInstance();
   if (typeof http?.set === "function") {

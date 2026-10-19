@@ -14,6 +14,11 @@ import { PasswordUtil } from "../../common/utils/password.util";
 import { PasswordHelper } from "../users/helpers/password.helper";
 import { EmailService } from "../../shared/email/email.service";
 import {
+  buildCredentialsEmail,
+  buildInviteEmail,
+  buildPasswordResetEmail,
+} from "../../shared/email/branded-email.template";
+import {
   AcceptPortalInviteDto,
   ChangePortalPasswordDto,
   CreatePortalUserDto,
@@ -827,6 +832,7 @@ export class PortalService {
         password: plainPassword,
         partyName: party?.name ?? "Customer",
         actorId,
+        isPasswordReset: true,
       });
     }
 
@@ -973,17 +979,19 @@ export class PortalService {
       "http://localhost:3000";
     const link = `${appUrl.replace(/\/$/, "")}/portal/accept-invite?token=${opts.token}`;
 
+    const branded = buildInviteEmail({
+      audience: "CUSTOMER",
+      recipientName: opts.fullName,
+      organizationName: opts.partyName,
+      inviteUrl: link,
+      expiresAt: opts.expiresAt,
+    });
     await this.email.send({
       tenantId,
       eventType: "PORTAL_INVITE",
       to: opts.to,
-      subject: `Activate your customer portal — ${opts.partyName}`,
-      body: `
-        <p>Hello ${opts.fullName},</p>
-        <p>You have been invited to the customer portal for <strong>${opts.partyName}</strong>.</p>
-        <p><a href="${link}">Set your password and activate your account</a></p>
-        <p>This link expires at ${opts.expiresAt.toISOString()}.</p>
-      `,
+      subject: branded.subject,
+      body: branded.html,
       createdBy: opts.actorId,
     });
   }
@@ -996,26 +1004,37 @@ export class PortalService {
       password: string;
       partyName: string;
       actorId?: string;
+      /** When true, frame the mail as password-reset assistance */
+      isPasswordReset?: boolean;
     },
   ) {
     const appUrl =
+      this.config.get<string>("PORTAL_APP_URL") ??
       this.config.get<string>("APP_URL") ??
       this.config.get<string>("PUBLIC_API_URL") ??
       "";
+    const branded = opts.isPasswordReset
+      ? buildPasswordResetEmail({
+          audience: "CUSTOMER",
+          recipientName: opts.fullName,
+          organizationName: opts.partyName,
+          email: opts.to,
+          temporaryPassword: opts.password,
+        })
+      : buildCredentialsEmail({
+          audience: "CUSTOMER",
+          recipientName: opts.fullName,
+          organizationName: opts.partyName,
+          email: opts.to,
+          temporaryPassword: opts.password,
+          loginUrl: appUrl || undefined,
+        });
     await this.email.send({
       tenantId,
       eventType: "PORTAL_CREDENTIALS",
       to: opts.to,
-      subject: `Your customer portal login — ${opts.partyName}`,
-      body: `
-        <p>Hello ${opts.fullName},</p>
-        <p>Your customer portal account has been created for <strong>${opts.partyName}</strong>.</p>
-        <p><strong>Email:</strong> ${opts.to}<br/>
-        <strong>Temporary password:</strong> ${opts.password}</p>
-        <p>Use your forwarder's website (or portal login API) with this tenant's credentials to sign in.</p>
-        ${appUrl ? `<p>Direct Link: ${appUrl}</p>` : ""}
-        <p>Please change your password after first login if prompted by your forwarder.</p>
-      `,
+      subject: branded.subject,
+      body: branded.html,
       createdBy: opts.actorId,
     });
   }

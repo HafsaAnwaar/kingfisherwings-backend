@@ -13,6 +13,11 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { PasswordUtil } from "../../common/utils/password.util";
 import { PasswordHelper } from "../users/helpers/password.helper";
 import { EmailService } from "../../shared/email/email.service";
+import {
+  buildCredentialsEmail,
+  buildInviteEmail,
+  buildPasswordResetEmail,
+} from "../../shared/email/branded-email.template";
 import { VENDOR_ELIGIBLE_PARTY_TYPES } from "./constants/vendor-permission.constants";
 import {
   AcceptVendorInviteDto,
@@ -437,13 +442,17 @@ export class VendorService {
         },
       }),
     );
-    await this.email.send({
-      tenantId,
-      eventType: "VENDOR_INVITE",
+    const party = await this.prisma.party.findFirst({
+      where: { id: user.party_id },
+      select: { name: true },
+    });
+    await this.sendInviteEmail(tenantId, {
       to: user.email,
-      subject: "Vendor portal invite",
-      body: `<p>Accept invite token: ${token}</p>`,
-      createdBy: actorId,
+      fullName: user.full_name,
+      partyName: party?.name ?? "Vendor",
+      token,
+      expiresAt,
+      actorId,
     });
     return {
       success: true,
@@ -551,6 +560,7 @@ export class VendorService {
         password: plainPassword,
         partyName: party?.name ?? "Vendor",
         actorId,
+        isPasswordReset: true,
       });
     }
 
@@ -650,22 +660,24 @@ export class VendorService {
       "http://localhost:3000";
     const link = `${appUrl.replace(/\/$/, "")}/vendor/accept-invite?token=${opts.token}`;
 
+    const branded = buildInviteEmail({
+      audience: "VENDOR",
+      recipientName: opts.fullName,
+      organizationName: opts.partyName,
+      inviteUrl: link,
+      expiresAt: opts.expiresAt,
+    });
     await this.email.send({
       tenantId,
       eventType: "VENDOR_INVITE",
       to: opts.to,
-      subject: `Activate your vendor portal — ${opts.partyName}`,
-      body: `
-        <p>Hello ${opts.fullName},</p>
-        <p>You have been invited to the vendor portal for <strong>${opts.partyName}</strong>.</p>
-        <p><a href="${link}">Set your password and activate your account</a></p>
-        <p>This link expires at ${opts.expiresAt.toISOString()}.</p>
-      `,
+      subject: branded.subject,
+      body: branded.html,
       createdBy: opts.actorId,
     });
   }
 
-  /** Same layout as customer portal credentials email. */
+  /** Same formal King Fisher layout as customer portal credentials email. */
   private async sendCredentialsEmail(
     tenantId: string,
     opts: {
@@ -674,26 +686,36 @@ export class VendorService {
       password: string;
       partyName: string;
       actorId?: string;
+      isPasswordReset?: boolean;
     },
   ) {
     const appUrl =
+      this.config.get<string>("VENDOR_APP_URL") ??
       this.config.get<string>("APP_URL") ??
       this.config.get<string>("PUBLIC_API_URL") ??
       "";
+    const branded = opts.isPasswordReset
+      ? buildPasswordResetEmail({
+          audience: "VENDOR",
+          recipientName: opts.fullName,
+          organizationName: opts.partyName,
+          email: opts.to,
+          temporaryPassword: opts.password,
+        })
+      : buildCredentialsEmail({
+          audience: "VENDOR",
+          recipientName: opts.fullName,
+          organizationName: opts.partyName,
+          email: opts.to,
+          temporaryPassword: opts.password,
+          loginUrl: appUrl || undefined,
+        });
     await this.email.send({
       tenantId,
       eventType: "VENDOR_CREDENTIALS",
       to: opts.to,
-      subject: `Your vendor portal login — ${opts.partyName}`,
-      body: `
-        <p>Hello ${opts.fullName},</p>
-        <p>Your vendor portal account credentials for <strong>${opts.partyName}</strong>.</p>
-        <p><strong>Email:</strong> ${opts.to}<br/>
-        <strong>Temporary password:</strong> ${opts.password}</p>
-        <p>Use your forwarder's vendor portal login with this tenant's credentials to sign in.</p>
-        ${appUrl ? `<p>Direct Link: ${appUrl}</p>` : ""}
-        <p>Please change your password after first login if prompted by your forwarder.</p>
-      `,
+      subject: branded.subject,
+      body: branded.html,
       createdBy: opts.actorId,
     });
   }
