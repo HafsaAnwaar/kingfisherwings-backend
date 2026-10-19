@@ -633,6 +633,10 @@ export class AuthService {
   // =====================================================
 
   async me(principal: RequestPrincipal) {
+    const idleMinutes = Number(
+      this.configService.get<string>("SESSION_IDLE_TIMEOUT_MINUTES") ?? "30",
+    );
+
     if (isSuperAdmin(principal)) {
       const superAdmin = await this.prisma.superAdmin.findFirst({
         where: { id: principal.id, deleted_at: null },
@@ -649,6 +653,7 @@ export class AuthService {
           email: superAdmin.email,
           first_name: superAdmin.first_name,
           last_name: superAdmin.last_name,
+          idle_timeout_minutes: idleMinutes,
         },
       };
     }
@@ -658,7 +663,23 @@ export class AuthService {
       principal.id,
     );
 
-    return { success: true, data: response };
+    const session = principal.sessionId
+      ? await this.prisma.session.findUnique({
+          where: { jti: principal.sessionId },
+          select: { expires_at: true, last_used_at: true, is_active: true },
+        })
+      : null;
+
+    return {
+      success: true,
+      data: {
+        ...response,
+        session_expires_at: session?.expires_at ?? null,
+        last_activity_at: session?.last_used_at ?? null,
+        idle_timeout_minutes: idleMinutes,
+        auto_logout_on_idle: idleMinutes > 0,
+      },
+    };
   }
 
   /**
