@@ -126,6 +126,20 @@ export class StorageService implements OnModuleInit {
     }
   }
 
+  /** Resolve a public/presigned URL for an existing storage key (backfill mirrors). */
+  async resolveUrlForKey(s3Key: string): Promise<string> {
+    if (this.isDurable()) {
+      if (this.settings.publicBase) {
+        return `${this.settings.publicBase.replace(/\/$/, "")}/${s3Key}`;
+      }
+      return this.presignedGetUrl(s3Key);
+    }
+    const parts = s3Key.split("/");
+    const tenantId = parts[0] ?? "";
+    const uniqueName = parts.slice(1).join("/");
+    return `${this.settings.publicBaseUrl}/${tenantId}/${encodeURIComponent(uniqueName)}`;
+  }
+
   async saveBuffer(
     tenantId: string,
     buffer: Buffer,

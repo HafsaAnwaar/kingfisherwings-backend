@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Param,
@@ -7,12 +8,24 @@ import {
   Post,
   Query,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { Response } from "express";
+import "multer";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
 import { DashboardPeriodQueryDto } from "../../common/dto/dashboard-period-query.dto";
+import { DeliveryAcknowledgementService } from "../jobs/delivery-acknowledgement.service";
+import { SubmitDeliveryAcknowledgementDto } from "../jobs/dto/delivery-acknowledgement.dto";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import { PortalShipmentLookupDto } from "./dto/portal-shipment-lookup.dto";
 import { PortalShipmentQueryDto } from "./dto/portal-shipment-query.dto";
@@ -38,6 +51,7 @@ export class PortalShipmentsController {
     private readonly portalDocuments: PortalDocumentsService,
     private readonly nvoccWorkflow: PortalNvoccWorkflowService,
     private readonly airWorkflow: PortalAirWorkflowService,
+    private readonly acknowledgement: DeliveryAcknowledgementService,
   ) {}
 
   @Get("summary")
@@ -185,6 +199,61 @@ export class PortalShipmentsController {
   ) {
     const jobId = await this.requireJobId(user, id);
     return this.portalDocuments.download(user, jobId, docId, res);
+  }
+
+  @Get(":id/acknowledgement")
+  @ApiOperation({
+    summary: "Load formal delivery acknowledgement template + current status",
+  })
+  async getAcknowledgement(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    const jobId = await this.requireJobId(user, id);
+    return this.acknowledgement.getForJob(user.tenantId, jobId);
+  }
+
+  @Post(":id/acknowledgement")
+  @ApiOperation({
+    summary: "Submit formal goods receipt acknowledgement",
+  })
+  async submitAcknowledgement(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: SubmitDeliveryAcknowledgementDto,
+  ) {
+    const jobId = await this.requireJobId(user, id);
+    return this.acknowledgement.submit(user.tenantId, jobId, dto, {
+      userId: user.id,
+      partyId: user.partyId,
+    });
+  }
+
+  @Post(":id/acknowledgement/signature")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  @ApiOperation({ summary: "Upload signature image for acknowledgement" })
+  async uploadAcknowledgementSignature(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const jobId = await this.requireJobId(user, id);
+    return this.acknowledgement.uploadSignature(
+      user.tenantId,
+      jobId,
+      file,
+      user.id,
+    );
   }
 
   @Get(":id")

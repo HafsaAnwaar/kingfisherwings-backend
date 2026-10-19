@@ -70,6 +70,10 @@ import {
 } from "./dto/job-storage-costing.dto";
 import { CreateJobChargeAttachmentDto } from "./dto/job-charge-attachment.dto";
 import { JobStatusCatalogService } from "./job-status-catalog.service";
+import {
+  CreateStatusCatalogDto,
+  UpdateStatusCatalogDto,
+} from "./dto/status-catalog.dto";
 import { JobGpumService } from "./job-gpum.service";
 import { JobContainerStorageCostingService } from "./job-container-storage-costing.service";
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
@@ -143,6 +147,8 @@ import {
 } from "./dto/job-document.dto";
 import { JobDocumentUploadService } from "./job-document-upload.service";
 import { OpsSectionAttachmentsService } from "./ops-section-attachments.service";
+import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
+import { ReceiveDeliveryAcknowledgementDto } from "./dto/delivery-acknowledgement.dto";
 import {
   BulkJobContainersDto,
   ConfirmContainerUploadDto,
@@ -272,6 +278,7 @@ export class JobsController {
     private readonly vendorQuotes: VendorQuotesService,
     private readonly documentUpload: JobDocumentUploadService,
     private readonly sectionFiles: OpsSectionAttachmentsService,
+    private readonly acknowledgement: DeliveryAcknowledgementService,
   ) {}
 
   @Get()
@@ -325,6 +332,40 @@ export class JobsController {
     @Query("job_id") jobId?: string,
   ) {
     return this.statusCatalog.listOptions(tenantId, jobId);
+  }
+
+  @Post("status-catalog")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Add a custom job status (stored in catalog; always shown in status-options)",
+  })
+  createStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Body() dto: CreateStatusCatalogDto,
+  ) {
+    return this.statusCatalog.createCustom(tenantId, dto);
+  }
+
+  @Patch("status-catalog/:catalogId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Update a job status catalog row" })
+  updateStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("catalogId", ParseUUIDPipe) catalogId: string,
+    @Body() dto: UpdateStatusCatalogDto,
+  ) {
+    return this.statusCatalog.updateCustom(tenantId, catalogId, dto);
+  }
+
+  @Delete("status-catalog/:catalogId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Deactivate a custom job status (soft)" })
+  deactivateStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("catalogId", ParseUUIDPipe) catalogId: string,
+  ) {
+    return this.statusCatalog.deactivate(tenantId, catalogId);
   }
 
   @Get("job-offers")
@@ -3764,6 +3805,46 @@ export class JobsController {
     @Body() dto: CreatePartDeliveryDto,
   ) {
     return this.seaFclImport.createPartDelivery(tenantId, id, dto, actorId);
+  }
+
+  @Get(":id/acknowledgement")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Get delivery acknowledgement (formal goods receipt) for a job",
+  })
+  getAcknowledgement(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.acknowledgement.getForJob(tenantId, id);
+  }
+
+  @Post(":id/acknowledgement/receive")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Mark customer delivery acknowledgement as received by admin",
+  })
+  receiveAcknowledgement(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ReceiveDeliveryAcknowledgementDto,
+  ) {
+    return this.acknowledgement.receive(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/acknowledgement/generate-pdf")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Generate formal acknowledgement PDF as JobDocument PROOF_OF_DELIVERY (visible to customer)",
+  })
+  generateAcknowledgementPdf(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.acknowledgement.generateFormalPdf(tenantId, id, actorId);
   }
 
   @Get(":id/pods")

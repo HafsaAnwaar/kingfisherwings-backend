@@ -15,6 +15,7 @@ import { QuotationsController } from "./quotations.controller";
 import { QuotationOpsAttachmentsController } from "./quotation-ops-attachments.controller";
 import { QuotationsService } from "./quotations.service";
 import { QuotationDetailService } from "./quotation-detail.service";
+import { QuotationStatusCatalogService } from "./quotation-status-catalog.service";
 import { TariffsController } from "./tariffs/tariffs.controller";
 import { TariffsService } from "./tariffs/tariffs.service";
 import { ServiceCatalogController } from "./service-catalog/service-catalog.controller";
@@ -50,6 +51,7 @@ import { BookingFormGateService } from "../../common/services/booking-form-gate.
   providers: [
     QuotationsService,
     QuotationDetailService,
+    QuotationStatusCatalogService,
     TariffsService,
     ServiceCatalogService,
     QuotationNegotiationService,
@@ -63,6 +65,7 @@ import { BookingFormGateService } from "../../common/services/booking-form-gate.
     ServiceCatalogService,
     QuotationNegotiationService,
     BookingFormGateService,
+    QuotationStatusCatalogService,
   ],
 })
 export class QuotationsModule {}

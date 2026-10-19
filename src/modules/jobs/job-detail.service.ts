@@ -36,6 +36,7 @@ import {
   opsContinuumPathHints,
 } from "../ops-activity/ops-continuum-path-hints";
 import { MasterLabelService } from "../masters/master-label.service";
+import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
 
 const DETAIL_TABS = [
   "show_all",
@@ -52,6 +53,7 @@ const DETAIL_TABS = [
   "customs",
   "history",
   "booking_form",
+  "acknowledgement",
   "shipments",
 ] as const;
 
@@ -75,6 +77,7 @@ export class JobDetailService {
     private readonly documentEmail: DocumentEmailService,
     private readonly timeline: EntityTimelineService,
     private readonly labels: MasterLabelService,
+    private readonly acknowledgement: DeliveryAcknowledgementService,
   ) {}
 
   async getDetail(tenantId: string, id: string, permissions?: string[]) {
@@ -145,6 +148,9 @@ export class JobDetailService {
     if (normalized === "booking_form") {
       return this.tabPanels.getBookingFormTab(tenantId, id);
     }
+    if (normalized === "acknowledgement") {
+      return this.acknowledgement.getForJob(tenantId, id);
+    }
     if (normalized === "shipments") {
       const rows = await this.shipments.listForJob(tenantId, id);
       return { success: true, data: rows };
@@ -160,28 +166,30 @@ export class JobDetailService {
     permissions?: string[],
   ) {
     const job = await this.loadJob(tenantId, id);
-    const target = dto.status;
-    if (target === job.status) {
-      return { success: true, data: job, warnings: [] };
-    }
+    const resolved = await this.statusCatalog.resolveCode(
+      tenantId,
+      dto.status.trim().toUpperCase(),
+    );
+    const catalogCode = resolved.code;
+    const systemStatus = resolved.systemStatus;
 
-    await this.statusCatalog.ensureCatalog(tenantId);
-    try {
-      await this.statusCatalog.assertActiveCode(tenantId, target);
-    } catch {
-      throw new BadRequestException(`Status ${target} is not available.`);
+    if (
+      catalogCode === (job.status_code ?? job.status) &&
+      systemStatus === job.status
+    ) {
+      return { success: true, data: job, warnings: [] };
     }
 
     const warnings: string[] = [];
     const canForce =
       permissions?.includes(JOBS_PERMISSIONS.STATUS_FORCE) ||
       permissions?.includes(JOBS_PERMISSIONS.CLOSE);
-    if (target === "COMPLETED" && !canForce) {
+    if (systemStatus === "COMPLETED" && !canForce) {
       warnings.push(
         "Setting COMPLETED via change-status skips close checklist — prefer POST /jobs/:id/close.",
       );
     }
-    if (target === "CANCELLED") {
+    if (systemStatus === "CANCELLED") {
       warnings.push(
         "Prefer POST /jobs/:id/cancel for audited cancellation workflow.",
       );
@@ -191,7 +199,8 @@ export class JobDetailService {
       const row = await tx.job.update({
         where: { id },
         data: {
-          status: target,
+          status: systemStatus,
+          status_code: catalogCode,
           updated_by: actorId,
         },
       });
@@ -204,7 +213,9 @@ export class JobDetailService {
           entity_id: id,
           metadata: {
             from: job.status,
-            to: target,
+            from_code: job.status_code ?? job.status,
+            to: systemStatus,
+            to_code: catalogCode,
             reason: dto.reason ?? null,
           } as Prisma.InputJsonValue,
         },
@@ -640,6 +651,7 @@ export class JobDetailService {
       can_copy: true,
       can_upload_docs: true,
       can_booking_form: true,
+      can_acknowledgement: true,
       can_switch_bl: true,
       can_edi: ediTypes.length > 0,
       edi_types: ediTypes,
@@ -671,6 +683,9 @@ export class JobDetailService {
         ops_history: `/ops/JOB/${job.id}/history`,
         ops_continuum: opsContinuumPathHints("JOB", job.id),
         booking_form: this.bookingFormPathHints(job.job_type, job.id),
+        acknowledgement: `/jobs/${job.id}/detail/acknowledgement`,
+        acknowledgement_receive: `/jobs/${job.id}/acknowledgement/receive`,
+        acknowledgement_generate_pdf: `/jobs/${job.id}/acknowledgement/generate-pdf`,
         job_not_invoiced_do: `/operations/job-not-invoiced-do`,
         job_finance_report: `/operations/job-finance-report`,
         routing_push_to_subjobs: `/jobs/${job.id}/routing-legs/push-to-subjobs`,

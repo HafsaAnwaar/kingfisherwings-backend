@@ -2611,6 +2611,8 @@ model Job {
   tracking_token String   @unique @default(dbgenerated("replace(gen_random_uuid()::text, '-', '')")) @db.VarChar(64)
   job_type      JobType
   status        JobStatus @default(ENQUIRY)
+  /// Tenant catalog code (system or custom); maps to `status` via catalog.maps_to_system_status.
+  status_code   String?   @db.VarChar(40)
   branch_id     String?   @db.Uuid
   department_id String?   @db.Uuid
 
@@ -2711,6 +2713,7 @@ model Job {
   deposits         JobDeposit[]
   part_deliveries  PartDelivery[]
   proofs_of_delivery ProofOfDelivery[]
+  delivery_acknowledgement DeliveryAcknowledgement?
   damage_reports   DamageReport[]
   customs_examinations JobCustomsExamination[]
   hr_timesheets        HrTimesheet[]
@@ -4068,20 +4071,100 @@ model JobChargeRevision {
 }
 
 model JobStatusCatalog {
-  id          String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id   String             @db.Uuid
-  code        String             @db.VarChar(40)
-  label       String             @db.VarChar(120)
-  category    JobStatusCategory  @default(OPERATIONAL)
-  is_terminal Boolean            @default(false)
-  sort_order  Int                @default(0)
-  is_active   Boolean            @default(true)
-  created_at  DateTime           @default(now()) @db.Timestamptz
-  updated_at  DateTime           @updatedAt @db.Timestamptz
+  id                     String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id              String            @db.Uuid
+  code                   String            @db.VarChar(40)
+  label                  String            @db.VarChar(120)
+  category               JobStatusCategory @default(OPERATIONAL)
+  is_terminal            Boolean           @default(false)
+  sort_order             Int               @default(0)
+  is_active              Boolean           @default(true)
+  /// System JobStatus this row maps to for workflow gates (custom rows must set this).
+  maps_to_system_status  String            @db.VarChar(40)
+  is_system              Boolean           @default(false)
+  is_custom              Boolean           @default(false)
+  created_at             DateTime          @default(now()) @db.Timestamptz
+  updated_at             DateTime          @updatedAt @db.Timestamptz
 
   @@unique([tenant_id, code])
   @@index([tenant_id, is_active])
   @@map("job_status_catalog")
+}
+
+model ShipmentStatusCatalog {
+  id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String   @db.Uuid
+  code                  String   @db.VarChar(40)
+  label                 String   @db.VarChar(120)
+  is_terminal           Boolean  @default(false)
+  sort_order            Int      @default(0)
+  is_active             Boolean  @default(true)
+  maps_to_system_status String   @db.VarChar(40)
+  is_system             Boolean  @default(false)
+  is_custom             Boolean  @default(false)
+  created_at            DateTime @default(now()) @db.Timestamptz
+  updated_at            DateTime @updatedAt @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, is_active])
+  @@map("shipment_status_catalog")
+}
+
+model QuotationStatusCatalog {
+  id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String   @db.Uuid
+  code                  String   @db.VarChar(40)
+  label                 String   @db.VarChar(120)
+  is_terminal           Boolean  @default(false)
+  sort_order            Int      @default(0)
+  is_active             Boolean  @default(true)
+  maps_to_system_status String   @db.VarChar(40)
+  is_system             Boolean  @default(false)
+  is_custom             Boolean  @default(false)
+  created_at            DateTime @default(now()) @db.Timestamptz
+  updated_at            DateTime @updatedAt @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, is_active])
+  @@map("quotation_status_catalog")
+}
+
+enum DeliveryAcknowledgementStatus {
+  DRAFT
+  SUBMITTED
+  RECEIVED_BY_ADMIN
+}
+
+/// Customer formal goods-received acknowledgement (portal → admin).
+model DeliveryAcknowledgement {
+  id                   String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String                         @db.Uuid
+  job_id               String                         @unique @db.Uuid
+  status               DeliveryAcknowledgementStatus  @default(DRAFT)
+  acknowledged_at      DateTime?                      @db.Timestamptz
+  receiver_name        String?                        @db.VarChar(200)
+  receiver_title       String?                        @db.VarChar(120)
+  goods_condition      String?                        @db.VarChar(120)
+  remarks              String?                        @db.Text
+  signature_s3_key     String?                        @db.Text
+  signature_file_url   String?                        @db.Text
+  template_snapshot    Json?
+  submitted_by_party_id String?                       @db.Uuid
+  submitted_by_user_id String?                        @db.Uuid
+  received_by_user_id  String?                        @db.Uuid
+  received_at          DateTime?                      @db.Timestamptz
+  proof_of_delivery_id String?                        @db.Uuid
+  created_at           DateTime                       @default(now()) @db.Timestamptz
+  updated_at           DateTime                       @updatedAt @db.Timestamptz
+  created_by           String?                        @db.Uuid
+  updated_by           String?                        @db.Uuid
+  deleted_at           DateTime?                      @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, job_id])
+  @@index([tenant_id, status])
+  @@map("delivery_acknowledgements")
 }
 
 model JobPartyReference {
@@ -4352,6 +4435,8 @@ model Shipment {
   shipment_number  String         @db.VarChar(40)
   job_type         JobType
   status           ShipmentStatus @default(BOOKED)
+  /// Tenant catalog code (system or custom).
+  status_code      String?        @db.VarChar(40)
 
   company_id     String? @db.Uuid
   branch_id      String? @db.Uuid
@@ -4780,6 +4865,8 @@ model Quotation {
   tenant_id        String          @db.Uuid
   quotation_number String          @db.VarChar(30)
   status           QuotationStatus @default(DRAFT)
+  /// Tenant catalog code (system or custom).
+  status_code      String?         @db.VarChar(40)
   job_type         JobType
 
   // Parties / ownership

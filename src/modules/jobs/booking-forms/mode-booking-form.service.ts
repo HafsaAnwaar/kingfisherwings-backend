@@ -153,9 +153,26 @@ export class ModeBookingFormService {
       if (!form) {
         form = await this.createEmpty(tx, kind, tenantId, jobId);
       }
+      const jobDocuments = await tx.jobDocument.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          booking_form_kind: { not: null },
+        },
+        select: {
+          id: true,
+          booking_form_kind: true,
+          file_url: true,
+          s3_key: true,
+        },
+      });
       return {
         ...form,
-        documents: bookingDocsStatus(form as never),
+        documents: bookingDocsStatus(form as never, {
+          jobId,
+          jobDocuments,
+        }),
       };
     });
   }
@@ -204,16 +221,15 @@ export class ModeBookingFormService {
         kind: docKind,
         s3_key: stored.s3Key,
         file_url: stored.fileUrl,
+        job_id: jobId,
         job_type: job.job_type as JobType,
-        form: {
-          ...updated,
-          documents: bookingDocsStatus(updated as never),
-        },
+        form: updated,
       };
     });
 
+    let jobDocument: { id: string; document_type: string } | null = null;
     if (actorId) {
-      await this.documentUpload.mirrorBookingUpload(
+      jobDocument = await this.documentUpload.mirrorBookingUpload(
         tenantId,
         jobId,
         docKind,
@@ -233,7 +249,39 @@ export class ModeBookingFormService {
       );
     }
 
-    return result;
+    const jobDocuments = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobDocument.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          booking_form_kind: { not: null },
+        },
+        select: {
+          id: true,
+          booking_form_kind: true,
+          file_url: true,
+          s3_key: true,
+        },
+      }),
+    );
+
+    return {
+      ...result,
+      id: jobDocument?.id ?? null,
+      document_type: jobDocument?.document_type ?? null,
+      download_path:
+        jobDocument && jobId
+          ? `/jobs/${jobId}/documents/${jobDocument.id}/download`
+          : null,
+      form: {
+        ...result.form,
+        documents: bookingDocsStatus(result.form as never, {
+          jobId,
+          jobDocuments,
+        }),
+      },
+    };
   }
 
   async upsert(

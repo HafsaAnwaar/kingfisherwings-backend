@@ -567,10 +567,56 @@ export class PortalShipmentsService {
   async findOne(user: CurrentPortalUser, id: string) {
     const row = await this.resolveOwnedRow(user, id, true);
     const [enriched] = await this.attachLocations(user.tenantId, [row]);
+    const jobId = enriched.job_id ?? (enriched.id === id ? id : null);
+    let documents_summary: {
+      total_visible: number;
+      by_type: Record<string, number>;
+    } = { total_visible: 0, by_type: {} };
+    let acknowledgement_status: string | null = null;
+
+    if (jobId) {
+      const [docs, ack] = await this.prisma.runWithTenant(
+        user.tenantId,
+        async (tx) =>
+          Promise.all([
+            tx.jobDocument.findMany({
+              where: {
+                tenant_id: user.tenantId,
+                job_id: jobId,
+                deleted_at: null,
+                visible_to_customer: true,
+                generation_status: "COMPLETED",
+              },
+              select: { document_type: true },
+            }),
+            tx.deliveryAcknowledgement.findFirst({
+              where: {
+                tenant_id: user.tenantId,
+                job_id: jobId,
+                deleted_at: null,
+              },
+              select: { status: true },
+            }),
+          ]),
+      );
+      const by_type: Record<string, number> = {};
+      for (const d of docs) {
+        by_type[d.document_type] = (by_type[d.document_type] ?? 0) + 1;
+      }
+      documents_summary = { total_visible: docs.length, by_type };
+      acknowledgement_status = ack?.status ?? null;
+    }
 
     return {
       success: true,
-      data: this.toDetail(enriched, user.partyId),
+      data: {
+        ...this.toDetail(enriched, user.partyId),
+        documents_summary,
+        acknowledgement_status,
+        booking_form_hint: jobId
+          ? `/portal/shipments/${enriched.id}/booking-form`
+          : null,
+      },
     };
   }
 
@@ -1422,6 +1468,16 @@ export class PortalShipmentsService {
         created_at: m.created_at,
         updated_at: m.updated_at,
       })),
+      path_hints: {
+        documents: `/portal/shipments/${row.id}/documents`,
+        document_download: `/portal/shipments/${row.id}/documents/{docId}/download`,
+        booking_form: `/portal/shipments/${row.id}/booking-form`,
+        booking_form_documents: `/portal/shipments/${row.id}/booking-form/documents/{kind}`,
+        acknowledgement: `/portal/shipments/${row.id}/acknowledgement`,
+        acknowledgement_submit: `/portal/shipments/${row.id}/acknowledgement`,
+        acknowledgement_signature: `/portal/shipments/${row.id}/acknowledgement/signature`,
+        milestones: `/portal/shipments/${row.id}/milestones`,
+      },
     };
   }
 

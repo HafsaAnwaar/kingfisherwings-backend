@@ -243,7 +243,10 @@ export class PortalDocumentsService {
       if (!isPortalVisibleDocumentType(doc.document_type)) continue;
 
       const portalType = toPortalDocumentType(doc.document_type);
-      if (!this.permissions.assertCanView(matrix, portalType)) continue;
+      // visible_to_customer docs always appear; portal_permissions only gates download.
+      const canView = this.permissions.assertCanView(matrix, portalType);
+      const canDownload =
+        canView && this.permissions.assertCanDownload(matrix, portalType);
 
       items.push({
         id: doc.id,
@@ -254,7 +257,7 @@ export class PortalDocumentsService {
         file_name: doc.file_name,
         file_size: doc.file_size,
         mime_type: doc.mime_type,
-        can_download: this.permissions.assertCanDownload(matrix, portalType),
+        can_download: canDownload,
         created_at: doc.created_at,
         job_id: doc.job_id,
         job_number: doc.job?.job_number ?? null,

@@ -399,9 +399,13 @@ export class ShipmentQueryDto {
 }
 
 export class ChangeShipmentStatusDto {
-  @ApiProperty({ enum: ShipmentStatus })
-  @IsEnum(ShipmentStatus)
-  status!: ShipmentStatus;
+  @ApiProperty({
+    description: "Catalog code (system or custom). Custom maps via maps_to_system_status.",
+    example: "CONFIRMED",
+  })
+  @IsString()
+  @MaxLength(40)
+  status!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

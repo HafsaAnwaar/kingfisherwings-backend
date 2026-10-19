@@ -57,6 +57,11 @@ import { QUOTATIONS_PERMISSIONS } from "./constants/quotations-permission.consta
 import { QuotationDetailService } from "./quotation-detail.service";
 import { ChangeQuotationStatusDto } from "./dto/quotation-detail.dto";
 import { BookingFormEntityService } from "../jobs/booking-forms/booking-form-entity.service";
+import { QuotationStatusCatalogService } from "./quotation-status-catalog.service";
+import {
+  CreateStatusCatalogDto,
+  UpdateStatusCatalogDto,
+} from "../jobs/dto/status-catalog.dto";
 
 @ApiTags("Quotations")
 @ApiBearerAuth()
@@ -68,7 +73,47 @@ export class QuotationsController {
     private readonly detail: QuotationDetailService,
     private readonly bookingForms: BookingFormEntityService,
     private readonly vendorQuotes: VendorQuotesService,
+    private readonly statusCatalog: QuotationStatusCatalogService,
   ) {}
+
+  @Get("status-options")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Quotation status catalog (system + custom)" })
+  statusOptions(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query("quotation_id") quotationId?: string,
+  ) {
+    return this.statusCatalog.listOptions(tenantId, quotationId);
+  }
+
+  @Post("status-catalog")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Add a custom quotation status" })
+  createStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Body() dto: CreateStatusCatalogDto,
+  ) {
+    return this.statusCatalog.createCustom(tenantId, dto);
+  }
+
+  @Patch("status-catalog/:catalogId")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
+  updateStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("catalogId", ParseUUIDPipe) catalogId: string,
+    @Body() dto: UpdateStatusCatalogDto,
+  ) {
+    return this.statusCatalog.updateCustom(tenantId, catalogId, dto);
+  }
+
+  @Delete("status-catalog/:catalogId")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
+  deactivateStatusCatalog(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("catalogId", ParseUUIDPipe) catalogId: string,
+  ) {
+    return this.statusCatalog.deactivate(tenantId, catalogId);
+  }
 
   @Get()
   @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)

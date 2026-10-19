@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiCreatedResponse,
   ApiOperation,
   ApiTags,
 } from "@nestjs/swagger";
@@ -124,6 +125,10 @@ export class PortalComplianceBookingController {
   @ApiOperation({
     summary:
       "Upload supporting doc (commercial_invoice|correspondence|cod_form|licence)",
+  })
+  @ApiCreatedResponse({
+    description:
+      "Created JobDocument mirror + form keys. Body includes id, document_type, file_url, s3_key, kind, form.",
   })
   uploadDoc(
     @CurrentPortal() user: CurrentPortalUser,

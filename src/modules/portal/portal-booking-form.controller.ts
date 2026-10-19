@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -6,9 +7,19 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { SkipStaffJwt } from "../../common/decorators/skip-staff-jwt.decorator";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import { PortalAuthGuard } from "./guards/portal-auth.guard";
@@ -55,6 +66,39 @@ export class PortalBookingFormController {
     return this.forms.completeForShipment(user, id, dto);
   }
 
+  @Post("shipments/:id/booking-form/documents/:kind")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @ApiOperation({
+    summary:
+      "Upload mandatory booking document for shipment (CUSTOMER → JobDocument)",
+  })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  uploadShipmentDoc(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("kind") kind: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException(
+        "File is required (multipart field name: file).",
+      );
+    }
+    return this.forms.uploadDocumentForShipment(user, id, kind, file);
+  }
+
   @Get("quotations/:id/booking-form")
   @ApiOperation({
     summary:
@@ -85,5 +129,38 @@ export class PortalBookingFormController {
     @Body() dto: Record<string, unknown>,
   ) {
     return this.forms.completeForQuotation(user, id, dto);
+  }
+
+  @Post("quotations/:id/booking-form/documents/:kind")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @ApiOperation({
+    summary:
+      "Upload mandatory booking document for quotation (CUSTOMER → JobDocument)",
+  })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  uploadQuoteDoc(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("kind") kind: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException(
+        "File is required (multipart field name: file).",
+      );
+    }
+    return this.forms.uploadDocumentForQuotation(user, id, kind, file);
   }
 }

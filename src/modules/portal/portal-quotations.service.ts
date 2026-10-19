@@ -31,6 +31,7 @@ import {
   MasterLabelService,
   sumLineTotals,
 } from "../masters/master-label.service";
+import { BookingFormGateService } from "../../common/services/booking-form-gate.service";
 
 const PORTAL_CUSTOMER_SOURCES = ["CUSTOMER_PORTAL", "ONLINE_WIDGET"] as const;
 
@@ -63,6 +64,7 @@ export class PortalQuotationsService {
     private readonly negotiation: QuotationNegotiationService,
     private readonly catalog: ServiceCatalogService,
     private readonly masterLabels: MasterLabelService,
+    private readonly bookingFormGate: BookingFormGateService,
   ) {}
 
   async getServiceCatalog(user: CurrentPortalUser, jobType?: string) {
@@ -535,6 +537,22 @@ export class PortalQuotationsService {
       );
     }
 
+    const provisionalJobId =
+      quotation.converted_job_id ??
+      (
+        await this.quotations.ensureProvisionalJob(
+          user.tenantId,
+          quotationId,
+          user.id,
+        )
+      ).jobId;
+    const formGate = await this.bookingFormGate.isComplete(
+      user.tenantId,
+      provisionalJobId,
+      quotation.job_type,
+    );
+    this.bookingFormGate.assertComplete(formGate);
+
     const shipmentOr: Prisma.ShipmentWhereInput[] = [
       { quotation_id: quotationId },
     ];
@@ -716,6 +734,8 @@ export class PortalQuotationsService {
           status: true,
           quotation_number: true,
           converted_shipment_id: true,
+          converted_job_id: true,
+          job_type: true,
         },
       }),
     );

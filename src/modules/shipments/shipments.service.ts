@@ -30,6 +30,7 @@ import {
   ShipmentQueryDto,
   UpdateShipmentDto,
 } from "./dto/shipment.dto";
+import { ShipmentStatusCatalogService } from "./shipment-status-catalog.service";
 
 /** Generate Job is allowed only after staff confirm/approve the booking. */
 export const SHIPMENT_GENERATE_JOB_STATUSES: ShipmentStatus[] = [
@@ -61,6 +62,7 @@ export class ShipmentsService {
     private readonly numberGenerator: NumberGeneratorService,
     private readonly documentGeneration: DocumentGenerationService,
     private readonly labels: MasterLabelService,
+    private readonly statusCatalog: ShipmentStatusCatalogService,
   ) {}
 
   async create(tenantId: string, dto: CreateShipmentDto, actorId?: string) {
@@ -375,10 +377,19 @@ export class ShipmentsService {
     actorId?: string,
   ) {
     const current = await this.findOne(tenantId, id);
+    const resolved = await this.statusCatalog.resolveCode(
+      tenantId,
+      dto.status.trim().toUpperCase(),
+    );
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const updated = await tx.shipment.update({
         where: { id },
-        data: { status: dto.status, notes: dto.remarks, updated_by: actorId },
+        data: {
+          status: resolved.systemStatus,
+          status_code: resolved.code,
+          notes: dto.remarks,
+          updated_by: actorId,
+        },
       });
       await tx.auditLog.create({
         data: {
@@ -387,11 +398,19 @@ export class ShipmentsService {
           action: "SHIPMENT_STATUS_CHANGE",
           entity: "SHIPMENT",
           entity_id: id,
-          old_values: { status: current.status },
-          new_values: { status: dto.status, remarks: dto.remarks ?? null },
+          old_values: {
+            status: current.status,
+            status_code: current.status_code ?? current.status,
+          },
+          new_values: {
+            status: resolved.systemStatus,
+            status_code: resolved.code,
+            remarks: dto.remarks ?? null,
+          },
           metadata: {
             from_status: current.status,
-            to_status: dto.status,
+            to_status: resolved.systemStatus,
+            to_code: resolved.code,
           },
         },
       });

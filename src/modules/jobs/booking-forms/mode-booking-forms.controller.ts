@@ -15,6 +15,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiCreatedResponse,
   ApiOperation,
   ApiTags,
 } from "@nestjs/swagger";
@@ -48,6 +49,10 @@ export class ModeBookingFormsController {
   @ApiOperation({
     summary:
       "Upload a mandatory booking document (invoice, packing list, BL/AWB, licence, UAT/TAX)",
+  })
+  @ApiCreatedResponse({
+    description:
+      "201 body includes job_document_id, file_url, s3_key, kind, and updated form.",
   })
   @ApiBody({
     schema: {

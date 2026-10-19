@@ -13,8 +13,16 @@ import {
   opsContinuumPathHints,
 } from "../ops-activity/ops-continuum-path-hints";
 import { MasterLabelService } from "../masters/master-label.service";
+import { QuotationStatusCatalogService } from "./quotation-status-catalog.service";
+import { JobTabPanelsService } from "../jobs/job-tab-panels.service";
 
-const DETAIL_TABS = ["info", "costing", "organization", "routing"] as const;
+const DETAIL_TABS = [
+  "info",
+  "costing",
+  "organization",
+  "routing",
+  "booking_form",
+] as const;
 export type QuotationDetailTab = (typeof DETAIL_TABS)[number];
 
 type QuotationWithLines = Prisma.QuotationGetPayload<{
@@ -27,6 +35,8 @@ export class QuotationDetailService {
     private readonly prisma: PrismaService,
     private readonly quotations: QuotationsService,
     private readonly labels: MasterLabelService,
+    private readonly statusCatalog: QuotationStatusCatalogService,
+    private readonly jobTabPanels: JobTabPanelsService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -42,10 +52,13 @@ export class QuotationDetailService {
           ...flags,
           can_copy: quote.status !== "CONVERTED",
           can_change_status: true,
+          can_booking_form: true,
           ...opsContinuumActions(),
           path_hints: {
             ops_continuum: opsContinuumPathHints("QUOTATION", quote.id),
             favourite_toggle: `/favourites/toggle`,
+            booking_form: `/quotations/${quote.id}/booking-form`,
+            status_options: `/quotations/status-options?quotation_id=${quote.id}`,
             ...(flags.can_generate_shipment
               ? { generate_shipment: `/quotations/${quote.id}/generate-shipment` }
               : {}),
@@ -107,6 +120,44 @@ export class QuotationDetailService {
         },
       };
     }
+    if (normalized === "booking_form") {
+      let jobId = quote.converted_job_id;
+      if (!jobId && quote.status === "APPROVED") {
+        const provisional = await this.quotations.ensureProvisionalJob(
+          tenantId,
+          id,
+        );
+        jobId = provisional.jobId;
+      }
+      if (!jobId) {
+        return {
+          success: true,
+          data: {
+            quotation_id: id,
+            job_id: null,
+            message:
+              "Booking form is available after the quotation is APPROVED (provisional job).",
+            path_hints: {
+              booking_form: `/quotations/${id}/booking-form`,
+            },
+          },
+        };
+      }
+      const tab = await this.jobTabPanels.getBookingFormTab(tenantId, jobId);
+      return {
+        ...tab,
+        data: {
+          ...(tab as { data?: Record<string, unknown> }).data,
+          quotation_id: id,
+          path_hints: {
+            ...((tab as { data?: { path_hints?: object } }).data?.path_hints ??
+              {}),
+            booking_form: `/quotations/${id}/booking-form`,
+            job_booking_form_tab: `/jobs/${jobId}/detail/booking_form`,
+          },
+        },
+      };
+    }
     return {
       success: true,
       data: await this.labels.enrichOne(tenantId, {
@@ -134,48 +185,72 @@ export class QuotationDetailService {
     actorId?: string,
   ) {
     const quote = await this.loadQuotation(tenantId, id);
-    const target = dto.status;
-    if (target === quote.status) {
+    const resolved = await this.statusCatalog.resolveCode(
+      tenantId,
+      dto.status.trim().toUpperCase(),
+    );
+    const target = resolved.systemStatus;
+    const catalogCode = resolved.code;
+
+    if (
+      catalogCode === (quote.status_code ?? quote.status) &&
+      target === quote.status
+    ) {
       return { success: true, data: quote };
     }
+
+    const stampCode = async (result: unknown) => {
+      await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.quotation.update({
+          where: { id },
+          data: { status_code: catalogCode, updated_by: actorId },
+        }),
+      );
+      return result;
+    };
 
     switch (target) {
       case "VERIFIED":
         return {
           success: true,
-          data: await this.quotations.verify(
-            tenantId,
-            id,
-            actorId,
-            dto.reason,
+          data: await stampCode(
+            await this.quotations.verify(tenantId, id, actorId, dto.reason),
           ),
         };
       case "APPROVED":
         return {
           success: true,
-          data: await this.quotations.markApprovedAfterVerify(
-            tenantId,
-            id,
-            actorId,
-            dto.reason,
+          data: await stampCode(
+            await this.quotations.markApprovedAfterVerify(
+              tenantId,
+              id,
+              actorId,
+              dto.reason,
+            ),
           ),
         };
       case "SENT":
         return {
           success: true,
-          data: await this.quotations.send(tenantId, id, actorId),
+          data: await stampCode(
+            await this.quotations.send(tenantId, id, actorId),
+          ),
         };
       case "INTERNALLY_APPROVED":
         return {
           success: true,
-          data: await this.quotations.approve(tenantId, id, actorId, {
-            comments: dto.reason,
-          }),
+          data: await stampCode(
+            await this.quotations.approve(tenantId, id, actorId, {
+              comments: dto.reason,
+            }),
+          ),
         };
       case "SUBMITTED":
         return {
           success: true,
-          data: await this.quotations.submit(tenantId, id, actorId),
+          data: await stampCode(
+            await this.quotations.submit(tenantId, id, actorId),
+          ),
         };
       default:
         throw new BadRequestException(
