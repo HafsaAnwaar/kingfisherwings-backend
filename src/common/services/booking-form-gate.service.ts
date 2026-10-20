@@ -3,12 +3,46 @@ import { JobType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 /**
- * True when the job's mode/compliance booking form is marked complete.
- * Used to gate quotation → CONVERTED until the customer submits the form.
+ * True when the quotation-scoped or job mode/compliance booking form is complete.
+ * Prefer quotation.booking_form_is_complete (no provisional job required).
  */
 @Injectable()
 export class BookingFormGateService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async isCompleteForQuotation(
+    tenantId: string,
+    quotationId: string,
+  ): Promise<{ complete: boolean; formKind: string }> {
+    const quote = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.findFirst({
+        where: { id: quotationId, tenant_id: tenantId, deleted_at: null },
+        select: {
+          booking_form_is_complete: true,
+          booking_form_kind: true,
+          converted_job_id: true,
+          job_type: true,
+          status: true,
+        },
+      }),
+    );
+    if (!quote) {
+      return { complete: false, formKind: "none" };
+    }
+    if (quote.booking_form_is_complete) {
+      return {
+        complete: true,
+        formKind: quote.booking_form_kind ?? "quotation",
+      };
+    }
+    if (quote.converted_job_id && quote.status === "CONVERTED") {
+      return this.isComplete(tenantId, quote.converted_job_id, quote.job_type);
+    }
+    return {
+      complete: false,
+      formKind: quote.booking_form_kind ?? "quotation",
+    };
+  }
 
   async isComplete(
     tenantId: string,

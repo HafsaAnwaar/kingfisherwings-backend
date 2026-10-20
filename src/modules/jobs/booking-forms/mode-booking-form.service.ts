@@ -30,6 +30,8 @@ import {
   CC_PARTY_KINDS,
   CcCargoLineInput,
   ContainerSizeLine,
+  locationFallbacksFromPayload,
+  mergeBookingFormPayload,
   requireFields,
   WhStockLineInput,
 } from "./booking-form-shared";
@@ -307,10 +309,13 @@ export class ModeBookingFormService {
       }
 
       if (markComplete) {
-        this.validateComplete(kind, {
-          ...(form as unknown as Record<string, unknown>),
-          ...(dto as unknown as Record<string, unknown>),
-        });
+        this.validateComplete(
+          kind,
+          mergeBookingFormPayload(
+            form as unknown as Record<string, unknown>,
+            dto as unknown as Record<string, unknown>,
+          ),
+        );
       }
 
       const data = this.toUpdateData(
@@ -401,15 +406,22 @@ export class ModeBookingFormService {
     });
   }
 
+  /** Public so quotation-scoped forms can reuse the same completeness rules. */
+  assertPayloadComplete(kind: FormKind, dto: Record<string, unknown>) {
+    this.validateComplete(kind, dto);
+  }
+
   private validateComplete(kind: FormKind, dto: Record<string, unknown>) {
     const parties =
       (dto.parties as { party_kind: string }[] | undefined) ?? undefined;
+    const doorFallbacks = locationFallbacksFromPayload(dto);
 
     if (kind === "customs_clearance") {
       assertServiceScopeAndDoors({
         service_scope: (dto.service_scope as ServiceScope | null) ?? "PORT_TO_PORT",
         origin_door_address: dto.origin_door_address as string | null,
         dest_door_address: dto.dest_door_address as string | null,
+        ...doorFallbacks,
         requireScope: false,
       });
       assertRequiredParties(parties, CC_PARTY_KINDS);
@@ -502,6 +514,7 @@ export class ModeBookingFormService {
         service_scope: dto.service_scope as ServiceScope | null,
         origin_door_address: dto.origin_door_address as string | null,
         dest_door_address: dto.dest_door_address as string | null,
+        ...doorFallbacks,
         requireScope: false,
       });
       assertRequiredParties(parties);
@@ -573,6 +586,7 @@ export class ModeBookingFormService {
       service_scope: dto.service_scope as ServiceScope | null,
       origin_door_address: dto.origin_door_address as string | null,
       dest_door_address: dto.dest_door_address as string | null,
+      ...doorFallbacks,
     });
     assertRequiredParties(parties);
     assertCargoDocs({

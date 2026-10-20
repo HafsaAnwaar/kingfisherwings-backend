@@ -4949,6 +4949,13 @@ model Quotation {
   /// Portal book-quote costing audit (sale rates / customer lines at create). Never stores cost rates.
   portal_estimate_snapshot Json?
 
+  /// Customer booking form draft/submission before Generate Job (no provisional job).
+  booking_form_payload      Json?
+  booking_form_kind         String?   @db.VarChar(40)
+  booking_form_is_complete  Boolean   @default(false)
+  booking_form_submitted_at DateTime? @db.Timestamptz
+  booking_form_submitted_by String?   @db.Uuid
+
   // Lifecycle timestamps
   lost_reason  String?   @db.VarChar(200)
   submitted_at DateTime? @db.Timestamptz
