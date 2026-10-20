@@ -29,6 +29,7 @@ import {
 import { eligibleEdiTypes } from "../jobs/utils/edi-eligibility.util";
 import { EntityTimelineService } from "../ops-activity/entity-timeline.service";
 import { MasterLabelService } from "../masters/master-label.service";
+import { TrackService } from "../track/track.service";
 
 const DETAIL_TABS = [
   "show_all",
@@ -59,6 +60,7 @@ export class ShipmentDetailService {
     private readonly tabParity: ShipmentTabParityService,
     private readonly timeline: EntityTimelineService,
     private readonly labels: MasterLabelService,
+    private readonly track: TrackService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -492,22 +494,26 @@ export class ShipmentDetailService {
     if (!shipment.job_id) {
       return {
         success: true,
-        data: { tracking_token: null, public_url: null },
+        data: {
+          tracking_token: null,
+          public_url: null,
+          job_id: null,
+          history: [],
+          summary: null,
+          message: "No linked job yet — track timeline unavailable.",
+        },
       };
     }
-    const job = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.job.findFirst({
-        where: { id: shipment.job_id!, tenant_id: tenantId },
-        select: { tracking_token: true },
-      }),
-    );
-    const token = job?.tracking_token ?? null;
+    const result = await this.track.trackByJobId(tenantId, shipment.job_id, {
+      shipmentId: shipment.id,
+      includeNotes: true,
+    });
     return {
       success: true,
       data: {
-        tracking_token: token,
-        public_url: token ? `/track?ref=${encodeURIComponent(token)}` : null,
-        job_id: shipment.job_id,
+        ...result.data,
+        shipment_id: shipment.id,
+        shipment_number: shipment.shipment_number,
       },
     };
   }

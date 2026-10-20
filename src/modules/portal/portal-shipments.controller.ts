@@ -35,6 +35,7 @@ import { PortalDocumentsService } from "./portal-documents.service";
 import { PortalShipmentsService } from "./portal-shipments.service";
 import { PortalNvoccWorkflowService } from "./portal-nvocc-workflow.service";
 import { PortalAirWorkflowService } from "./portal-air-workflow.service";
+import { TrackService } from "../track/track.service";
 /**
  * Customer Portal — Shipments submodule.
  * All routes require portal JWT. Data is scoped to the caller's Party
@@ -52,6 +53,7 @@ export class PortalShipmentsController {
     private readonly nvoccWorkflow: PortalNvoccWorkflowService,
     private readonly airWorkflow: PortalAirWorkflowService,
     private readonly acknowledgement: DeliveryAcknowledgementService,
+    private readonly track: TrackService,
   ) {}
 
   @Get("summary")
@@ -269,11 +271,27 @@ export class PortalShipmentsController {
     return this.shipments.findOne(user, id);
   }
 
+  @Get(":id/tracking")
+  @ApiOperation({
+    summary:
+      "Full track & trace for a portal shipment (current status + complete history)",
+  })
+  async tracking(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    const jobId = await this.requireJobId(user, id);
+    return this.track.trackByJobId(user.tenantId, jobId, {
+      shipmentId: id,
+      includeNotes: false,
+    });
+  }
+
   @Get(":id/milestones")
   @ApiOperation({
     summary: "Milestone timeline for a shipment",
     description:
-      "Track & Trace style timeline inside the authenticated portal.",
+      "Track & Trace style timeline inside the authenticated portal (includes history + summary).",
   })
   milestones(
     @CurrentPortal() user: CurrentPortalUser,

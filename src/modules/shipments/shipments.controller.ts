@@ -470,6 +470,10 @@ export class ShipmentsController {
 
   @Get(":id/tracking")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Track & trace for a shipment — current status, progress, and full history (milestones, containers, status changes)",
+  })
   tracking(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,

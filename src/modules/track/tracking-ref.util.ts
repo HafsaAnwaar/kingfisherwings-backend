@@ -116,7 +116,7 @@ export function publicTrackUrl(ref: string, tenantSlug?: string | null): string 
 }
 
 export type TrackHistoryEvent = {
-  type: "MILESTONE" | "COURIER_CHECKPOINT" | "CONTAINER";
+  type: "MILESTONE" | "COURIER_CHECKPOINT" | "CONTAINER" | "STATUS";
   code: string;
   label: string;
   planned_at: Date | null;

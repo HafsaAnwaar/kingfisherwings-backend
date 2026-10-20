@@ -67,11 +67,14 @@ export class BookingFormEntityService {
     return kind;
   }
 
-  /** Resolve job for a quotation; create provisional job when APPROVED and missing. */
+  /**
+   * Resolve an existing job for a quotation.
+   * Does NOT auto-create a job — staff must use Generate Job first.
+   */
   async ensureJobForQuotation(
     tenantId: string,
     quotationId: string,
-    actorId?: string,
+    _actorId?: string,
   ): Promise<{ jobId: string; jobType: JobType }> {
     const quote = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
@@ -106,19 +109,19 @@ export class BookingFormEntityService {
       return { jobId: linked.job_id, jobType: quote.job_type };
     }
 
-    const provisional = await this.quotations.ensureProvisionalJob(
-      tenantId,
-      quotationId,
-      actorId,
+    throw new BadRequestException(
+      "No job linked yet. Approve only sets quotation status — use Generate Job (admin) before the booking form.",
     );
-    return { jobId: provisional.jobId, jobType: quote.job_type };
   }
 
-  /** Resolve job for a shipment; provisional via quote or DIRECT generate. */
+  /**
+   * Resolve an existing job for a shipment.
+   * Does NOT auto-create a job — staff must use Generate Job first.
+   */
   async ensureJobForShipment(
     tenantId: string,
     shipmentId: string,
-    actorId?: string,
+    _actorId?: string,
   ): Promise<{ jobId: string; jobType: JobType }> {
     const shipment = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.shipment.findFirst({
@@ -137,28 +140,9 @@ export class BookingFormEntityService {
       return { jobId: shipment.job_id, jobType: shipment.job_type };
     }
 
-    if (shipment.quotation_id) {
-      const provisional = await this.quotations.ensureProvisionalJob(
-        tenantId,
-        shipment.quotation_id,
-        actorId,
-      );
-      await this.shipments.attachToJob(
-        tenantId,
-        provisional.jobId,
-        shipmentId,
-        actorId,
-      );
-      return { jobId: provisional.jobId, jobType: shipment.job_type };
-    }
-
-    const generated = await this.shipments.generateJob(
-      tenantId,
-      shipmentId,
-      { mode: "DIRECT" },
-      actorId,
+    throw new BadRequestException(
+      "Shipment has no linked job yet. Use Generate Job on the shipment or quotation first.",
     );
-    return { jobId: generated.jobId, jobType: shipment.job_type };
   }
 
   async getForQuotation(tenantId: string, quotationId: string, actor?: Actor) {

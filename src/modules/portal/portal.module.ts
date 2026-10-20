@@ -65,6 +65,7 @@ import { ToolsModule } from "../tools/tools.module";
 import { NvoccModule } from "../nvocc/nvocc.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { ShipmentsModule } from "../shipments/shipments.module";
+import { TrackModule } from "../track/track.module";
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { ShipmentsModule } from "../shipments/shipments.module";
     NvoccModule,
     JobsModule,
     ShipmentsModule,
+    TrackModule,
     JwtModule.register({}),
   ],
   controllers: [

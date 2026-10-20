@@ -48,6 +48,7 @@ import { VendorModule } from "../vendor/vendor.module";
 import { MastersModule } from "../masters/masters.module";
 import { ShipmentsModule } from "../shipments/shipments.module";
 import { QuotationsModule } from "../quotations/quotations.module";
+import { TrackModule } from "../track/track.module";
 import { JobsDashboardService } from "./jobs-dashboard.service";
 import { AirBookingFormService } from "./air-booking-form.service";
 import { AirComplianceBookingFormService } from "./air-compliance-booking-form.service";
@@ -81,6 +82,7 @@ import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.servi
     MastersModule,
     forwardRef(() => ShipmentsModule),
     forwardRef(() => QuotationsModule),
+    TrackModule,
   ],
   controllers: [
     CustomsClearanceQueueController,
