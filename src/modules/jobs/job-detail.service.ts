@@ -675,7 +675,8 @@ export class JobDetailService {
         switch_bl: `/jobs/${job.id}/documents/switch-bl`,
         bills_of_lading: `/jobs/${job.id}/bills-of-lading`,
         awb: isAir ? `/jobs/${job.id}/documents/e-awb` : null,
-        tracking: job.tracking_token
+        tracking: `/jobs/${job.id}/tracking`,
+        tracking_public: job.tracking_token
           ? `/track?ref=${encodeURIComponent(job.tracking_token)}`
           : null,
         docs_upload: `/jobs/${job.id}/documents/upload`,

@@ -116,9 +116,9 @@ export class PortalQuotationsController {
 
   @Post(":id/convert-to-job")
   @ApiOperation({
-    summary: "Convert an approved quotation (with shipment) to a job",
+    summary: "Blocked — job creation is staff-only (Generate Job)",
     description:
-      "Requires APPROVED status, a linked shipment (from staff Generate Shipment), and a completed booking form. Sets quotation CONVERTED.",
+      "Portal customers cannot convert quotations to jobs. After approval, staff use Generate Job on the admin side.",
   })
   convertToJob(
     @CurrentPortal() user: CurrentPortalUser,

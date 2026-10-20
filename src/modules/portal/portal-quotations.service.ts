@@ -11,7 +11,6 @@ import { StorageService } from "../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 import { QuotationsService } from "../quotations/quotations.service";
 import { quotationActionFlags } from "../quotations/quotation-action-flags";
-import { ShipmentsService } from "../shipments/shipments.service";
 import {
   PortalCostingOptionsDto,
   PortalQuotationAcceptDto,
@@ -31,7 +30,6 @@ import {
   MasterLabelService,
   sumLineTotals,
 } from "../masters/master-label.service";
-import { BookingFormGateService } from "../../common/services/booking-form-gate.service";
 
 const PORTAL_CUSTOMER_SOURCES = ["CUSTOMER_PORTAL", "ONLINE_WIDGET"] as const;
 
@@ -57,14 +55,12 @@ export class PortalQuotationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quotations: QuotationsService,
-    private readonly shipments: ShipmentsService,
     private readonly notifications: NotificationEmitterService,
     private readonly storage: StorageService,
     private readonly pricing: PortalQuotePricingService,
     private readonly negotiation: QuotationNegotiationService,
     private readonly catalog: ServiceCatalogService,
     private readonly masterLabels: MasterLabelService,
-    private readonly bookingFormGate: BookingFormGateService,
   ) {}
 
   async getServiceCatalog(user: CurrentPortalUser, jobType?: string) {
@@ -524,135 +520,11 @@ export class PortalQuotationsService {
   }
 
   async convertToJob(user: CurrentPortalUser, quotationId: string) {
-    const quotation = await this.getOwnedOrThrow(user, quotationId);
-
-    if (quotation.status === "CONVERTED") {
-      throw new BadRequestException(
-        "This quotation has already been converted to a job.",
-      );
-    }
-    if (quotation.status !== "APPROVED") {
-      throw new BadRequestException(
-        "Quotation must be APPROVED before converting to a job.",
-      );
-    }
-
-    const provisionalJobId =
-      quotation.converted_job_id ??
-      (
-        await this.quotations.ensureProvisionalJob(
-          user.tenantId,
-          quotationId,
-          user.id,
-        )
-      ).jobId;
-    const formGate = await this.bookingFormGate.isComplete(
-      user.tenantId,
-      provisionalJobId,
-      quotation.job_type,
+    await this.getOwnedOrThrow(user, quotationId);
+    // Jobs are created only by staff via Generate Job — never from the portal.
+    throw new BadRequestException(
+      "Job conversion is staff-only. After approval, your forwarder will use Generate Job on the admin side.",
     );
-    this.bookingFormGate.assertComplete(formGate);
-
-    const shipmentOr: Prisma.ShipmentWhereInput[] = [
-      { quotation_id: quotationId },
-    ];
-    if (quotation.converted_shipment_id) {
-      shipmentOr.unshift({ id: quotation.converted_shipment_id });
-    }
-
-    const shipmentRow = await this.prisma.runWithTenant(user.tenantId, (tx) =>
-      tx.shipment.findFirst({
-        where: {
-          tenant_id: user.tenantId,
-          deleted_at: null,
-          OR: shipmentOr,
-        },
-        select: {
-          id: true,
-          job_id: true,
-          shipment_number: true,
-          job: { select: { id: true, job_number: true } },
-        },
-        orderBy: { created_at: "desc" },
-      }),
-    );
-
-    if (shipmentRow?.job_id && shipmentRow.job) {
-      await this.prisma.runWithTenant(user.tenantId, (tx) =>
-        tx.quotation.update({
-          where: { id: quotationId },
-          data: {
-            status: "CONVERTED",
-            converted_job_id: shipmentRow.job!.id,
-            converted_shipment_id: shipmentRow.id,
-            updated_by: user.id,
-          },
-        }),
-      );
-      return {
-        success: true,
-        message: "Shipment already linked to a job.",
-        data: {
-          id: quotation.id,
-          quotation_number: quotation.quotation_number,
-          status: "CONVERTED",
-          shipment_id: shipmentRow.id,
-          shipment_number: shipmentRow.shipment_number,
-          converted_job_id: shipmentRow.job.id,
-          converted_job_number: shipmentRow.job.job_number,
-          job: {
-            id: shipmentRow.job.id,
-            job_number: shipmentRow.job.job_number,
-          },
-        },
-      };
-    }
-
-    // Fresa path: Generate Job from the Shipment linked to the quotation.
-    if (shipmentRow && !shipmentRow.job_id) {
-      const generated = await this.shipments.generateJob(
-        user.tenantId,
-        shipmentRow.id,
-        { mode: "DIRECT" },
-        user.id,
-      );
-      return {
-        success: true,
-        message: "Shipment converted to job (Generate Job).",
-        data: {
-          id: quotation.id,
-          quotation_number: quotation.quotation_number,
-          status: "CONVERTED",
-          shipment_id: shipmentRow.id,
-          shipment_number: shipmentRow.shipment_number,
-          converted_job_id: generated.jobId,
-          converted_job_number: generated.jobNumber,
-          job: { id: generated.jobId, job_number: generated.jobNumber },
-        },
-      };
-    }
-
-    // Legacy dual-read: no Shipment row — provisional Job path.
-    const job = await this.quotations.convertToJob(
-      user.tenantId,
-      quotationId,
-      user.id,
-    );
-
-    return {
-      success: true,
-      message: "Quotation converted to job.",
-      data: {
-        id: quotation.id,
-        quotation_number: quotation.quotation_number,
-        status: "CONVERTED",
-        shipment_id: null,
-        shipment_number: null,
-        converted_job_id: job.jobId,
-        converted_job_number: job.jobNumber,
-        job: { id: job.jobId, job_number: job.jobNumber },
-      },
-    };
   }
 
   async reject(

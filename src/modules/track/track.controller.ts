@@ -62,7 +62,7 @@ export class TrackController {
   @ApiOperation({
     summary: "Public shipment track by reference",
     description:
-      "Anyone with a job, shipment, BL, AWB, booking, vehicle, courier tracking, or container number can view a sanitized timeline (milestones + courier + container events). Resolve tenant via tenant_slug or Host/domain.",
+      "Returns current status, progress summary, and full history (created, status changes, milestones, courier checkpoints, container events). Resolve tenant via tenant_slug or Host/domain.",
   })
   trackShipment(
     @Query() query: TrackQueryDto,

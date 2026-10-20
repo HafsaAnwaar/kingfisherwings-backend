@@ -3097,12 +3097,33 @@ export class QuotationsService {
         "Only an APPROVED quotation can Generate Job.",
       );
     }
+    // Explicit admin Generate Job — this is the only approve→job creation path.
     const job = await this.ensureProvisionalJob(tenantId, id, actorId);
+    if (quotation.status === "APPROVED") {
+      await this.prisma.runWithTenant(tenantId, async (tx) => {
+        await tx.quotation.update({
+          where: { id },
+          data: {
+            status: "CONVERTED",
+            converted_job_id: job.jobId,
+            updated_by: actorId,
+          },
+        });
+        await this.recordStatusChange(
+          tx,
+          tenantId,
+          id,
+          "APPROVED",
+          "CONVERTED",
+          actorId,
+          "Generate Job",
+        );
+      });
+    }
     return {
       success: true,
       data: job,
-      message:
-        "Job generated from quotation. Prefer Generate Shipment then Generate Job for sea consol.",
+      message: "Job generated from quotation.",
     };
   }
 

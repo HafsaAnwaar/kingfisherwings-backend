@@ -20,9 +20,8 @@ import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import {
   jobTrackRefOrClauses,
   shipmentTrackRefOrClauses,
-  sortTrackHistory,
-  TrackHistoryEvent,
 } from "../track/tracking-ref.util";
+import { TrackTimelineService } from "../track/track-timeline.service";
 
 const JOB_DETAIL_INCLUDE = {
   air_details: {
@@ -226,7 +225,10 @@ type LinkedJob = Job & {
 
 @Injectable()
 export class PortalShipmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly timeline: TrackTimelineService,
+  ) {}
 
   async list(user: CurrentPortalUser, query: PortalShipmentQueryDto) {
     const skip = (query.page - 1) * query.limit;
@@ -623,142 +625,33 @@ export class PortalShipmentsService {
   async getMilestones(user: CurrentPortalUser, id: string) {
     const jobId = await this.resolveTrackingJobId(user, id);
     if (!jobId) {
-      return { success: true, data: [], history: [] };
+      return {
+        success: true,
+        data: [],
+        history: [],
+        summary: null,
+        containers: [],
+      };
     }
 
-    const [milestones, checkpoints, containers] =
-      await this.prisma.runWithTenant(user.tenantId, async (tx) =>
-        Promise.all([
-          tx.jobMilestone.findMany({
-            where: {
-              tenant_id: user.tenantId,
-              job_id: jobId,
-              deleted_at: null,
-            },
-            orderBy: { created_at: "asc" },
-            select: {
-              id: true,
-              milestone: true,
-              planned_date: true,
-              actual_date: true,
-              notes: true,
-              created_at: true,
-              updated_at: true,
-            },
-          }),
-          tx.courierDeliveryCheckpoint.findMany({
-            where: {
-              tenant_id: user.tenantId,
-              job_id: jobId,
-              deleted_at: null,
-            },
-            orderBy: { scanned_at: "asc" },
-            select: {
-              checkpoint: true,
-              scanned_at: true,
-              location: true,
-              notes: true,
-            },
-          }),
-          tx.jobContainer.findMany({
-            where: {
-              tenant_id: user.tenantId,
-              job_id: jobId,
-              deleted_at: null,
-            },
-            orderBy: { created_at: "asc" },
-            select: {
-              container_number: true,
-              status: true,
-              gate_in_at: true,
-              returned_at: true,
-            },
-          }),
-        ]),
-      );
-
-    const milestoneRows = milestones.map((m) => ({
-      id: m.id,
-      milestone: m.milestone,
-      planned_date: m.planned_date,
-      actual_date: m.actual_date,
-      notes: m.notes,
-      is_completed: Boolean(m.actual_date),
-      created_at: m.created_at,
-      updated_at: m.updated_at,
-    }));
-
-    const history: TrackHistoryEvent[] = [];
-    for (const m of milestones) {
-      history.push({
-        type: "MILESTONE",
-        code: m.milestone,
-        label: m.milestone.replace(/_/g, " "),
-        planned_at: m.planned_date,
-        actual_at: m.actual_date,
-        is_completed: Boolean(m.actual_date),
-        notes: m.notes,
-      });
-    }
-    for (const cp of checkpoints) {
-      history.push({
-        type: "COURIER_CHECKPOINT",
-        code: cp.checkpoint,
-        label: cp.checkpoint.replace(/_/g, " "),
-        planned_at: null,
-        actual_at: cp.scanned_at,
-        is_completed: true,
-        location: cp.location,
-        notes: cp.notes,
-      });
-    }
-    for (const c of containers) {
-      if (!c.container_number) continue;
-      if (c.gate_in_at) {
-        history.push({
-          type: "CONTAINER",
-          code: "GATE_IN",
-          label: `Container ${c.container_number} gate in`,
-          planned_at: null,
-          actual_at: c.gate_in_at,
-          is_completed: true,
-          container_number: c.container_number,
-        });
-      }
-      if (c.returned_at) {
-        history.push({
-          type: "CONTAINER",
-          code: "RETURNED",
-          label: `Container ${c.container_number} returned`,
-          planned_at: null,
-          actual_at: c.returned_at,
-          is_completed: true,
-          container_number: c.container_number,
-        });
-      }
-      if (!c.gate_in_at && !c.returned_at) {
-        history.push({
-          type: "CONTAINER",
-          code: c.status,
-          label: `Container ${c.container_number} · ${c.status}`,
-          planned_at: null,
-          actual_at: null,
-          is_completed: false,
-          container_number: c.container_number,
-        });
-      }
-    }
+    const payload = await this.timeline.getTimelineForJob(
+      user.tenantId,
+      jobId,
+      {
+        includeNotes: false,
+        shipmentId: id,
+      },
+    );
 
     return {
       success: true,
-      data: milestoneRows,
-      history: sortTrackHistory(history),
-      containers: containers.map((c) => ({
-        container_number: c.container_number,
-        status: c.status,
-        gate_in_at: c.gate_in_at,
-        returned_at: c.returned_at,
-      })),
+      data: payload.milestones,
+      history: payload.history,
+      summary: payload.summary,
+      status: payload.status,
+      status_label: payload.status_label,
+      containers: payload.containers,
+      public_url: payload.public_url,
     };
   }
 
@@ -1476,6 +1369,7 @@ export class PortalShipmentsService {
         acknowledgement: `/portal/shipments/${row.id}/acknowledgement`,
         acknowledgement_submit: `/portal/shipments/${row.id}/acknowledgement`,
         acknowledgement_signature: `/portal/shipments/${row.id}/acknowledgement/signature`,
+        tracking: `/portal/shipments/${row.id}/tracking`,
         milestones: `/portal/shipments/${row.id}/milestones`,
       },
     };

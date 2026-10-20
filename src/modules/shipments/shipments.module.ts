@@ -9,6 +9,7 @@ import { PartiesModule } from "../parties/parties.module";
 import { MastersModule } from "../masters/masters.module";
 import { DocumentationEdiService } from "../documentation/documentation-edi.service";
 import { OpsActivityModule } from "../ops-activity/ops-activity.module";
+import { TrackModule } from "../track/track.module";
 import { ShipmentsController } from "./shipments.controller";
 import { ShipmentOpsAttachmentsController } from "./shipment-ops-attachments.controller";
 import { ShipmentsService } from "./shipments.service";
@@ -33,6 +34,7 @@ import { ShipmentStatusCatalogService } from "./shipment-status-catalog.service"
     PartiesModule,
     MastersModule,
     OpsActivityModule,
+    TrackModule,
     forwardRef(() => JobsModule),
   ],
     controllers: [ShipmentOpsAttachmentsController, ShipmentsController],

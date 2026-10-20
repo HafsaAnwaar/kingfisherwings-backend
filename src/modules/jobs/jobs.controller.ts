@@ -149,6 +149,7 @@ import { JobDocumentUploadService } from "./job-document-upload.service";
 import { OpsSectionAttachmentsService } from "./ops-section-attachments.service";
 import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
 import { ReceiveDeliveryAcknowledgementDto } from "./dto/delivery-acknowledgement.dto";
+import { TrackService } from "../track/track.service";
 import {
   BulkJobContainersDto,
   ConfirmContainerUploadDto,
@@ -279,6 +280,7 @@ export class JobsController {
     private readonly documentUpload: JobDocumentUploadService,
     private readonly sectionFiles: OpsSectionAttachmentsService,
     private readonly acknowledgement: DeliveryAcknowledgementService,
+    private readonly track: TrackService,
   ) {}
 
   @Get()
@@ -1106,14 +1108,41 @@ export class JobsController {
     return this.service.getHouseJobs(tenantId, id);
   }
 
-  @Get(":id/milestones")
+  @Get(":id/tracking")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List all milestones for a job" })
-  getMilestones(
+  @ApiOperation({
+    summary:
+      "Track & trace for a job — current status, progress, and full history (milestones, containers, status changes)",
+  })
+  getJobTracking(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.getMilestones(tenantId, id);
+    return this.track.trackByJobId(tenantId, id, { includeNotes: true });
+  }
+
+  @Get(":id/milestones")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Job milestones + unified track history (same timeline as Track & Trace)",
+  })
+  async getMilestones(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    const tracked = await this.track.trackByJobId(tenantId, id, {
+      includeNotes: true,
+    });
+    return {
+      success: true,
+      data: tracked.data.milestones,
+      history: tracked.data.history,
+      summary: tracked.data.summary,
+      status: tracked.data.status,
+      status_label: tracked.data.status_label,
+      public_url: tracked.data.public_url,
+    };
   }
 
   @Get(":id/pnl")
