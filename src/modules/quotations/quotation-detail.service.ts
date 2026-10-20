@@ -121,7 +121,15 @@ export class QuotationDetailService {
       };
     }
     if (normalized === "booking_form") {
-      const jobId = quote.converted_job_id;
+      let jobId = quote.converted_job_id;
+      // Provisional job for booking docs only — does not set CONVERTED.
+      if (!jobId && quote.status === "APPROVED") {
+        const provisional = await this.quotations.ensureProvisionalJob(
+          tenantId,
+          id,
+        );
+        jobId = provisional.jobId;
+      }
       if (!jobId) {
         return {
           success: true,
@@ -130,9 +138,8 @@ export class QuotationDetailService {
             job_id: null,
             status: quote.status,
             message:
-              "No job yet. Approving a quotation does not create a job — use Generate Job when ready, then open the booking form.",
+              "Booking form is available after the quotation is APPROVED.",
             path_hints: {
-              generate_job: `/quotations/${id}/generate-job`,
               booking_form: `/quotations/${id}/booking-form`,
             },
           },
