@@ -15,6 +15,9 @@ import {
   CreateStatusCatalogDto,
   UpdateStatusCatalogDto,
 } from "./dto/status-catalog.dto";
+import { normalizeStatusCode } from "./utils/status-catalog.util";
+
+const DEFAULT_CUSTOM_MAPS_TO = "IN_PROGRESS";
 
 @Injectable()
 export class JobStatusCatalogService {
@@ -114,35 +117,59 @@ export class JobStatusCatalogService {
 
   async createCustom(tenantId: string, dto: CreateStatusCatalogDto) {
     await this.ensureCatalog(tenantId);
-    if (!SYSTEM_JOB_STATUSES.includes(dto.maps_to_system_status)) {
+    const label = dto.label.trim();
+    if (!label) throw new BadRequestException("label is required.");
+
+    const mapsTo = (dto.maps_to_system_status ?? DEFAULT_CUSTOM_MAPS_TO)
+      .trim()
+      .toUpperCase();
+    if (!SYSTEM_JOB_STATUSES.includes(mapsTo)) {
       throw new BadRequestException(
         `maps_to_system_status must be one of: ${SYSTEM_JOB_STATUSES.join(", ")}`,
       );
     }
-    const code = dto.code.trim().toUpperCase();
+
+    let code = normalizeStatusCode(dto.code, label);
     if (SYSTEM_JOB_STATUSES.includes(code)) {
-      throw new BadRequestException(
-        "Cannot create a custom status that shadows a system status code.",
-      );
+      // Avoid shadowing system codes — suffix for custom.
+      code = normalizeStatusCode(undefined, `${label}_CUSTOM`);
     }
 
     try {
-      const row = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.jobStatusCatalog.create({
+      const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
+        // Ensure unique code if auto-generated collides.
+        let candidate = code;
+        let n = 2;
+        while (
+          await tx.jobStatusCatalog.findFirst({
+            where: { tenant_id: tenantId, code: candidate },
+            select: { id: true },
+          })
+        ) {
+          const suffix = `_${n}`;
+          candidate = `${code.slice(0, 40 - suffix.length)}${suffix}`;
+          n += 1;
+          if (n > 50) {
+            throw new ConflictException(
+              `Could not allocate a unique code for "${label}".`,
+            );
+          }
+        }
+        return tx.jobStatusCatalog.create({
           data: {
             tenant_id: tenantId,
-            code,
-            label: dto.label.trim(),
+            code: candidate,
+            label,
             category: JobStatusCategory.OPERATIONAL,
             is_terminal: dto.is_terminal ?? false,
             sort_order: dto.sort_order ?? 200,
-            maps_to_system_status: dto.maps_to_system_status,
+            maps_to_system_status: mapsTo,
             is_system: false,
             is_custom: true,
-            is_active: true,
+            is_active: true, // always listed; dto.is_active is ignored
           },
-        }),
-      );
+        });
+      });
       return { success: true, data: row };
     } catch (err) {
       if (

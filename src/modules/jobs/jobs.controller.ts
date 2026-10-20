@@ -338,7 +338,7 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Add a custom job status (stored in catalog; always shown in status-options)",
+      "Add a custom job status — send { label } (code/maps_to optional). Always active and listed in status-options.",
   })
   createStatusCatalog(
     @CurrentUser("tenantId") tenantId: string,
