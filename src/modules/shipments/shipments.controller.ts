@@ -86,7 +86,10 @@ export class ShipmentsController {
 
   @Post("status-catalog")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Add a custom shipment status" })
+  @ApiOperation({
+    summary:
+      "Add a custom shipment status — send { label } (code/maps_to optional). Always listed in status-options.",
+  })
   createStatusCatalog(
     @CurrentUser("tenantId") tenantId: string,
     @Body() dto: CreateStatusCatalogDto,

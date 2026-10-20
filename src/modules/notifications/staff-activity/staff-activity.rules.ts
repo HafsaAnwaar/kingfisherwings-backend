@@ -84,6 +84,7 @@ const VERBS: Record<string, string> = {
   activate: "Activated",
   deactivate: "Deactivated",
   status: "Changed Status of",
+  "change-status": "Changed Status of",
   "credit-status": "Changed Credit Status of",
   "payment-proofs": "Uploaded Payment Proof for",
   "payment-link": "Created Payment Link for",
@@ -93,8 +94,22 @@ const VERBS: Record<string, string> = {
   allocations: "Allocated",
   documents: "Uploaded Document for",
   upload: "Uploaded",
+  notes: "Added Note on",
+  charges: "Updated Charges on",
+  containers: "Updated Containers on",
+  cargo: "Updated Cargo on",
+  milestones: "Updated Milestones on",
+  organisations: "Updated Organizations on",
+  organizations: "Updated Organizations on",
+  dimensions: "Updated Dimensions on",
+  pods: "Recorded Proof of Delivery for",
+  acknowledgement: "Updated Acknowledgement on",
+  receive: "Received Acknowledgement for",
+  "generate-pdf": "Generated PDF for",
+  copy: "Copied",
   permissions: "Changed Permissions of",
   "reset-password": "Reset Password of",
+  "status-catalog": "Added Custom Status for",
 };
 
 /** Routes whose action reads better spelled out. */
@@ -207,6 +222,7 @@ export function pickReference(
     "invoice_number",
     "quotation_number",
     "job_number",
+    "shipment_number",
     "payment_number",
     "voucher_number",
     "request_number",
@@ -216,12 +232,52 @@ export function pickReference(
     "code",
     "name",
     "email",
+    "label",
   ];
   for (const k of keys) {
     const v = body[k];
     if (typeof v === "string" && v.trim()) return v.slice(0, 120);
   }
+  const nestedJob = body.job;
+  if (nestedJob && typeof nestedJob === "object" && !Array.isArray(nestedJob)) {
+    const jn = (nestedJob as Record<string, unknown>).job_number;
+    if (typeof jn === "string" && jn.trim()) return jn.slice(0, 120);
+  }
   return null;
+}
+
+/**
+ * Extra human detail for the email body (status change, document type, etc.).
+ */
+export function pickActivityDetail(
+  body: Record<string, unknown> | null,
+  routePath: string,
+): string | null {
+  if (!body) return null;
+  const parts: string[] = [];
+  if (typeof body.status === "string" && body.status.trim()) {
+    parts.push(`status → ${body.status.trim()}`);
+  }
+  if (typeof body.status_code === "string" && body.status_code.trim()) {
+    parts.push(`status code → ${body.status_code.trim()}`);
+  }
+  if (typeof body.document_type === "string" && body.document_type.trim()) {
+    parts.push(`document → ${body.document_type.trim()}`);
+  }
+  if (typeof body.label === "string" && body.label.trim()) {
+    parts.push(`label → ${body.label.trim()}`);
+  }
+  if (
+    typeof body.file_name === "string" &&
+    body.file_name.trim() &&
+    /documents|upload/i.test(routePath)
+  ) {
+    parts.push(`file → ${body.file_name.trim()}`);
+  }
+  if (typeof body.commodity === "string" && body.commodity.trim()) {
+    parts.push(`commodity → ${body.commodity.trim().slice(0, 80)}`);
+  }
+  return parts.length ? parts.join("; ").slice(0, 240) : null;
 }
 
 /** The record from a response: raw entity, `{ data: entity }` or `{ success, data }`. */

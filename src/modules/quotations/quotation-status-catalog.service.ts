@@ -14,6 +14,9 @@ import {
   CreateStatusCatalogDto,
   UpdateStatusCatalogDto,
 } from "../jobs/dto/status-catalog.dto";
+import { normalizeStatusCode } from "../jobs/utils/status-catalog.util";
+
+const DEFAULT_CUSTOM_MAPS_TO = "SUBMITTED";
 
 @Injectable()
 export class QuotationStatusCatalogService {
@@ -88,32 +91,56 @@ export class QuotationStatusCatalogService {
 
   async createCustom(tenantId: string, dto: CreateStatusCatalogDto) {
     await this.ensureCatalog(tenantId);
-    if (!SYSTEM_QUOTATION_STATUSES.includes(dto.maps_to_system_status as never)) {
+    const label = dto.label.trim();
+    if (!label) throw new BadRequestException("label is required.");
+
+    const mapsTo = (dto.maps_to_system_status ?? DEFAULT_CUSTOM_MAPS_TO)
+      .trim()
+      .toUpperCase();
+    if (!SYSTEM_QUOTATION_STATUSES.includes(mapsTo as never)) {
       throw new BadRequestException(
         `maps_to_system_status must be one of: ${SYSTEM_QUOTATION_STATUSES.join(", ")}`,
       );
     }
-    const code = dto.code.trim().toUpperCase();
+
+    let code = normalizeStatusCode(dto.code, label);
     if (SYSTEM_QUOTATION_STATUSES.includes(code as never)) {
-      throw new BadRequestException(
-        "Cannot create a custom status that shadows a system status code.",
-      );
+      code = normalizeStatusCode(undefined, `${label}_CUSTOM`);
     }
+
     try {
-      const row = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.quotationStatusCatalog.create({
+      const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
+        let candidate = code;
+        let n = 2;
+        while (
+          await tx.quotationStatusCatalog.findFirst({
+            where: { tenant_id: tenantId, code: candidate },
+            select: { id: true },
+          })
+        ) {
+          const suffix = `_${n}`;
+          candidate = `${code.slice(0, 40 - suffix.length)}${suffix}`;
+          n += 1;
+          if (n > 50) {
+            throw new ConflictException(
+              `Could not allocate a unique code for "${label}".`,
+            );
+          }
+        }
+        return tx.quotationStatusCatalog.create({
           data: {
             tenant_id: tenantId,
-            code,
-            label: dto.label.trim(),
+            code: candidate,
+            label,
             is_terminal: dto.is_terminal ?? false,
             sort_order: dto.sort_order ?? 200,
-            maps_to_system_status: dto.maps_to_system_status,
+            maps_to_system_status: mapsTo,
             is_system: false,
             is_custom: true,
+            is_active: true,
           },
-        }),
-      );
+        });
+      });
       return { success: true, data: row };
     } catch (err) {
       if (

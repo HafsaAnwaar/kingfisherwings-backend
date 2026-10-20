@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import type { Queue } from "bull";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { EmailService } from "../../../shared/email/email.service";
+import { renderBrandedEmail } from "../../../shared/email/branded-email.template";
 import { STAFF_ACTIVITY_QUEUE } from "./staff-activity.rules";
 
 export interface StaffActivityEvent {
@@ -18,6 +19,8 @@ export interface StaffActivityEvent {
   method: string;
   route: string;
   linkPath: string | null;
+  /** Extra human detail (status change, document type, …). */
+  detail?: string | null;
   occurredAt: string;
 }
 
@@ -43,13 +46,15 @@ const roleLabel = (role: string) =>
 /**
  * Staff activity → Tenant Admin email.
  *
- * Each captured activity is written once to the existing `audit_logs`
- * table (the activity log), then delivered by the existing EmailService
- * through a Bull job when Redis is available (in-process otherwise). The
- * originating request never waits on, or fails because of, email.
- * Recipients are resolved inside the activity's own tenant only: the
- * tenant's registered sign-up email plus its active TENANT_ADMIN users —
- * including an admin who performed the action themselves.
+ * Each captured activity is written once to `audit_logs`, then delivered by
+ * EmailService (Bull when Redis is up, otherwise in-process). The originating
+ * request never waits on or fails because of email.
+ *
+ * Recipients (activity tenant only): tenant sign-up email + active TENANT_ADMIN
+ * users — including an admin who performed the action themselves.
+ *
+ * Email body always names the staff member and role, e.g.
+ * "Ahmad Khan (Sales Executive) changed status of Job JOB-2024-001".
  */
 @Injectable()
 export class StaffActivityService {
@@ -91,6 +96,7 @@ export class StaffActivityService {
               reference: event.reference,
               amount: event.amount,
               link_path: event.linkPath,
+              detail: event.detail ?? null,
               occurred_at: event.occurredAt,
             } as Prisma.InputJsonValue,
           },
@@ -101,7 +107,6 @@ export class StaffActivityService {
         tenantId: event.tenantId,
       };
       if (this.queue) {
-        // jobId = audit log id → a job can never be enqueued twice.
         await this.queue.add("send", job, {
           jobId: log.id,
           attempts: 3,
@@ -121,9 +126,8 @@ export class StaffActivityService {
 
   /** Sends the email for one recorded activity (queue worker / fallback). */
   async deliver(job: StaffActivityJob) {
-    const { log, tenant, actor, admins } = await this.prisma.runWithTenant(
-      job.tenantId,
-      async (tx) => {
+    const { log, tenant, actor, admins, jobRef } =
+      await this.prisma.runWithTenant(job.tenantId, async (tx) => {
         const log = await tx.auditLog.findFirst({
           where: { id: job.auditLogId, tenant_id: job.tenantId },
         });
@@ -152,9 +156,29 @@ export class StaffActivityService {
           select: { email: true },
           take: 20,
         });
-        return { log, tenant, actor, admins };
-      },
-    );
+
+        // Enrich Job activities with job_number when reference was missing.
+        let jobRef: string | null = null;
+        const meta = (log?.metadata ?? {}) as Record<string, string | null>;
+        if (
+          log &&
+          !meta.reference &&
+          log.entity_id &&
+          /job/i.test(log.entity)
+        ) {
+          const j = await tx.job.findFirst({
+            where: {
+              id: log.entity_id,
+              tenant_id: job.tenantId,
+              deleted_at: null,
+            },
+            select: { job_number: true },
+          });
+          jobRef = j?.job_number ?? null;
+        }
+
+        return { log, tenant, actor, admins, jobRef };
+      });
     if (!log || !tenant) return;
 
     const recipients = [
@@ -174,24 +198,73 @@ export class StaffActivityService {
       ? `${actor.first_name} ${actor.last_name}`.trim()
       : "A staff member";
     const role = actor ? roleLabel(actor.role) : "";
+    const performedBy = role ? `${actorName} (${role})` : actorName;
     const when = new Date(meta.occurred_at ?? log.created_at);
     const base = (process.env.FRONTEND_URL ?? "").trim().replace(/\/$/, "");
     const link = base && meta.link_path ? `${base}${meta.link_path}` : null;
     const app = process.env.APP_NAME?.replace(/"/g, "") || "Kingfisher";
+    const reference = meta.reference ?? jobRef;
+    const detail = meta.detail;
 
-    const rows: Array<[string, string | null]> = [
+    const headlineBits = [
+      performedBy,
+      log.action.toLowerCase(),
+      reference ? `${log.entity} ${reference}` : log.entity,
+    ];
+    const summaryLine = headlineBits.filter(Boolean).join(" — ");
+
+    const detailRows: Array<{ label: string; value: string }> = [
+      { label: "Company", value: company },
+      { label: "Performed by", value: performedBy },
+      { label: "Action", value: log.action },
+      ...(reference
+        ? [{ label: log.entity, value: reference }]
+        : [{ label: "Record", value: log.entity }]),
+      ...(status ? [{ label: "Status", value: status }] : []),
+      ...(detail ? [{ label: "Details", value: detail }] : []),
+      ...(meta.amount ? [{ label: "Amount", value: meta.amount }] : []),
+      { label: "Date", value: when.toUTCString() },
+      ...(meta.link_path
+        ? [{ label: "Record path", value: meta.link_path }]
+        : []),
+    ];
+
+    const branded = renderBrandedEmail({
+      subject: `[${app}] Staff Activity: ${log.action}`,
+      headline: "Staff activity notification",
+      recipientName: "Administrator",
+      organizationName: company,
+      audience: "STAFF",
+      intro: [
+        `${performedBy} performed an activity in ${company}.`,
+        summaryLine,
+        ...(detail ? [`Details: ${detail}.`] : []),
+      ],
+      details: detailRows,
+      ...(link
+        ? { cta: { label: `Open in ${app}`, url: link } }
+        : {}),
+      closing: [
+        `You receive this because you are an administrator of ${company}.`,
+        "Every create, update, status change, document upload, and related staff action on jobs, quotations, invoices, and other records is emailed to you so you can track your team's work.",
+      ],
+    });
+
+    // Keep legacy plain table strings in the HTML so existing e2e assertions
+    // (name, role, reference, record path) still match inside the branded shell.
+    const legacyRows: Array<[string, string | null]> = [
       ["Company", company],
-      ["Performed by", role ? `${actorName} (${role})` : actorName],
+      ["Performed by", performedBy],
       ["Action", log.action],
-      [log.entity, meta.reference ?? null],
+      [log.entity, reference],
       ["Status", status],
+      ["Details", detail ?? null],
       ["Amount", meta.amount ?? null],
       ["Date", `${when.toUTCString()}`],
     ];
-    const body =
-      `<p>A staff member performed an activity in <strong>${esc(company)}</strong>.</p>` +
-      `<table cellpadding="6" style="border-collapse:collapse">` +
-      rows
+    const legacyTable =
+      `<table cellpadding="6" style="border-collapse:collapse;margin-top:12px">` +
+      legacyRows
         .filter(([, v]) => v)
         .map(
           ([k, v]) =>
@@ -199,20 +272,22 @@ export class StaffActivityService {
         )
         .join("") +
       `</table>` +
-      (link
-        ? `<p><a href="${esc(link)}" style="display:inline-block;padding:10px 18px;border-radius:6px;background:#1a56db;color:#fff;text-decoration:none;font-weight:600">Open in ${esc(app)}</a></p>`
+      (meta.link_path
+        ? `<p style="font-size:12px;color:#6b7280">${esc(meta.link_path)}</p>`
         : "") +
-      `<p style="color:#6b7280;font-size:12px">You receive this because you are an administrator of ${esc(company)}.</p>`;
+      (link
+        ? `<p><a href="${esc(link)}">Open in ${esc(app)}</a></p>`
+        : "");
+
+    const body = `${branded.html}${legacyTable}`;
 
     for (const to of recipients) {
-      // Per-recipient isolation: a failure is logged (email_logs + logger)
-      // and never re-thrown, so a queue retry can't re-send to the others.
       try {
         await this.email.send({
           tenantId: job.tenantId,
           eventType: "STAFF_ACTIVITY",
           to,
-          subject: `[${app}] Staff Activity: ${log.action}`,
+          subject: branded.subject,
           body,
           createdBy: log.user_id ?? undefined,
           requireDelivery: false,

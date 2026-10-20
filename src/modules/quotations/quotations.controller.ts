@@ -88,7 +88,10 @@ export class QuotationsController {
 
   @Post("status-catalog")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Add a custom quotation status" })
+  @ApiOperation({
+    summary:
+      "Add a custom quotation status — send { label } (code/maps_to optional). Always listed in status-options.",
+  })
   createStatusCatalog(
     @CurrentUser("tenantId") tenantId: string,
     @Body() dto: CreateStatusCatalogDto,

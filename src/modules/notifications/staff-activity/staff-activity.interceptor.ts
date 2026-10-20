@@ -10,6 +10,7 @@ import {
   IGNORED_ROUTES,
   MUTATING_METHODS,
   describeActivity,
+  pickActivityDetail,
   pickReference,
   unwrapBody,
 } from "./staff-activity.rules";
@@ -20,6 +21,7 @@ interface StaffRequest {
   route?: { path?: string };
   path: string;
   params?: Record<string, string>;
+  body?: Record<string, unknown>;
   user?: { id?: string; tenantId?: string; principal?: string };
 }
 
@@ -55,6 +57,10 @@ export class StaffActivityInterceptor implements NestInterceptor {
       tap((response) => {
         try {
           const body = unwrapBody(response);
+          const reqBody =
+            req.body && typeof req.body === "object" && !Array.isArray(req.body)
+              ? req.body
+              : null;
           const { action, entity, linkPath } = describeActivity(
             route,
             req.method,
@@ -68,6 +74,9 @@ export class StaffActivityInterceptor implements NestInterceptor {
           const paramId = Object.values(req.params ?? {}).find((v) =>
             /^[0-9a-f-]{36}$/i.test(v),
           );
+          const detail =
+            pickActivityDetail(body, route) ??
+            pickActivityDetail(reqBody, route);
           void this.activity.record({
             tenantId: user.tenantId!,
             actorUserId: user.id!,
@@ -83,6 +92,7 @@ export class StaffActivityInterceptor implements NestInterceptor {
             method: req.method,
             route,
             linkPath,
+            detail,
             occurredAt: new Date().toISOString(),
           });
         } catch {

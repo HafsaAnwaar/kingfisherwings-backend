@@ -32,6 +32,18 @@ describe("describeActivity", () => {
       describeActivity("/jobs/:id/status", "PATCH", { id: INV }, null).action,
     ).toBe("Changed Status of Job");
     expect(
+      describeActivity("/jobs/:id/change-status", "POST", { id: INV }, null)
+        .action,
+    ).toBe("Changed Status of Job");
+    expect(
+      describeActivity(
+        "/jobs/:id/documents",
+        "POST",
+        { id: INV },
+        { job_number: "JOB-1" },
+      ).action,
+    ).toBe("Uploaded Document for Job");
+    expect(
       describeActivity("/parties", "POST", {}, { party_type: "SUPPLIER" })
         .action,
     ).toBe("Created Vendor");

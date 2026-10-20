@@ -148,20 +148,19 @@ describe("Docs / statuses / booking tab / acknowledgement (e2e)", () => {
   });
 
   it("custom job status appears in options and change-status stores status_code", async () => {
+    // Simple create: label only (+ optional is_active noise from UI).
     const created = await request(app.getHttpServer())
       .post("/jobs/status-catalog")
       .set(auth(staffToken))
       .send({
-        code: `CUSTOMS_HOLD_${runId}`.slice(0, 40),
-        label: "Customs hold",
-        maps_to_system_status: "ON_HOLD",
+        label: `Customs hold ${runId}`,
+        is_active: false, // must be accepted & ignored — always saved active
       })
       .expect((res) => expect([200, 201]).toContain(res.status));
 
-    const code =
-      created.body.data?.code ??
-      created.body.code ??
-      `CUSTOMS_HOLD_${runId}`.slice(0, 40);
+    const code = created.body.data?.code ?? created.body.code;
+    expect(code).toBeTruthy();
+    expect(created.body.data?.is_active ?? created.body.is_active).toBe(true);
 
     const options = await request(app.getHttpServer())
       .get("/jobs/status-options")
