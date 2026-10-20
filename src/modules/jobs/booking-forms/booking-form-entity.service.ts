@@ -68,13 +68,14 @@ export class BookingFormEntityService {
   }
 
   /**
-   * Resolve an existing job for a quotation.
-   * Does NOT auto-create a job — staff must use Generate Job first.
+   * Resolve job for quotation booking-form / doc upload.
+   * May create a *provisional* job (status stays APPROVED — not CONVERTED).
+   * Full conversion still requires admin Generate Job.
    */
   async ensureJobForQuotation(
     tenantId: string,
     quotationId: string,
-    _actorId?: string,
+    actorId?: string,
   ): Promise<{ jobId: string; jobType: JobType }> {
     const quote = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
@@ -109,19 +110,29 @@ export class BookingFormEntityService {
       return { jobId: linked.job_id, jobType: quote.job_type };
     }
 
-    throw new BadRequestException(
-      "No job linked yet. Approve only sets quotation status — use Generate Job (admin) before the booking form.",
+    if (quote.status !== "APPROVED" && quote.status !== "CONVERTED") {
+      throw new BadRequestException(
+        "Booking form documents are available after the quotation is APPROVED.",
+      );
+    }
+
+    // Provisional only — keeps quotation APPROVED until Generate Job.
+    const provisional = await this.quotations.ensureProvisionalJob(
+      tenantId,
+      quotationId,
+      actorId,
     );
+    return { jobId: provisional.jobId, jobType: quote.job_type };
   }
 
   /**
-   * Resolve an existing job for a shipment.
-   * Does NOT auto-create a job — staff must use Generate Job first.
+   * Resolve job for shipment booking-form / doc upload.
+   * Uses existing job, or provisional job via linked APPROVED quotation.
    */
   async ensureJobForShipment(
     tenantId: string,
     shipmentId: string,
-    _actorId?: string,
+    actorId?: string,
   ): Promise<{ jobId: string; jobType: JobType }> {
     const shipment = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.shipment.findFirst({
@@ -140,8 +151,23 @@ export class BookingFormEntityService {
       return { jobId: shipment.job_id, jobType: shipment.job_type };
     }
 
+    if (shipment.quotation_id) {
+      const provisional = await this.quotations.ensureProvisionalJob(
+        tenantId,
+        shipment.quotation_id,
+        actorId,
+      );
+      await this.shipments.attachToJob(
+        tenantId,
+        provisional.jobId,
+        shipmentId,
+        actorId,
+      );
+      return { jobId: provisional.jobId, jobType: shipment.job_type };
+    }
+
     throw new BadRequestException(
-      "Shipment has no linked job yet. Use Generate Job on the shipment or quotation first.",
+      "Shipment has no linked job or quotation. Use Generate Job first.",
     );
   }
 
