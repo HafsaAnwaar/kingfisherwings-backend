@@ -14,6 +14,10 @@ import { AirComplianceBookingFormService } from "../air-compliance-booking-form.
 import {
   UpsertAirComplianceBookingFormDto,
 } from "./dto/air-compliance-booking-form.dto";
+import {
+  BookingFormAudience,
+  QuotationBookingFormService,
+} from "./quotation-booking-form.service";
 
 type Actor = { id: string; role?: UserRole };
 
@@ -42,8 +46,9 @@ const JOB_TYPE_TO_KIND: Partial<Record<JobType, FormKind>> = {
 };
 
 /**
- * Job-scoped booking forms exposed on Quotation / Shipment / Job.
- * Resolves or creates a provisional Job, then delegates to mode/air form services.
+ * Booking forms for Quotation / Shipment / Job.
+ * Quotation forms are stored on the quotation until admin Generate Job;
+ * no provisional job is created for booking-form access.
  */
 @Injectable()
 export class BookingFormEntityService {
@@ -55,6 +60,7 @@ export class BookingFormEntityService {
     private readonly shipments: ShipmentsService,
     private readonly modeForms: ModeBookingFormService,
     private readonly airForms: AirComplianceBookingFormService,
+    private readonly quotationForms: QuotationBookingFormService,
   ) {}
 
   kindForJobType(jobType: JobType): FormKind {
@@ -68,15 +74,14 @@ export class BookingFormEntityService {
   }
 
   /**
-   * Resolve job for quotation booking-form / doc upload.
-   * May create a *provisional* job (status stays APPROVED — not CONVERTED).
-   * Full conversion still requires admin Generate Job.
+   * Resolve an existing job for quotation (never creates a provisional job).
+   * Prefer CONVERTED + converted_job_id, else shipment-linked job.
    */
   async ensureJobForQuotation(
     tenantId: string,
     quotationId: string,
-    actorId?: string,
-  ): Promise<{ jobId: string; jobType: JobType }> {
+    _actorId?: string,
+  ): Promise<{ jobId: string; jobType: JobType } | null> {
     const quote = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
         where: { id: quotationId, tenant_id: tenantId, deleted_at: null },
@@ -90,50 +95,28 @@ export class BookingFormEntityService {
     );
     if (!quote) throw new NotFoundException("Quotation not found.");
 
-    if (quote.converted_job_id) {
+    // Only use the real job after admin Generate Job (CONVERTED).
+    // Do not fall through to provisional/shipment-linked jobs while APPROVED —
+    // booking form lives on the quotation until then.
+    if (quote.status === "CONVERTED" && quote.converted_job_id) {
       return { jobId: quote.converted_job_id, jobType: quote.job_type };
     }
 
-    const linked = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.shipment.findFirst({
-        where: {
-          tenant_id: tenantId,
-          quotation_id: quotationId,
-          deleted_at: null,
-          job_id: { not: null },
-        },
-        select: { job_id: true },
-        orderBy: { created_at: "asc" },
-      }),
-    );
-    if (linked?.job_id) {
-      return { jobId: linked.job_id, jobType: quote.job_type };
-    }
-
-    if (quote.status !== "APPROVED" && quote.status !== "CONVERTED") {
-      throw new BadRequestException(
-        "Booking form documents are available after the quotation is APPROVED.",
-      );
-    }
-
-    // Provisional only — keeps quotation APPROVED until Generate Job.
-    const provisional = await this.quotations.ensureProvisionalJob(
-      tenantId,
-      quotationId,
-      actorId,
-    );
-    return { jobId: provisional.jobId, jobType: quote.job_type };
+    return null;
   }
 
   /**
    * Resolve job for shipment booking-form / doc upload.
-   * Uses existing job, or provisional job via linked APPROVED quotation.
+   * Does not create a provisional job — use quotation form when no job yet.
    */
   async ensureJobForShipment(
     tenantId: string,
     shipmentId: string,
-    actorId?: string,
-  ): Promise<{ jobId: string; jobType: JobType }> {
+    _actorId?: string,
+  ): Promise<
+    | { jobId: string; jobType: JobType; quotationId?: string | null }
+    | { jobId: null; jobType: JobType; quotationId: string }
+  > {
     const shipment = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.shipment.findFirst({
         where: { id: shipmentId, tenant_id: tenantId, deleted_at: null },
@@ -148,22 +131,19 @@ export class BookingFormEntityService {
     if (!shipment) throw new NotFoundException("Shipment not found.");
 
     if (shipment.job_id) {
-      return { jobId: shipment.job_id, jobType: shipment.job_type };
+      return {
+        jobId: shipment.job_id,
+        jobType: shipment.job_type,
+        quotationId: shipment.quotation_id,
+      };
     }
 
     if (shipment.quotation_id) {
-      const provisional = await this.quotations.ensureProvisionalJob(
-        tenantId,
-        shipment.quotation_id,
-        actorId,
-      );
-      await this.shipments.attachToJob(
-        tenantId,
-        provisional.jobId,
-        shipmentId,
-        actorId,
-      );
-      return { jobId: provisional.jobId, jobType: shipment.job_type };
+      return {
+        jobId: null,
+        jobType: shipment.job_type,
+        quotationId: shipment.quotation_id,
+      };
     }
 
     throw new BadRequestException(
@@ -171,22 +151,47 @@ export class BookingFormEntityService {
     );
   }
 
-  async getForQuotation(tenantId: string, quotationId: string, actor?: Actor) {
-    const { jobId, jobType } = await this.ensureJobForQuotation(
+  async getForQuotation(
+    tenantId: string,
+    quotationId: string,
+    actor?: Actor,
+    audience: BookingFormAudience = "staff",
+  ) {
+    const linked = await this.ensureJobForQuotation(
       tenantId,
       quotationId,
       actor?.id,
     );
-    return this.getByJob(tenantId, jobId, jobType);
+    if (linked) {
+      return this.getByJob(tenantId, linked.jobId, linked.jobType);
+    }
+    return this.quotationForms.get(tenantId, quotationId, audience);
   }
 
-  async getForShipment(tenantId: string, shipmentId: string, actor?: Actor) {
-    const { jobId, jobType } = await this.ensureJobForShipment(
+  async getForShipment(
+    tenantId: string,
+    shipmentId: string,
+    actor?: Actor,
+    audience: BookingFormAudience = "customer",
+  ) {
+    const resolved = await this.ensureJobForShipment(
       tenantId,
       shipmentId,
       actor?.id,
     );
-    return this.getByJob(tenantId, jobId, jobType);
+    if (resolved.jobId) {
+      return this.getByJob(tenantId, resolved.jobId, resolved.jobType);
+    }
+    if (!resolved.quotationId) {
+      throw new BadRequestException(
+        "Shipment has no linked quotation for booking form.",
+      );
+    }
+    return this.quotationForms.get(
+      tenantId,
+      resolved.quotationId,
+      audience,
+    );
   }
 
   async upsertForQuotation(
@@ -194,13 +199,23 @@ export class BookingFormEntityService {
     quotationId: string,
     dto: Record<string, unknown>,
     actor: Actor,
+    audience: BookingFormAudience = "staff",
   ) {
-    const { jobId, jobType } = await this.ensureJobForQuotation(
+    const linked = await this.ensureJobForQuotation(
       tenantId,
       quotationId,
       actor.id,
     );
-    return this.upsertByJob(tenantId, jobId, jobType, dto, actor);
+    if (linked) {
+      return this.upsertByJob(tenantId, linked.jobId, linked.jobType, dto, actor);
+    }
+    return this.quotationForms.upsert(
+      tenantId,
+      quotationId,
+      dto,
+      actor.id,
+      audience,
+    );
   }
 
   async upsertForShipment(
@@ -208,49 +223,191 @@ export class BookingFormEntityService {
     shipmentId: string,
     dto: Record<string, unknown>,
     actor: Actor,
+    audience: BookingFormAudience = "customer",
   ) {
-    const { jobId, jobType } = await this.ensureJobForShipment(
+    const resolved = await this.ensureJobForShipment(
       tenantId,
       shipmentId,
       actor.id,
     );
-    return this.upsertByJob(tenantId, jobId, jobType, dto, actor);
+    if (resolved.jobId) {
+      return this.upsertByJob(
+        tenantId,
+        resolved.jobId,
+        resolved.jobType,
+        dto,
+        actor,
+      );
+    }
+    if (!resolved.quotationId) {
+      throw new BadRequestException(
+        "Shipment has no linked quotation for booking form.",
+      );
+    }
+    return this.quotationForms.upsert(
+      tenantId,
+      resolved.quotationId,
+      dto,
+      actor.id,
+      audience,
+    );
   }
 
   async completeForQuotation(
     tenantId: string,
     quotationId: string,
     actor: Actor,
+    audience: BookingFormAudience = "staff",
+    dto?: Record<string, unknown>,
   ) {
-    const { jobId, jobType } = await this.ensureJobForQuotation(
+    const linked = await this.ensureJobForQuotation(
       tenantId,
       quotationId,
       actor.id,
     );
-    return this.completeByJob(tenantId, jobId, jobType, actor);
+    if (linked) {
+      return this.completeByJob(tenantId, linked.jobId, linked.jobType, actor);
+    }
+    return this.quotationForms.complete(
+      tenantId,
+      quotationId,
+      actor.id,
+      audience,
+      dto,
+    );
   }
 
   async completeForShipment(
     tenantId: string,
     shipmentId: string,
     actor: Actor,
+    audience: BookingFormAudience = "customer",
+    dto?: Record<string, unknown>,
   ) {
-    const { jobId, jobType } = await this.ensureJobForShipment(
+    const resolved = await this.ensureJobForShipment(
       tenantId,
       shipmentId,
       actor.id,
     );
-    return this.completeByJob(tenantId, jobId, jobType, actor);
+    if (resolved.jobId) {
+      return this.completeByJob(
+        tenantId,
+        resolved.jobId,
+        resolved.jobType,
+        actor,
+      );
+    }
+    if (!resolved.quotationId) {
+      throw new BadRequestException(
+        "Shipment has no linked quotation for booking form.",
+      );
+    }
+    return this.quotationForms.complete(
+      tenantId,
+      resolved.quotationId,
+      actor.id,
+      audience,
+      dto,
+    );
+  }
+
+  async attachDocumentForQuotation(
+    tenantId: string,
+    quotationId: string,
+    docKind: string,
+    file: Express.Multer.File,
+    actor: Actor,
+    audience: BookingFormAudience = "customer",
+  ) {
+    const linked = await this.ensureJobForQuotation(
+      tenantId,
+      quotationId,
+      actor.id,
+    );
+    if (linked) {
+      const formKind = this.kindForJobType(linked.jobType);
+      if (formKind === "air") {
+        throw new BadRequestException(
+          "Use air compliance document upload for air jobs.",
+        );
+      }
+      return this.modeForms.attachDocument(
+        formKind,
+        tenantId,
+        linked.jobId,
+        docKind,
+        file,
+        actor.id,
+      );
+    }
+    return this.quotationForms.attachDocument(
+      tenantId,
+      quotationId,
+      docKind,
+      file,
+      actor.id,
+      audience,
+    );
+  }
+
+  async attachDocumentForShipment(
+    tenantId: string,
+    shipmentId: string,
+    docKind: string,
+    file: Express.Multer.File,
+    actor: Actor,
+    audience: BookingFormAudience = "customer",
+  ) {
+    const resolved = await this.ensureJobForShipment(
+      tenantId,
+      shipmentId,
+      actor.id,
+    );
+    if (resolved.jobId) {
+      const formKind = this.kindForJobType(resolved.jobType);
+      if (formKind === "air") {
+        throw new BadRequestException(
+          "Use air compliance document upload for air jobs.",
+        );
+      }
+      return this.modeForms.attachDocument(
+        formKind,
+        tenantId,
+        resolved.jobId,
+        docKind,
+        file,
+        actor.id,
+      );
+    }
+    if (!resolved.quotationId) {
+      throw new BadRequestException(
+        "Shipment has no linked quotation for booking form.",
+      );
+    }
+    return this.quotationForms.attachDocument(
+      tenantId,
+      resolved.quotationId,
+      docKind,
+      file,
+      actor.id,
+      audience,
+    );
   }
 
   private async getByJob(tenantId: string, jobId: string, jobType: JobType) {
     const kind = this.kindForJobType(jobType);
     if (kind === "air") {
       const form = await this.airForms.get(tenantId, jobId);
-      return { job_id: jobId, job_type: jobType, kind, form };
+      return { job_id: jobId, job_type: jobType, kind, form, submitted: !!form };
     }
     const form = await this.modeForms.get(kind, tenantId, jobId);
-    return { job_id: jobId, job_type: jobType, kind, form };
+    return {
+      job_id: jobId,
+      job_type: jobType,
+      kind,
+      form,
+      submitted: !!(form as { is_complete?: boolean } | null)?.is_complete,
+    };
   }
 
   private async upsertByJob(

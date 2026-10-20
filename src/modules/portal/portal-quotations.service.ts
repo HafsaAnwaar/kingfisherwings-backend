@@ -315,7 +315,9 @@ export class PortalQuotationsService {
       : undefined;
 
     let convertedJobNumber: string | null = null;
-    if (quotation.converted_job_id) {
+    const showConvertedJob =
+      quotation.status === "CONVERTED" && !!quotation.converted_job_id;
+    if (showConvertedJob) {
       const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
         tx.job.findFirst({
           where: {
@@ -424,7 +426,7 @@ export class PortalQuotationsService {
         won_at: quotation.won_at,
         lost_at: quotation.lost_at,
         lost_reason: quotation.lost_reason,
-        converted_job_id: quotation.converted_job_id,
+        converted_job_id: showConvertedJob ? quotation.converted_job_id : null,
         converted_job_number: convertedJobNumber,
         negotiation_round: quotation.negotiation_round,
         source: quotation.source,
@@ -696,7 +698,8 @@ export class PortalQuotationsService {
       sent_at: row.sent_at,
       won_at: row.won_at,
       lost_at: row.lost_at,
-      converted_job_id: row.converted_job_id,
+      converted_job_id:
+        row.status === "CONVERTED" ? row.converted_job_id : null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

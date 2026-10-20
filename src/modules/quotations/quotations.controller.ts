@@ -260,19 +260,27 @@ export class QuotationsController {
   @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Get booking form for quotation (job-scoped; creates provisional job if needed)",
+      "Get booking form for quotation (visible to staff only after customer submit; no provisional job)",
   })
   getBookingForm(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.bookingForms.getForQuotation(tenantId, id, { id: actorId });
+    return this.bookingForms.getForQuotation(
+      tenantId,
+      id,
+      { id: actorId },
+      "staff",
+    );
   }
 
   @Put(":id/booking-form")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Upsert booking form for quotation (via provisional/linked job)" })
+  @ApiOperation({
+    summary:
+      "Upsert booking form for quotation (staff only after customer submit)",
+  })
   putBookingForm(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -280,25 +288,32 @@ export class QuotationsController {
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: Record<string, unknown>,
   ) {
-    return this.bookingForms.upsertForQuotation(tenantId, id, dto, {
-      id: actorId,
-      role: role as never,
-    });
+    return this.bookingForms.upsertForQuotation(
+      tenantId,
+      id,
+      dto,
+      { id: actorId, role: role as never },
+      "staff",
+    );
   }
 
   @Post(":id/booking-form/complete")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Complete booking form for quotation" })
+  @ApiOperation({
+    summary: "Complete booking form for quotation (staff after customer submit)",
+  })
   completeBookingForm(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.bookingForms.completeForQuotation(tenantId, id, {
-      id: actorId,
-      role: role as never,
-    });
+    return this.bookingForms.completeForQuotation(
+      tenantId,
+      id,
+      { id: actorId, role: role as never },
+      "staff",
+    );
   }
 
   @Post(":id/change-status")
@@ -689,7 +704,7 @@ export class QuotationsController {
   @RequirePermissions(QUOTATIONS_PERMISSIONS.CLOSE)
   @ApiOperation({
     summary:
-      "APPROVED -> CONVERTED after booking form is submitted. Creates a provisional job if missing; refuses until the mode booking form is complete.",
+      "APPROVED -> CONVERTED after customer booking form is submitted. Creates the job only then; refuses until the quotation booking form is complete.",
   })
   convertToJob(
     @CurrentUser("tenantId") tenantId: string,

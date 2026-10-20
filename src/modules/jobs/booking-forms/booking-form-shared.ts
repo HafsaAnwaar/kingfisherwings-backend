@@ -16,10 +16,17 @@ export const FREIGHT_PARTY_KINDS = ["SHIPPER", "CONSIGNEE", "NOTIFY"] as const;
 /** Customs clearance: shipper, consignee/importer, and CHA/agent. */
 export const CC_PARTY_KINDS = ["SHIPPER", "CONSIGNEE", "AGENT"] as const;
 
+/**
+ * Door addresses are required for DOOR_* scopes. City/country (or pickup/delivery
+ * place) may satisfy the same requirement when the door field itself is empty —
+ * land/courier forms often only collect origin_city_country / dest_city_country.
+ */
 export function assertServiceScopeAndDoors(input: {
   service_scope?: ServiceScope | null;
   origin_door_address?: string | null;
   dest_door_address?: string | null;
+  origin_location_fallback?: string | null;
+  dest_location_fallback?: string | null;
   requireScope?: boolean;
 }) {
   const missing: string[] = [];
@@ -27,17 +34,66 @@ export function assertServiceScopeAndDoors(input: {
     missing.push("service_scope");
   }
   const scope = input.service_scope;
+  const origin =
+    input.origin_door_address?.trim() ||
+    input.origin_location_fallback?.trim() ||
+    "";
+  const dest =
+    input.dest_door_address?.trim() ||
+    input.dest_location_fallback?.trim() ||
+    "";
   if (scope === "DOOR_TO_DOOR" || scope === "DOOR_TO_PORT") {
-    if (!input.origin_door_address?.trim()) missing.push("origin_door_address");
+    if (!origin) missing.push("origin_door_address");
   }
   if (scope === "DOOR_TO_DOOR" || scope === "PORT_TO_DOOR") {
-    if (!input.dest_door_address?.trim()) missing.push("dest_door_address");
+    if (!dest) missing.push("dest_door_address");
   }
   if (missing.length) {
     throw new BadRequestException(
       `Booking form incomplete: ${missing.join(", ")}`,
     );
   }
+}
+
+/** Prefer non-empty strings so empty DTO fields do not wipe saved values. */
+export function mergeBookingFormPayload(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+    if (
+      typeof value === "string" &&
+      !value.trim() &&
+      typeof base[key] === "string" &&
+      (base[key] as string).trim()
+    ) {
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+export function locationFallbacksFromPayload(dto: Record<string, unknown>): {
+  origin_location_fallback: string | null;
+  dest_location_fallback: string | null;
+} {
+  const origin =
+    (dto.origin_city_country as string | undefined)?.trim() ||
+    (dto.place_of_pickup as string | undefined)?.trim() ||
+    (dto.pickup_address as string | undefined)?.trim() ||
+    null;
+  const dest =
+    (dto.dest_city_country as string | undefined)?.trim() ||
+    (dto.place_of_delivery as string | undefined)?.trim() ||
+    (dto.delivery_address as string | undefined)?.trim() ||
+    null;
+  return {
+    origin_location_fallback: origin,
+    dest_location_fallback: dest,
+  };
 }
 
 export function assertRequiredParties(

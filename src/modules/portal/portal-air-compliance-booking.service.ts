@@ -53,22 +53,8 @@ export class PortalAirComplianceBookingService {
     );
     if (shipment) {
       if (shipment.job_id) return shipment.job_id;
-      if (shipment.quotation_id) {
-        const provisional = await this.quotations.ensureProvisionalJob(
-          user.tenantId,
-          shipment.quotation_id,
-          user.id,
-        );
-        await this.shipments.attachToJob(
-          user.tenantId,
-          provisional.jobId,
-          shipment.id,
-          user.id,
-        );
-        return provisional.jobId;
-      }
       throw new BadRequestException(
-        "Shipment has no linked Job. Accept the quote first.",
+        "No job linked yet. Use /portal/quotations/:id/booking-form (or wait for admin Generate Job).",
       );
     }
     return id;

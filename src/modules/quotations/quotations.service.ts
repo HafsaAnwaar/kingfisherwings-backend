@@ -65,6 +65,7 @@ import { BookingFormGateService } from "../../common/services/booking-form-gate.
 import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
 import { ShipmentsService } from "../shipments/shipments.service";
 import { JobCostingService } from "../jobs/job-costing.service";
+import { QuotationBookingFormService } from "../jobs/booking-forms/quotation-booking-form.service";
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -128,6 +129,8 @@ export class QuotationsService {
     private readonly jobCosting: JobCostingService,
     @Inject(forwardRef(() => PortalService))
     private readonly portal: PortalService,
+    @Inject(forwardRef(() => QuotationBookingFormService))
+    private readonly quotationBookingForms: QuotationBookingFormService,
   ) {}
 
   // ============================================================
@@ -2897,6 +2900,12 @@ export class QuotationsService {
       );
     }
 
+    const formGate = await this.bookingFormGate.isCompleteForQuotation(
+      tenantId,
+      id,
+    );
+    this.bookingFormGate.assertComplete(formGate);
+
     const shipment = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.shipment.findFirst({
         where: {
@@ -2925,8 +2934,6 @@ export class QuotationsService {
       }
       jobRef = { jobId: job.id, jobNumber: job.job_number };
     } else if (shipment) {
-      // Dual-read: booking forms may still be on Job — generate Job from Shipment first,
-      // then gate. Prefer DIRECT for portal convert.
       const generated = await this.shipments.generateJob(
         tenantId,
         shipment.id,
@@ -2941,12 +2948,12 @@ export class QuotationsService {
       jobRef = await this.ensureProvisionalJob(tenantId, id, actorId);
     }
 
-    const formGate = await this.bookingFormGate.isComplete(
+    await this.quotationBookingForms.materializeOntoJob(
       tenantId,
+      id,
       jobRef.jobId,
-      quotation.job_type,
+      actorId,
     );
-    this.bookingFormGate.assertComplete(formGate);
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       await tx.quotation.update({
@@ -3078,8 +3085,8 @@ export class QuotationsService {
   }
 
   /**
-   * Optional Fresa Generate Job directly from quote (prefer shipment-first for consol).
-   * Soft-uses ensureProvisionalJob for backward compatibility.
+   * Admin Generate Job — creates the job, sets CONVERTED, materializes customer booking form.
+   * This is the only path that creates a job from an APPROVED quotation for booking.
    */
   async generateJobFromQuotation(
     tenantId: string,
@@ -3097,8 +3104,15 @@ export class QuotationsService {
         "Only an APPROVED quotation can Generate Job.",
       );
     }
-    // Explicit admin Generate Job — this is the only approve→job creation path.
     const job = await this.ensureProvisionalJob(tenantId, id, actorId);
+
+    await this.quotationBookingForms.materializeOntoJob(
+      tenantId,
+      id,
+      job.jobId,
+      actorId,
+    );
+
     if (quotation.status === "APPROVED") {
       await this.prisma.runWithTenant(tenantId, async (tx) => {
         await tx.quotation.update({

@@ -121,41 +121,61 @@ export class QuotationDetailService {
       };
     }
     if (normalized === "booking_form") {
-      let jobId = quote.converted_job_id;
-      // Provisional job for booking docs only — does not set CONVERTED.
-      if (!jobId && quote.status === "APPROVED") {
-        const provisional = await this.quotations.ensureProvisionalJob(
-          tenantId,
-          id,
-        );
-        jobId = provisional.jobId;
-      }
-      if (!jobId) {
+      const submitted = !!(quote as { booking_form_is_complete?: boolean })
+        .booking_form_is_complete;
+      const jobId =
+        quote.status === "CONVERTED" ? quote.converted_job_id : null;
+
+      if (!submitted) {
         return {
           success: true,
           data: {
             quotation_id: id,
             job_id: null,
             status: quote.status,
+            submitted: false,
+            form: null,
             message:
-              "Booking form is available after the quotation is APPROVED.",
+              quote.status === "APPROVED"
+                ? "Waiting for the customer to submit the booking form."
+                : "Booking form is available after the quotation is APPROVED.",
             path_hints: {
               booking_form: `/quotations/${id}/booking-form`,
             },
           },
         };
       }
-      const tab = await this.jobTabPanels.getBookingFormTab(tenantId, jobId);
+
+      if (jobId) {
+        const tab = await this.jobTabPanels.getBookingFormTab(tenantId, jobId);
+        return {
+          ...tab,
+          data: {
+            ...(tab as { data?: Record<string, unknown> }).data,
+            quotation_id: id,
+            submitted: true,
+            path_hints: {
+              ...((tab as { data?: { path_hints?: object } }).data
+                ?.path_hints ?? {}),
+              booking_form: `/quotations/${id}/booking-form`,
+              job_booking_form_tab: `/jobs/${jobId}/detail/booking_form`,
+            },
+          },
+        };
+      }
+
+      const payload = (quote as { booking_form_payload?: unknown })
+        .booking_form_payload;
       return {
-        ...tab,
+        success: true,
         data: {
-          ...(tab as { data?: Record<string, unknown> }).data,
           quotation_id: id,
+          job_id: null,
+          status: quote.status,
+          submitted: true,
+          form: payload ?? null,
           path_hints: {
-            ...((tab as { data?: { path_hints?: object } }).data?.path_hints ??
-              {}),
             booking_form: `/quotations/${id}/booking-form`,
-            job_booking_form_tab: `/jobs/${jobId}/detail/booking_form`,
           },
         },
       };
@@ -316,7 +336,11 @@ export class QuotationDetailService {
       voyage_number: quote.voyage_number,
       source_enquiry_id: quote.source_enquiry_id,
       converted_shipment_id: quote.converted_shipment_id,
-      converted_job_id: quote.converted_job_id,
+      // Job link only after admin Generate Job (CONVERTED) — never show provisional.
+      converted_job_id:
+        quote.status === "CONVERTED" ? quote.converted_job_id : null,
+      booking_form_submitted: !!(quote as { booking_form_is_complete?: boolean })
+        .booking_form_is_complete,
       shipper_id: quote.shipper_id,
       consignee_id: quote.consignee_id,
     });
@@ -406,12 +430,13 @@ export class QuotationDetailService {
       }
     }
 
-    const job = quote.converted_job_id
-      ? {
-          id: quote.converted_job_id,
-          path_hint: `/jobs/${quote.converted_job_id}`,
-        }
-      : null;
+    const job =
+      quote.status === "CONVERTED" && quote.converted_job_id
+        ? {
+            id: quote.converted_job_id,
+            path_hint: `/jobs/${quote.converted_job_id}`,
+          }
+        : null;
 
     return { enquiry, shipment, job };
   }

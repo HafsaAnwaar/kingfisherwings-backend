@@ -4,6 +4,7 @@ import {
   assertAirPalletLines,
   assertRequiredParties,
   assertServiceScopeAndDoors,
+  locationFallbacksFromPayload,
   requireFields,
 } from "./booking-form-shared";
 import { UpsertAirComplianceBookingFormDto } from "./dto/air-compliance-booking-form.dto";
@@ -43,6 +44,7 @@ export function validateAirComplianceFormSubmit(
     service_scope: dto.service_scope as ServiceScope | undefined,
     origin_door_address: dto.origin_door_address,
     dest_door_address: dto.dest_door_address,
+    ...locationFallbacksFromPayload(dto as unknown as Record<string, unknown>),
   });
 
   assertRequiredParties(dto.parties as { party_kind: string }[] | undefined);
