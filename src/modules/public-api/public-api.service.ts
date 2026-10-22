@@ -37,7 +37,6 @@ export class TenantApiKeysService {
     const rawKey = `kf_${randomBytes(24).toString("hex")}`;
     const keyPrefix = rawKey.slice(0, 12);
     const keyHash = await argon2.hash(rawKey);
-
     const row = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.tenantApiKey.create({
         data: {
