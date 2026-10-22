@@ -521,13 +521,13 @@ ${partyEdiXml}
           },
           deleted_at: null,
         },
-        select: { id: true, code: true },
+        select: { id: true, un_locode: true },
       }),
     );
     const originCode =
-      ports.find((p) => p.id === job.origin_port_id)?.code ?? "XXXX";
+      ports.find((p) => p.id === job.origin_port_id)?.un_locode ?? "XXXX";
     const destCode =
-      ports.find((p) => p.id === job.dest_port_id)?.code ?? "XXXX";
+      ports.find((p) => p.id === job.dest_port_id)?.un_locode ?? "XXXX";
 
     const blNo =
       (sea as { hbl_number?: string | null; mbl_number?: string | null } | null)

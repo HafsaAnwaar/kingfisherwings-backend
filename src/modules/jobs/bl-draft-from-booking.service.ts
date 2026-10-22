@@ -119,9 +119,8 @@ export class BlDraftFromBookingService {
       data: {
         preview: preview.data,
         document: generated,
-        download_hint: generated?.id
-          ? `/jobs/${jobId}/documents/${generated.id}/download`
-          : `/jobs/${jobId}/documents`,
+        task_id: generated.task_id,
+        download_hint: `/jobs/${jobId}/documents`,
       },
       message: "HBL draft generated from booking form details.",
     };
