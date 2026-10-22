@@ -16,6 +16,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
   ApiBody,
@@ -26,6 +27,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
+import { memoryStorage } from "multer";
 
 import { QuotationsService } from "./quotations.service";
 import { SendJobToVendorDto } from "../vendor/dto/vendor-quote.dto";
@@ -260,7 +262,7 @@ export class QuotationsController {
   @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Get booking form for quotation (visible to staff only after customer submit; no provisional job)",
+      "Get booking form for quotation (creates provisional job when needed; returns job_id / provisional_job_id)",
   })
   getBookingForm(
     @CurrentUser("tenantId") tenantId: string,
@@ -279,7 +281,7 @@ export class QuotationsController {
   @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Upsert booking form for quotation (staff only after customer submit)",
+      "Upsert booking form for quotation (via provisional/linked job)",
   })
   putBookingForm(
     @CurrentUser("tenantId") tenantId: string,
@@ -299,9 +301,7 @@ export class QuotationsController {
 
   @Post(":id/booking-form/complete")
   @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
-  @ApiOperation({
-    summary: "Complete booking form for quotation (staff after customer submit)",
-  })
+  @ApiOperation({ summary: "Complete booking form for quotation" })
   completeBookingForm(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
@@ -312,6 +312,43 @@ export class QuotationsController {
       tenantId,
       id,
       { id: actorId, role: role as never },
+      "staff",
+    );
+  }
+
+  @Post(":id/booking-form/documents/:kind")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({
+    summary:
+      "Upload booking-form document for quotation (creates provisional job; mirrors job mode upload)",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  uploadBookingFormDocument(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("kind") kind: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.bookingForms.attachDocumentForQuotation(
+      tenantId,
+      id,
+      kind,
+      file as Express.Multer.File,
+      { id: actorId },
       "staff",
     );
   }

@@ -527,6 +527,10 @@ export class JobOrganizationService {
           currency_code: snapshot.currency_code ?? row.party.currency_code,
         }
       : row.party;
+    const addressSnippet = [display.city, display.address]
+      .filter(Boolean)
+      .join(" · ")
+      .slice(0, 120);
     return {
       id: row.id,
       org_type: row.org_type,
@@ -537,8 +541,70 @@ export class JobOrganizationService {
       party_display: display,
       party_name: display.name,
       party_code: display.code,
+      party_type: display.party_type,
+      address_snippet: addressSnippet || null,
+      /** FE labels — prefer these over raw UUIDs in the Organization tab UI. */
+      display_fields: {
+        label: `${display.code} — ${display.name}`,
+        org_type: row.org_type,
+        party_type: display.party_type,
+        address: addressSnippet || null,
+      },
       created_at: row.created_at,
       updated_at: row.updated_at,
+    };
+  }
+
+  async searchParties(
+    tenantId: string,
+    q: string,
+    partyType?: string,
+    limit = 20,
+  ) {
+    const term = (q ?? "").trim();
+    if (term.length < 1) {
+      return { success: true, data: [] };
+    }
+    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.party.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          is_active: true,
+          ...(partyType ? { party_type: partyType as never } : {}),
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { code: { contains: term, mode: "insensitive" } },
+            { short_name: { contains: term, mode: "insensitive" } },
+          ],
+        },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          short_name: true,
+          party_type: true,
+          city: true,
+          country_code: true,
+          address: true,
+        },
+        take: Math.min(limit, 50),
+        orderBy: { name: "asc" },
+      }),
+    );
+    return {
+      success: true,
+      data: rows.map((p) => ({
+        party_id: p.id,
+        code: p.code,
+        name: p.name,
+        short_name: p.short_name,
+        party_type: p.party_type,
+        city: p.city,
+        country_code: p.country_code,
+        label: `${p.code} — ${p.name}`,
+        address_snippet: [p.city, p.address].filter(Boolean).join(" · ") || null,
+      })),
     };
   }
 

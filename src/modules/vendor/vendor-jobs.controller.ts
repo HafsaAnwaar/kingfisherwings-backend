@@ -94,6 +94,7 @@ export class VendorJobsController {
       user.tenantId,
       id,
       "VENDOR",
+      { partyId: user.partyId },
     );
     return { success: true, data: rows };
   }

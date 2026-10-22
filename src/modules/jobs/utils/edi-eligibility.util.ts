@@ -36,6 +36,9 @@ export function eligibleEdiTypes(
   if (isExport || isSea) {
     types.push("EQO_DUBAI", "EQO_OMAN", "IAL");
   }
+  if (isSea) {
+    types.push("MANIFEST_CSDP");
+  }
 
   return [...new Set(types)];
 }
@@ -51,6 +54,7 @@ export function ediTypeLabel(type: DocumentationEdiType): string {
     IAL: "IAL",
     CGM: "CGM",
     MPCI: "MPCI",
+    MANIFEST_CSDP: "Sea Manifest (CSDP TXT)",
   };
   return labels[type] ?? type;
 }

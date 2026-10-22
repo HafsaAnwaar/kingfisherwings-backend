@@ -19,6 +19,7 @@ import {
   PortalQuotationQueryDto,
   PortalQuotationRejectDto,
   PortalQuotationRequestDto,
+  PortalQuotationUpdateDto,
 } from "./dto/portal-quotation.dto";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalQuotePricingService } from "./portal-quote-pricing.service";
@@ -443,6 +444,10 @@ export class PortalQuotationsService {
           can_admin_accept: false,
           can_admin_reject: false,
           can_change_status: false,
+          can_edit: quotation.status === "DRAFT",
+          can_replace: quotation.status === "DRAFT",
+          can_delete: quotation.status === "DRAFT",
+          can_amend: quotationActionFlags(quotation.status).can_negotiate,
         },
         created_at: quotation.created_at,
         updated_at: quotation.updated_at,
@@ -579,6 +584,123 @@ export class PortalQuotationsService {
     });
 
     return result;
+  }
+
+  /** Amend = counter-offer (2C). */
+  async amend(
+    user: CurrentPortalUser,
+    quotationId: string,
+    dto: PortalQuotationCounterOfferDto,
+  ) {
+    return this.counterOffer(user, quotationId, dto);
+  }
+
+  async editDraft(
+    user: CurrentPortalUser,
+    quotationId: string,
+    dto: PortalQuotationUpdateDto,
+  ) {
+    const quotation = await this.getOwnedOrThrow(user, quotationId);
+    if (quotation.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only DRAFT portal quote requests can be edited.",
+      );
+    }
+
+    const updated = await this.quotations.update(
+      user.tenantId,
+      quotationId,
+      {
+        job_type: dto.job_type,
+        origin_port_id: dto.origin_port_id,
+        dest_port_id: dto.dest_port_id,
+        commodity: dto.commodity,
+        gross_weight: dto.gross_weight,
+        chargeable_weight: dto.chargeable_weight,
+        volume_cbm: dto.volume_cbm,
+        pieces: dto.pieces,
+        container_type_id: dto.container_type_id,
+        container_count: dto.container_count,
+        special_requirements: dto.special_requirements,
+        valid_until: dto.valid_until,
+        currency_code: dto.currency_code,
+        packages: dto.packages,
+      } as never,
+      user.id,
+    );
+
+    await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
+      type: "QUOTATION_REQUEST",
+      title: "Portal quote edited",
+      message: `${user.fullName} edited DRAFT quote ${updated.quotation_number}.`,
+      entity_type: "quotation",
+      entity_id: quotationId,
+      link_path: `/quotations/${quotationId}`,
+    });
+
+    return this.findOne(user, quotationId);
+  }
+
+  async replaceDraft(user: CurrentPortalUser, quotationId: string) {
+    const quotation = await this.getOwnedOrThrow(user, quotationId);
+    if (quotation.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only DRAFT portal quote requests can be replaced.",
+      );
+    }
+
+    const clone = await this.quotations.duplicate(
+      user.tenantId,
+      quotationId,
+      user.id,
+    );
+    await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.quotation.update({
+        where: { id: clone.id },
+        data: {
+          source: "CUSTOMER_PORTAL",
+          customer_id: user.partyId,
+          updated_by: user.id,
+        },
+      }),
+    );
+    await this.quotations.softDelete(user.tenantId, quotationId, user.id);
+
+    await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
+      type: "QUOTATION_REQUEST",
+      title: "Portal quote replaced",
+      message: `${user.fullName} replaced ${quotation.quotation_number} with ${clone.quotation_number}.`,
+      entity_type: "quotation",
+      entity_id: clone.id,
+      link_path: `/quotations/${clone.id}`,
+    });
+
+    return this.findOne(user, clone.id);
+  }
+
+  async deleteDraft(user: CurrentPortalUser, quotationId: string) {
+    const quotation = await this.getOwnedOrThrow(user, quotationId);
+    if (quotation.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Only DRAFT portal quote requests can be deleted.",
+      );
+    }
+    await this.quotations.softDelete(user.tenantId, quotationId, user.id);
+
+    await this.notifications.notifyStaffOfPortalEvent(user.tenantId, {
+      type: "QUOTATION_REQUEST",
+      title: "Portal quote withdrawn",
+      message: `${user.fullName} deleted DRAFT quote ${quotation.quotation_number}.`,
+      entity_type: "quotation",
+      entity_id: quotationId,
+      link_path: `/quotations/${quotationId}`,
+    });
+
+    return {
+      success: true,
+      message: "Draft quotation deleted.",
+      data: { id: quotationId },
+    };
   }
 
   async negotiationTimeline(user: CurrentPortalUser, quotationId: string) {

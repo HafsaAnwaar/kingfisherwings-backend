@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -317,44 +316,86 @@ export class QuotationBookingFormService {
     const who =
       actorId ?? quote.booking_form_submitted_by ?? undefined;
 
-    if (kind === "air") {
-      const airDto = {
-        ...(payload as unknown as UpsertAirComplianceBookingFormDto),
-        ...(markComplete ? { consent_accepted: true as const } : {}),
-      };
-      const form = await this.airForms.upsertDraft(
-        tenantId,
-        jobId,
-        airDto,
-        who ?? jobId,
-      );
-      if (markComplete) {
-        await this.airForms.submitAsCustomer(
+    try {
+      if (kind === "air") {
+        const airDto = {
+          ...(payload as unknown as UpsertAirComplianceBookingFormDto),
+          ...(markComplete ? { consent_accepted: true as const } : {}),
+        };
+        const form = await this.airForms.upsertDraft(
           tenantId,
           jobId,
-          { ...airDto, consent_accepted: true },
+          airDto,
           who ?? jobId,
         );
+        if (markComplete) {
+          try {
+            await this.airForms.submitAsCustomer(
+              tenantId,
+              jobId,
+              { ...airDto, consent_accepted: true },
+              who ?? jobId,
+            );
+          } catch {
+            /* already submitted on job */
+          }
+        }
+        await this.mirrorDocsToJob(
+          tenantId,
+          jobId,
+          payload,
+          quote.job_type,
+          who,
+        );
+        return form;
       }
+
+      const modeDto = {
+        ...payload,
+        ...(markComplete
+          ? { mark_complete: true, consent_accepted: true }
+          : {}),
+      } as never;
+      const form = await this.modeForms.upsert(
+        kind,
+        tenantId,
+        jobId,
+        modeDto,
+        who,
+      );
       await this.mirrorDocsToJob(tenantId, jobId, payload, quote.job_type, who);
       return form;
+    } catch {
+      return null;
     }
+  }
 
-    const modeDto = {
-      ...payload,
-      ...(markComplete
-        ? { mark_complete: true, consent_accepted: true }
-        : {}),
-    } as never;
-    const form = await this.modeForms.upsert(
-      kind,
-      tenantId,
-      jobId,
-      modeDto,
-      who,
+  /** Persist payload without audience gates (provisional-job sync). */
+  async syncPayload(
+    tenantId: string,
+    quotationId: string,
+    dto: Record<string, unknown>,
+    actorId: string,
+  ) {
+    const quote = await this.loadQuote(tenantId, quotationId);
+    if (quote.status === "CONVERTED") return;
+    const kind = this.kindForJobType(quote.job_type);
+    const current = this.asPayload(quote.booking_form_payload);
+    const { mark_complete: _mc, consent_accepted: _ca, ...fields } = dto;
+    const merged = mergeBookingFormPayload(
+      current,
+      fields as Record<string, unknown>,
     );
-    await this.mirrorDocsToJob(tenantId, jobId, payload, quote.job_type, who);
-    return form;
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.quotation.update({
+        where: { id: quotationId },
+        data: {
+          booking_form_payload: merged as Prisma.InputJsonValue,
+          booking_form_kind: kind,
+          updated_by: actorId,
+        },
+      }),
+    );
   }
 
   async isComplete(
@@ -446,11 +487,8 @@ export class QuotationBookingFormService {
         "Booking form is available after the quotation is APPROVED.",
       );
     }
-    if (audience === "staff" && !quote.booking_form_is_complete) {
-      throw new ForbiddenException(
-        "Staff can view/edit the booking form only after the customer submits it.",
-      );
-    }
+    // Staff may edit after provisional job exists; customer drafts anytime while APPROVED.
+    void audience;
   }
 
   private async loadQuote(

@@ -7667,6 +7667,8 @@ enum DocumentationEdiType {
   EQO_OMAN
   IAL
   MPCI
+  /// CSDP/DP World–style sea manifest (VOY/BOL/CTR/CON/END) — .txt download
+  MANIFEST_CSDP
 }
 
 enum DocumentationEdiStatus {

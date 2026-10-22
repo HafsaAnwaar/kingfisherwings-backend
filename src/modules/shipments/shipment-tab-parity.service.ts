@@ -20,6 +20,7 @@ import { JobTabPanelsService } from "../jobs/job-tab-panels.service";
 import {
   AddJobOrganizationDto,
   JOB_ORGANIZATION_TYPES,
+  ReplaceJobOrganizationDto,
 } from "../jobs/dto/job-organization-tab.dto";
 import { UpsertJobDimensionLineDto } from "../jobs/dto/job-dimension.dto";
 import {
@@ -107,6 +108,73 @@ export class ShipmentTabParityService {
         source: "shipment",
       },
     };
+  }
+
+  async listOrganizations(tenantId: string, shipmentId: string) {
+    const s = await this.owner(tenantId, shipmentId);
+    if (s.job_id) {
+      return this.jobOrgs.list(tenantId, s.job_id);
+    }
+    return this.getOrganization(tenantId, shipmentId);
+  }
+
+  async searchOrgParties(
+    tenantId: string,
+    shipmentId: string,
+    q: string,
+    partyType?: string,
+  ) {
+    await this.owner(tenantId, shipmentId);
+    return this.jobOrgs.searchParties(tenantId, q, partyType);
+  }
+
+  async replaceOrganization(
+    tenantId: string,
+    shipmentId: string,
+    orgType: string,
+    dto: ReplaceJobOrganizationDto,
+    actorId?: string,
+    permissions?: string[],
+  ) {
+    const s = await this.owner(tenantId, shipmentId);
+    if (s.job_id) {
+      return this.jobOrgs.replace(
+        tenantId,
+        s.job_id,
+        orgType as never,
+        dto,
+        actorId,
+        permissions,
+      );
+    }
+    return this.addOrganization(tenantId, shipmentId, {
+      ...dto,
+      org_type: orgType as never,
+    }, actorId);
+  }
+
+  async removeOrganization(
+    tenantId: string,
+    shipmentId: string,
+    orgType: string,
+    actorId?: string,
+  ) {
+    const s = await this.owner(tenantId, shipmentId);
+    if (s.job_id) {
+      return this.jobOrgs.remove(tenantId, s.job_id, orgType as never, actorId);
+    }
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.shipmentOrganization.updateMany({
+        where: {
+          tenant_id: tenantId,
+          shipment_id: shipmentId,
+          org_type: orgType as never,
+          deleted_at: null,
+        },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      }),
+    );
+    return { success: true, message: "Organization removed." };
   }
 
   async addOrganization(

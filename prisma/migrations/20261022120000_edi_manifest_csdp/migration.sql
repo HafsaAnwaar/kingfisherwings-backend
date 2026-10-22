@@ -1,0 +1,2 @@
+-- CSDP-style sea manifest EDI (TXT VOY/BOL/CTR/CON/END)
+ALTER TYPE "DocumentationEdiType" ADD VALUE IF NOT EXISTS 'MANIFEST_CSDP';

@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>KingFisher Wings — Beyond Fresa Feature Differentiation</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm 16mm;
+    }
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
+      --brand: #0b3d5c;
+      --accent: #c45c26;
+      --soft: #f1f5f9;
+      --green: #166534;
+      --green-bg: #dcfce7;
+      --amber-bg: #ffedd5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      font-size: 10.5pt;
+      line-height: 1.45;
+      margin: 0;
+    }
+    h1, h2, h3 { color: var(--brand); page-break-after: avoid; }
+    h1 {
+      font-size: 22pt;
+      margin: 0 0 6px;
+      letter-spacing: -0.02em;
+    }
+    h2 {
+      font-size: 14pt;
+      margin: 22px 0 10px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid var(--brand);
+    }
+    h3 {
+      font-size: 11.5pt;
+      margin: 16px 0 6px;
+      color: var(--accent);
+    }
+    p { margin: 0 0 8px; }
+    .cover {
+      min-height: 240px;
+      padding: 28px 24px;
+      background: linear-gradient(135deg, #0b3d5c 0%, #145a7a 55%, #1e3a5f 100%);
+      color: #fff;
+      border-radius: 8px;
+      margin-bottom: 18px;
+    }
+    .cover h1 { color: #fff; font-size: 26pt; }
+    .cover .sub { font-size: 12pt; opacity: 0.92; margin-top: 8px; max-width: 520px; }
+    .cover .meta {
+      margin-top: 28px;
+      font-size: 9.5pt;
+      opacity: 0.85;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 8.5pt;
+      font-weight: 600;
+      background: var(--green-bg);
+      color: var(--green);
+    }
+    .badge.amber { background: var(--amber-bg); color: #9a3412; }
+    .callout {
+      background: var(--soft);
+      border-left: 4px solid var(--accent);
+      padding: 10px 14px;
+      margin: 12px 0 16px;
+      border-radius: 0 6px 6px 0;
+    }
+    .big-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 12px 0 8px;
+    }
+    .big-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #fff;
+      break-inside: avoid;
+    }
+    .big-card .num {
+      font-size: 9pt;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .big-card strong {
+      display: block;
+      font-size: 11pt;
+      color: var(--brand);
+      margin: 2px 0 4px;
+    }
+    .big-card p { margin: 0; color: var(--muted); font-size: 9.5pt; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 14px;
+      font-size: 9.5pt;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--brand);
+      color: #fff;
+      font-weight: 600;
+    }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .tag {
+      display: inline-block;
+      font-size: 7.5pt;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: var(--green-bg);
+      color: var(--green);
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .tag.fresa {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    ul { margin: 4px 0 10px; padding-left: 18px; }
+    li { margin-bottom: 3px; }
+    .section { page-break-inside: avoid; }
+    .footer-note {
+      margin-top: 20px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      font-size: 8.5pt;
+      color: var(--muted);
+    }
+    .toc ol { margin: 6px 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="cover">
+    <h1>Beyond Fresa</h1>
+    <div class="sub">
+      KingFisher Wings / FreightSaas — capabilities that go past classic Fresa Gold:
+      negotiation, rich customer &amp; vendor portals, finance self-serve, custom statuses,
+      booking forms, acknowledgements, and ops continuum.
+    </div>
+    <div class="meta">
+      <span>Product &amp; engineering brief</span>
+      <span>Audience: stakeholders, sales demos, FE teams</span>
+      <span>Date: 20 October 2026</span>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>How to read this document.</strong>
+    Items marked <span class="tag">BEYOND FRESA</span> are differentiators or deep extensions.
+    Items marked <span class="tag fresa">FRESA-ALIGNED</span> exist in Fresa-style workflows but are
+    strengthened here (path hints, dual portals, typed docs, etc.).
+  </div>
+
+  <div class="toc section">
+    <h2>Contents</h2>
+    <ol>
+      <li>Headline differentiators (the “big ones”)</li>
+      <li>Customer Portal — full capability map</li>
+      <li>Admin / Staff ERP — extras beyond Fresa</li>
+      <li>Vendor Portal — extras beyond Fresa</li>
+      <li>Cross-portal matrix (quick compare)</li>
+      <li>Suggested demo talking points</li>
+    </ol>
+  </div>
+
+  <!-- ========== 1. BIG ONES ========== -->
+  <h2>1. Headline differentiators</h2>
+  <p>
+    These are the capabilities that most clearly separate KingFisher Wings from a classic
+    Fresa-style staff ERP with a thin customer view.
+  </p>
+
+  <div class="big-grid">
+    <div class="big-card">
+      <div class="num">01 · Commercial</div>
+      <strong>Quote negotiation &amp; counter-offers</strong>
+      <p>
+        Customer can accept, reject, or counter-offer. Staff negotiate with revise-and-send,
+        accept/reject counter, and a full negotiation timeline. Same pattern mirrored for
+        vendor cost offers.
+      </p>
+    </div>
+    <div class="big-card">
+      <div class="num">02 · Customer Portal</div>
+      <strong>Messages &amp; invoice disputes</strong>
+      <p>
+        Party-shared message threads with attachments and staff inbox/replies.
+        Structured invoice disputes with review/resolve on the staff side — not just email.
+      </p>
+    </div>
+    <div class="big-card">
+      <div class="num">03 · Finance self-serve</div>
+      <strong>Invoices, payment proofs &amp; online pay</strong>
+      <p>
+        Portal invoices with PDF, attachments, remittance/payment-proof upload, Stripe checkout
+        and payment status. Credit summary, open items, and statement-style exports.
+      </p>
+    </div>
+    <div class="big-card">
+      <div class="num">04 · Delivery proof</div>
+      <strong>Formal delivery acknowledgement</strong>
+      <p>
+        Customer submits goods-receipt acknowledgement with signature upload —
+        closes the last-mile loop without WhatsApp chasing.
+      </p>
+    </div>
+    <div class="big-card">
+      <div class="num">05 · Status flexibility</div>
+      <strong>Custom status catalog buttons</strong>
+      <p>
+        Tenant-defined status labels/catalogs for quotations, shipments, and jobs —
+        add custom status options without hard-coding every label in the UI.
+      </p>
+    </div>
+    <div class="big-card">
+      <div class="num">06 · Booking without premature jobs</div>
+      <strong>Quotation-scoped booking forms</strong>
+      <p>
+        Customer fills and submits booking forms (all modes + docs) on the quotation.
+        Admin sees the form only after submit; job is created only on Generate Job.
+      </p>
+    </div>
+    <div class="big-card">
+      <div class="num">07 · Visibility</div>
+      <strong>Track-by-anything + public track</strong>
+      <p>
+        Lookup by job, shipment, container, BL/AWB, barcode, token. Portal milestones +
+        public track without login. Typed document visibility (staff / customer / vendor).
+      </p>
+    </div>
+    <div class="big-card">
+      <div class="num">08 · Vendor depth</div>
+      <strong>Full vendor portal (not pay-only)</strong>
+      <p>
+        Vendor auth, job offers, cost negotiation, documents, costing (cost-only), finance,
+        payouts, payment proofs, and ops continuum attachments — a true second portal.
+      </p>
+    </div>
+  </div>
+
+  <!-- ========== 2. CUSTOMER PORTAL ========== -->
+  <h2>2. Customer Portal — capability map</h2>
+  <p>
+    The customer portal is a first-class product surface: auth isolated from staff ERP,
+    party ownership filters, and self-serve commercial + ops + finance workflows.
+  </p>
+
+  <h3>2.1 Access, identity &amp; preferences</h3>
+  <table>
+    <thead><tr><th>Capability</th><th>What it does</th><th>Tag</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Portal login / invite / refresh</td>
+        <td>Dedicated portal auth; accept invite; change password; session refresh</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Party portal users &amp; permissions</td>
+        <td>Staff invite/disable portal users; configure portal permission packs per party</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Dashboard &amp; preferences</td>
+        <td>Portal home stats; saved UI/filter preferences</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>In-app notifications</td>
+        <td>Unread counts, mark read, event-driven alerts for quotes/docs/milestones</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Unit converters</td>
+        <td>Length / CBM / weight / liquid / volume helpers in portal</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.2 Quotations &amp; booking (commercial)</h3>
+  <table>
+    <thead><tr><th>Capability</th><th>What it does</th><th>Tag</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Quote list, detail, PDF</td>
+        <td>Customer-safe quotation views and PDF download</td>
+        <td><span class="tag fresa">FRESA-ALIGNED</span></td>
+      </tr>
+      <tr>
+        <td>Online quote request / estimate / costing options</td>
+        <td>Service catalog, estimate, costing options, request new quote from portal</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Accept / reject / counter-offer</td>
+        <td>Full negotiation loop with timeline; staff revise-and-send</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Booking form (quotation &amp; shipment)</td>
+        <td>Draft, upload mandatory docs, complete/submit — all freight modes + air compliance</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Convert / generate job gate</td>
+        <td>Job creation gated; customer does not auto-create ops jobs on form open</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.3 Shipments, track &amp; acknowledgement</h3>
+  <table>
+    <thead><tr><th>Capability</th><th>What it does</th><th>Tag</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Shipments list / detail / CSV export</td>
+        <td>Owned shipments, summary, export for Excel users</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Lookup &amp; tracking</td>
+        <td>Ref lookup (container, BL, AWB, job…); milestones + full history</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Document requests</td>
+        <td>Request draft BL / HAWB / delivery order; container confirm-pick; port-token confirm</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Delivery acknowledgement + signature</td>
+        <td>Formal POD-style acknowledgement with signature image upload</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Typed job documents</td>
+        <td>List / download / upload with customer visibility ACL</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Ops continuum attachments</td>
+        <td>See staff-shared continuum files; upload files staff see on ops</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.4 Finance, CCP, messages &amp; disputes</h3>
+  <table>
+    <thead><tr><th>Capability</th><th>What it does</th><th>Tag</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Invoices &amp; open items</td>
+        <td>List, detail, PDF, summary, CSV export, attachments</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Payment proofs / remittance</td>
+        <td>Upload proof against invoice; staff matching; download proof file</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Online payments (Stripe)</td>
+        <td>Checkout, pay, payment status, retry / cancel online payment sessions</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Credit portal (CCP)</td>
+        <td>Credit summary / limits; credit-increase requests</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Messages (party-shared)</td>
+        <td>Threads with replies &amp; attachments; staff inbox + reply</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Invoice disputes</td>
+        <td>Raise dispute with attachment; staff list / review / resolve</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Customs clearance (portal CC)</td>
+        <td>Customer CC jobs, checklist, document upload</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Portal tasks</td>
+        <td>Customer-facing task list for pending actions</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ========== 3. ADMIN ========== -->
+  <h2>3. Admin / Staff ERP — extras beyond Fresa</h2>
+  <p>
+    Staff retain Fresa-style job/shipment/quote shells (detail tabs, path hints, costing,
+    org, routing). The items below are the meaningful additions or deepenings.
+  </p>
+
+  <h3>3.1 Commercial &amp; booking</h3>
+  <ul>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Negotiation desk</strong> — timeline, accept/reject customer counter, revise-and-send.</li>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Booking form gate</strong> — admin sees submitted customer form only; Generate Job materializes form onto the job.</li>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Mode booking forms</strong> — Sea FCL/LCL, land, road, courier, customs clearance, warehouse, air compliance with mandatory docs.</li>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Verify → Approve → Generate Shipment / Job</strong> — explicit Fresa-like gates, plus no silent provisional job from form open.</li>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Pass-to-vendor / job offers</strong> from quotation or job into vendor negotiation.</li>
+    <li><span class="tag fresa">FRESA-ALIGNED</span> Quotation/shipment/job detail tabs with <code>path_hints</code> and action flags for FE.</li>
+  </ul>
+
+  <h3>3.2 Status catalogs &amp; workflow polish</h3>
+  <ul>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Custom status catalog</strong> APIs for quotations, shipments, jobs — create/update/deactivate label options; status-options endpoints for UI buttons.</li>
+    <li><span class="tag">BEYOND FRESA</span> Staff change-status with catalog codes mapped to system statuses.</li>
+    <li><span class="tag">BEYOND FRESA</span> Staff portal inbox for messages &amp; dispute management (CCP staff APIs).</li>
+  </ul>
+
+  <h3>3.3 Ops, track, docs &amp; continuum</h3>
+  <ul>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Public / staff Track &amp; Trace</strong> — track-by-anything; unified milestone history.</li>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Typed document uploads</strong> with visibility to customer/vendor; booking-form document kinds.</li>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Ops continuum</strong> comments &amp; attachments across quotation / shipment / job for staff + portals.</li>
+    <li><span class="tag">BEYOND FRESA</span> <strong>Delivery acknowledgement</strong> admin view of customer POD/receipt.</li>
+    <li><span class="tag">BEYOND FRESA</span> Exception / KPI / job-not-invoiced-DO / job-finance-by-shipment-date packs (demo “beat Fresa” reports).</li>
+    <li><span class="tag">BEYOND FRESA</span> Closed-job permission-aware overrides; SABER / RA / ISF refs; overseas agent org role.</li>
+    <li><span class="tag">BEYOND FRESA</span> Favourites, staff activity emails, notifications emitter across modules.</li>
+  </ul>
+
+  <h3>3.4 Masters &amp; platform</h3>
+  <ul>
+    <li><span class="tag">BEYOND FRESA</span> Multi-tenant hierarchy: SuperAdmin → Company → Tenant → Tenant Admin → staff roles.</li>
+    <li><span class="tag">BEYOND FRESA</span> Portal/vendor user administration from party masters; permission packs.</li>
+    <li><span class="tag fresa">FRESA-ALIGNED</span> Deep masters (ports, charges, tariffs, zip distances, freight specs) feeding quotes and jobs.</li>
+  </ul>
+
+  <!-- ========== 4. VENDOR ========== -->
+  <h2>4. Vendor Portal — extras beyond Fresa</h2>
+  <p>
+    Classic Fresa is staff-centric. KingFisher ships a dedicated vendor portal (VPP-class)
+    with commercial negotiation and finance — not only a payout screen.
+  </p>
+
+  <table>
+    <thead><tr><th>Capability</th><th>What it does</th><th>Tag</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Vendor auth &amp; users</td>
+        <td>Isolated vendor login; party vendor users &amp; permissions</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Dashboard &amp; lookups</td>
+        <td>Vendor home; converters; reference lookups</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Job offers / quotes</td>
+        <td>List offers; cargo-safe detail; negotiation timeline</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Accept / reject / counter-offer</td>
+        <td>Cost-side negotiation; accept can auto-generate purchase invoice</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Jobs &amp; costing</td>
+        <td>Vendor job views; cost-only costing (no customer revenue)</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Typed documents</td>
+        <td>Upload/list/download with vendor visibility ACL</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Finance &amp; payment proofs</td>
+        <td>Purchase invoices, attachments, payment proofs, email proof</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Payouts</td>
+        <td>Vendor payout portal flows</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>Ops continuum</td>
+        <td>Vendor-side continuum attachments for shared entities</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+      <tr>
+        <td>CCP / credit-adjacent vendor finance</td>
+        <td>Vendor finance controllers for open commercial settlement</td>
+        <td><span class="tag">BEYOND FRESA</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ========== 5. MATRIX ========== -->
+  <h2>5. Cross-portal matrix</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Theme</th>
+        <th>Customer Portal</th>
+        <th>Admin / Staff</th>
+        <th>Vendor Portal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Negotiation</td>
+        <td>Accept / reject / counter</td>
+        <td>Revise, accept/reject counter, timeline</td>
+        <td>Accept / reject / counter (cost)</td>
+      </tr>
+      <tr>
+        <td>Booking form</td>
+        <td>Fill + submit + docs</td>
+        <td>View after submit; Generate Job</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Messages</td>
+        <td>Threads + attachments</td>
+        <td>Staff inbox + reply</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Disputes</td>
+        <td>Raise invoice dispute</td>
+        <td>Review / resolve</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Invoices</td>
+        <td>View, PDF, pay, proofs</td>
+        <td>Full AR</td>
+        <td>Purchase invoices + proofs</td>
+      </tr>
+      <tr>
+        <td>Acknowledgement</td>
+        <td>Submit + signature</td>
+        <td>See status</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Custom statuses</td>
+        <td>Sees resolved labels</td>
+        <td>Catalog CRUD + buttons</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Track &amp; docs</td>
+        <td>Lookup, milestones, typed docs</td>
+        <td>Full track + ACL docs</td>
+        <td>Typed docs on jobs</td>
+      </tr>
+      <tr>
+        <td>Ops continuum</td>
+        <td>Shared attachments</td>
+        <td>Full continuum</td>
+        <td>Shared attachments</td>
+      </tr>
+      <tr>
+        <td>Online payments</td>
+        <td>Stripe checkout</td>
+        <td>Reconciliation</td>
+        <td>Payouts / proofs</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ========== 6. DEMO ========== -->
+  <h2>6. Demo talking points (use these)</h2>
+  <ol>
+    <li><strong>“Negotiate in-product.”</strong> Customer counters a quote; staff revises; vendor counters a cost offer — one commercial language on both sides.</li>
+    <li><strong>“Portal is not a track-only site.”</strong> Messages, disputes, invoices, payment proofs, Stripe, credit requests, booking forms, acknowledgement.</li>
+    <li><strong>“No fake jobs.”</strong> Opening a booking form does not invent a job; admin Generate Job is the cutover; form appears for staff after customer submit.</li>
+    <li><strong>“Statuses you own.”</strong> Custom status catalog buttons for quotes/shipments/jobs — tenant vocabulary, not only hard-coded enums.</li>
+    <li><strong>“Three audiences, one ops spine.”</strong> Staff ERP + customer portal + vendor portal share track, typed docs, and continuum attachments with the right ACLs.</li>
+    <li><strong>“Beat-Fresa ops packs.”</strong> Exceptions, DO-not-invoiced, shipment-date finance, closed overrides, overseas agent / compliance refs.</li>
+  </ol>
+
+  <div class="footer-note">
+    KingFisher Wings / FreightSaas — Beyond Fresa Feature Differentiation · Generated for stakeholder review ·
+    Source of truth: backend modules under <code>src/modules/portal</code>, <code>vendor</code>, <code>quotations</code>,
+    <code>jobs</code>, <code>ops-activity</code>, <code>track</code>, <code>invoices</code>. Classic Fresa parity docs live under
+    <code>docs/fresa-parity/</code>; this PDF intentionally highlights <em>extensions</em>, not 1:1 Fresa coverage.
+  </div>
+
+</body>
+</html>

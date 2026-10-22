@@ -48,8 +48,12 @@ import {
 } from "./dto/shipment-detail.dto";
 import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
 import { BookingFormEntityService } from "../jobs/booking-forms/booking-form-entity.service";
+import { BlDraftFromBookingService } from "../jobs/bl-draft-from-booking.service";
 import { OpsSectionAttachmentsService } from "../jobs/ops-section-attachments.service";
-import { AddJobOrganizationDto } from "../jobs/dto/job-organization-tab.dto";
+import {
+  AddJobOrganizationDto,
+  ReplaceJobOrganizationDto,
+} from "../jobs/dto/job-organization-tab.dto";
 import { UpsertJobDimensionLineDto } from "../jobs/dto/job-dimension.dto";
 import { CompositeJobChargeDto } from "../jobs/dto/job-costing.dto";
 import {
@@ -70,6 +74,7 @@ export class ShipmentsController {
     private readonly tabParity: ShipmentTabParityService,
     private readonly shipmentEdi: ShipmentEdiService,
     private readonly bookingForms: BookingFormEntityService,
+    private readonly blDraftFromBooking: BlDraftFromBookingService,
     private readonly sectionFiles: OpsSectionAttachmentsService,
     private readonly statusCatalog: ShipmentStatusCatalogService,
   ) {}
@@ -203,11 +208,35 @@ export class ShipmentsController {
     });
   }
 
+  @Get(":id/organizations")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List shipment organizations (proxies to job when linked)" })
+  listOrganizations(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.tabParity.listOrganizations(tenantId, id);
+  }
+
+  @Get(":id/organizations/party-search")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Search parties by name/code for Organization tab",
+  })
+  searchOrgParties(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("q") q: string,
+    @Query("party_type") partyType?: string,
+  ) {
+    return this.tabParity.searchOrgParties(tenantId, id, q ?? "", partyType);
+  }
+
   @Post(":id/organizations")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Add organization on shipment (proxies to job when linked)",
+      "Add organization on shipment — party_id from party-search or create_party (no UUID typing)",
   })
   addOrganization(
     @CurrentUser("tenantId") tenantId: string,
@@ -216,6 +245,39 @@ export class ShipmentsController {
     @Body() dto: AddJobOrganizationDto,
   ) {
     return this.tabParity.addOrganization(tenantId, id, dto, actorId);
+  }
+
+  @Put(":id/organizations/:orgType")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Replace organization party on shipment" })
+  replaceOrganization(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("orgType") orgType: string,
+    @Body() dto: ReplaceJobOrganizationDto,
+  ) {
+    return this.tabParity.replaceOrganization(
+      tenantId,
+      id,
+      orgType,
+      dto,
+      actorId,
+      permissions,
+    );
+  }
+
+  @Delete(":id/organizations/:orgType")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Remove organization from shipment" })
+  removeOrganization(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("orgType") orgType: string,
+  ) {
+    return this.tabParity.removeOrganization(tenantId, id, orgType, actorId);
   }
 
   @Post(":id/dimensions")
@@ -607,6 +669,35 @@ export class ShipmentsController {
       id,
       "BOOKING_CONFIRMATION",
       dto,
+      actorId,
+    );
+  }
+
+  @Get(":id/bl-draft/preview")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Preview HBL draft autofilled from booking form (via linked job)",
+  })
+  blDraftPreview(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.blDraftFromBooking.previewForShipment(tenantId, id);
+  }
+
+  @Post(":id/bl-draft/generate")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Generate downloadable HBL draft from booking form on linked job",
+  })
+  blDraftGenerate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.blDraftFromBooking.generateDraftForShipment(
+      tenantId,
+      id,
       actorId,
     );
   }
