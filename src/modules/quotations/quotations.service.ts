@@ -66,6 +66,7 @@ import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
 import { ShipmentsService } from "../shipments/shipments.service";
 import { JobCostingService } from "../jobs/job-costing.service";
 import { QuotationBookingFormService } from "../jobs/booking-forms/quotation-booking-form.service";
+import { renderBrandedEmail } from "../../shared/email/branded-email.template";
 
 /** Maps a job type to the short code used inside the quotation number, e.g. KFW/AE/06/26/00136. */
 const JOB_TYPE_CODE: Record<JobType, string> = {
@@ -1207,17 +1208,58 @@ export class QuotationsService {
       }
     }
 
-    const body =
-      dto.message ??
-      `<p>Please find attached quotation <strong>${quotation.quotation_number}</strong>.</p>`;
+    const customerName =
+      (quotation as { customer?: { name?: string } }).customer?.name ??
+      "Customer";
+    const branded = renderBrandedEmail({
+      subject: `Quotation ${quotation.quotation_number}`,
+      headline: "Your quotation is ready",
+      recipientName: customerName,
+      organizationName: customerName,
+      audience: "CUSTOMER",
+      intro: [
+        dto.message?.replace(/<[^>]+>/g, " ").trim() ||
+          `Please find quotation ${quotation.quotation_number} attached for your review.`,
+        "This quotation includes commercial terms and charges as agreed with our team.",
+      ],
+      details: [
+        { label: "Quotation", value: quotation.quotation_number },
+        { label: "Status", value: String(quotation.status) },
+        {
+          label: "Currency",
+          value: String(quotation.currency_code ?? ""),
+        },
+        ...(quotation.revenue_total != null
+          ? [
+              {
+                label: "Total",
+                value: `${quotation.currency_code ?? ""} ${quotation.revenue_total}`,
+              },
+            ]
+          : []),
+        ...(quotation.valid_until
+          ? [
+              {
+                label: "Valid until",
+                value: new Date(quotation.valid_until).toUTCString(),
+              },
+            ]
+          : []),
+        { label: "Mode", value: String(quotation.job_type) },
+      ],
+      closing: [
+        "If you have questions or would like to negotiate, reply to this email or use the customer portal.",
+        "Thank you for choosing our services.",
+      ],
+    });
 
     const emailLog = await this.emailService.send({
       tenantId,
       eventType: "QUOTATION_PDF",
       to: dto.to_email,
       cc: dto.cc_email,
-      subject: `Quotation ${quotation.quotation_number}`,
-      body,
+      subject: branded.subject,
+      body: branded.html,
       attachmentBuffer,
       attachmentName,
       attachmentPath: pdfUrl ?? undefined,

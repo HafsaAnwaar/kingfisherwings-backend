@@ -178,7 +178,7 @@ export class JobDocumentUploadService {
     tenantId: string,
     jobId: string,
     audience: DocumentAudience,
-    query?: { uploader_side?: OpsUploaderSide },
+    query?: { uploader_side?: OpsUploaderSide; partyId?: string },
   ) {
     await this.assertJob(tenantId, jobId);
     const where: Prisma.JobDocumentWhereInput = {
@@ -192,9 +192,18 @@ export class JobDocumentUploadService {
       where.document_type = { notIn: CUSTOMER_BLOCKED_RUNTIME };
     }
     if (audience === "VENDOR") {
+      // Staff-marked visible_to_vendor OR this vendor's own uploads only
+      // (never other vendors' private uploads).
       where.OR = [
         { visible_to_vendor: true },
-        { uploader_side: OpsUploaderSide.VENDOR },
+        ...(query?.partyId
+          ? [
+              {
+                uploader_side: OpsUploaderSide.VENDOR,
+                uploaded_by_party_id: query.partyId,
+              },
+            ]
+          : [{ uploader_side: OpsUploaderSide.VENDOR }]),
       ];
     }
     return this.prisma.runWithTenant(tenantId, (tx) =>
@@ -213,32 +222,10 @@ export class JobDocumentUploadService {
     audience: DocumentAudience,
     opts?: { partyId?: string },
   ) {
-    const docs = await this.listForAudience(tenantId, jobId, audience);
-    let doc = docs.find((d) => d.id === documentId);
-    if (
-      !doc &&
-      audience === "VENDOR" &&
-      opts?.partyId
-    ) {
-      doc =
-        (await this.prisma.runWithTenant(tenantId, (tx) =>
-          tx.jobDocument.findFirst({
-            where: {
-              id: documentId,
-              tenant_id: tenantId,
-              job_id: jobId,
-              deleted_at: null,
-              OR: [
-                { visible_to_vendor: true },
-                {
-                  uploader_side: OpsUploaderSide.VENDOR,
-                  uploaded_by_party_id: opts.partyId,
-                },
-              ],
-            },
-          }),
-        )) ?? undefined;
-    }
+    const docs = await this.listForAudience(tenantId, jobId, audience, {
+      partyId: opts?.partyId,
+    });
+    const doc = docs.find((d) => d.id === documentId);
     if (!doc) throw new NotFoundException("Document not found.");
 
     const file = await this.storage.readByStoredFile(tenantId, {

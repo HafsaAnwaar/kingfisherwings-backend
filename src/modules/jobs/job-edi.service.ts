@@ -59,13 +59,16 @@ export class JobEdiService {
       jobId,
       actorId,
     );
+    const isTxt = dto.edi_type === "MANIFEST_CSDP";
     return {
       success: true,
       data: {
         ...submission,
         download: `/jobs/${jobId}/edi/submissions/${submission.id}/download`,
-        mime_type: "application/pdf",
-        filename: `${dto.edi_type.toLowerCase()}-${jobId.slice(0, 8)}.pdf`,
+        mime_type: isTxt ? "text/plain" : "application/pdf",
+        filename: isTxt
+          ? `${dto.edi_type.toLowerCase()}-${jobId.slice(0, 8)}.txt`
+          : `${dto.edi_type.toLowerCase()}-${jobId.slice(0, 8)}.pdf`,
       },
     };
   }
@@ -89,7 +92,8 @@ export class JobEdiService {
       data: rows.map((row) => ({
         ...row,
         download: `/jobs/${jobId}/edi/submissions/${row.id}/download`,
-        mime_type: "application/pdf",
+        mime_type:
+          row.edi_type === "MANIFEST_CSDP" ? "text/plain" : "application/pdf",
       })),
     };
   }

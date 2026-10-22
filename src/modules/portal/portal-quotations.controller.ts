@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Res,
@@ -22,6 +24,7 @@ import {
   PortalQuotationQueryDto,
   PortalQuotationRejectDto,
   PortalQuotationRequestDto,
+  PortalQuotationUpdateDto,
 } from "./dto/portal-quotation.dto";
 import { PortalAuthGuard } from "./guards/portal-auth.guard";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
@@ -149,6 +152,51 @@ export class PortalQuotationsController {
     @Body() dto: PortalQuotationCounterOfferDto,
   ) {
     return this.quotations.counterOffer(user, id, dto);
+  }
+
+  @Post(":id/amend")
+  @ApiOperation({
+    summary: "Amend a sent quote (alias of counter-offer)",
+  })
+  amend(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PortalQuotationCounterOfferDto,
+  ) {
+    return this.quotations.amend(user, id, dto);
+  }
+
+  @Patch(":id")
+  @ApiOperation({
+    summary: "Edit a DRAFT portal quote request (synced to admin immediately)",
+  })
+  edit(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PortalQuotationUpdateDto,
+  ) {
+    return this.quotations.editDraft(user, id, dto);
+  }
+
+  @Post(":id/replace")
+  @ApiOperation({
+    summary:
+      "Replace a DRAFT portal quote with a new linked revision (old DRAFT withdrawn)",
+  })
+  replace(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.quotations.replaceDraft(user, id);
+  }
+
+  @Delete(":id")
+  @ApiOperation({ summary: "Delete / withdraw a DRAFT portal quote request" })
+  remove(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.quotations.deleteDraft(user, id);
   }
 
   @Get(":id/negotiation")

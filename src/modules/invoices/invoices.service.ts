@@ -30,6 +30,7 @@ import {
   MasterLabelService,
 } from "../masters/master-label.service";
 import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
+import { renderBrandedEmail } from "../../shared/email/branded-email.template";
 import {
   CreateCreditNoteDto,
   CreateDebitNoteDto,
@@ -1630,18 +1631,66 @@ export class InvoicesService {
       }
     }
 
+    const partyName =
+      (invoice as { party?: { name?: string } }).party?.name ?? "Customer";
+    const branded = renderBrandedEmail({
+      subject: `${label} ${invoice.invoice_number}`,
+      headline: `${label} ${invoice.invoice_number}`,
+      recipientName: partyName,
+      organizationName: partyName,
+      audience: isPurchase ? "VENDOR" : "CUSTOMER",
+      intro: [
+        dto.message?.replace(/<[^>]+>/g, " ").trim() ||
+          `Please find ${label.toLowerCase()} ${invoice.invoice_number} attached.`,
+        ...(pdfWarning
+          ? [`Note: PDF attachment may be unavailable (${pdfWarning}).`]
+          : []),
+      ],
+      details: [
+        { label: "Invoice", value: invoice.invoice_number },
+        { label: "Type", value: String(invoice.invoice_type) },
+        { label: "Status", value: String(invoice.status) },
+        {
+          label: "Currency",
+          value: String(invoice.currency_code ?? ""),
+        },
+        ...(invoice.total_amount != null
+          ? [
+              {
+                label: "Grand total",
+                value: `${invoice.currency_code ?? ""} ${invoice.total_amount}`,
+              },
+            ]
+          : []),
+        ...(invoice.balance_due != null
+          ? [
+              {
+                label: "Balance due",
+                value: `${invoice.currency_code ?? ""} ${invoice.balance_due}`,
+              },
+            ]
+          : []),
+        ...(invoice.due_date
+          ? [
+              {
+                label: "Due date",
+                value: new Date(invoice.due_date).toUTCString(),
+              },
+            ]
+          : []),
+      ],
+      closing: [
+        "Please retain this email for your records.",
+        "For payment queries, contact our finance team.",
+      ],
+    });
+
     const emailLog = await this.emailService.send({
       tenantId,
       eventType: "INVOICE_SENT",
       to: dto.to_email,
-      subject: `${label} ${invoice.invoice_number}`,
-      body:
-        (dto.message ??
-          `<p>Please find ${label.toLowerCase()} <strong>${invoice.invoice_number}</strong> attached.</p>`) +
-        payNowHtml +
-        (pdfWarning
-          ? `<p><em>Note: PDF attachment unavailable (${pdfWarning})</em></p>`
-          : ""),
+      subject: branded.subject,
+      body: branded.html + payNowHtml,
       attachmentBuffer: pdfBuffer,
       attachmentName: pdfBuffer ? `${invoice.invoice_number}.pdf` : undefined,
       attachmentPath: invoice.pdf_url ?? undefined,

@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
   IsArray,
@@ -238,6 +238,11 @@ export class PortalQuotationRequestDto {
   @Type(() => PortalEstimateSnapshotDto)
   estimate_snapshot?: PortalEstimateSnapshotDto;
 }
+
+/** Portal DRAFT edit — all request fields optional. */
+export class PortalQuotationUpdateDto extends PartialType(
+  PortalQuotationRequestDto,
+) {}
 
 export class PortalQuotationEstimateDto extends PortalQuotationRequestDto {
   @ApiProperty({ type: [CargoPackageDto] })

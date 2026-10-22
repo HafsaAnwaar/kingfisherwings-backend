@@ -78,6 +78,7 @@ import { JobGpumService } from "./job-gpum.service";
 import { JobContainerStorageCostingService } from "./job-container-storage-costing.service";
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobOrganizationService } from "./job-organization.service";
+import { BlDraftFromBookingService } from "./bl-draft-from-booking.service";
 import { JobDimensionService } from "./job-dimension.service";
 import { JobContainerTabService } from "./job-container-tab.service";
 import { JobCostingService } from "./job-costing.service";
@@ -262,6 +263,7 @@ export class JobsController {
     private readonly storageCosting: JobContainerStorageCostingService,
     private readonly chargeAttachments: JobChargeAttachmentService,
     private readonly organizations: JobOrganizationService,
+    private readonly blDraftFromBooking: BlDraftFromBookingService,
     private readonly dimensions: JobDimensionService,
     private readonly containerTab: JobContainerTabService,
     private readonly costing: JobCostingService,
@@ -590,10 +592,26 @@ export class JobsController {
     return this.organizations.list(tenantId, id);
   }
 
+  @Get(":id/organizations/party-search")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Search parties by name/code for Organization tab (no UUID typing required)",
+  })
+  searchOrgParties(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) _id: string,
+    @Query("q") q: string,
+    @Query("party_type") partyType?: string,
+  ) {
+    return this.organizations.searchParties(tenantId, q ?? "", partyType);
+  }
+
   @Post(":id/organizations")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Add organization — select existing party or create new",
+    summary:
+      "Add organization — select existing party_id from party-search or create_party inline (do not type UUIDs manually)",
   })
   addOrganization(
     @CurrentUser("tenantId") tenantId: string,
@@ -2648,6 +2666,33 @@ export class JobsController {
   }
 
   // ── Week 8 — Sea FCL Export documents (Ch.10 / Ch.16) ──────────────────────
+
+  @Get(":id/bl-draft/preview")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Preview HBL draft fields autofilled from booking form (parties, cargo, containers)",
+  })
+  blDraftPreview(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.blDraftFromBooking.previewForJob(tenantId, id);
+  }
+
+  @Post(":id/bl-draft/generate")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Generate downloadable HBL draft PDF using booking-form autofill (is_original=false)",
+  })
+  blDraftGenerate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.blDraftFromBooking.generateDraftForJob(tenantId, id, actorId);
+  }
 
   @Post(":id/documents/hbl")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
