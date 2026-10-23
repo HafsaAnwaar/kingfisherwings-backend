@@ -2537,6 +2537,8 @@ model Party {
   payment_transactions     PaymentTransaction[]
   job_organizations        JobOrganization[]
   shipment_organizations   ShipmentOrganization[]
+  verification             PartyVerification?
+  verification_documents   PartyVerificationDocument[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id])
@@ -2544,6 +2546,62 @@ model Party {
   @@index([tenant_id, credit_status])
   @@index([tenant_id, company_id])
   @@map("parties")
+}
+
+/// Party-scoped KYC for portal customers and vendor portal users.
+enum PartyVerificationStatus {
+  NOT_STARTED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PartyVerificationDocKind {
+  VAT_CERTIFICATE
+  BUSINESS_LICENSE
+  OTHER
+}
+
+model PartyVerification {
+  id                String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String                  @db.Uuid
+  party_id          String                  @unique @db.Uuid
+  status            PartyVerificationStatus @default(NOT_STARTED)
+  reviewed_at       DateTime?               @db.Timestamptz
+  reviewed_by       String?                 @db.Uuid
+  rejection_reason  String?                 @db.Text
+  submitted_at      DateTime?               @db.Timestamptz
+  created_at        DateTime                @default(now()) @db.Timestamptz
+  updated_at        DateTime                @updatedAt @db.Timestamptz
+
+  party Party @relation(fields: [party_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, status])
+  @@map("party_verifications")
+}
+
+model PartyVerificationDocument {
+  id                   String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id            String                   @db.Uuid
+  party_id             String                   @db.Uuid
+  doc_kind             PartyVerificationDocKind
+  file_name            String                   @db.VarChar(255)
+  mime_type            String?                  @db.VarChar(100)
+  file_url             String?                  @db.Text
+  s3_key               String?                  @db.Text
+  file_size            Int?
+  /// portal | vendor
+  uploaded_by_side     String                   @db.VarChar(20)
+  uploaded_by_user_id  String?                  @db.Uuid
+  created_at           DateTime                 @default(now()) @db.Timestamptz
+  updated_at           DateTime                 @updatedAt @db.Timestamptz
+  deleted_at           DateTime?                @db.Timestamptz
+
+  party Party @relation(fields: [party_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, party_id])
+  @@index([tenant_id, party_id, doc_kind])
+  @@map("party_verification_documents")
 }
 
 enum PartyCreditStatus {
@@ -6320,6 +6378,8 @@ model VendorUser {
   full_name         String           @db.VarChar(200)
   phone             String?          @db.VarChar(30)
   status            VendorUserStatus @default(ACTIVE)
+  /// When true, vendor client should force a password change before normal use.
+  must_change_password Boolean       @default(false)
   invite_token      String?          @unique @db.VarChar(128)
   invite_expires_at DateTime?        @db.Timestamptz
   invited_at        DateTime?        @db.Timestamptz

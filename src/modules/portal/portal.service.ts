@@ -28,6 +28,7 @@ import {
   ResetPortalPasswordDto,
   UpdatePortalUserStatusDto,
 } from "./dto/portal.dto";
+import { PartyVerificationService } from "../parties/party-verification.service";
 import {
   CurrentPortalUser,
   PortalJwtPayload,
@@ -42,6 +43,7 @@ export class PortalService {
     private readonly config: ConfigService,
     private readonly email: EmailService,
     private readonly portalPermissions: PortalPermissionsService,
+    private readonly partyVerification: PartyVerificationService,
   ) {}
 
   // ─── Public portal auth ─────────────────────────────────────
@@ -110,11 +112,19 @@ export class PortalService {
       data: { last_login_at: new Date() },
     });
 
+    await this.partyVerification.ensureForParty(tenant.id, user.party_id);
+    const verification = await this.partyVerification.snapshotForParty(
+      tenant.id,
+      user.party_id,
+    );
+
     return {
       success: true,
       data: {
         ...tokens,
         must_change_password: user.must_change_password,
+        verification_status: verification.verification_status,
+        verification_blocking: verification.verification_blocking,
         portal_user: {
           id: user.id,
           email: user.email,
@@ -124,6 +134,8 @@ export class PortalService {
           tenant_id: tenant.id,
           tenant_slug: tenant.slug,
           must_change_password: user.must_change_password,
+          verification_status: verification.verification_status,
+          verification_blocking: verification.verification_blocking,
         },
       },
     };
@@ -291,6 +303,11 @@ export class PortalService {
           default_invoice_filters: null,
         };
 
+    const verification = await this.partyVerification.snapshotForParty(
+      user.tenant_id,
+      user.party_id,
+    );
+
     return {
       success: true,
       data: {
@@ -300,6 +317,8 @@ export class PortalService {
         phone: user.phone,
         status: user.status,
         must_change_password: user.must_change_password,
+        verification_status: verification.verification_status,
+        verification_blocking: verification.verification_blocking,
         last_login_at: user.last_login_at,
         party: user.party,
         tenant: user.tenant,
@@ -444,6 +463,8 @@ export class PortalService {
       },
     );
 
+    await this.partyVerification.ensureForParty(opts.tenantId, party.id);
+
     await this.portalPermissions.seedDefaultsIfEmpty(
       opts.tenantId,
       party.id,
@@ -538,6 +559,8 @@ export class PortalService {
         });
       },
     );
+
+    await this.partyVerification.ensureForParty(tenantId, party.id);
 
     await this.portalPermissions.seedDefaultsIfEmpty(
       tenantId,
@@ -754,12 +777,26 @@ export class PortalService {
             name: true,
             portal_access: true,
             company_id: true,
+            verification: {
+              select: {
+                status: true,
+                submitted_at: true,
+                reviewed_at: true,
+                rejection_reason: true,
+              },
+            },
           },
         },
       },
     });
 
-    return { success: true, data: rows };
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        ...r,
+        verification_status: r.party.verification?.status ?? "NOT_STARTED",
+      })),
+    };
   }
 
   async updateStatus(

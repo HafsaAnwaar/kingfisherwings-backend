@@ -40,6 +40,7 @@ import {
 } from "../../common/constants/module-permission-tree";
 import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
 import { MasterLabelService } from "../masters/master-label.service";
+import { PortsService } from "../masters/ports/ports.service";
 import { ShipmentsService } from "../shipments/shipments.service";
 
 import { CreateJobDto, UpdateJobDto } from "./dto/job.dto";
@@ -152,6 +153,7 @@ export class JobsService {
     private readonly masterLabels: MasterLabelService,
     private readonly shipmentsService: ShipmentsService,
     private readonly jobDates: JobDateService,
+    private readonly ports: PortsService,
   ) {}
 
   // ============================================================
@@ -192,6 +194,11 @@ export class JobsService {
       },
     );
 
+    const originPortId = await this.resolveOriginPortId(tenantId, dto, actorId);
+    const destPortId = await this.resolveDestPortId(tenantId, dto, actorId);
+    await this.assertPortExists(tenantId, originPortId, "Origin port");
+    await this.assertPortExists(tenantId, destPortId, "Destination port");
+
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.assertPartyExistsTx(tx, tenantId, dto.shipper_id, "Shipper");
       await this.assertPartyExistsTx(
@@ -210,18 +217,6 @@ export class JobsService {
       await this.assertCompanyExistsTx(tx, tenantId, dto.company_id);
       await this.assertBranchExistsTx(tx, tenantId, dto.branch_id);
       await this.assertDepartmentExistsTx(tx, tenantId, dto.department_id);
-      await this.assertPortExistsTx(
-        tx,
-        tenantId,
-        dto.origin_port_id,
-        "Origin port",
-      );
-      await this.assertPortExistsTx(
-        tx,
-        tenantId,
-        dto.dest_port_id,
-        "Destination port",
-      );
 
       let parentJob: Job | null = null;
 
@@ -280,8 +275,8 @@ export class JobsService {
           agent_id: dto.agent_id,
           salesperson_id: dto.salesperson_id,
           ops_user_id: dto.ops_user_id,
-          origin_port_id: dto.origin_port_id,
-          dest_port_id: dto.dest_port_id,
+          origin_port_id: originPortId,
+          dest_port_id: destPortId,
           commodity: dto.commodity,
           hs_code: dto.hs_code,
           gross_weight: dto.gross_weight,
@@ -1364,8 +1359,10 @@ export class JobsService {
     await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
     await this.assertDepartmentExists(tenantId, dto.department_id);
-    await this.assertPortExists(tenantId, dto.origin_port_id, "Origin port");
-    await this.assertPortExists(tenantId, dto.dest_port_id, "Destination port");
+    const originPortId = await this.resolveOriginPortId(tenantId, dto, actorId);
+    const destPortId = await this.resolveDestPortId(tenantId, dto, actorId);
+    await this.assertPortExists(tenantId, originPortId, "Origin port");
+    await this.assertPortExists(tenantId, destPortId, "Destination port");
 
     if (dto.shipper_id)
       await this.assertPartyExists(tenantId, dto.shipper_id, "Shipper");
@@ -1387,12 +1384,22 @@ export class JobsService {
         throw new BadRequestException(`Cannot edit a ${existing.status} job.`);
       }
 
-      const { etd, eta, ...rest } = dto;
+      const {
+        etd,
+        eta,
+        create_origin_port: _co,
+        create_dest_port: _cd,
+        ...rest
+      } = dto;
 
       return tx.job.update({
         where: { id },
         data: {
           ...rest,
+          ...(originPortId !== undefined
+            ? { origin_port_id: originPortId }
+            : {}),
+          ...(destPortId !== undefined ? { dest_port_id: destPortId } : {}),
           ...(etd ? { etd: new Date(etd) } : {}),
           ...(eta ? { eta: new Date(eta) } : {}),
           updated_by: actorId,
@@ -5583,6 +5590,42 @@ export class JobsService {
     if (!exists) {
       throw new NotFoundException("Department not found.");
     }
+  }
+
+  private async resolveOriginPortId(
+    tenantId: string,
+    dto: {
+      origin_port_id?: string;
+      create_origin_port?: import("../masters/dto/port.dto").CreatePortDto;
+    },
+    actorId?: string,
+  ): Promise<string | undefined> {
+    if (dto.origin_port_id) return dto.origin_port_id;
+    if (!dto.create_origin_port) return undefined;
+    const port = await this.ports.findOrCreateInline(
+      tenantId,
+      dto.create_origin_port,
+      actorId,
+    );
+    return port.id;
+  }
+
+  private async resolveDestPortId(
+    tenantId: string,
+    dto: {
+      dest_port_id?: string;
+      create_dest_port?: import("../masters/dto/port.dto").CreatePortDto;
+    },
+    actorId?: string,
+  ): Promise<string | undefined> {
+    if (dto.dest_port_id) return dto.dest_port_id;
+    if (!dto.create_dest_port) return undefined;
+    const port = await this.ports.findOrCreateInline(
+      tenantId,
+      dto.create_dest_port,
+      actorId,
+    );
+    return port.id;
   }
 
   private async assertPortExists(

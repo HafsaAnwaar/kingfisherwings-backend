@@ -149,7 +149,11 @@ export class SaleSectionDto {
 }
 
 export class CostSectionDto {
-  @ApiPropertyOptional({ format: "uuid", description: "Vendor party" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Cost-side party (vendor, shipper, agent, or other Party). Use multiple charge lines for multiple parties.",
+  })
   @IsOptional()
   @IsUUID()
   vendor?: string;

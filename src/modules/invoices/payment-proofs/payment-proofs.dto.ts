@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
@@ -9,6 +9,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Min,
 } from "class-validator";
 import { PaymentMethod } from "@prisma/client";
 
@@ -45,14 +46,29 @@ export class ApprovePaymentProofDto extends ReviewPaymentProofDto {
 }
 
 export class StaffUploadPaymentProofDto {
-  @ApiProperty({ example: 100 })
-  @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @IsPositive()
+  @ApiProperty({
+    description:
+      "Claimed payment amount. Multipart fields arrive as strings — Transform coerces them.",
+    example: "100.00",
+  })
+  @Transform(({ value }) => {
+    if (value == null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : value;
+  })
+  @IsNumber(
+    { maxDecimalPlaces: 4 },
+    { message: "amount_claimed must be a valid number" },
+  )
+  @IsPositive({ message: "amount_claimed must be positive" })
+  @Min(0.0001, { message: "amount_claimed must be positive" })
   amount_claimed!: number;
 
-  @ApiProperty({ example: "2026-09-30" })
-  @IsDateString()
+  @ApiProperty({
+    description: "Payment date YYYY-MM-DD",
+    example: "2026-09-30",
+  })
+  @IsDateString({}, { message: "payment_date must be a valid ISO date" })
   payment_date!: string;
 
   @ApiPropertyOptional()

@@ -53,6 +53,7 @@ import {
 import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
 import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
 import { PortalService } from "../portal/portal.service";
+import { PortsService } from "../masters/ports/ports.service";
 import { EmailService } from "../../shared/email/email.service";
 import { StorageService } from "../../shared/storage/storage.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
@@ -126,6 +127,7 @@ export class QuotationsService {
     private readonly masterLabels: MasterLabelService,
     private readonly bookingFormGate: BookingFormGateService,
     private readonly shipments: ShipmentsService,
+    private readonly ports: PortsService,
     @Inject(forwardRef(() => JobCostingService))
     private readonly jobCosting: JobCostingService,
     @Inject(forwardRef(() => PortalService))
@@ -148,8 +150,10 @@ export class QuotationsService {
     await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
     await this.assertDepartmentExists(tenantId, dto.department_id);
-    await this.assertPortExists(tenantId, dto.origin_port_id, "Origin port");
-    await this.assertPortExists(tenantId, dto.dest_port_id, "Destination port");
+    const originPortId = await this.resolveOriginPortId(tenantId, dto, actorId);
+    const destPortId = await this.resolveDestPortId(tenantId, dto, actorId);
+    await this.assertPortExists(tenantId, originPortId, "Origin port");
+    await this.assertPortExists(tenantId, destPortId, "Destination port");
 
     const branchCode = await this.resolveBranchCode(tenantId, dto.branch_id);
     const quotationNumber = await this.numberGenerator.generate(
@@ -176,8 +180,8 @@ export class QuotationsService {
           branch_id: dto.branch_id,
           department_id: dto.department_id,
           carrier_id: dto.carrier_id,
-          origin_port_id: dto.origin_port_id,
-          dest_port_id: dto.dest_port_id,
+          origin_port_id: originPortId,
+          dest_port_id: destPortId,
           por_port_id: dto.por_port_id,
           pof_port_id: dto.pof_port_id,
           place_of_receipt: dto.place_of_receipt,
@@ -628,8 +632,10 @@ export class QuotationsService {
     await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
     await this.assertDepartmentExists(tenantId, dto.department_id);
-    await this.assertPortExists(tenantId, dto.origin_port_id, "Origin port");
-    await this.assertPortExists(tenantId, dto.dest_port_id, "Destination port");
+    const originPortId = await this.resolveOriginPortId(tenantId, dto, actorId);
+    const destPortId = await this.resolveDestPortId(tenantId, dto, actorId);
+    await this.assertPortExists(tenantId, originPortId, "Origin port");
+    await this.assertPortExists(tenantId, destPortId, "Destination port");
 
     if (dto.customer_id) {
       await this.assertPartyExists(tenantId, dto.customer_id, "Customer");
@@ -651,6 +657,8 @@ export class QuotationsService {
         width_m,
         height_m,
         volume_cbm: _ignoredVolume,
+        create_origin_port: _co,
+        create_dest_port: _cd,
         ...rest
       } = dto;
       const cargo = this.resolveQuotationCargo(dto);
@@ -659,6 +667,10 @@ export class QuotationsService {
         where: { id },
         data: {
           ...rest,
+          ...(originPortId !== undefined
+            ? { origin_port_id: originPortId }
+            : {}),
+          ...(destPortId !== undefined ? { dest_port_id: destPortId } : {}),
           ...(valid_from ? { valid_from: new Date(valid_from) } : {}),
           ...(valid_until ? { valid_until: new Date(valid_until) } : {}),
           ...(cargo.volume_cbm != null ? { volume_cbm: cargo.volume_cbm } : {}),
@@ -3400,6 +3412,42 @@ export class QuotationsService {
     );
 
     return branch?.code;
+  }
+
+  private async resolveOriginPortId(
+    tenantId: string,
+    dto: {
+      origin_port_id?: string;
+      create_origin_port?: import("../masters/dto/port.dto").CreatePortDto;
+    },
+    actorId?: string,
+  ): Promise<string | undefined> {
+    if (dto.origin_port_id) return dto.origin_port_id;
+    if (!dto.create_origin_port) return undefined;
+    const port = await this.ports.findOrCreateInline(
+      tenantId,
+      dto.create_origin_port,
+      actorId,
+    );
+    return port.id;
+  }
+
+  private async resolveDestPortId(
+    tenantId: string,
+    dto: {
+      dest_port_id?: string;
+      create_dest_port?: import("../masters/dto/port.dto").CreatePortDto;
+    },
+    actorId?: string,
+  ): Promise<string | undefined> {
+    if (dto.dest_port_id) return dto.dest_port_id;
+    if (!dto.create_dest_port) return undefined;
+    const port = await this.ports.findOrCreateInline(
+      tenantId,
+      dto.create_dest_port,
+      actorId,
+    );
+    return port.id;
   }
 
   private async assertPortExists(

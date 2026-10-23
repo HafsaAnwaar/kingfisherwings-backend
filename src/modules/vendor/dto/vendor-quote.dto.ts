@@ -63,6 +63,18 @@ export class SendJobToVendorDto {
   @IsUUID()
   party_id?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: "uuid",
+    description:
+      "Send the same offer to multiple vendor parties in one call. Combined with single vendor_party_id / vendor_id / party_id.",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID("4", { each: true })
+  vendor_party_ids?: string[];
+
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()

@@ -41,6 +41,8 @@ import { VendorConverterController } from "./vendor-converter.controller";
 import { VendorJobsController } from "./vendor-jobs.controller";
 import { ToolsModule } from "../tools/tools.module";
 import { JobsModule } from "../jobs/jobs.module";
+import { PartiesModule } from "../parties/parties.module";
+import { VendorVerificationController } from "./vendor-verification.controller";
 
 @Module({
   imports: [
@@ -54,10 +56,12 @@ import { JobsModule } from "../jobs/jobs.module";
     PaymentsModule,
     GlModule,
     NotificationsModule,
+    PartiesModule,
     JwtModule.register({}),
     forwardRef(() => JobsModule),
   ],
   controllers: [
+    VendorVerificationController,
     VendorPayoutsPortalController,
     VendorAuthController,
     PartyVendorUsersController,

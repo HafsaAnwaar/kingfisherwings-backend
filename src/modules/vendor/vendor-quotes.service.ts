@@ -89,7 +89,69 @@ export class VendorQuotesService {
     return id;
   }
 
+  /** Deduped list: vendor_party_ids ∪ single id aliases. */
+  resolveVendorPartyIds(dto: SendJobToVendorDto): string[] {
+    const ids = [
+      ...(dto.vendor_party_ids ?? []),
+      dto.vendor_party_id,
+      dto.vendor_id,
+      dto.party_id,
+    ].filter((id): id is string => !!id);
+    const unique = [...new Set(ids)];
+    if (!unique.length) {
+      throw new BadRequestException(
+        "Provide vendor_party_id (or vendor_id / party_id) and/or vendor_party_ids.",
+      );
+    }
+    return unique;
+  }
+
   async sendJobToVendor(
+    tenantId: string,
+    jobId: string,
+    dto: SendJobToVendorDto,
+    actorId?: string,
+  ) {
+    const vendorPartyIds = this.resolveVendorPartyIds(dto);
+    if (vendorPartyIds.length === 1) {
+      return this.sendJobToOneVendor(
+        tenantId,
+        jobId,
+        { ...dto, vendor_party_id: vendorPartyIds[0] },
+        actorId,
+      );
+    }
+
+    const results: unknown[] = [];
+    const failed: Array<{ vendor_party_id: string; error: string }> = [];
+    for (const vendorPartyId of vendorPartyIds) {
+      try {
+        const one = await this.sendJobToOneVendor(
+          tenantId,
+          jobId,
+          { ...dto, vendor_party_id: vendorPartyId, vendor_party_ids: undefined },
+          actorId,
+        );
+        results.push(one.data);
+      } catch (err) {
+        failed.push({
+          vendor_party_id: vendorPartyId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return {
+      success: failed.length === 0,
+      data: { results, failed },
+      message:
+        failed.length === 0
+          ? `Sent to ${results.length} vendor(s).`
+          : `Sent to ${results.length} vendor(s); ${failed.length} failed.`,
+    };
+  }
+
+  private async sendJobToOneVendor(
     tenantId: string,
     jobId: string,
     dto: SendJobToVendorDto,

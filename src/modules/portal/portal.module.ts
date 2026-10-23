@@ -66,6 +66,8 @@ import { NvoccModule } from "../nvocc/nvocc.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { ShipmentsModule } from "../shipments/shipments.module";
 import { TrackModule } from "../track/track.module";
+import { PartiesModule } from "../parties/parties.module";
+import { PortalVerificationController } from "./portal-verification.controller";
 
 @Module({
   imports: [
@@ -84,9 +86,11 @@ import { TrackModule } from "../track/track.module";
     JobsModule,
     ShipmentsModule,
     TrackModule,
+    PartiesModule,
     JwtModule.register({}),
   ],
   controllers: [
+    PortalVerificationController,
     PortalOnlinePaymentsController,
     PortalLookupsController,
     PortalAuthController,
