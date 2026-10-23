@@ -5,7 +5,6 @@ import {
   IsEnum,
   IsNumber,
   IsOptional,
-  IsPositive,
   IsString,
   IsUUID,
   MaxLength,
@@ -48,7 +47,7 @@ export class ApprovePaymentProofDto extends ReviewPaymentProofDto {
 export class StaffUploadPaymentProofDto {
   @ApiProperty({
     description:
-      "Claimed payment amount. Multipart fields arrive as strings — Transform coerces them.",
+      "Claimed payment amount. Multipart fields arrive as strings — Transform coerces them (same as portal).",
     example: "100.00",
   })
   @Transform(({ value }) => {
@@ -60,7 +59,6 @@ export class StaffUploadPaymentProofDto {
     { maxDecimalPlaces: 4 },
     { message: "amount_claimed must be a valid number" },
   )
-  @IsPositive({ message: "amount_claimed must be positive" })
   @Min(0.0001, { message: "amount_claimed must be positive" })
   amount_claimed!: number;
 
@@ -68,17 +66,22 @@ export class StaffUploadPaymentProofDto {
     description: "Payment date YYYY-MM-DD",
     example: "2026-09-30",
   })
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.trim() : value,
+  )
   @IsDateString({}, { message: "payment_date must be a valid ISO date" })
   payment_date!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsString()
   @MaxLength(100)
   reference_number?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsString()
   @MaxLength(2000)
   notes?: string;
