@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
@@ -11,8 +12,11 @@ import {
   IsUUID,
   Length,
   Min,
+  ValidateIf,
+  ValidateNested,
 } from "class-validator";
 import { JobType, ServiceScope, CargoCategory } from "@prisma/client";
+import { CreatePortDto } from "../../masters/dto/port.dto";
 
 export class CreateJobDto {
   @ApiProperty({ enum: JobType })
@@ -74,15 +78,43 @@ export class CreateJobDto {
   @IsUUID()
   ops_user_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Existing origin port id (or use create_origin_port).",
+  })
+  @ValidateIf((o: CreateJobDto) => !o.create_origin_port)
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    type: () => CreatePortDto,
+    description: "Inline-create origin port when missing from masters.",
+  })
+  @ValidateIf((o: CreateJobDto) => !o.origin_port_id)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreatePortDto)
+  create_origin_port?: CreatePortDto;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Existing dest port id (or use create_dest_port).",
+  })
+  @ValidateIf((o: CreateJobDto) => !o.create_dest_port)
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
+
+  @ApiPropertyOptional({
+    type: () => CreatePortDto,
+    description: "Inline-create destination port when missing from masters.",
+  })
+  @ValidateIf((o: CreateJobDto) => !o.dest_port_id)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreatePortDto)
+  create_dest_port?: CreatePortDto;
 
   @ApiPropertyOptional()
   @IsOptional()

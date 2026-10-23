@@ -13,15 +13,18 @@ import { Public } from "../../common/decorators/public.decorators";
 import { CurrentVendor } from "./decorators/vendor.decorators";
 import {
   AcceptVendorInviteDto,
+  ChangeVendorPasswordDto,
   VendorLoginDto,
   VendorRefreshDto,
 } from "./dto/vendor-auth.dto";
+import { VendorOnboarding } from "./decorators/vendor-onboarding.decorator";
 import { VendorAuthGuard } from "./guards/vendor-auth.guard";
 import { CurrentVendorUser } from "./interfaces/vendor-auth.interfaces";
 import { VendorService } from "./vendor.service";
 
 @ApiTags("Vendor Auth")
 @Controller("vendor/auth")
+@VendorOnboarding("auth")
 export class VendorAuthController {
   constructor(private readonly vendor: VendorService) {}
 
@@ -62,6 +65,24 @@ export class VendorAuthController {
   @ApiOperation({ summary: "Revoke the current vendor session" })
   logout(@CurrentVendor() user: CurrentVendorUser) {
     return this.vendor.logout(user);
+  }
+
+  @Public()
+  @UseGuards(VendorAuthGuard)
+  @Post("change-password")
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary: "Change vendor password",
+    description:
+      "Required when must_change_password is true (temporary password).",
+  })
+  changePassword(
+    @CurrentVendor() user: CurrentVendorUser,
+    @Body() dto: ChangeVendorPasswordDto,
+  ) {
+    return this.vendor.changePassword(user, dto);
   }
 
   @Public()

@@ -119,3 +119,15 @@ export class VendorUserQueryDto {
   @IsUUID()
   party_id?: string;
 }
+
+export class ChangeVendorPasswordDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  current_password!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(8)
+  new_password!: string;
+}

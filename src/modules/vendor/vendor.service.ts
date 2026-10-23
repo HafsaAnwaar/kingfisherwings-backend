@@ -19,8 +19,10 @@ import {
   buildPasswordResetEmail,
 } from "../../shared/email/branded-email.template";
 import { VENDOR_ELIGIBLE_PARTY_TYPES } from "./constants/vendor-permission.constants";
+import { PartyVerificationService } from "../parties/party-verification.service";
 import {
   AcceptVendorInviteDto,
+  ChangeVendorPasswordDto,
   CreateVendorUserDto,
   ResetVendorPasswordDto,
   UpdateVendorUserStatusDto,
@@ -42,6 +44,7 @@ export class VendorService {
     private readonly config: ConfigService,
     private readonly email: EmailService,
     private readonly vendorPermissions: VendorPermissionsService,
+    private readonly partyVerification: PartyVerificationService,
   ) {}
 
   async login(dto: VendorLoginDto, meta?: { ip?: string; userAgent?: string }) {
@@ -97,6 +100,12 @@ export class VendorService {
       data: { last_login_at: new Date() },
     });
 
+    await this.partyVerification.ensureForParty(tenant.id, user.party_id);
+    const verification = await this.partyVerification.snapshotForParty(
+      tenant.id,
+      user.party_id,
+    );
+
     return {
       success: true,
       data: {
@@ -109,6 +118,9 @@ export class VendorService {
           party_name: user.party.name,
           tenant_id: tenant.id,
           tenant_slug: tenant.slug,
+          must_change_password: user.must_change_password,
+          verification_status: verification.verification_status,
+          verification_blocking: verification.verification_blocking,
         },
       },
     };
@@ -242,7 +254,58 @@ export class VendorService {
       },
     });
     if (!user) throw new NotFoundException("Vendor user not found.");
-    return { success: true, data: user };
+    const verification = await this.partyVerification.snapshotForParty(
+      user.tenant_id,
+      user.party_id,
+    );
+    return {
+      success: true,
+      data: {
+        ...user,
+        must_change_password: user.must_change_password,
+        verification_status: verification.verification_status,
+        verification_blocking: verification.verification_blocking,
+      },
+    };
+  }
+
+  async changePassword(
+    vendorUser: CurrentVendorUser,
+    dto: ChangeVendorPasswordDto,
+  ) {
+    PasswordHelper.assertStrength(dto.new_password);
+    const user = await this.prisma.vendorUser.findFirst({
+      where: { id: vendorUser.id, deleted_at: null },
+    });
+    if (!user || user.status !== VendorUserStatus.ACTIVE) {
+      throw new UnauthorizedException("Vendor account is not active.");
+    }
+    const currentValid = await PasswordUtil.verify(
+      user.password_hash,
+      dto.current_password,
+    );
+    if (!currentValid) {
+      throw new UnauthorizedException("Current password is incorrect.");
+    }
+    if (dto.current_password === dto.new_password) {
+      throw new BadRequestException(
+        "New password must be different from the current password.",
+      );
+    }
+    const passwordHash = await PasswordUtil.hash(dto.new_password);
+    await this.prisma.vendorUser.update({
+      where: { id: user.id },
+      data: {
+        password_hash: passwordHash,
+        must_change_password: false,
+        updated_by: user.id,
+      },
+    });
+    return {
+      success: true,
+      message: "Password updated. Complete business verification to continue.",
+      data: { must_change_password: false },
+    };
   }
 
   async createVendorUser(
@@ -306,6 +369,7 @@ export class VendorService {
           status: inviteMode
             ? VendorUserStatus.INVITED
             : VendorUserStatus.ACTIVE,
+          must_change_password: !inviteMode && generated,
           invite_token: inviteToken,
           invite_expires_at: inviteExpiresAt,
           invited_at: inviteMode ? new Date() : null,
@@ -314,6 +378,8 @@ export class VendorService {
         },
       });
     });
+
+    await this.partyVerification.ensureForParty(tenantId, party.id);
 
     await this.vendorPermissions.seedDefaultsIfEmpty(
       tenantId,
@@ -397,6 +463,7 @@ export class VendorService {
         data: {
           password_hash: passwordHash,
           status: VendorUserStatus.ACTIVE,
+          must_change_password: false,
           invite_token: null,
           invite_expires_at: null,
           activated_at: new Date(),
@@ -404,6 +471,7 @@ export class VendorService {
         },
       }),
     );
+    await this.partyVerification.ensureForParty(user.tenant_id, user.party_id);
 
     return {
       success: true,
@@ -534,6 +602,7 @@ export class VendorService {
       where: { id: user.id },
       data: {
         password_hash: passwordHash,
+        must_change_password: generated,
         updated_by: actorId,
         status: VendorUserStatus.ACTIVE,
       },
@@ -546,6 +615,7 @@ export class VendorService {
         revoked_reason: "PASSWORD_RESET",
       },
     });
+    await this.partyVerification.ensureForParty(tenantId, user.party_id);
 
     const party = await this.prisma.party.findFirst({
       where: { id: user.party_id },

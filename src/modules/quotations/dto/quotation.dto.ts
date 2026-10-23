@@ -14,10 +14,12 @@ import {
   Min,
   ArrayMinSize,
   IsArray,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 import { JobType, QuotationSource } from "@prisma/client";
 import { CargoPackageDto } from "../../../common/dto/cargo-package.dto";
+import { CreatePortDto } from "../../masters/dto/port.dto";
 
 const INCOTERMS = [
   "EXW",
@@ -71,15 +73,43 @@ export class CreateQuotationDto {
   @IsUUID()
   carrier_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Existing origin port id (or use create_origin_port).",
+  })
+  @ValidateIf((o: CreateQuotationDto) => !o.create_origin_port)
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    type: () => CreatePortDto,
+    description: "Inline-create origin port when missing from masters.",
+  })
+  @ValidateIf((o: CreateQuotationDto) => !o.origin_port_id)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreatePortDto)
+  create_origin_port?: CreatePortDto;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Existing dest port id (or use create_dest_port).",
+  })
+  @ValidateIf((o: CreateQuotationDto) => !o.create_dest_port)
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
+
+  @ApiPropertyOptional({
+    type: () => CreatePortDto,
+    description: "Inline-create destination port when missing from masters.",
+  })
+  @ValidateIf((o: CreateQuotationDto) => !o.dest_port_id)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreatePortDto)
+  create_dest_port?: CreatePortDto;
 
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()

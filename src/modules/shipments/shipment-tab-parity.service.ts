@@ -465,6 +465,11 @@ export class ShipmentTabParityService {
           : null,
       gp: c.gp_amount,
     }));
+    const parties_included = await this.buildShipmentPartiesIncluded(
+      tenantId,
+      charges,
+    );
+
     return {
       success: true,
       data: {
@@ -473,6 +478,7 @@ export class ShipmentTabParityService {
         gp_amount: s.gp_amount,
         gp_percent: s.gp_percent,
         lines,
+        parties_included,
         vouchers: [],
         actions: {
           profit_share: false,
@@ -498,6 +504,91 @@ export class ShipmentTabParityService {
         source: "shipment",
       },
     };
+  }
+
+  private async buildShipmentPartiesIncluded(
+    tenantId: string,
+    charges: Array<{
+      sale_party_id?: string | null;
+      cost_party_id?: string | null;
+      party_id?: string | null;
+      sale_amount?: unknown;
+      cost_amount?: unknown;
+      amount?: unknown;
+      is_cost?: boolean | null;
+      sale_currency?: string | null;
+      cost_currency?: string | null;
+      currency_code?: string | null;
+    }>,
+  ) {
+    type Acc = {
+      party_id: string;
+      role: "BILL_TO" | "COST";
+      sale_total: number;
+      cost_total: number;
+      currencies: Set<string>;
+      line_count: number;
+    };
+    const map = new Map<string, Acc>();
+    const bump = (
+      partyId: string | null | undefined,
+      role: "BILL_TO" | "COST",
+      amount: number,
+      currency: string | null | undefined,
+    ) => {
+      if (!partyId) return;
+      const key = `${partyId}:${role}`;
+      const cur = map.get(key) ?? {
+        party_id: partyId,
+        role,
+        sale_total: 0,
+        cost_total: 0,
+        currencies: new Set<string>(),
+        line_count: 0,
+      };
+      if (role === "BILL_TO") cur.sale_total += amount;
+      else cur.cost_total += amount;
+      if (currency) cur.currencies.add(currency);
+      cur.line_count += 1;
+      map.set(key, cur);
+    };
+    for (const c of charges) {
+      bump(
+        c.sale_party_id ?? (!c.is_cost ? c.party_id : null),
+        "BILL_TO",
+        Number(c.sale_amount ?? (!c.is_cost ? c.amount : 0) ?? 0),
+        c.sale_currency ?? c.currency_code,
+      );
+      bump(
+        c.cost_party_id ?? (c.is_cost ? c.party_id : null),
+        "COST",
+        Number(c.cost_amount ?? (c.is_cost ? c.amount : 0) ?? 0),
+        c.cost_currency ?? c.currency_code,
+      );
+    }
+    const partyIds = [...new Set([...map.values()].map((v) => v.party_id))];
+    if (!partyIds.length) return [];
+    const parties = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.party.findMany({
+        where: { tenant_id: tenantId, id: { in: partyIds }, deleted_at: null },
+        select: { id: true, name: true, code: true, party_type: true },
+      }),
+    );
+    const byId = new Map(parties.map((p) => [p.id, p]));
+    return [...map.values()].map((row) => {
+      const p = byId.get(row.party_id);
+      return {
+        party_id: row.party_id,
+        party_name: p?.name ?? null,
+        party_code: p?.code ?? null,
+        party_type: p?.party_type ?? null,
+        role: row.role,
+        sale_total: row.sale_total,
+        cost_total: row.cost_total,
+        currencies: [...row.currencies],
+        line_count: row.line_count,
+      };
+    });
   }
 
   async addComposite(

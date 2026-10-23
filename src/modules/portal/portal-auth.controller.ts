@@ -17,12 +17,14 @@ import {
   PortalLoginDto,
   PortalRefreshDto,
 } from "./dto/portal.dto";
+import { PortalOnboarding } from "./decorators/portal-onboarding.decorator";
 import { PortalAuthGuard } from "./guards/portal-auth.guard";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalService } from "./portal.service";
 
 @ApiTags("Portal Auth")
 @Controller("portal/auth")
+@PortalOnboarding("auth")
 export class PortalAuthController {
   constructor(private readonly portal: PortalService) {}
 
