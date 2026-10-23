@@ -4,6 +4,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -12,6 +14,8 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  UsePipes,
+  ValidationPipe,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -144,6 +148,7 @@ export class InvoicePaymentProofsController {
   }
 
   @Post(":id/payment-proofs")
+  @HttpCode(HttpStatus.CREATED)
   @RequirePermissions(INVOICES_PERMISSIONS.UPDATE)
   @ApiConsumes("multipart/form-data")
   @ApiBody({
@@ -160,6 +165,14 @@ export class InvoicePaymentProofsController {
     },
   })
   @UseInterceptors(paymentProofUploadInterceptor())
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      transformOptions: { enableImplicitConversion: false },
+    }),
+  )
   @ApiOperation({
     summary:
       "Upload a payment proof on behalf of the customer / for a vendor payment",
@@ -172,9 +185,13 @@ export class InvoicePaymentProofsController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file?.buffer?.length) {
-      throw new BadRequestException(
-        "Payment proof file is required (multipart field name: file).",
-      );
+      throw new BadRequestException({
+        statusCode: 400,
+        message: [
+          "Payment proof file is required (multipart field name: file).",
+        ],
+        error: "Bad Request",
+      });
     }
     return this.proofs.createByStaff(tenantId, invoiceId, dto, file, actorId);
   }
@@ -204,6 +221,7 @@ export class PurchaseInvoicePaymentProofsController {
   }
 
   @Post(":id/payment-proofs")
+  @HttpCode(HttpStatus.CREATED)
   @RequirePermissions(INVOICES_PERMISSIONS.UPDATE)
   @ApiConsumes("multipart/form-data")
   @ApiBody({
@@ -220,6 +238,14 @@ export class PurchaseInvoicePaymentProofsController {
     },
   })
   @UseInterceptors(paymentProofUploadInterceptor())
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      transformOptions: { enableImplicitConversion: false },
+    }),
+  )
   @ApiOperation({
     summary:
       "Upload remittance proof for a vendor purchase invoice (same flow as customer invoices)",
@@ -232,9 +258,13 @@ export class PurchaseInvoicePaymentProofsController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file?.buffer?.length) {
-      throw new BadRequestException(
-        "Payment proof file is required (multipart field name: file).",
-      );
+      throw new BadRequestException({
+        statusCode: 400,
+        message: [
+          "Payment proof file is required (multipart field name: file).",
+        ],
+        error: "Bad Request",
+      });
     }
     return this.proofs.createByStaff(tenantId, invoiceId, dto, file, actorId);
   }

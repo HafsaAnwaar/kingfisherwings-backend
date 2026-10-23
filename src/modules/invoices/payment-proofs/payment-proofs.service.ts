@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpException,
   Inject,
   Injectable,
   Logger,
@@ -73,7 +74,11 @@ export class PaymentProofsService {
   async create(input: CreatePaymentProofInput) {
     const amount = Number(input.amountClaimed);
     if (!Number.isFinite(amount) || amount <= 0) {
-      throw new BadRequestException("amount_claimed must be a positive number.");
+      throw new BadRequestException({
+        statusCode: 400,
+        message: ["amount_claimed must be a positive number."],
+        error: "Bad Request",
+      });
     }
 
     const paymentDate = this.parsePaymentDate(input.paymentDate);
@@ -124,12 +129,15 @@ export class PaymentProofsService {
         );
         fileMeta = {
           file_name: originalName.slice(0, 255),
-          file_url: saved.fileUrl,
-          s3_key: saved.s3Key,
-          mime_type: saved.mimeType,
+          // Schema columns are VarChar(500) — truncate so long S3/presigned URLs
+          // do not fail the insert (previously surfaced as a misleading amount/date error).
+          file_url: saved.fileUrl?.slice(0, 500),
+          s3_key: saved.s3Key?.slice(0, 500),
+          mime_type: saved.mimeType?.slice(0, 100),
           file_size: saved.fileSize,
         };
       } catch (err) {
+        if (err instanceof HttpException) throw err;
         this.logger.error(
           `Payment proof storage failed: ${err instanceof Error ? err.message : String(err)}`,
         );
@@ -155,7 +163,7 @@ export class PaymentProofsService {
             submitted_by_staff_id: input.submittedByStaffId,
             amount_claimed: amount,
             payment_date: paymentDate,
-            reference_number: input.referenceNumber,
+            reference_number: input.referenceNumber?.slice(0, 100),
             notes: input.notes,
             linked_payment_id: input.linkedPaymentId,
             status,
@@ -167,12 +175,20 @@ export class PaymentProofsService {
         }),
       );
     } catch (err) {
-      this.logger.error(
-        `Payment proof DB create failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      throw new BadRequestException(
-        "Could not save payment proof. Verify amount_claimed and payment_date.",
-      );
+      if (err instanceof HttpException) throw err;
+      const detail =
+        err instanceof Prisma.PrismaClientKnownRequestError
+          ? `Prisma ${err.code}: ${err.message}`
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      this.logger.error(`Payment proof DB create failed: ${detail}`);
+      // Never collapse to a generic amount/date string — FE needs the real cause.
+      throw new BadRequestException({
+        statusCode: 400,
+        message: [`Could not save payment proof: ${detail}`],
+        error: "Bad Request",
+      });
     }
 
     if (status === "SUBMITTED") {
@@ -520,13 +536,40 @@ export class PaymentProofsService {
 
   private parsePaymentDate(raw: string): Date {
     if (!raw || typeof raw !== "string") {
-      throw new BadRequestException("payment_date is required (YYYY-MM-DD).");
+      throw new BadRequestException({
+        statusCode: 400,
+        message: ["payment_date is required (YYYY-MM-DD)."],
+        error: "Bad Request",
+      });
     }
-    const d = new Date(raw);
+    const trimmed = raw.trim();
+    // Prefer calendar-date parsing so YYYY-MM-DD is stable as @db.Date.
+    const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+    if (ymd) {
+      const y = Number(ymd[1]);
+      const m = Number(ymd[2]);
+      const day = Number(ymd[3]);
+      const d = new Date(Date.UTC(y, m - 1, day));
+      if (
+        d.getUTCFullYear() !== y ||
+        d.getUTCMonth() !== m - 1 ||
+        d.getUTCDate() !== day
+      ) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: ["payment_date must be a valid date (YYYY-MM-DD)."],
+          error: "Bad Request",
+        });
+      }
+      return d;
+    }
+    const d = new Date(trimmed);
     if (Number.isNaN(d.getTime())) {
-      throw new BadRequestException(
-        "payment_date must be a valid date (YYYY-MM-DD).",
-      );
+      throw new BadRequestException({
+        statusCode: 400,
+        message: ["payment_date must be a valid date (YYYY-MM-DD)."],
+        error: "Bad Request",
+      });
     }
     return d;
   }
