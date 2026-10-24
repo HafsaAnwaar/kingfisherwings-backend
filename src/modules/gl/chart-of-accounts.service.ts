@@ -348,19 +348,25 @@ export class ChartOfAccountsService {
     );
   }
 
+  /**
+   * Seed starter freight COA. If the tenant already has some accounts,
+   * only missing default codes are inserted (so TRADE_PAYABLE / AR / etc.
+   * can be healed without wiping a custom chart).
+   */
   async seedDefaults(tenantId: string, actorId?: string) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const existing = await tx.chartOfAccount.count({
-        where: { tenant_id: tenantId, deleted_at: null },
-      });
-      if (existing > 0) {
-        throw new BadRequestException(
-          "Chart of accounts already has accounts. Seed skipped.",
-        );
-      }
+      const existingCodes = new Set(
+        (
+          await tx.chartOfAccount.findMany({
+            where: { tenant_id: tenantId, deleted_at: null },
+            select: { account_code: true },
+          })
+        ).map((r) => r.account_code),
+      );
 
       const created = [];
       for (const seed of DEFAULT_COA) {
+        if (existingCodes.has(seed.account_code)) continue;
         const row = await tx.chartOfAccount.create({
           data: {
             tenant_id: tenantId,
@@ -379,9 +385,136 @@ export class ChartOfAccountsService {
           },
         });
         created.push(row);
+        existingCodes.add(seed.account_code);
       }
-      return { success: true, count: created.length, accounts: created };
+      return {
+        success: true,
+        count: created.length,
+        accounts: created,
+        message:
+          created.length === 0
+            ? "All default COA accounts already present."
+            : `Created ${created.length} missing default account(s).`,
+      };
     });
+  }
+
+  /**
+   * Ensure a postable control account exists for payment / invoice GL posting.
+   * Looks up by account_sub_type, then by well-known seed code, then creates
+   * the matching DEFAULT_COA row (e.g. 2100 Trade Payables).
+   *
+   * Pass `tx` when already inside runWithTenant to avoid nested transactions.
+   */
+  async ensureAccount(
+    tenantId: string,
+    subType: AccountSubType,
+    fallbackCode: string,
+    actorId?: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    if (tx) {
+      return this.ensureAccountInTx(tx, tenantId, subType, fallbackCode, actorId);
+    }
+    return this.prisma.runWithTenant(tenantId, (inner) =>
+      this.ensureAccountInTx(inner, tenantId, subType, fallbackCode, actorId),
+    );
+  }
+
+  async ensureAccountInTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    subType: AccountSubType,
+    fallbackCode: string,
+    actorId?: string,
+  ) {
+    const byType = await tx.chartOfAccount.findFirst({
+      where: {
+        tenant_id: tenantId,
+        deleted_at: null,
+        is_active: true,
+        is_postable: true,
+        account_sub_type: subType,
+      },
+      orderBy: { account_code: "asc" },
+    });
+    if (byType) return byType;
+
+    const byCode = await tx.chartOfAccount.findFirst({
+      where: {
+        tenant_id: tenantId,
+        deleted_at: null,
+        is_active: true,
+        account_code: fallbackCode,
+      },
+    });
+    if (byCode) {
+      if (
+        byCode.account_sub_type !== subType ||
+        byCode.is_postable === false
+      ) {
+        return tx.chartOfAccount.update({
+          where: { id: byCode.id },
+          data: {
+            account_sub_type: subType,
+            is_postable: true,
+            is_header: false,
+            updated_by: actorId,
+          },
+        });
+      }
+      return byCode;
+    }
+
+    const seed =
+      DEFAULT_COA.find((s) => s.account_code === fallbackCode) ??
+      DEFAULT_COA.find(
+        (s) => s.account_sub_type === subType && !(s.is_header ?? false),
+      );
+    if (!seed) {
+      throw new BadRequestException(
+        `Missing GL account for ${subType}. No default seed for code ${fallbackCode}.`,
+      );
+    }
+
+    try {
+      return await tx.chartOfAccount.create({
+        data: {
+          tenant_id: tenantId,
+          account_code: seed.account_code,
+          account_name: seed.account_name,
+          account_group: seed.account_group,
+          account_type: seed.account_type,
+          account_sub_type: seed.account_sub_type,
+          is_header: seed.is_header ?? false,
+          is_postable: seed.is_postable ?? !(seed.is_header ?? false),
+          is_bank_account: seed.is_bank_account ?? false,
+          is_cash_account: seed.is_cash_account ?? false,
+          sort_order: seed.sort_order,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002"
+      ) {
+        const again = await tx.chartOfAccount.findFirst({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            OR: [
+              { account_sub_type: subType, is_postable: true },
+              { account_code: fallbackCode },
+            ],
+          },
+          orderBy: { account_code: "asc" },
+        });
+        if (again) return again;
+      }
+      throw err;
+    }
   }
 
   async getLedger(tenantId: string, accountId: string, query: LedgerQueryDto) {
