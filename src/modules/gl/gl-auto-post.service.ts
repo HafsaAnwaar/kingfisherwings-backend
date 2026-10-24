@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { ChartOfAccountsService } from "./chart-of-accounts.service";
 
 type InvoiceWithLines = Invoice & { lines: InvoiceLine[] };
 
@@ -41,6 +42,7 @@ export class GlAutoPostService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
+    private readonly chartOfAccounts: ChartOfAccountsService,
   ) {}
 
   /**
@@ -371,13 +373,14 @@ export class GlAutoPostService {
     subType: AccountSubType,
     fallbackCode: string,
   ) {
-    const account = await this.findAccount(tx, tenantId, subType, fallbackCode);
-    if (!account) {
-      throw new BadRequestException(
-        `Missing GL account for ${subType} (seed COA via POST /gl/accounts/seed-defaults).`,
-      );
-    }
-    return account;
+    // Auto-heal missing control accounts (e.g. TRADE_PAYABLE 2100) so AP/AR
+    // payment posting works without a separate FE seed step.
+    return this.chartOfAccounts.ensureAccountInTx(
+      tx,
+      tenantId,
+      subType,
+      fallbackCode,
+    );
   }
 
   private async findAccount(

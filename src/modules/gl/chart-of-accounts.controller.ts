@@ -65,7 +65,10 @@ export class ChartOfAccountsController {
 
   @Post("seed-defaults")
   @RequirePermissions(GL_PERMISSIONS.MANAGE_COA)
-  @ApiOperation({ summary: "Seed a starter freight COA (only when empty)" })
+  @ApiOperation({
+    summary:
+      "Seed starter freight COA (creates any missing defaults, including Trade Payables 2100)",
+  })
   seedDefaults(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
