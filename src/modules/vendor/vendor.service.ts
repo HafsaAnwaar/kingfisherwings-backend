@@ -26,6 +26,7 @@ import {
   CreateVendorUserDto,
   ResetVendorPasswordDto,
   UpdateVendorUserStatusDto,
+  VendorForgotPasswordDto,
   VendorLoginDto,
   VendorRefreshDto,
   VendorUserQueryDto,
@@ -305,6 +306,65 @@ export class VendorService {
       success: true,
       message: "Password updated. Complete business verification to continue.",
       data: { must_change_password: false },
+    };
+  }
+
+  /**
+   * Public forgot-password: email a temporary password (must_change_password).
+   * Always returns generic success to avoid email enumeration.
+   */
+  async forgotPassword(dto: VendorForgotPasswordDto) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        slug: dto.tenant_slug.trim().toLowerCase(),
+        deleted_at: null,
+        is_active: true,
+      },
+      select: { id: true },
+    });
+    if (tenant) {
+      const email = dto.email.trim().toLowerCase();
+      const user = await this.prisma.vendorUser.findFirst({
+        where: {
+          tenant_id: tenant.id,
+          email,
+          deleted_at: null,
+          status: VendorUserStatus.ACTIVE,
+        },
+        include: { party: { select: { name: true } } },
+      });
+      if (user) {
+        const plainPassword = PasswordUtil.generateTemporaryPassword();
+        const passwordHash = await PasswordUtil.hash(plainPassword);
+        await this.prisma.vendorUser.update({
+          where: { id: user.id },
+          data: {
+            password_hash: passwordHash,
+            must_change_password: true,
+            updated_by: user.id,
+          },
+        });
+        await this.prisma.vendorSession.updateMany({
+          where: { vendor_user_id: user.id, is_active: true },
+          data: {
+            is_active: false,
+            revoked_at: new Date(),
+            revoked_reason: "PASSWORD_RESET",
+          },
+        });
+        await this.sendCredentialsEmail(tenant.id, {
+          to: user.email,
+          fullName: user.full_name,
+          password: plainPassword,
+          partyName: user.party?.name ?? "Vendor",
+          isPasswordReset: true,
+        });
+      }
+    }
+    return {
+      success: true,
+      message:
+        "If an account exists for that email, a temporary password has been sent.",
     };
   }
 

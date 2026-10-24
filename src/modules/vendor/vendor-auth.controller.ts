@@ -10,10 +10,12 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { Public } from "../../common/decorators/public.decorators";
+import { AUTH_THROTTLE } from "../../common/constants/auth-throttle.constants";
 import { CurrentVendor } from "./decorators/vendor.decorators";
 import {
   AcceptVendorInviteDto,
   ChangeVendorPasswordDto,
+  VendorForgotPasswordDto,
   VendorLoginDto,
   VendorRefreshDto,
 } from "./dto/vendor-auth.dto";
@@ -30,8 +32,11 @@ export class VendorAuthController {
 
   @Public()
   @Post("login")
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @ApiOperation({ summary: "Vendor payment portal login" })
+  @Throttle(AUTH_THROTTLE)
+  @ApiOperation({
+    summary: "Vendor payment portal login",
+    description: "Rate limited: 3 attempts/min per user (tenant + email).",
+  })
   login(
     @Body() dto: VendorLoginDto,
     @Headers("x-forwarded-for") forwardedFor?: string,
@@ -42,9 +47,25 @@ export class VendorAuthController {
   }
 
   @Public()
+  @Post("forgot-password")
+  @Throttle(AUTH_THROTTLE)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Request a temporary vendor password by email",
+    description:
+      "Rate limited: 3 attempts/min per user. Always returns success (no email enumeration).",
+  })
+  forgotPassword(@Body() dto: VendorForgotPasswordDto) {
+    return this.vendor.forgotPassword(dto);
+  }
+
+  @Public()
   @Post("accept-invite")
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @ApiOperation({ summary: "Accept vendor invite and set password" })
+  @Throttle(AUTH_THROTTLE)
+  @ApiOperation({
+    summary: "Accept vendor invite and set password",
+    description: "Rate limited: 3 attempts/min per invite token.",
+  })
   acceptInvite(@Body() dto: AcceptVendorInviteDto) {
     return this.vendor.acceptInvite(dto);
   }
@@ -72,11 +93,11 @@ export class VendorAuthController {
   @Post("change-password")
   @HttpCode(200)
   @ApiBearerAuth()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   @ApiOperation({
     summary: "Change vendor password",
     description:
-      "Required when must_change_password is true (temporary password).",
+      "Rate limited: 3 attempts/min. Required when must_change_password is true.",
   })
   changePassword(
     @CurrentVendor() user: CurrentVendorUser,

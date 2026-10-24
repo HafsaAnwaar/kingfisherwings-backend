@@ -10,10 +10,12 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { Public } from "../../common/decorators/public.decorators";
+import { AUTH_THROTTLE } from "../../common/constants/auth-throttle.constants";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import {
   AcceptPortalInviteDto,
   ChangePortalPasswordDto,
+  PortalForgotPasswordDto,
   PortalLoginDto,
   PortalRefreshDto,
 } from "./dto/portal.dto";
@@ -30,11 +32,11 @@ export class PortalAuthController {
 
   @Public()
   @Post("login")
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   @ApiOperation({
     summary: "Customer portal login",
     description:
-      "Public API for tenant websites. Requires tenant_slug + email + password. After online-quote, credentials may be returned once; check must_change_password and call POST /portal/auth/change-password.",
+      "Rate limited: 3 attempts/min per user. Requires tenant_slug + email + password.",
   })
   login(
     @Body() dto: PortalLoginDto,
@@ -46,12 +48,24 @@ export class PortalAuthController {
   }
 
   @Public()
+  @Post("forgot-password")
+  @Throttle(AUTH_THROTTLE)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Request a temporary portal password by email",
+    description:
+      "Rate limited: 3 attempts/min per user. Always returns success (no email enumeration).",
+  })
+  forgotPassword(@Body() dto: PortalForgotPasswordDto) {
+    return this.portal.forgotPassword(dto);
+  }
+
+  @Public()
   @Post("accept-invite")
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   @ApiOperation({
     summary: "Accept portal invite and set password",
-    description:
-      "Activates an INVITED portal user using the email invite token.",
+    description: "Rate limited: 3 attempts/min per invite token.",
   })
   acceptInvite(@Body() dto: AcceptPortalInviteDto) {
     return this.portal.acceptInvite(dto);
@@ -80,11 +94,11 @@ export class PortalAuthController {
   @Post("change-password")
   @HttpCode(200)
   @ApiBearerAuth()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   @ApiOperation({
     summary: "Change portal password",
     description:
-      "Required when must_change_password is true (e.g. after online-quote temporary password).",
+      "Rate limited: 3 attempts/min. Required when must_change_password is true.",
   })
   changePassword(
     @CurrentPortal() user: CurrentPortalUser,

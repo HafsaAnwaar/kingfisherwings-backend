@@ -131,3 +131,14 @@ export class ChangeVendorPasswordDto {
   @MinLength(8)
   new_password!: string;
 }
+
+export class VendorForgotPasswordDto {
+  @ApiProperty({ example: "kingfisher" })
+  @IsString()
+  @Length(2, 100)
+  tenant_slug!: string;
+
+  @ApiProperty()
+  @IsStrictEmail()
+  email!: string;
+}

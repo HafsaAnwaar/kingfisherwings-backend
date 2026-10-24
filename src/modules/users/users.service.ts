@@ -1130,6 +1130,21 @@ export class UsersService {
    * the token belongs to, and only then do we open an RLS context for
    * the actual update.
    */
+  /**
+   * Public reset without knowing tenant id up front (emailed link).
+   */
+  async resetPasswordByToken(dto: ResetPasswordDto): Promise<{ userId: string }> {
+    const user = await this.repository.findByPasswordResetToken(
+      this.prisma,
+      dto.token,
+    );
+    if (!user) {
+      throw new BadRequestException("Invalid or expired reset token.");
+    }
+    await this.resetPassword(user.tenant_id, dto);
+    return { userId: user.id };
+  }
+
   async resetPassword(tenantId: string, dto: ResetPasswordDto): Promise<void> {
     const user = await this.repository.findByPasswordResetToken(
       this.prisma,

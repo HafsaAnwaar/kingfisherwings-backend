@@ -22,6 +22,7 @@ import {
   AcceptPortalInviteDto,
   ChangePortalPasswordDto,
   CreatePortalUserDto,
+  PortalForgotPasswordDto,
   PortalLoginDto,
   PortalRefreshDto,
   PortalUserQueryDto,
@@ -370,6 +371,58 @@ export class PortalService {
       data: {
         must_change_password: false,
       },
+    };
+  }
+
+  /**
+   * Public forgot-password: email a temporary password (must_change_password).
+   * Always returns generic success to avoid email enumeration.
+   */
+  async forgotPassword(dto: PortalForgotPasswordDto) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        slug: dto.tenant_slug.trim().toLowerCase(),
+        deleted_at: null,
+        is_active: true,
+      },
+      select: { id: true },
+    });
+    if (tenant) {
+      const email = dto.email.trim().toLowerCase();
+      const user = await this.prisma.portalUser.findFirst({
+        where: {
+          tenant_id: tenant.id,
+          email,
+          deleted_at: null,
+          status: PortalUserStatus.ACTIVE,
+        },
+        include: { party: { select: { name: true } } },
+      });
+      if (user) {
+        const plainPassword = PasswordUtil.generateTemporaryPassword();
+        const passwordHash = await PasswordUtil.hash(plainPassword);
+        await this.prisma.portalUser.update({
+          where: { id: user.id },
+          data: {
+            password_hash: passwordHash,
+            must_change_password: true,
+            updated_by: user.id,
+          },
+        });
+        await this.revokeAllSessions(user.id, "PASSWORD_RESET");
+        await this.sendCredentialsEmail(tenant.id, {
+          to: user.email,
+          fullName: user.full_name,
+          password: plainPassword,
+          partyName: user.party?.name ?? "Customer",
+          isPasswordReset: true,
+        });
+      }
+    }
+    return {
+      success: true,
+      message:
+        "If an account exists for that email, a temporary password has been sent.",
     };
   }
 
