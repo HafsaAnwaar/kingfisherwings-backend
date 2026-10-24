@@ -28,10 +28,15 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 import { TenantChangePasswordDto } from "./dto/tenant-change-password.dto";
 import { UpdateMyProfileDto } from "./dto/update-my-profile.dto";
 import { AcceptInviteDto, InviteUserDto } from "./dto/invite-2fa.dto";
+import {
+  ForgotPasswordDto,
+  PublicResetPasswordDto,
+} from "./dto/forgot-password.dto";
 
 import { Public } from "./decorators/public.decorator";
 import { AllowSuperAdmin } from "../../common/decorators/allow-super-admin.decorator";
 import { CurrentUser } from "./decorators/current-user.decorator";
+import { AUTH_THROTTLE } from "../../common/constants/auth-throttle.constants";
 
 import { RolesGuard } from "../users/guards/roles.guard";
 import { Roles } from "../users/decorators/roles.decorator";
@@ -49,10 +54,13 @@ export class AuthController {
   // =====================================================
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @Throttle(AUTH_THROTTLE)
   @Post("login")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Staff login: tenant slug + email + password" })
+  @ApiOperation({
+    summary: "Staff login: tenant slug + email + password",
+    description: "Rate limited: 3 attempts per minute per user (tenant + email).",
+  })
   login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authService.login(dto, this.extractMeta(req));
   }
@@ -62,11 +70,12 @@ export class AuthController {
   // =====================================================
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @Throttle(AUTH_THROTTLE)
   @Post("tenant-login")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Tenant admin login: tenant slug + the tenant's own password",
+    description: "Rate limited: 3 attempts per minute per tenant slug.",
   })
   tenantLogin(@Body() dto: TenantLoginDto, @Req() req: Request) {
     return this.authService.tenantLogin(dto, this.extractMeta(req));
@@ -90,10 +99,13 @@ export class AuthController {
   // =====================================================
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @Throttle(AUTH_THROTTLE)
   @Post("super-admin/login")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Platform super admin login" })
+  @ApiOperation({
+    summary: "Platform super admin login",
+    description: "Rate limited: 3 attempts per minute per email.",
+  })
   superAdminLogin(@Body() dto: SuperAdminLoginDto, @Req() req: Request) {
     return this.authService.superAdminLogin(dto, this.extractMeta(req));
   }
@@ -196,15 +208,48 @@ export class AuthController {
   // =====================================================
 
   @ApiBearerAuth()
+  @Throttle(AUTH_THROTTLE)
   @Post("change-password")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Change the authenticated user password" })
+  @ApiOperation({
+    summary: "Change the authenticated user password",
+    description: "Rate limited: 3 attempts per minute per user.",
+  })
   changePassword(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") userId: string,
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(tenantId, userId, dto);
+  }
+
+  // =====================================================
+  // FORGOT / RESET PASSWORD (public token flow)
+  // =====================================================
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post("forgot-password")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Request a staff password-reset email",
+    description:
+      "Rate limited: 3 attempts per minute per user (tenant + email). Always returns success to avoid email enumeration.",
+  })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post("reset-password")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Complete staff password reset with emailed token",
+    description: "Rate limited: 3 attempts per minute per reset token.",
+  })
+  resetPassword(@Body() dto: PublicResetPasswordDto) {
+    return this.authService.resetPasswordWithToken(dto);
   }
 
   // =====================================================
@@ -215,11 +260,13 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(RolesGuard)
   @Roles(UserRole.TENANT_ADMIN)
+  @Throttle(AUTH_THROTTLE)
   @Post("tenant/change-password")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
       "Change the tenant's own login password (POST /auth/tenant-login credential). Tenant admins only.",
+    description: "Rate limited: 3 attempts per minute.",
   })
   changeTenantPassword(
     @CurrentUser("tenantId") tenantId: string,
@@ -249,10 +296,13 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   @Post("accept-invite")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Accept invite token and set password" })
+  @ApiOperation({
+    summary: "Accept invite token and set password",
+    description: "Rate limited: 3 attempts per minute per invite token.",
+  })
   acceptInvite(@Body() dto: AcceptInviteDto) {
     return this.authService.acceptInvite(dto);
   }

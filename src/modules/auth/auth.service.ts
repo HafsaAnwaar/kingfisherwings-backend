@@ -39,6 +39,11 @@ import { TenantLoginDto } from "./dto/tenant-login.dto";
 import { SuperAdminSignupDto } from "./dto/super-admin-signup.dto";
 import { SuperAdminLoginDto } from "./dto/super-admin-login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import {
+  ForgotPasswordDto,
+  PublicResetPasswordDto,
+} from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "../users/dto/reset-password.dto";
 
 import { LoginMeta } from "./interfaces/login-meta.interface";
 import {
@@ -742,6 +747,52 @@ export class AuthService {
     return {
       success: true,
       message: "Password changed successfully. Please log in again.",
+    };
+  }
+
+  /**
+   * Public forgot-password: always returns a generic success message
+   * (no email enumeration). Issues a reset token when the user exists.
+   */
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        slug: dto.tenant_slug.trim().toLowerCase(),
+        deleted_at: null,
+      },
+      select: { id: true },
+    });
+    if (tenant) {
+      await this.usersService.requestPasswordReset(
+        tenant.id,
+        dto.email.trim().toLowerCase(),
+      );
+    }
+    return {
+      success: true,
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    };
+  }
+
+  async resetPasswordWithToken(dto: PublicResetPasswordDto) {
+    const resetDto: ResetPasswordDto = {
+      token: dto.token,
+      new_password: dto.new_password,
+      confirm_password: dto.confirm_password,
+    };
+    const { userId } = await this.usersService.resetPasswordByToken(resetDto);
+    await this.prisma.session.updateMany({
+      where: { user_id: userId, is_active: true },
+      data: {
+        is_active: false,
+        revoked_at: new Date(),
+        revoked_reason: "PASSWORD_RESET",
+      },
+    });
+    return {
+      success: true,
+      message: "Password has been reset. You can log in with the new password.",
     };
   }
 

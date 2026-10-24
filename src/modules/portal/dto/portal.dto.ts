@@ -115,6 +115,17 @@ export class ChangePortalPasswordDto {
   new_password!: string;
 }
 
+export class PortalForgotPasswordDto {
+  @ApiProperty({ example: "kingfisher" })
+  @IsString()
+  @Length(2, 100)
+  tenant_slug!: string;
+
+  @ApiProperty({ example: "john@acme.com" })
+  @IsStrictEmail()
+  email!: string;
+}
+
 export class UpdatePortalUserStatusDto {
   @ApiProperty({ enum: ["ACTIVE", "DISABLED", "INVITED"] })
   @IsIn(["ACTIVE", "DISABLED", "INVITED"])
