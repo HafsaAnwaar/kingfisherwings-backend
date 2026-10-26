@@ -1326,8 +1326,8 @@ export class JobCostingService {
 
   async getHistory(tenantId: string, jobId: string, chargeId?: string) {
     await this.assertJob(tenantId, jobId);
-    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.jobChargeRevision.findMany({
+    const rows = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const revisions = await tx.jobChargeRevision.findMany({
         where: {
           tenant_id: tenantId,
           job_id: jobId,
@@ -1335,8 +1335,43 @@ export class JobCostingService {
         },
         orderBy: { created_at: "desc" },
         take: 500,
-      }),
-    );
+      });
+      const actorIds = [
+        ...new Set(
+          revisions.map((r) => r.actor_id).filter(Boolean) as string[],
+        ),
+      ];
+      const users =
+        actorIds.length === 0
+          ? []
+          : await tx.user.findMany({
+              where: { id: { in: actorIds }, tenant_id: tenantId },
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            });
+      const byId = new Map(
+        users.map((u) => [
+          u.id,
+          {
+            id: u.id,
+            name:
+              [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+              u.email,
+          },
+        ]),
+      );
+      return revisions.map((r) => ({
+        ...r,
+        actor: r.actor_id ? (byId.get(r.actor_id) ?? null) : null,
+        performed_by_name: r.actor_id
+          ? (byId.get(r.actor_id)?.name ?? null)
+          : null,
+      }));
+    });
     return { success: true, data: rows };
   }
 

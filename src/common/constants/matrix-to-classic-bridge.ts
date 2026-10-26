@@ -290,6 +290,7 @@ export const MATRIX_TO_CLASSIC_BRIDGE: Record<string, BridgeEntry> = Object.from
     "sea_lcl_export",
     "sea_lcl_import",
     "land",
+    "road_freight",
     "courier",
     "customs_clearance",
     "nvocc_export",

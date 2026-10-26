@@ -43,6 +43,7 @@ import { ToolsModule } from "../tools/tools.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { PartiesModule } from "../parties/parties.module";
 import { VendorVerificationController } from "./vendor-verification.controller";
+import { VendorNotificationsController } from "./vendor-notifications.controller";
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { VendorVerificationController } from "./vendor-verification.controller";
     VendorDashboardController,
     VendorConverterController,
     VendorJobsController,
+    VendorNotificationsController,
   ],
   providers: [
     VendorService,

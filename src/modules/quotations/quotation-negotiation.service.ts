@@ -27,12 +27,40 @@ export class QuotationNegotiationService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getTimeline(tenantId: string, quotationId: string) {
-    const events = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.quotationNegotiationEvent.findMany({
+    const events = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const rows = await tx.quotationNegotiationEvent.findMany({
         where: { tenant_id: tenantId, quotation_id: quotationId },
         orderBy: { created_at: "asc" },
-      }),
-    );
+      });
+      const actorIds = [
+        ...new Set(rows.map((r) => r.created_by).filter(Boolean) as string[]),
+      ];
+      const users =
+        actorIds.length === 0
+          ? []
+          : await tx.user.findMany({
+              where: { id: { in: actorIds }, tenant_id: tenantId },
+              select: { id: true, first_name: true, last_name: true, email: true },
+            });
+      const byId = new Map(
+        users.map((u) => [
+          u.id,
+          {
+            id: u.id,
+            name:
+              [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+              u.email,
+          },
+        ]),
+      );
+      return rows.map((r) => ({
+        ...r,
+        actor_user: r.created_by ? (byId.get(r.created_by) ?? null) : null,
+        performed_by_name: r.created_by
+          ? (byId.get(r.created_by)?.name ?? null)
+          : null,
+      }));
+    });
     return { success: true, data: events };
   }
 

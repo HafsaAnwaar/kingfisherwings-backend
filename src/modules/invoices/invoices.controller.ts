@@ -64,9 +64,15 @@ export class InvoicesController {
   @ApiOperation({ summary: "List customer invoices (Ch.18)" })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: InvoiceQueryDto,
   ) {
-    return this.service.findAll(tenantId, query, "CUSTOMER_INVOICE");
+    return this.service.findAll(
+      tenantId,
+      query,
+      "CUSTOMER_INVOICE",
+      permissions,
+    );
   }
 
   @Get("reports/overdue")
@@ -78,14 +84,28 @@ export class InvoicesController {
     return this.service.getOverdueReport(tenantId);
   }
 
+  @Get(":id/history")
+  @RequirePermissions(INVOICES_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Invoice change history (AuditLog) with actor names",
+  })
+  getHistory(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.getHistory(tenantId, id, permissions);
+  }
+
   @Get(":id")
   @RequirePermissions(INVOICES_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "Get invoice with lines" })
   findOne(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id);
+    return this.service.findOne(tenantId, id, permissions);
   }
 
   @Post()
@@ -94,9 +114,16 @@ export class InvoicesController {
   create(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Body() dto: CreateInvoiceDto,
   ) {
-    return this.service.create(tenantId, dto, actorId, "CUSTOMER_INVOICE");
+    return this.service.create(
+      tenantId,
+      dto,
+      actorId,
+      "CUSTOMER_INVOICE",
+      permissions,
+    );
   }
 
   @Post("from-job/:jobId")
@@ -108,6 +135,7 @@ export class InvoicesController {
   createFromJob(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("jobId", ParseUUIDPipe) jobId: string,
     @Body() body?: { charge_ids?: string[] },
   ) {
@@ -117,9 +145,16 @@ export class InvoicesController {
         jobId,
         body.charge_ids,
         actorId,
+        permissions,
       );
     }
-    return this.service.createFromJob(tenantId, jobId, actorId);
+    return this.service.createFromJob(
+      tenantId,
+      jobId,
+      actorId,
+      undefined,
+      permissions,
+    );
   }
 
   @Patch(":id")

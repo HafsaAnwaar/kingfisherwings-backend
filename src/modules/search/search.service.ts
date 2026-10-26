@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { jobTypeInFilter } from "../../common/utils/job-type-access.util";
 import { parseSearchTypes, SearchQueryDto } from "./dto/search-query.dto";
 
 export interface SearchResultItem {
@@ -23,22 +24,39 @@ export interface SearchResultItem {
 export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(tenantId: string, query: SearchQueryDto) {
+  async search(
+    tenantId: string,
+    query: SearchQueryDto,
+    permissions?: string[],
+  ) {
     const term = query.q.trim();
     const limit = query.limit ?? 20;
     const types = parseSearchTypes(query.types);
     const perTypeLimit = Math.ceil(limit / Math.max(types.length, 1));
+    const jobTypeScope = jobTypeInFilter(permissions);
 
     const results: SearchResultItem[] = [];
 
     if (types.includes("jobs")) {
       results.push(
-        ...(await this.searchJobs(tenantId, term, perTypeLimit, query)),
+        ...(await this.searchJobs(
+          tenantId,
+          term,
+          perTypeLimit,
+          query,
+          jobTypeScope,
+        )),
       );
     }
     if (types.includes("quotations")) {
       results.push(
-        ...(await this.searchQuotations(tenantId, term, perTypeLimit, query)),
+        ...(await this.searchQuotations(
+          tenantId,
+          term,
+          perTypeLimit,
+          query,
+          jobTypeScope,
+        )),
       );
     }
     if (types.includes("parties")) {
@@ -48,17 +66,35 @@ export class SearchService {
     }
     if (types.includes("invoices")) {
       results.push(
-        ...(await this.searchInvoices(tenantId, term, perTypeLimit, query)),
+        ...(await this.searchInvoices(
+          tenantId,
+          term,
+          perTypeLimit,
+          query,
+          jobTypeScope,
+        )),
       );
     }
     if (types.includes("enquiries")) {
       results.push(
-        ...(await this.searchEnquiries(tenantId, term, perTypeLimit, query)),
+        ...(await this.searchEnquiries(
+          tenantId,
+          term,
+          perTypeLimit,
+          query,
+          jobTypeScope,
+        )),
       );
     }
     if (types.includes("shipments")) {
       results.push(
-        ...(await this.searchShipments(tenantId, term, perTypeLimit, query)),
+        ...(await this.searchShipments(
+          tenantId,
+          term,
+          perTypeLimit,
+          query,
+          jobTypeScope,
+        )),
       );
     }
 
@@ -106,6 +142,7 @@ export class SearchService {
     term: string,
     limit: number,
     query: SearchQueryDto,
+    jobTypeScope?: { in: import("@prisma/client").JobType[] },
   ): Promise<SearchResultItem[]> {
     const where: Prisma.JobWhereInput = {
       tenant_id: tenantId,
@@ -227,7 +264,19 @@ export class SearchService {
             },
           ],
         },
-        ...(query.job_type ? [{ job_type: query.job_type as never }] : []),
+        ...(query.job_type
+          ? [
+              {
+                job_type:
+                  jobTypeScope &&
+                  !jobTypeScope.in.includes(query.job_type as never)
+                    ? { in: [] }
+                    : (query.job_type as never),
+              },
+            ]
+          : jobTypeScope
+            ? [{ job_type: jobTypeScope }]
+            : []),
         ...(query.status ? [{ status: query.status as never }] : []),
         ...(query.shipper_id || query.party_id
           ? [{ shipper_id: query.shipper_id ?? query.party_id }]
@@ -454,6 +503,7 @@ export class SearchService {
     term: string,
     limit: number,
     query: SearchQueryDto,
+    jobTypeScope?: { in: import("@prisma/client").JobType[] },
   ): Promise<SearchResultItem[]> {
     const where: Prisma.QuotationWhereInput = {
       tenant_id: tenantId,
@@ -470,6 +520,19 @@ export class SearchService {
           ? [{ customer_id: query.customer_id ?? query.party_id }]
           : []),
         ...(query.status ? [{ status: query.status as never }] : []),
+        ...(query.job_type
+          ? [
+              {
+                job_type:
+                  jobTypeScope &&
+                  !jobTypeScope.in.includes(query.job_type as never)
+                    ? { in: [] }
+                    : (query.job_type as never),
+              },
+            ]
+          : jobTypeScope
+            ? [{ job_type: jobTypeScope }]
+            : []),
         ...(query.quotation_number
           ? [
               {
@@ -590,6 +653,7 @@ export class SearchService {
     term: string,
     limit: number,
     query: SearchQueryDto,
+    jobTypeScope?: { in: import("@prisma/client").JobType[] },
   ): Promise<SearchResultItem[]> {
     const where: Prisma.InvoiceWhereInput = {
       tenant_id: tenantId,
@@ -605,6 +669,15 @@ export class SearchService {
           ? [{ party_id: query.party_id ?? query.customer_id }]
           : []),
         ...(query.status ? [{ status: query.status as never }] : []),
+        ...(jobTypeScope
+          ? [
+              {
+                job: {
+                  is: { job_type: jobTypeScope, deleted_at: null },
+                },
+              },
+            ]
+          : []),
         ...(query.invoice_number
           ? [
               {
@@ -651,6 +724,7 @@ export class SearchService {
     term: string,
     limit: number,
     query: SearchQueryDto,
+    jobTypeScope?: { in: import("@prisma/client").JobType[] },
   ): Promise<SearchResultItem[]> {
     const uuidLike =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -674,7 +748,19 @@ export class SearchService {
           ],
         },
         ...(query.status ? [{ status: query.status as never }] : []),
-        ...(query.job_type ? [{ service_type: query.job_type as never }] : []),
+        ...(query.job_type
+          ? [
+              {
+                service_type:
+                  jobTypeScope &&
+                  !jobTypeScope.in.includes(query.job_type as never)
+                    ? { in: [] }
+                    : (query.job_type as never),
+              },
+            ]
+          : jobTypeScope
+            ? [{ service_type: jobTypeScope }]
+            : []),
         ...(query.customer_id || query.party_id
           ? [{ party_id: query.customer_id ?? query.party_id }]
           : []),
@@ -747,6 +833,7 @@ export class SearchService {
     term: string,
     limit: number,
     query: SearchQueryDto,
+    jobTypeScope?: { in: import("@prisma/client").JobType[] },
   ): Promise<SearchResultItem[]> {
     const where: Prisma.ShipmentWhereInput = {
       tenant_id: tenantId,
@@ -787,7 +874,19 @@ export class SearchService {
           ],
         },
         ...(query.status ? [{ status: query.status as never }] : []),
-        ...(query.job_type ? [{ job_type: query.job_type as never }] : []),
+        ...(query.job_type
+          ? [
+              {
+                job_type:
+                  jobTypeScope &&
+                  !jobTypeScope.in.includes(query.job_type as never)
+                    ? { in: [] }
+                    : (query.job_type as never),
+              },
+            ]
+          : jobTypeScope
+            ? [{ job_type: jobTypeScope }]
+            : []),
         ...(query.customer_id || query.party_id
           ? [{ customer_id: query.customer_id ?? query.party_id }]
           : []),

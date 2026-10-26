@@ -74,4 +74,18 @@ export class UserResponse {
       access: "none" | "read" | "write";
     }>;
   }>;
+
+  @ApiPropertyOptional({
+    description:
+      "Job types visible from the ops permission matrix. null = unrestricted (no ops matrix grants).",
+    type: [String],
+    nullable: true,
+  })
+  visible_job_types?: string[] | null;
+
+  @ApiPropertyOptional({
+    description:
+      "True when the user has no ops matrix codes (legacy role-only / unrestricted).",
+  })
+  unrestricted_ops?: boolean;
 }
