@@ -28,6 +28,10 @@ import {
   visibleJobTypes,
 } from "../../common/constants/module-permission-tree";
 import {
+  assertJobTypeAccess,
+  jobTypeInFilter,
+} from "../../common/utils/job-type-access.util";
+import {
   opsContinuumActions,
   opsContinuumPathHints,
 } from "../ops-activity/ops-continuum-path-hints";
@@ -398,6 +402,7 @@ export class CrmActivityService {
   async createEnquiry(user: CurrentUser, dto: CreateEnquiryDto) {
     const salespersonId = dto.salesperson_id ?? user.id;
     salespersonScope(user, salespersonId);
+    assertJobTypeAccess(user.permissions, dto.service_type, "write");
     if (dto.lead_id) await this.leads.requireLead(user, dto.lead_id);
 
     const enquiry = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
@@ -501,12 +506,14 @@ export class CrmActivityService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const salespersonId = salespersonScope(user, query.salesperson_id);
+    const scoped = jobTypeInFilter(user.permissions);
     const where: Prisma.EnquiryWhereInput = {
       tenant_id: user.tenantId,
       deleted_at: null,
       ...(query.status ? { status: query.status } : {}),
       ...(salespersonId ? { salesperson_id: salespersonId } : {}),
       ...(query.department_id ? { department_id: query.department_id } : {}),
+      ...(scoped ? { service_type: scoped } : {}),
       ...(query.search
         ? {
             OR: [
@@ -565,6 +572,7 @@ export class CrmActivityService {
       }),
     );
     if (!enquiry) throw new NotFoundException("Enquiry not found.");
+    assertJobTypeAccess(user.permissions, enquiry.service_type, "see");
     return {
       success: true,
       data: await this.labels.enrichOne(user.tenantId, enquiry),
@@ -746,6 +754,10 @@ export class CrmActivityService {
 
   async updateEnquiry(user: CurrentUser, id: string, dto: UpdateEnquiryDto) {
     const before = await this.requireEnquiry(user, id);
+    assertJobTypeAccess(user.permissions, before.service_type, "write");
+    if (dto.service_type) {
+      assertJobTypeAccess(user.permissions, dto.service_type, "write");
+    }
     if (dto.salesperson_id) salespersonScope(user, dto.salesperson_id);
     const updated = await this.prisma.runWithTenant(user.tenantId, async (tx) => {
       const row = await tx.enquiry.update({

@@ -51,6 +51,7 @@ import {
   type RoleMatrixGrant,
 } from "../../common/constants/role-matrix-presets";
 import { collectEffectivePermissionCodes } from "../../common/constants/effective-permissions";
+import { jobTypeAccessSummary } from "../../common/utils/job-type-access.util";
 import { USERS_CONSTANTS } from "./constants/users.constants";
 import { PASSWORD_CONSTANTS } from "./constants/password.constants";
 
@@ -602,6 +603,10 @@ export class UsersService {
       tenantId,
       id,
     );
+    const effective = await this.loadEffectivePermissionCodes(tenantId, id);
+    const access = jobTypeAccessSummary([...effective]);
+    response.visible_job_types = access.visible_job_types;
+    response.unrestricted_ops = access.unrestricted_ops;
     return response;
   }
 
@@ -1251,13 +1256,17 @@ export class UsersService {
     );
 
     const tree = await this.buildPermissionMatrixSummary(tenantId, userId);
+    const effective = await this.loadEffectivePermissionCodes(tenantId, userId);
+    const access = jobTypeAccessSummary([...effective]);
 
     return {
       success: true,
       data: {
         user_id: userId,
         tree,
-        note: "Saving this matrix updates direct matrix grants and bridged classic permissions. Re-login to refresh the JWT.",
+        visible_job_types: access.visible_job_types,
+        unrestricted_ops: access.unrestricted_ops,
+        note: "Saving this matrix updates direct matrix grants and bridged classic permissions. Staff must re-login to refresh the JWT (permissions are embedded).",
       },
     };
   }

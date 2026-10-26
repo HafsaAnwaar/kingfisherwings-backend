@@ -4,6 +4,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  assertJobTypeAccess,
+  jobTypeInFilter,
+} from "../../common/utils/job-type-access.util";
+import {
   DocumentType,
   JobContainerKind,
   JobType,
@@ -65,7 +69,13 @@ export class ShipmentsService {
     private readonly statusCatalog: ShipmentStatusCatalogService,
   ) {}
 
-  async create(tenantId: string, dto: CreateShipmentDto, actorId?: string) {
+  async create(
+    tenantId: string,
+    dto: CreateShipmentDto,
+    actorId?: string,
+    permissions?: string[],
+  ) {
+    assertJobTypeAccess(permissions, dto.job_type, "write");
     const shipmentNumber = await this.numberGenerator.generate(
       tenantId,
       "SHIPMENT",
@@ -188,14 +198,29 @@ export class ShipmentsService {
     });
   }
 
-  async findAll(tenantId: string, query: ShipmentQueryDto) {
+  async findAll(
+    tenantId: string,
+    query: ShipmentQueryDto,
+    permissions?: string[],
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const scoped = jobTypeInFilter(permissions);
+    let jobTypeFilter: Prisma.ShipmentWhereInput["job_type"] | undefined;
+    if (query.job_type) {
+      if (scoped && !scoped.in.includes(query.job_type)) {
+        jobTypeFilter = { in: [] };
+      } else {
+        jobTypeFilter = query.job_type;
+      }
+    } else if (scoped) {
+      jobTypeFilter = scoped;
+    }
     const where: Prisma.ShipmentWhereInput = {
       tenant_id: tenantId,
       deleted_at: null,
       ...(query.status ? { status: query.status } : {}),
-      ...(query.job_type ? { job_type: query.job_type } : {}),
+      ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
       ...(query.customer_id ? { customer_id: query.customer_id } : {}),
       ...(query.job_id ? { job_id: query.job_id } : {}),
       ...(query.quotation_id ? { quotation_id: query.quotation_id } : {}),
@@ -252,16 +277,19 @@ export class ShipmentsService {
     });
   }
 
-  async findOne(tenantId: string, id: string) {
+  async findOne(tenantId: string, id: string, permissions?: string[]) {
     const row = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.shipment.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
         include: {
           charges: { where: { deleted_at: null }, orderBy: { sort_order: "asc" } },
+          job: { select: { job_type: true } },
         },
       }),
     );
     if (!row) throw new NotFoundException("Shipment not found.");
+    const effectiveType = row.job?.job_type ?? row.job_type;
+    assertJobTypeAccess(permissions, effectiveType, "see");
     return this.labels.enrichOne(tenantId, row);
   }
 
@@ -270,8 +298,12 @@ export class ShipmentsService {
     id: string,
     dto: UpdateShipmentDto,
     actorId?: string,
+    permissions?: string[],
   ) {
-    await this.findOne(tenantId, id);
+    await this.findOne(tenantId, id, permissions);
+    if (dto.job_type) {
+      assertJobTypeAccess(permissions, dto.job_type, "write");
+    }
     const data: Prisma.ShipmentUpdateInput = {
       updated_by: actorId,
       ...(dto.customer_id !== undefined ? { customer_id: dto.customer_id } : {}),

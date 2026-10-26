@@ -51,6 +51,10 @@ import {
   SendQuotationEmailDto,
 } from "./dto/quotation-pdf.dto";
 import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
+import {
+  assertJobTypeAccess,
+  jobTypeInFilter,
+} from "../../common/utils/job-type-access.util";
 import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
 import { PortalService } from "../portal/portal.service";
 import { PortsService } from "../masters/ports/ports.service";
@@ -144,7 +148,9 @@ export class QuotationsService {
     tenantId: string,
     dto: CreateQuotationDto,
     actorId?: string,
+    permissions?: string[],
   ): Promise<Quotation> {
+    assertJobTypeAccess(permissions, dto.job_type, "write");
     await this.assertPartyExists(tenantId, dto.customer_id, "Customer");
     await this.assertPartyExists(tenantId, dto.carrier_id, "Carrier");
     await this.assertCompanyExists(tenantId, dto.company_id);
@@ -242,7 +248,11 @@ export class QuotationsService {
   private buildListWhere(
     tenantId: string,
     query: QuotationQueryDto,
-    opts?: { restrictToConvertedCustomers?: boolean; convertedCustomerIds?: string[] },
+    opts?: {
+      restrictToConvertedCustomers?: boolean;
+      convertedCustomerIds?: string[];
+      permissions?: string[] | null;
+    },
   ): Prisma.QuotationWhereInput {
     const where: Prisma.QuotationWhereInput = {
       tenant_id: tenantId,
@@ -250,7 +260,16 @@ export class QuotationsService {
     };
 
     if (query.status) where.status = query.status;
-    if (query.job_type) where.job_type = query.job_type;
+    const scoped = jobTypeInFilter(opts?.permissions);
+    if (query.job_type) {
+      if (scoped && !scoped.in.includes(query.job_type)) {
+        where.job_type = { in: [] };
+      } else {
+        where.job_type = query.job_type;
+      }
+    } else if (scoped) {
+      where.job_type = scoped;
+    }
     if (query.customer_id) where.customer_id = query.customer_id;
     if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
     if (query.branch_id) where.branch_id = query.branch_id;
@@ -341,6 +360,7 @@ export class QuotationsService {
       const where = this.buildListWhere(tenantId, query, {
         restrictToConvertedCustomers: opsOnly,
         convertedCustomerIds,
+        permissions: actor?.permissions,
       });
 
       const [data, total] = await Promise.all([
@@ -383,6 +403,7 @@ export class QuotationsService {
       const where = this.buildListWhere(tenantId, query, {
         restrictToConvertedCustomers: opsOnly,
         convertedCustomerIds,
+        permissions: actor?.permissions,
       });
 
       const [data, total] = await Promise.all([
@@ -468,6 +489,8 @@ export class QuotationsService {
         throw new NotFoundException("Quotation not found.");
       }
 
+      assertJobTypeAccess(actor?.permissions, quotation.job_type, "see");
+
       await this.assertOpsMayViewCustomer(
         tx,
         tenantId,
@@ -552,8 +575,48 @@ export class QuotationsService {
 
       const totals = sumLineTotals(lines, true);
 
+      const statusActorIds = [
+        ...new Set(
+          quotation.status_history
+            .map((h) => h.changed_by)
+            .filter(Boolean) as string[],
+        ),
+      ];
+      const statusActors =
+        statusActorIds.length === 0
+          ? []
+          : await tx.user.findMany({
+              where: { id: { in: statusActorIds }, tenant_id: tenantId },
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            });
+      const statusNameById = new Map(
+        statusActors.map((u) => [
+          u.id,
+          [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+            u.email,
+        ]),
+      );
+      const status_history = quotation.status_history.map((h) => ({
+        ...h,
+        changed_by_name: h.changed_by
+          ? (statusNameById.get(h.changed_by) ?? null)
+          : null,
+        actor: h.changed_by
+          ? {
+              id: h.changed_by,
+              name: statusNameById.get(h.changed_by) ?? null,
+            }
+          : null,
+      }));
+
       return {
         ...quotation,
+        status_history,
         portal_estimate_snapshot: snapshot ?? null,
         portal_costing: snapshot
           ? {
@@ -628,6 +691,7 @@ export class QuotationsService {
     id: string,
     dto: UpdateQuotationDto,
     actorId?: string,
+    permissions?: string[],
   ): Promise<Quotation> {
     await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
@@ -648,6 +712,10 @@ export class QuotationsService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await this.getOrThrow(tx, tenantId, id);
       this.assertEditable(existing);
+      assertJobTypeAccess(permissions, existing.job_type, "write");
+      if (dto.job_type) {
+        assertJobTypeAccess(permissions, dto.job_type, "write");
+      }
 
       const {
         valid_until,
@@ -1982,9 +2050,11 @@ export class QuotationsService {
     tenantId: string,
     id: string,
     actorId?: string,
+    permissions?: string[],
   ): Promise<Quotation> {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const quotation = await this.getOrThrow(tx, tenantId, id);
+      assertJobTypeAccess(permissions, quotation.job_type, "write");
 
       if (quotation.status !== "INTERNALLY_APPROVED") {
         throw new BadRequestException(

@@ -62,7 +62,11 @@ export class PortalNotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Get()
-  @ApiOperation({ summary: "List portal in-app notifications" })
+  @ApiOperation({
+    summary: "List portal in-app notifications",
+    description:
+      "Each item includes `link_path` under /portal/…. On click: POST /portal/notifications/:id/open then navigate to data.link_path.",
+  })
   list(
     @CurrentPortal() user: CurrentPortalUser,
     @Query() query: PortalNotificationQueryDto,
@@ -107,6 +111,19 @@ export class PortalNotificationsController {
   @ApiOperation({ summary: "Mark all portal notifications as read" })
   markAll(@CurrentPortal() user: CurrentPortalUser) {
     return this.notifications.markAllReadPortal(user.tenantId, user.id);
+  }
+
+  @Post(":id/open")
+  @ApiOperation({
+    summary: "Open portal notification (mark read + return deep link)",
+    description:
+      "FE contract: call on click, then router.push(data.link_path). Paths are portal routes (e.g. /portal/quotations/:id). If link_path is null, do not navigate.",
+  })
+  open(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.notifications.openPortal(user.tenantId, user.id, id);
   }
 
   @Post(":id/read")

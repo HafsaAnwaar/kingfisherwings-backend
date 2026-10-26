@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import {
   DocumentType,
   NotificationType,
@@ -6,10 +6,21 @@ import {
   UserRole,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../shared/email/email.service";
+import { renderBrandedEmail } from "../../shared/email/branded-email.template";
+import {
+  adminEmailDedupeKey,
+  claimAdminEmailDedupe,
+  tenantAdminNotificationEmailsEnabled,
+} from "./tenant-admin-notification-email.util";
 import {
   isPortalVisibleDocumentType,
   toPortalDocumentType,
 } from "../portal/helpers/portal-document-type.helper";
+import {
+  ensureEmitLinkPath,
+  type NotificationAudience,
+} from "./notification-link.util";
 
 export type EmitNotificationInput = {
   type: NotificationType;
@@ -24,30 +35,48 @@ export type EmitNotificationInput = {
  * Creates in-app notifications for staff and/or portal users.
  * Domain modules call this after meaningful events (invoice overdue, quote approved, etc.).
  * v1 is DB-backed (poll); SSE/WebSocket can subscribe later without changing callers.
+ *
+ * When the recipient is a Tenant Admin, also sends a branded email copy
+ * (TENANT_ADMIN_NOTIFICATION_EMAILS !== "false"), deduped against staff-activity.
  */
 @Injectable()
 export class NotificationEmitterService {
   private readonly logger = new Logger(NotificationEmitterService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly email?: EmailService,
+  ) {}
+
+  /** Fill missing link_path from entity_type/entity_id for the audience. */
+  private withLink(
+    audience: NotificationAudience,
+    input: EmitNotificationInput,
+  ): EmitNotificationInput {
+    return {
+      ...input,
+      link_path: ensureEmitLinkPath(audience, input) ?? input.link_path,
+    };
+  }
 
   async notifyPortalUser(
     tenantId: string,
     portalUserId: string,
     input: EmitNotificationInput,
   ) {
+    const payload = this.withLink("PORTAL", input);
     try {
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.notification.create({
           data: {
             tenant_id: tenantId,
             portal_user_id: portalUserId,
-            type: input.type,
-            title: input.title,
-            message: input.message,
-            entity_type: input.entity_type,
-            entity_id: input.entity_id,
-            link_path: input.link_path,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            entity_type: payload.entity_type,
+            entity_id: payload.entity_id,
+            link_path: payload.link_path,
           },
         }),
       );
@@ -63,18 +92,19 @@ export class NotificationEmitterService {
     vendorUserId: string,
     input: EmitNotificationInput,
   ) {
+    const payload = this.withLink("VENDOR", input);
     try {
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.notification.create({
           data: {
             tenant_id: tenantId,
             vendor_user_id: vendorUserId,
-            type: input.type,
-            title: input.title,
-            message: input.message,
-            entity_type: input.entity_type,
-            entity_id: input.entity_id,
-            link_path: input.link_path,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            entity_type: payload.entity_type,
+            entity_id: payload.entity_id,
+            link_path: payload.link_path,
           },
         }),
       );
@@ -90,6 +120,7 @@ export class NotificationEmitterService {
     partyId: string,
     input: EmitNotificationInput,
   ) {
+    const payload = this.withLink("VENDOR", input);
     try {
       const users = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.vendorUser.findMany({
@@ -110,12 +141,12 @@ export class NotificationEmitterService {
           data: users.map((u) => ({
             tenant_id: tenantId,
             vendor_user_id: u.id,
-            type: input.type,
-            title: input.title,
-            message: input.message,
-            entity_type: input.entity_type,
-            entity_id: input.entity_id,
-            link_path: input.link_path,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            entity_type: payload.entity_type,
+            entity_id: payload.entity_id,
+            link_path: payload.link_path,
           })),
         }),
       );
@@ -129,21 +160,23 @@ export class NotificationEmitterService {
     userId: string,
     input: EmitNotificationInput,
   ) {
+    const payload = this.withLink("STAFF", input);
     try {
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.notification.create({
           data: {
             tenant_id: tenantId,
             user_id: userId,
-            type: input.type,
-            title: input.title,
-            message: input.message,
-            entity_type: input.entity_type,
-            entity_id: input.entity_id,
-            link_path: input.link_path,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            entity_type: payload.entity_type,
+            entity_id: payload.entity_id,
+            link_path: payload.link_path,
           },
         }),
       );
+      void this.emailTenantAdminsAmong(tenantId, [userId], payload);
     } catch (err) {
       this.logger.warn(`Failed to notify staff user ${userId}: ${String(err)}`);
     }
@@ -199,6 +232,7 @@ export class NotificationEmitterService {
     roles: UserRole[],
     input: EmitNotificationInput,
   ) {
+    const payload = this.withLink("STAFF", input);
     try {
       const users = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.user.findMany({
@@ -208,7 +242,7 @@ export class NotificationEmitterService {
             status: "ACTIVE",
             role: { in: roles },
           },
-          select: { id: true },
+          select: { id: true, role: true },
           take: 100,
         }),
       );
@@ -220,17 +254,115 @@ export class NotificationEmitterService {
           data: users.map((u) => ({
             tenant_id: tenantId,
             user_id: u.id,
-            type: input.type,
-            title: input.title,
-            message: input.message,
-            entity_type: input.entity_type,
-            entity_id: input.entity_id,
-            link_path: input.link_path,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            entity_type: payload.entity_type,
+            entity_id: payload.entity_id,
+            link_path: payload.link_path,
           })),
         }),
       );
+
+      const adminIds = users
+        .filter((u) => u.role === "TENANT_ADMIN")
+        .map((u) => u.id);
+      void this.emailTenantAdminsAmong(tenantId, adminIds, payload);
     } catch (err) {
       this.logger.warn(`Failed staff role fan-out: ${String(err)}`);
+    }
+  }
+
+  /**
+   * Email copy of an in-app notification to Tenant Admins among the given
+   * user ids (portal/vendor staff events and any other staff notify path).
+   */
+  private async emailTenantAdminsAmong(
+    tenantId: string,
+    userIds: string[],
+    input: EmitNotificationInput,
+  ) {
+    if (!this.email || !tenantAdminNotificationEmailsEnabled()) return;
+    if (!userIds.length) return;
+
+    try {
+      const dedupe = adminEmailDedupeKey(
+        tenantId,
+        input.entity_id,
+        input.title,
+      );
+      if (claimAdminEmailDedupe(dedupe)) return;
+
+      const { admins, tenant } = await this.prisma.runWithTenant(
+        tenantId,
+        async (tx) => {
+          const admins = await tx.user.findMany({
+            where: {
+              tenant_id: tenantId,
+              id: { in: userIds },
+              role: "TENANT_ADMIN",
+              status: "ACTIVE",
+              deleted_at: null,
+            },
+            select: {
+              email: true,
+              first_name: true,
+              last_name: true,
+            },
+            take: 20,
+          });
+          const tenant = await tx.tenant.findUnique({
+            where: { id: tenantId },
+            select: { name: true, display_name: true },
+          });
+          return { admins, tenant };
+        },
+      );
+
+      if (!admins.length) return;
+
+      const company = tenant?.display_name ?? tenant?.name ?? "Your company";
+      const app = process.env.APP_NAME?.replace(/"/g, "") || "Kingfisher";
+      const base = (process.env.FRONTEND_URL ?? "").trim().replace(/\/$/, "");
+      const link =
+        base && input.link_path ? `${base}${input.link_path}` : null;
+
+      for (const admin of admins) {
+        const recipientName =
+          [admin.first_name, admin.last_name].filter(Boolean).join(" ").trim() ||
+          "Tenant Administrator";
+        const branded = renderBrandedEmail({
+          subject: `[${app}] ${input.title}`,
+          headline: input.title,
+          recipientName,
+          organizationName: company,
+          audience: "STAFF",
+          intro: [input.message],
+          details: [
+            { label: "Company", value: company },
+            ...(input.entity_type
+              ? [{ label: "Record", value: input.entity_type }]
+              : []),
+          ],
+          ...(link ? { cta: { label: `Open in ${app}`, url: link } } : {}),
+          closing: [
+            `You receive this email copy because you are a Tenant Administrator of ${company}.`,
+          ],
+        });
+
+        await this.email.send({
+          tenantId,
+          eventType: "STAFF_ACTIVITY",
+          to: admin.email,
+          subject: branded.subject,
+          body: branded.html,
+          requireDelivery: false,
+        });
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Tenant Admin notification email failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -239,6 +371,7 @@ export class NotificationEmitterService {
     partyId: string,
     input: EmitNotificationInput,
   ) {
+    const payload = this.withLink("PORTAL", input);
     try {
       const users = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.portalUser.findMany({
@@ -259,12 +392,12 @@ export class NotificationEmitterService {
           data: users.map((u) => ({
             tenant_id: tenantId,
             portal_user_id: u.id,
-            type: input.type,
-            title: input.title,
-            message: input.message,
-            entity_type: input.entity_type,
-            entity_id: input.entity_id,
-            link_path: input.link_path,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            entity_type: payload.entity_type,
+            entity_id: payload.entity_id,
+            link_path: payload.link_path,
           })),
         }),
       );
@@ -282,6 +415,7 @@ export class NotificationEmitterService {
     partyId: string,
     input: EmitNotificationInput,
   ) {
+    const payload = this.withLink("PORTAL", input);
     try {
       const users = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.portalUser.findMany({
@@ -303,12 +437,12 @@ export class NotificationEmitterService {
           data: users.map((u) => ({
             tenant_id: tenantId,
             portal_user_id: u.id,
-            type: input.type,
-            title: input.title,
-            message: input.message,
-            entity_type: input.entity_type,
-            entity_id: input.entity_id,
-            link_path: input.link_path,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            entity_type: payload.entity_type,
+            entity_id: payload.entity_id,
+            link_path: payload.link_path,
           })),
         }),
       );
@@ -326,6 +460,7 @@ export class NotificationEmitterService {
     partyId: string,
     input: EmitNotificationInput,
   ) {
+    const payload = this.withLink("PORTAL", input);
     try {
       const users = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.portalUser.findMany({
@@ -350,12 +485,12 @@ export class NotificationEmitterService {
           data: users.map((u) => ({
             tenant_id: tenantId,
             portal_user_id: u.id,
-            type: input.type,
-            title: input.title,
-            message: input.message,
-            entity_type: input.entity_type,
-            entity_id: input.entity_id,
-            link_path: input.link_path,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            entity_type: payload.entity_type,
+            entity_id: payload.entity_id,
+            link_path: payload.link_path,
           })),
         }),
       );

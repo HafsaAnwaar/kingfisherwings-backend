@@ -52,7 +52,11 @@ export class NotificationsController {
 
   @Get()
   @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List staff in-app notifications (unread first)" })
+  @ApiOperation({
+    summary: "List staff in-app notifications (unread first)",
+    description:
+      "Each item includes `link_path` (app-relative). On click: POST /notifications/:id/open then navigate to data.link_path. If link_path is null, stay on the notifications list.",
+  })
   list(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") userId: string,
@@ -75,6 +79,31 @@ export class NotificationsController {
     return this.notifications.unreadCountForStaff(tenantId, userId);
   }
 
+  @Post("read-all")
+  @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Mark all notifications as read" })
+  markAll(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+  ) {
+    return this.notifications.markAllReadStaff(tenantId, userId);
+  }
+
+  @Post(":id/open")
+  @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Open notification (mark read + return deep link)",
+    description:
+      "FE contract: call this on click, then router.push(data.link_path). Paths are staff ERP routes (e.g. /quotations/:id). If link_path is null, show a toast and do not navigate.",
+  })
+  open(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.notifications.openStaff(tenantId, userId, id);
+  }
+
   @Post(":id/read")
   @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "Mark one notification as read" })
@@ -84,15 +113,5 @@ export class NotificationsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.notifications.markReadStaff(tenantId, userId, id);
-  }
-
-  @Post("read-all")
-  @RequirePermissions(NOTIFICATIONS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Mark all notifications as read" })
-  markAll(
-    @CurrentUser("tenantId") tenantId: string,
-    @CurrentUser("id") userId: string,
-  ) {
-    return this.notifications.markAllReadStaff(tenantId, userId);
   }
 }

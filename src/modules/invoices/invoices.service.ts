@@ -32,6 +32,10 @@ import {
 import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
 import { renderBrandedEmail } from "../../shared/email/branded-email.template";
 import {
+  assertJobTypeAccess,
+  invoiceJobTypeScope,
+} from "../../common/utils/job-type-access.util";
+import {
   CreateCreditNoteDto,
   CreateDebitNoteDto,
   CreateInvoiceDto,
@@ -69,12 +73,13 @@ export class InvoicesService {
     tenantId: string,
     query: InvoiceQueryDto,
     invoiceType?: InvoiceType,
+    permissions?: string[],
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const where = this.buildWhere(tenantId, query, invoiceType);
+      const where = this.buildWhere(tenantId, query, invoiceType, permissions);
 
       const [data, total] = await Promise.all([
         tx.invoice.findMany({
@@ -97,7 +102,7 @@ export class InvoicesService {
     });
   }
 
-  async findOne(tenantId: string, id: string) {
+  async findOne(tenantId: string, id: string, permissions?: string[]) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const invoice = await tx.invoice.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -148,6 +153,12 @@ export class InvoicesService {
       });
 
       if (!invoice) {
+        throw new NotFoundException("Invoice not found.");
+      }
+
+      if (invoice.job?.job_type) {
+        assertJobTypeAccess(permissions, invoice.job.job_type, "see");
+      } else if (invoiceJobTypeScope(permissions)) {
         throw new NotFoundException("Invoice not found.");
       }
 
@@ -238,14 +249,81 @@ export class InvoicesService {
     });
   }
 
+  /**
+   * Lightweight invoice timeline from AuditLog (staff-activity + other writers).
+   */
+  async getHistory(tenantId: string, id: string, permissions?: string[]) {
+    await this.findOne(tenantId, id, permissions);
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const rows = await tx.auditLog.findMany({
+        where: {
+          tenant_id: tenantId,
+          entity_id: id,
+          OR: [
+            { entity: { equals: "Invoice", mode: "insensitive" } },
+            { entity: { equals: "INVOICE", mode: "insensitive" } },
+          ],
+        },
+        orderBy: { created_at: "desc" },
+        take: 200,
+      });
+      const actorIds = [
+        ...new Set(rows.map((r) => r.user_id).filter(Boolean) as string[]),
+      ];
+      const users =
+        actorIds.length === 0
+          ? []
+          : await tx.user.findMany({
+              where: { id: { in: actorIds }, tenant_id: tenantId },
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            });
+      const byId = new Map(
+        users.map((u) => [
+          u.id,
+          {
+            id: u.id,
+            name:
+              [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+              u.email,
+          },
+        ]),
+      );
+      return {
+        success: true,
+        data: rows.map((r) => ({
+          id: r.id,
+          at: r.created_at,
+          action: r.action,
+          entity: r.entity,
+          entity_id: r.entity_id,
+          old_values: r.old_values,
+          new_values: r.new_values,
+          actor: r.user_id ? (byId.get(r.user_id) ?? null) : null,
+          performed_by_name: r.user_id
+            ? (byId.get(r.user_id)?.name ?? null)
+            : null,
+        })),
+      };
+    });
+  }
+
   async create(
     tenantId: string,
     dto: CreateInvoiceDto,
     actorId: string | undefined,
     invoiceType: InvoiceType = "CUSTOMER_INVOICE",
+    permissions?: string[],
   ) {
     await this.assertPartyExists(tenantId, dto.party_id);
-    if (dto.job_id) await this.assertJobExists(tenantId, dto.job_id);
+    if (dto.job_id) {
+      const job = await this.assertJobExists(tenantId, dto.job_id);
+      assertJobTypeAccess(permissions, job.job_type, "write");
+    }
 
     const companyId =
       dto.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
@@ -334,8 +412,15 @@ export class InvoicesService {
     jobId: string,
     chargeIds: string[],
     actorId?: string,
+    permissions?: string[],
   ) {
-    return this.createFromJob(tenantId, jobId, actorId, chargeIds);
+    return this.createFromJob(
+      tenantId,
+      jobId,
+      actorId,
+      chargeIds,
+      permissions,
+    );
   }
 
   /**
@@ -616,6 +701,7 @@ export class InvoicesService {
     jobId: string,
     actorId?: string,
     chargeIds?: string[],
+    permissions?: string[],
   ) {
     const invoiceNumber = await this.numberGenerator.generate(
       tenantId,
@@ -641,6 +727,8 @@ export class InvoicesService {
       if (!job) {
         throw new NotFoundException("Job not found.");
       }
+
+      assertJobTypeAccess(permissions, job.job_type, "write");
 
       if (!job.charges.length) {
         throw new BadRequestException(
@@ -1906,6 +1994,7 @@ export class InvoicesService {
     tenantId: string,
     query: InvoiceQueryDto,
     invoiceType?: InvoiceType,
+    permissions?: string[],
   ): Prisma.InvoiceWhereInput {
     const where: Prisma.InvoiceWhereInput = {
       tenant_id: tenantId,
@@ -1931,6 +2020,11 @@ export class InvoicesService {
         { lpo_number: { contains: query.search, mode: "insensitive" } },
         { remarks: { contains: query.search, mode: "insensitive" } },
       ];
+    }
+
+    const scope = invoiceJobTypeScope(permissions);
+    if (scope) {
+      where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), scope];
     }
 
     return where;
@@ -2047,9 +2141,11 @@ export class InvoicesService {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: { id: true, job_type: true },
       }),
     );
     if (!exists) throw new NotFoundException("Job not found.");
+    return exists;
   }
 
   private async assertCompanyExists(tenantId: string, companyId: string) {

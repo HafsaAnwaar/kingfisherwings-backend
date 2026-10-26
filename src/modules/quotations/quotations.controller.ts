@@ -408,9 +408,10 @@ export class QuotationsController {
   create(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Body() dto: CreateQuotationDto,
   ) {
-    return this.service.create(tenantId, dto, actorId);
+    return this.service.create(tenantId, dto, actorId, permissions);
   }
 
   @Patch(":id")
@@ -421,10 +422,11 @@ export class QuotationsController {
   update(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateQuotationDto,
   ) {
-    return this.service.update(tenantId, id, dto, actorId);
+    return this.service.update(tenantId, id, dto, actorId, permissions);
   }
 
   @Delete(":id")
@@ -536,9 +538,10 @@ export class QuotationsController {
   send(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.send(tenantId, id, actorId);
+    return this.service.send(tenantId, id, actorId, permissions);
   }
 
   @Post(":id/mark-won")

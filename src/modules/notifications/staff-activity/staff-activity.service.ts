@@ -6,6 +6,10 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { EmailService } from "../../../shared/email/email.service";
 import { renderBrandedEmail } from "../../../shared/email/branded-email.template";
 import { STAFF_ACTIVITY_QUEUE } from "./staff-activity.rules";
+import {
+  adminEmailDedupeKey,
+  claimAdminEmailDedupe,
+} from "../tenant-admin-notification-email.util";
 
 export interface StaffActivityEvent {
   tenantId: string;
@@ -190,6 +194,15 @@ export class StaffActivityService {
     ];
     if (!recipients.length) return;
 
+    // Skip when a Tenant Admin notification email already covered this entity+minute.
+    if (
+      claimAdminEmailDedupe(
+        adminEmailDedupeKey(job.tenantId, log.entity_id, log.action),
+      )
+    ) {
+      return;
+    }
+
     const meta = (log.metadata ?? {}) as Record<string, string | null>;
     const status =
       (log.new_values as { status?: string } | null)?.status ?? null;
@@ -206,12 +219,17 @@ export class StaffActivityService {
     const reference = meta.reference ?? jobRef;
     const detail = meta.detail;
 
-    const headlineBits = [
-      performedBy,
-      log.action.toLowerCase(),
-      reference ? `${log.entity} ${reference}` : log.entity,
-    ];
-    const summaryLine = headlineBits.filter(Boolean).join(" — ");
+    // Formal human headline: "Sarah Alami created Quotation Q-…"
+    const actionPhrase = log.action.replace(/\bof\b/gi, "").trim();
+    const targetLabel = reference
+      ? `${log.entity} ${reference}`
+      : log.entity;
+    const formalHeadline = `${actorName} ${actionPhrase.toLowerCase()} ${targetLabel}`
+      .replace(/\s+/g, " ")
+      .trim();
+    const summaryLine = role
+      ? `${formalHeadline} (${role})`
+      : formalHeadline;
 
     const detailRows: Array<{ label: string; value: string }> = [
       { label: "Company", value: company },
@@ -230,14 +248,14 @@ export class StaffActivityService {
     ];
 
     const branded = renderBrandedEmail({
-      subject: `[${app}] Staff Activity: ${log.action}`,
-      headline: "Staff activity notification",
-      recipientName: "Administrator",
+      subject: `[${app}] ${formalHeadline}`,
+      headline: formalHeadline,
+      recipientName: "Tenant Administrator",
       organizationName: company,
       audience: "STAFF",
       intro: [
-        `${performedBy} performed an activity in ${company}.`,
         summaryLine,
+        `Activity in ${company}.`,
         ...(detail ? [`Details: ${detail}.`] : []),
       ],
       details: detailRows,
@@ -245,8 +263,8 @@ export class StaffActivityService {
         ? { cta: { label: `Open in ${app}`, url: link } }
         : {}),
       closing: [
-        `You receive this because you are an administrator of ${company}.`,
-        "Every create, update, status change, document upload, and related staff action on jobs, quotations, invoices, and other records is emailed to you so you can track your team's work.",
+        `You receive this because you are a Tenant Administrator of ${company}.`,
+        "Staff create, update, status change, document upload, and related actions on jobs, quotations, shipments, invoices, and enquiries are emailed to Tenant Admins only.",
       ],
     });
 

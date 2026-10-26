@@ -126,9 +126,10 @@ export class ShipmentsController {
   @ApiOperation({ summary: "List shipments (Fresa booking / HBL layer)" })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: ShipmentQueryDto,
   ) {
-    return this.service.findAll(tenantId, query);
+    return this.service.findAll(tenantId, query, permissions);
   }
 
   @Post()
@@ -137,9 +138,10 @@ export class ShipmentsController {
   create(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Body() dto: CreateShipmentDto,
   ) {
-    return this.service.create(tenantId, dto, actorId);
+    return this.service.create(tenantId, dto, actorId, permissions);
   }
 
   @Get(":id/detail/:tab")
@@ -548,9 +550,10 @@ export class ShipmentsController {
   @ApiOperation({ summary: "Shipment detail" })
   findOne(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id);
+    return this.service.findOne(tenantId, id, permissions);
   }
 
   @Patch(":id")
@@ -559,10 +562,11 @@ export class ShipmentsController {
   update(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateShipmentDto,
   ) {
-    return this.service.update(tenantId, id, dto, actorId);
+    return this.service.update(tenantId, id, dto, actorId, permissions);
   }
 
   @Post(":id/change-status")
