@@ -1,5 +1,5 @@
 -- Repair: week19 courier_delivery_checkpoints may be missing on DBs that
--- partially applied land/courier migrations. Idempotent for fresh installs.
+-- partially applied land/courier migrations. Fully idempotent.
 CREATE TABLE IF NOT EXISTS "courier_delivery_checkpoints" (
     "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "tenant_id" UUID NOT NULL,
@@ -31,8 +31,11 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 
+-- enable_rls_for_table CREATE POLICYs without IF NOT EXISTS; swallow duplicate_object.
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'enable_rls_for_table') THEN
     PERFORM enable_rls_for_table('courier_delivery_checkpoints');
   END IF;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
 END $$;
