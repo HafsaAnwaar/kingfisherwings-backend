@@ -15,6 +15,8 @@ describe("quotationActionFlags", () => {
       can_convert_to_job: false,
       can_copy: true,
       can_change_status: true,
+      can_download_pdf: false,
+      can_generate_pdf: true,
     });
   });
 
@@ -31,6 +33,8 @@ describe("quotationActionFlags", () => {
       can_convert_to_job: false,
       can_copy: true,
       can_change_status: true,
+      can_download_pdf: false,
+      can_generate_pdf: true,
     });
   });
 
@@ -47,6 +51,8 @@ describe("quotationActionFlags", () => {
       can_convert_to_job: true,
       can_copy: true,
       can_change_status: true,
+      can_download_pdf: false,
+      can_generate_pdf: true,
     });
   });
 
@@ -58,6 +64,23 @@ describe("quotationActionFlags", () => {
       can_convert_to_job: false,
       can_copy: true,
       can_change_status: true,
+      can_generate_pdf: true,
+    });
+  });
+
+  it("gates download PDF when a stored PDF exists", () => {
+    expect(
+      quotationActionFlags("SENT" as QuotationStatus, { has_pdf: true }),
+    ).toMatchObject({
+      can_download_pdf: true,
+      can_generate_pdf: true,
+    });
+  });
+
+  it("blocks generate PDF on terminal statuses", () => {
+    expect(quotationActionFlags("EXPIRED" as QuotationStatus)).toMatchObject({
+      can_generate_pdf: false,
+      can_download_pdf: false,
     });
   });
 });

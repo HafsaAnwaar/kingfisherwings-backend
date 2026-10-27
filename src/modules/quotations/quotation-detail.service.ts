@@ -42,7 +42,13 @@ export class QuotationDetailService {
   async getDetail(tenantId: string, id: string) {
     const quote = await this.loadQuotation(tenantId, id);
     const links = await this.resolveLinks(tenantId, quote);
-    const flags = quotationActionFlags(quote.status);
+    const hasPdf = !!(
+      quote.customer_pdf_url ||
+      quote.customer_pdf_s3_key ||
+      quote.internal_pdf_url ||
+      quote.internal_pdf_s3_key
+    );
+    const flags = quotationActionFlags(quote.status, { has_pdf: hasPdf });
     return {
       success: true,
       data: {

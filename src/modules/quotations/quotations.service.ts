@@ -648,7 +648,14 @@ export class QuotationsService {
         tax_total: totals.tax_total,
         total_amount: totals.total_amount,
         negotiation_pricing: buildNegotiationPricingView(quotation),
-        actions: quotationActionFlags(quotation.status),
+        actions: quotationActionFlags(quotation.status, {
+          has_pdf: !!(
+            quotation.customer_pdf_url ||
+            quotation.customer_pdf_s3_key ||
+            quotation.internal_pdf_url ||
+            quotation.internal_pdf_s3_key
+          ),
+        }),
         ...this.masterLabels.displayOverlay(
           await this.masterLabels.resolveDisplayMaps(
             tenantId,

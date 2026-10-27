@@ -212,6 +212,51 @@ export class DocumentGenerationService {
     return task;
   }
 
+  /**
+   * Create the task, write the PDF immediately (no wait on the worker),
+   * and return the resulting JobDocument id when available.
+   */
+  async generateJobDocumentSync(
+    tenantId: string,
+    jobId: string,
+    documentType: DocumentType,
+    requestedBy?: string,
+    layoutVariant?: string,
+    isOriginal = false,
+    options?: SeaFclDocumentOptions,
+  ) {
+    const task = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.documentGenerationTask.create({
+        data: {
+          tenant_id: tenantId,
+          entity_type: "JOB",
+          job_id: jobId,
+          document_type: documentType,
+          layout_variant: layoutVariant,
+          options: options ? (options as Prisma.InputJsonValue) : undefined,
+          status: "PENDING",
+          requested_by: requestedBy,
+        },
+      }),
+    );
+
+    const completed = await this.processTask(task.id, tenantId, isOriginal);
+
+    const document = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobDocument.findFirst({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          generation_task_id: task.id,
+          deleted_at: null,
+        },
+        orderBy: { created_at: "desc" },
+      }),
+    );
+
+    return { task: completed, document };
+  }
+
   async getTask(tenantId: string, taskId: string) {
     const task = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentGenerationTask.findFirst({
@@ -344,38 +389,55 @@ export class DocumentGenerationService {
       if (
         task.entity_type === "JOB" &&
         task.job_id &&
-        task.document_type &&
-        task.requested_by
+        task.document_type
       ) {
-        const jobDocument = await this.prisma.runWithTenant(tenantId, (tx) =>
-          tx.jobDocument.create({
-            data: {
-              tenant_id: tenantId,
-              job_id: task.job_id!,
-              document_type: task.document_type!,
-              file_name: filename,
-              file_url: stored.fileUrl,
-              s3_key: stored.s3Key,
-              file_size: stored.fileSize,
-              mime_type: "application/pdf",
-              version: 1,
-              is_original: isOriginal,
-              layout_variant: task.layout_variant,
-              generation_status: "COMPLETED",
-              generated_at: new Date(),
-              generation_task_id: taskId,
-              uploaded_by: task.requested_by!,
-              created_by: task.requested_by!,
-              updated_by: task.requested_by!,
-            },
-          }),
-        );
+        const actorId =
+          task.requested_by ??
+          (
+            await this.prisma.runWithTenant(tenantId, (tx) =>
+              tx.job.findFirst({
+                where: { id: task.job_id!, tenant_id: tenantId },
+                select: { created_by: true },
+              }),
+            )
+          )?.created_by ??
+          null;
 
-        await this.notifications.notifyPortalDocumentReadyForJob(
-          tenantId,
-          task.job_id,
-          jobDocument,
-        );
+        if (actorId) {
+          const jobDocument = await this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.jobDocument.create({
+              data: {
+                tenant_id: tenantId,
+                job_id: task.job_id!,
+                document_type: task.document_type!,
+                file_name: filename,
+                file_url: stored.fileUrl,
+                s3_key: stored.s3Key,
+                file_size: stored.fileSize,
+                mime_type: "application/pdf",
+                version: 1,
+                is_original: isOriginal,
+                layout_variant: task.layout_variant,
+                generation_status: "COMPLETED",
+                generated_at: new Date(),
+                generation_task_id: taskId,
+                uploaded_by: actorId,
+                created_by: actorId,
+                updated_by: actorId,
+              },
+            }),
+          );
+
+          await this.notifications.notifyPortalDocumentReadyForJob(
+            tenantId,
+            task.job_id,
+            jobDocument,
+          );
+        } else {
+          this.logger.warn(
+            `Task ${taskId} completed without JobDocument row (no actor for uploaded_by).`,
+          );
+        }
       }
 
       return completed;

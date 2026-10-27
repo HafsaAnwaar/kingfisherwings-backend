@@ -4427,7 +4427,7 @@ export class JobsService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getOrThrow(tx, tenantId, jobId);
 
-      return tx.jobDocument.findMany({
+      const rows = await tx.jobDocument.findMany({
         where: {
           tenant_id: tenantId,
           job_id: jobId,
@@ -4438,6 +4438,13 @@ export class JobsService {
         },
         orderBy: { created_at: "desc" },
       });
+
+      // Prefer stable API download over possibly-expired presigned file_url.
+      return rows.map((doc) => ({
+        ...doc,
+        download_path: `/jobs/${jobId}/documents/${doc.id}/download`,
+        can_download: !!(doc.s3_key || doc.file_url),
+      }));
     });
   }
 
@@ -4651,6 +4658,7 @@ export class JobsService {
     documentType: DocumentType,
     dto: GenerateJobDocumentDto,
     actorId?: string,
+    opts?: { sync?: boolean },
   ) {
     const job = await this.findOne(tenantId, jobId);
     assertDocumentAllowedForJobType(job.job_type, documentType);
@@ -4668,6 +4676,35 @@ export class JobsService {
       is_express_release: documentType === "HBL_EXPRESS_RELEASE",
     };
 
+    if (opts?.sync) {
+      const { task, document } =
+        await this.documentGeneration.generateJobDocumentSync(
+          tenantId,
+          jobId,
+          documentType,
+          actorId ?? job.created_by ?? undefined,
+          dto.layout_variant,
+          dto.is_original ?? false,
+          options,
+        );
+      const documentId = document?.id ?? null;
+      return {
+        task_id: task.id,
+        status: task.status,
+        document_type: documentType,
+        document_id: documentId,
+        s3_key: document?.s3_key ?? task.s3_key ?? null,
+        file_url: document?.file_url ?? task.file_url ?? null,
+        download_path: documentId
+          ? `/jobs/${jobId}/documents/${documentId}/download`
+          : null,
+        message:
+          task.status === "COMPLETED"
+            ? "Document generated."
+            : "Document generation finished with errors.",
+      };
+    }
+
     const task = await this.documentGeneration.enqueueJobDocument(
       tenantId,
       jobId,
@@ -4682,6 +4719,8 @@ export class JobsService {
       task_id: task.id,
       status: task.status,
       document_type: documentType,
+      document_id: null as string | null,
+      download_path: null as string | null,
       message: "Document generation queued.",
     };
   }

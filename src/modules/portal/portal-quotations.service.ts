@@ -435,7 +435,11 @@ export class PortalQuotationsService {
         customer_pdf_url: quotation.customer_pdf_url,
         has_pdf: Boolean(quotation.customer_pdf_url),
         actions: {
-          ...quotationActionFlags(quotation.status),
+          ...quotationActionFlags(quotation.status, {
+            has_pdf: Boolean(
+              quotation.customer_pdf_url || quotation.customer_pdf_s3_key,
+            ),
+          }),
           // Customer portal: accept stops at APPROVED; ops continuum is staff-only.
           can_generate_shipment: false,
           can_generate_job: false,

@@ -113,6 +113,7 @@ export class BlDraftFromBookingService {
       "HBL",
       { is_original: false },
       actorId,
+      { sync: true },
     );
     return {
       success: true,
@@ -120,9 +121,14 @@ export class BlDraftFromBookingService {
         preview: preview.data,
         document: generated,
         task_id: generated.task_id,
-        download_hint: `/jobs/${jobId}/documents`,
+        document_id: generated.document_id,
+        download_path: generated.download_path,
+        download_hint:
+          generated.download_path ?? `/jobs/${jobId}/documents`,
       },
-      message: "HBL draft generated from booking form details.",
+      message: generated.document_id
+        ? "HBL draft generated from booking form details."
+        : "HBL draft generation finished; download may not be ready yet.",
     };
   }
 
