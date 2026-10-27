@@ -14,9 +14,23 @@ const VERIFY_ALLOWED: QuotationStatus[] = [
   "INTERNALLY_APPROVED",
 ];
 
+export type QuotationActionFlagOpts = {
+  /** True when a customer or internal PDF is already stored. */
+  has_pdf?: boolean;
+};
+
 /** UI action flags for customer vs staff after quote is sent. */
-export function quotationActionFlags(status: QuotationStatus) {
+export function quotationActionFlags(
+  status: QuotationStatus,
+  opts?: QuotationActionFlagOpts,
+) {
   const customerCanAct = CUSTOMER_OUTCOME_ALLOWED.includes(status);
+  const terminal =
+    status === "REJECTED" ||
+    status === "DISAPPROVED" ||
+    status === "EXPIRED" ||
+    status === "CONVERTED" ||
+    status === "LOST";
   return {
     can_accept: customerCanAct,
     can_reject: customerCanAct,
@@ -33,6 +47,10 @@ export function quotationActionFlags(status: QuotationStatus) {
     can_convert_to_job: status === "APPROVED",
     can_copy: status !== "CONVERTED",
     can_change_status: true,
+    /** BE gate for FE "Download PDF" — only when a file exists. */
+    can_download_pdf: !!opts?.has_pdf,
+    /** BE gate for FE "Generate PDF" — allowed until quote is terminal. */
+    can_generate_pdf: !terminal,
   };
 }
 

@@ -228,10 +228,15 @@ export class JobDocumentUploadService {
     const doc = docs.find((d) => d.id === documentId);
     if (!doc) throw new NotFoundException("Document not found.");
 
+    const s3Key =
+      doc.s3_key?.trim() ||
+      deriveObjectKeyFromUrl(doc.file_url, tenantId) ||
+      null;
+
     const file = await this.storage.readByStoredFile(tenantId, {
       file_name: doc.file_name,
       file_url: doc.file_url,
-      s3_key: doc.s3_key,
+      s3_key: s3Key,
       mime_type: doc.mime_type,
     });
     res.setHeader("Content-Type", file.mimeType);
@@ -301,6 +306,30 @@ export class JobDocumentUploadService {
     });
     if (!job) throw new NotFoundException("Job not found.");
   }
+}
+
+/**
+ * Recover a durable object key when `s3_key` was never stored and `file_url`
+ * is an expired presigned / public URL that still embeds the key path.
+ */
+function deriveObjectKeyFromUrl(
+  fileUrl: string | null | undefined,
+  tenantId: string,
+): string | null {
+  if (!fileUrl?.trim()) return null;
+  try {
+    const u = new URL(fileUrl);
+    const keyParam = u.searchParams.get("Key") ?? u.searchParams.get("key");
+    if (keyParam?.includes(tenantId)) {
+      return decodeURIComponent(keyParam);
+    }
+    const path = decodeURIComponent(u.pathname.replace(/^\/+/, ""));
+    const idx = path.indexOf(`${tenantId}/`);
+    if (idx >= 0) return path.slice(idx);
+  } catch {
+    // Relative / opaque storage refs — ignore.
+  }
+  return null;
 }
 
 const CUSTOMER_BLOCKED_RUNTIME: DocumentType[] = [

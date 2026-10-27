@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   publicTrackUrl,
@@ -76,8 +76,25 @@ function humanLabel(code: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** Lifecycle / status audit actions that belong on track history. */
+const LIFECYCLE_ACTIONS = new Set([
+  "JOB_CREATED",
+  "JOB_STATUS_CHANGE",
+  "JOB_CLOSED",
+  "JOB_CANCELLED",
+  "JOB_REOPENED",
+  "SHIPMENT_CREATED",
+  "SHIPMENT_STATUS_CHANGE",
+  "SHIPMENT_BL_STATUS_CHANGE",
+  "SHIPMENT_GENERATE_JOB",
+  "QUOTATION_STATUS_CHANGE",
+  "CREATE",
+]);
+
 @Injectable()
 export class TrackTimelineService {
+  private readonly logger = new Logger(TrackTimelineService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   buildHistory(parts: {
@@ -107,6 +124,7 @@ export class TrackTimelineService {
       to_code?: string | null;
       at: Date;
       reason?: string | null;
+      action?: string | null;
     }>;
     includeNotes?: boolean;
   }): TrackHistoryEvent[] {
@@ -125,13 +143,44 @@ export class TrackTimelineService {
     }
 
     for (const sc of parts.status_changes ?? []) {
-      const toLabel = humanLabel(sc.to_code ?? sc.to);
+      const action = (sc.action ?? "").toUpperCase();
+      let code = sc.to_code ?? sc.to;
+      let label: string;
+
+      if (action.includes("CREATED") || action === "CREATE") {
+        // Synthetic create already added from entity created_at — skip dupes
+        // unless we have no created_at.
+        if (parts.created_at) continue;
+        code = "CREATED";
+        label = "Shipment / job created";
+      } else if (action === "JOB_CLOSED" || /CLOSED/.test(action)) {
+        code = "CLOSED";
+        label = "Job closed";
+      } else if (action === "JOB_CANCELLED" || /CANCEL/.test(action)) {
+        code = "CANCELLED";
+        label = "Job cancelled";
+      } else if (action === "JOB_REOPENED" || /REOPEN/.test(action)) {
+        code = "REOPENED";
+        label = "Job reopened";
+      } else if (/APPROV/.test(action) || /APPROV/i.test(sc.to)) {
+        code = sc.to_code ?? sc.to ?? "APPROVED";
+        label = sc.from
+          ? `Approved (was ${humanLabel(sc.from)})`
+          : "Approved";
+      } else if (/VERIF/.test(action) || /VERIF/i.test(sc.to)) {
+        code = sc.to_code ?? sc.to ?? "VERIFIED";
+        label = "Verified";
+      } else {
+        const toLabel = humanLabel(sc.to_code ?? sc.to);
+        label = sc.from
+          ? `Status changed to ${toLabel}`
+          : `Status set to ${toLabel}`;
+      }
+
       events.push({
         type: "STATUS",
-        code: sc.to_code ?? sc.to,
-        label: sc.from
-          ? `Status changed to ${toLabel}`
-          : `Status set to ${toLabel}`,
+        code,
+        label,
         planned_at: null,
         actual_at: sc.at,
         is_completed: true,
@@ -239,7 +288,7 @@ export class TrackTimelineService {
 
   /**
    * Full track timeline for a job (staff / portal / public builder).
-   * Includes milestones, courier scans, containers, and status-change history.
+   * Includes milestones, courier scans, containers, and lifecycle history.
    */
   async getTimelineForJob(
     tenantId: string,
@@ -252,6 +301,8 @@ export class TrackTimelineService {
   ): Promise<TrackTimelinePayload> {
     const includeNotes = opts?.includeNotes ?? true;
 
+    // Core job + mode details. Courier checkpoints loaded separately so a
+    // missing/legacy table cannot 500 every track request.
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
@@ -322,16 +373,6 @@ export class TrackTimelineService {
               notes: true,
             },
           },
-          courier_checkpoints: {
-            where: { deleted_at: null },
-            orderBy: { scanned_at: "asc" },
-            select: {
-              checkpoint: true,
-              scanned_at: true,
-              location: true,
-              notes: true,
-            },
-          },
           containers_job: {
             where: { deleted_at: null },
             orderBy: { created_at: "asc" },
@@ -354,6 +395,7 @@ export class TrackTimelineService {
               status: true,
               hbl_number: true,
               mbl_number: true,
+              created_at: true,
             },
           },
         },
@@ -362,43 +404,73 @@ export class TrackTimelineService {
 
     if (!job) throw new NotFoundException("Job not found.");
 
+    const courier_checkpoints = await this.safeCourierCheckpoints(
+      tenantId,
+      jobId,
+    );
+
+    const linkedIds = job.shipments.map((s) => s.id);
+    const entityIds = [jobId, ...linkedIds];
+
     const statusLogs = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.auditLog.findMany({
         where: {
           tenant_id: tenantId,
-          entity_id: jobId,
-          OR: [
-            { action: "JOB_STATUS_CHANGE" },
-            { action: { contains: "Changed Status", mode: "insensitive" } },
-          ],
+          entity_id: { in: entityIds },
         },
         orderBy: { created_at: "asc" },
-        take: 100,
+        take: 300,
         select: {
           created_at: true,
           metadata: true,
           new_values: true,
+          old_values: true,
           action: true,
+          entity: true,
+          entity_id: true,
         },
       }),
     );
 
-    const status_changes = statusLogs.map((row) => {
-      const meta = (row.metadata ?? {}) as Record<string, unknown>;
-      const nv = (row.new_values ?? {}) as Record<string, unknown>;
-      const to =
-        (typeof meta.to === "string" && meta.to) ||
-        (typeof meta.to_code === "string" && meta.to_code) ||
-        (typeof nv.status === "string" && nv.status) ||
-        "UPDATED";
-      return {
-        from: typeof meta.from === "string" ? meta.from : null,
-        to,
-        to_code: typeof meta.to_code === "string" ? meta.to_code : null,
-        at: row.created_at,
-        reason: typeof meta.reason === "string" ? meta.reason : null,
-      };
-    });
+    const status_changes = statusLogs
+      .filter((row) => this.isLifecycleAudit(row.action, row.entity))
+      .map((row) => {
+        const meta = (row.metadata ?? {}) as Record<string, unknown>;
+        const nv = (row.new_values ?? {}) as Record<string, unknown>;
+        const ov = (row.old_values ?? {}) as Record<string, unknown>;
+        const to =
+          (typeof meta.to === "string" && meta.to) ||
+          (typeof meta.to_status === "string" && meta.to_status) ||
+          (typeof meta.to_code === "string" && meta.to_code) ||
+          (typeof meta.new_status === "string" && meta.new_status) ||
+          (typeof nv.status === "string" && nv.status) ||
+          (typeof nv.status_code === "string" && nv.status_code) ||
+          row.action.replace(/^JOB_|^SHIPMENT_/, "") ||
+          "UPDATED";
+        const from =
+          (typeof meta.from === "string" && meta.from) ||
+          (typeof meta.from_status === "string" && meta.from_status) ||
+          (typeof meta.old_status === "string" && meta.old_status) ||
+          (typeof ov.status === "string" && ov.status) ||
+          null;
+        const reason =
+          (typeof meta.reason === "string" && meta.reason) ||
+          (typeof meta.notes === "string" && meta.notes) ||
+          null;
+        return {
+          from,
+          to,
+          to_code:
+            typeof meta.to_code === "string"
+              ? meta.to_code
+              : typeof nv.status_code === "string"
+                ? nv.status_code
+                : null,
+          at: row.created_at,
+          reason,
+          action: row.action,
+        };
+      });
 
     const [ports, airports, vessel, tenant] = await this.prisma.runWithTenant(
       tenantId,
@@ -477,7 +549,7 @@ export class TrackTimelineService {
     const history = this.buildHistory({
       created_at: job.created_at,
       milestones: job.milestones,
-      courier_checkpoints: job.courier_checkpoints,
+      courier_checkpoints,
       containers: job.containers_job,
       status_changes,
       includeNotes,
@@ -494,7 +566,9 @@ export class TrackTimelineService {
     const focusShipment =
       (opts?.shipmentId
         ? linked.find((s) => s.id === opts.shipmentId)
-        : null) ?? linked[0] ?? null;
+        : null) ??
+      linked[0] ??
+      null;
 
     const slug = opts?.tenantSlug ?? tenant?.slug ?? null;
     const token = job.tracking_token ?? null;
@@ -640,5 +714,60 @@ export class TrackTimelineService {
         ? publicTrackUrl(token, slug)
         : publicTrackUrl(job.job_number, slug),
     };
+  }
+
+  private isLifecycleAudit(action: string, entity: string): boolean {
+    const a = action.toUpperCase();
+    const e = entity.toUpperCase();
+    if (!/(JOB|SHIPMENT|QUOTATION)/.test(e) && e !== "JOB" && e !== "SHIPMENT") {
+      // Human-readable actions like "Updated Job (Stop)" / "Deleted Job"
+      if (/JOB|SHIPMENT|STATUS|APPROV|VERIF|CREATE|CLOS|CANCEL|REOPEN/i.test(action)) {
+        return true;
+      }
+      return false;
+    }
+    if (LIFECYCLE_ACTIONS.has(a)) return true;
+    if (/STATUS|CREATED|APPROV|VERIF|CLOSED|CANCEL|REOPEN|GENERATE/.test(a)) {
+      return true;
+    }
+    // Free-text audit actions from older writers
+    if (/changed status|approved|verified|created|closed|cancelled|reopened/i.test(action)) {
+      return true;
+    }
+    return false;
+  }
+
+  private async safeCourierCheckpoints(
+    tenantId: string,
+    jobId: string,
+  ): Promise<
+    Array<{
+      checkpoint: string;
+      scanned_at: Date;
+      location: string | null;
+      notes: string | null;
+    }>
+  > {
+    try {
+      return await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.courierDeliveryCheckpoint.findMany({
+          where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+          orderBy: { scanned_at: "asc" },
+          select: {
+            checkpoint: true,
+            scanned_at: true,
+            location: true,
+            notes: true,
+          },
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Courier checkpoints unavailable for job ${jobId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return [];
+    }
   }
 }
