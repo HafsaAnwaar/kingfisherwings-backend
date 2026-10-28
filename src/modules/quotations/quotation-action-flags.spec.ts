@@ -17,6 +17,7 @@ describe("quotationActionFlags", () => {
       can_change_status: true,
       can_download_pdf: false,
       can_generate_pdf: true,
+      can_awb_draft: false,
     });
   });
 
@@ -35,6 +36,7 @@ describe("quotationActionFlags", () => {
       can_change_status: true,
       can_download_pdf: false,
       can_generate_pdf: true,
+      can_awb_draft: false,
     });
   });
 
@@ -53,7 +55,16 @@ describe("quotationActionFlags", () => {
       can_change_status: true,
       can_download_pdf: false,
       can_generate_pdf: true,
+      can_awb_draft: false,
     });
+  });
+
+  it("enables can_awb_draft for air job types", () => {
+    expect(
+      quotationActionFlags("SENT" as QuotationStatus, {
+        job_type: "AIR_EXPORT",
+      }),
+    ).toMatchObject({ can_awb_draft: true });
   });
 
   it("allows can_verify on VERIFIED path precursor; generate locked until APPROVED", () => {

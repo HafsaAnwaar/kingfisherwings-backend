@@ -630,6 +630,14 @@ export class ShipmentDetailService {
         edi_generate: `/shipments/${shipment.id}/edi/generate`,
         edi_submissions: `/shipments/${shipment.id}/edi/submissions`,
         edi_legacy_action: `/shipments/${shipment.id}/edi/:action`,
+        ...(isAir
+          ? {
+              awb_draft_preview: `/shipments/${shipment.id}/awb-draft/preview`,
+              hawb_draft_preview: `/shipments/${shipment.id}/hawb-draft/preview`,
+              hawb_draft_generate: `/shipments/${shipment.id}/hawb-draft/generate`,
+              mawb_draft_generate: `/shipments/${shipment.id}/mawb-draft/generate`,
+            }
+          : {}),
         ...(!hasJob &&
         (shipment.status === "CONFIRMED" || shipment.status === "APPROVED")
           ? { generate_job: `/shipments/${shipment.id}/generate-job` }

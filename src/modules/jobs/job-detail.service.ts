@@ -675,6 +675,15 @@ export class JobDetailService {
         switch_bl: `/jobs/${job.id}/documents/switch-bl`,
         bills_of_lading: `/jobs/${job.id}/bills-of-lading`,
         awb: isAir ? `/jobs/${job.id}/documents/e-awb` : null,
+        ...(isAir
+          ? {
+              awb_draft_preview: `/jobs/${job.id}/awb-draft/preview`,
+              hawb_draft_preview: `/jobs/${job.id}/hawb-draft/preview`,
+              hawb_draft_generate: `/jobs/${job.id}/hawb-draft/generate`,
+              mawb_draft_preview: `/jobs/${job.id}/mawb-draft/preview`,
+              mawb_draft_generate: `/jobs/${job.id}/mawb-draft/generate`,
+            }
+          : {}),
         tracking: `/jobs/${job.id}/tracking`,
         tracking_public: job.tracking_token
           ? `/track?ref=${encodeURIComponent(job.tracking_token)}`

@@ -79,6 +79,7 @@ import { JobContainerStorageCostingService } from "./job-container-storage-costi
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobOrganizationService } from "./job-organization.service";
 import { BlDraftFromBookingService } from "./bl-draft-from-booking.service";
+import { AwbDraftFromBookingService } from "./awb-draft-from-booking.service";
 import { JobDimensionService } from "./job-dimension.service";
 import { JobContainerTabService } from "./job-container-tab.service";
 import { JobCostingService } from "./job-costing.service";
@@ -264,6 +265,7 @@ export class JobsController {
     private readonly chargeAttachments: JobChargeAttachmentService,
     private readonly organizations: JobOrganizationService,
     private readonly blDraftFromBooking: BlDraftFromBookingService,
+    private readonly awbDraftFromBooking: AwbDraftFromBookingService,
     private readonly dimensions: JobDimensionService,
     private readonly containerTab: JobContainerTabService,
     private readonly costing: JobCostingService,
@@ -2692,6 +2694,83 @@ export class JobsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.blDraftFromBooking.generateDraftForJob(tenantId, id, actorId);
+  }
+
+  @Get(":id/hawb-draft/preview")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Preview HAWB draft fields autofilled from air booking form + air_details",
+  })
+  hawbDraftPreview(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.previewForJob(tenantId, id, "HAWB");
+  }
+
+  @Get(":id/mawb-draft/preview")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Preview MAWB draft fields autofilled from air booking form + air_details",
+  })
+  mawbDraftPreview(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.previewForJob(tenantId, id, "MAWB");
+  }
+
+  @Get(":id/awb-draft/preview")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Shared AWB draft preview (HAWB-focused) — fallback for FE AWB Draft panel",
+  })
+  awbDraftPreview(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.previewForJob(tenantId, id, "AWB");
+  }
+
+  @Post(":id/hawb-draft/generate")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Generate downloadable HAWB draft PDF from air booking form (client PDF remains SoT)",
+  })
+  hawbDraftGenerate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.generateDraftForJob(
+      tenantId,
+      id,
+      "HAWB",
+      actorId,
+    );
+  }
+
+  @Post(":id/mawb-draft/generate")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Generate downloadable MAWB draft PDF from air booking form (client PDF remains SoT)",
+  })
+  mawbDraftGenerate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.generateDraftForJob(
+      tenantId,
+      id,
+      "MAWB",
+      actorId,
+    );
   }
 
   @Post(":id/documents/hbl")

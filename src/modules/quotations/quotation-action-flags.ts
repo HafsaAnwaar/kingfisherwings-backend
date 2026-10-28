@@ -17,7 +17,13 @@ const VERIFY_ALLOWED: QuotationStatus[] = [
 export type QuotationActionFlagOpts = {
   /** True when a customer or internal PDF is already stored. */
   has_pdf?: boolean;
+  /** Job/mode type — used for AWB Draft gate (AIR_*). */
+  job_type?: string | null;
 };
+
+function isAirJobType(jobType?: string | null): boolean {
+  return jobType === "AIR_EXPORT" || jobType === "AIR_IMPORT";
+}
 
 /** UI action flags for customer vs staff after quote is sent. */
 export function quotationActionFlags(
@@ -51,6 +57,8 @@ export function quotationActionFlags(
     can_download_pdf: !!opts?.has_pdf,
     /** BE gate for FE "Generate PDF" — allowed until quote is terminal. */
     can_generate_pdf: !terminal,
+    /** BE gate for FE "AWB Draft" tab/action (air quotes only). */
+    can_awb_draft: isAirJobType(opts?.job_type),
   };
 }
 
