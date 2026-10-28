@@ -49,6 +49,7 @@ import {
 import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
 import { BookingFormEntityService } from "../jobs/booking-forms/booking-form-entity.service";
 import { BlDraftFromBookingService } from "../jobs/bl-draft-from-booking.service";
+import { AwbDraftFromBookingService } from "../jobs/awb-draft-from-booking.service";
 import { OpsSectionAttachmentsService } from "../jobs/ops-section-attachments.service";
 import {
   AddJobOrganizationDto,
@@ -75,6 +76,7 @@ export class ShipmentsController {
     private readonly shipmentEdi: ShipmentEdiService,
     private readonly bookingForms: BookingFormEntityService,
     private readonly blDraftFromBooking: BlDraftFromBookingService,
+    private readonly awbDraftFromBooking: AwbDraftFromBookingService,
     private readonly sectionFiles: OpsSectionAttachmentsService,
     private readonly statusCatalog: ShipmentStatusCatalogService,
   ) {}
@@ -702,6 +704,66 @@ export class ShipmentsController {
     return this.blDraftFromBooking.generateDraftForShipment(
       tenantId,
       id,
+      actorId,
+    );
+  }
+
+  @Get(":id/hawb-draft/preview")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Preview HAWB draft autofilled from air booking form (via linked job)",
+  })
+  hawbDraftPreview(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.previewForShipment(tenantId, id, "HAWB");
+  }
+
+  @Get(":id/awb-draft/preview")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Shared AWB draft preview for shipment (HAWB-focused fallback)",
+  })
+  awbDraftPreview(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.previewForShipment(tenantId, id, "AWB");
+  }
+
+  @Post(":id/hawb-draft/generate")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Generate downloadable HAWB draft from air booking form on linked job",
+  })
+  hawbDraftGenerate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.generateDraftForShipment(
+      tenantId,
+      id,
+      "HAWB",
+      actorId,
+    );
+  }
+
+  @Post(":id/mawb-draft/generate")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Generate downloadable MAWB draft from air booking form on linked job",
+  })
+  mawbDraftGenerate(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.awbDraftFromBooking.generateDraftForShipment(
+      tenantId,
+      id,
+      "MAWB",
       actorId,
     );
   }

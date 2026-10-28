@@ -60,6 +60,7 @@ import { ModeBookingFormsController } from "./booking-forms/mode-booking-forms.c
 import { BookingFormEntityService } from "./booking-forms/booking-form-entity.service";
 import { QuotationBookingFormService } from "./booking-forms/quotation-booking-form.service";
 import { BlDraftFromBookingService } from "./bl-draft-from-booking.service";
+import { AwbDraftFromBookingService } from "./awb-draft-from-booking.service";
 import { CustomsClearanceService } from "./customs-clearance/customs-clearance.service";
 import { CustomsClearanceController } from "./customs-clearance/customs-clearance.controller";
 import { CustomsClearanceQueueController } from "./customs-clearance/customs-clearance-queue.controller";
@@ -131,6 +132,7 @@ import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.servi
     ModeBookingFormService,
     QuotationBookingFormService,
     BlDraftFromBookingService,
+    AwbDraftFromBookingService,
     BookingFormEntityService,
     CourierService,
     CustomsClearanceService,
@@ -160,6 +162,7 @@ import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.servi
     ModeBookingFormService,
     QuotationBookingFormService,
     BlDraftFromBookingService,
+    AwbDraftFromBookingService,
     BookingFormEntityService,
     CourierService,
     CustomsClearanceService,

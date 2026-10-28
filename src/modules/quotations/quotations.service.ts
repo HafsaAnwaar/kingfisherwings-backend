@@ -655,6 +655,7 @@ export class QuotationsService {
             quotation.internal_pdf_url ||
             quotation.internal_pdf_s3_key
           ),
+          job_type: quotation.job_type,
         }),
         ...this.masterLabels.displayOverlay(
           await this.masterLabels.resolveDisplayMaps(

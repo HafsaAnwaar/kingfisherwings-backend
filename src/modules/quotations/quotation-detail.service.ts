@@ -48,7 +48,10 @@ export class QuotationDetailService {
       quote.internal_pdf_url ||
       quote.internal_pdf_s3_key
     );
-    const flags = quotationActionFlags(quote.status, { has_pdf: hasPdf });
+    const flags = quotationActionFlags(quote.status, {
+      has_pdf: hasPdf,
+      job_type: quote.job_type,
+    });
     return {
       success: true,
       data: {
@@ -73,6 +76,15 @@ export class QuotationDetailService {
               : {}),
             ...(flags.can_convert_to_job
               ? { convert_to_job: `/quotations/${quote.id}/convert-to-job` }
+              : {}),
+            ...(flags.can_awb_draft && quote.converted_job_id
+              ? {
+                  awb_draft_preview: `/jobs/${quote.converted_job_id}/awb-draft/preview`,
+                  hawb_draft_preview: `/jobs/${quote.converted_job_id}/hawb-draft/preview`,
+                  hawb_draft_generate: `/jobs/${quote.converted_job_id}/hawb-draft/generate`,
+                  mawb_draft_preview: `/jobs/${quote.converted_job_id}/mawb-draft/preview`,
+                  mawb_draft_generate: `/jobs/${quote.converted_job_id}/mawb-draft/generate`,
+                }
               : {}),
           },
         },
