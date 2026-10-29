@@ -35,6 +35,9 @@ export class UserMapper {
       user.last_name,
     );
     response.phone = user.phone ?? undefined;
+    response.whatsapp_number = user.whatsapp_number ?? undefined;
+    response.whatsapp_notifications_opt_in =
+      user.whatsapp_notifications_opt_in ?? false;
     response.preferred_country_code = user.preferred_country_code ?? undefined;
     response.avatar_url = user.avatar_url ?? undefined;
     response.role = user.role;

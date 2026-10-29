@@ -68,6 +68,26 @@ export class CreateUserDto {
   phone?: string;
 
   @ApiPropertyOptional({
+    example: "+971501234567",
+    description:
+      "E.164 WhatsApp number for receiving notifications (opt-in separately).",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\+[1-9]\d{7,14}$/, {
+    message: "whatsapp_number must be E.164 (+ and 8–15 digits).",
+  })
+  whatsapp_number?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "When true, future auto WhatsApp notify may use whatsapp_number.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  whatsapp_notifications_opt_in?: boolean;
+
+  @ApiPropertyOptional({
     example: "AE",
     description:
       "Optional. User can set/change preferred country anytime after login. Send null to clear.",

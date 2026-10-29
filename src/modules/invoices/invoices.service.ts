@@ -403,7 +403,14 @@ export class InvoicesService {
         }
       }
 
-      return this.recalculateAndReturn(tx, tenantId, invoice.id);
+      const created = await this.recalculateAndReturn(
+        tx,
+        tenantId,
+        invoice.id,
+      );
+      // FE navigates to /invoices/:id — expose unambiguous invoice id at the
+      // top level and avoid nested party.id colliding with invoice.id.
+      return this.shapeCreateResponse(created);
     });
   }
 
@@ -818,7 +825,12 @@ export class InvoicesService {
         });
       }
 
-      return this.recalculateAndReturn(tx, tenantId, invoice.id);
+      const created = await this.recalculateAndReturn(
+        tx,
+        tenantId,
+        invoice.id,
+      );
+      return this.shapeCreateResponse(created);
     });
   }
 
@@ -2120,6 +2132,42 @@ export class InvoicesService {
         party: { select: { id: true, name: true, code: true } },
       },
     });
+  }
+
+  /**
+   * Create/navigation-safe payload: top-level `id` / `invoice_id` are always
+   * the invoice UUID. Nested party keeps display fields without a competing `id`.
+   */
+  private shapeCreateResponse<
+    T extends {
+      id: string;
+      party?: { id: string; name: string | null; code: string | null } | null;
+      lines?: Array<{ id: string } & Record<string, unknown>>;
+    },
+  >(created: T) {
+    const party = created.party
+      ? {
+          name: created.party.name,
+          code: created.party.code,
+          party_id: created.party.id,
+        }
+      : null;
+    const lines = (created.lines ?? []).map(({ id: lineId, ...rest }) => ({
+      ...rest,
+      line_id: lineId,
+      id: lineId,
+    }));
+    const data = {
+      ...created,
+      party,
+      lines,
+    };
+    return {
+      success: true as const,
+      id: created.id,
+      invoice_id: created.id,
+      data,
+    };
   }
 
   private assertEditable(invoice: Invoice & { lines?: unknown[] }) {

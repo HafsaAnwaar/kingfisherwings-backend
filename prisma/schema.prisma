@@ -1130,6 +1130,11 @@ model User {
 
   phone String? @db.VarChar(30)
 
+  /// E.164 WhatsApp number for receiving ops notifications (manual send now; auto later).
+  whatsapp_number String? @db.VarChar(30)
+  /// When true, future auto WhatsApp notify may use whatsapp_number. Manual send ignores this.
+  whatsapp_notifications_opt_in Boolean @default(false)
+
   avatar_url String? @db.Text
 
   locale String @default("en") @db.VarChar(10)
