@@ -4404,7 +4404,12 @@ model JobMilestone {
   milestone    String    @db.VarChar(100)
   planned_date DateTime? @db.Date
   actual_date  DateTime? @db.Date
+  /// Customer-visible description shown with date/time on track & portal.
+  description  String?   @db.Text
+  /// Legacy alias of description (kept in sync for older clients).
   notes        String?   @db.Text
+  /// Precise completion timestamp (date + time) for customer display.
+  completed_at DateTime? @db.Timestamptz
   completed_by String?   @db.Uuid
   created_at   DateTime  @default(now()) @db.Timestamptz
   updated_at   DateTime  @updatedAt @db.Timestamptz

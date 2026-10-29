@@ -124,6 +124,8 @@ export type TrackHistoryEvent = {
   is_completed: boolean;
   location?: string | null;
   container_number?: string | null;
+  /** Customer-visible milestone description (also mirrored on notes). */
+  description?: string | null;
   notes?: string | null;
 };
 

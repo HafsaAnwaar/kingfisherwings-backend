@@ -1953,7 +1953,7 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Update a milestone — set actual_date to mark it complete. Pass milestone code/name (e.g. SI_SUBMITTED), not a UUID.",
+      "Update a milestone (code/name, not UUID). Set description for customer display; set actual_date/completed_at to mark complete with date+time.",
   })
   completeMilestone(
     @CurrentUser("tenantId") tenantId: string,
