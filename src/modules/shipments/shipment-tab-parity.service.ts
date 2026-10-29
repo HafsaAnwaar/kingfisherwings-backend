@@ -434,37 +434,100 @@ export class ShipmentTabParityService {
         orderBy: [{ line_no: "asc" }, { sort_order: "asc" }],
       }),
     );
-    const lines = charges.map((c) => ({
-      id: c.id,
-      line_no: c.line_no ?? c.sort_order,
-      description: c.description,
-      charge: {
-        charge_code_id: c.charge_code_id,
-        quantity: c.quantity,
-        is_provisional: c.is_provisional,
-      },
-      sale:
-        c.sale_amount != null || !c.is_cost
-          ? {
-              bill_to: c.sale_party_id ?? c.party_id,
-              amount: c.sale_amount ?? (!c.is_cost ? c.amount : null),
-              tax_amount: c.sale_tax_amount ?? (!c.is_cost ? c.tax_amount : null),
-              currency: c.sale_currency ?? c.currency_code,
-              ex_rate: c.sale_ex_rate ?? c.exchange_rate,
-            }
-          : null,
-      cost:
-        c.cost_amount != null || c.is_cost
-          ? {
-              vendor: c.cost_party_id ?? c.party_id,
-              amount: c.cost_amount ?? (c.is_cost ? c.amount : null),
-              tax_amount: c.cost_tax_amount,
-              currency: c.cost_currency ?? c.currency_code,
-              ex_rate: c.cost_ex_rate ?? c.exchange_rate,
-            }
-          : null,
-      gp: c.gp_amount,
-    }));
+    const partyIds = [
+      ...new Set(
+        charges
+          .flatMap((c) => [
+            c.sale_party_id,
+            c.cost_party_id,
+            c.party_id,
+          ])
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const chargeCodeIds = [
+      ...new Set(
+        charges
+          .map((c) => c.charge_code_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const [parties, chargeCodes] = await Promise.all([
+      partyIds.length
+        ? this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.party.findMany({
+              where: {
+                tenant_id: tenantId,
+                id: { in: partyIds },
+                deleted_at: null,
+              },
+              select: { id: true, name: true, code: true },
+            }),
+          )
+        : Promise.resolve([] as { id: string; name: string; code: string }[]),
+      chargeCodeIds.length
+        ? this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.chargeCode.findMany({
+              where: {
+                tenant_id: tenantId,
+                id: { in: chargeCodeIds },
+                deleted_at: null,
+              },
+              select: { id: true, code: true, description: true },
+            }),
+          )
+        : Promise.resolve(
+            [] as { id: string; code: string; description: string }[],
+          ),
+    ]);
+    const partyById = new Map(parties.map((p) => [p.id, p]));
+    const codeById = new Map(chargeCodes.map((c) => [c.id, c]));
+
+    const lines = charges.map((c) => {
+      const vendorId = c.cost_party_id ?? c.party_id;
+      const billToId = c.sale_party_id ?? c.party_id;
+      const vendor = vendorId ? partyById.get(vendorId) : undefined;
+      const billTo = billToId ? partyById.get(billToId) : undefined;
+      const cc = c.charge_code_id ? codeById.get(c.charge_code_id) : undefined;
+      return {
+        id: c.id,
+        line_no: c.line_no ?? c.sort_order,
+        description: c.description,
+        charge: {
+          charge_code_id: c.charge_code_id,
+          charge_code: cc?.code ?? null,
+          charge_code_name: cc?.description ?? null,
+          quantity: c.quantity,
+          is_provisional: c.is_provisional,
+        },
+        sale:
+          c.sale_amount != null || !c.is_cost
+            ? {
+                bill_to: billToId,
+                bill_to_name: billTo?.name ?? null,
+                bill_to_code: billTo?.code ?? null,
+                amount: c.sale_amount ?? (!c.is_cost ? c.amount : null),
+                tax_amount:
+                  c.sale_tax_amount ?? (!c.is_cost ? c.tax_amount : null),
+                currency: c.sale_currency ?? c.currency_code,
+                ex_rate: c.sale_ex_rate ?? c.exchange_rate,
+              }
+            : null,
+        cost:
+          c.cost_amount != null || c.is_cost
+            ? {
+                vendor: vendorId,
+                vendor_name: vendor?.name ?? null,
+                vendor_code: vendor?.code ?? null,
+                amount: c.cost_amount ?? (c.is_cost ? c.amount : null),
+                tax_amount: c.cost_tax_amount,
+                currency: c.cost_currency ?? c.currency_code,
+                ex_rate: c.cost_ex_rate ?? c.exchange_rate,
+              }
+            : null,
+        gp: c.gp_amount,
+      };
+    });
     const parties_included = await this.buildShipmentPartiesIncluded(
       tenantId,
       charges,

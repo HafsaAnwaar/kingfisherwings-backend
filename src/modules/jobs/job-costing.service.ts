@@ -85,7 +85,10 @@ export class JobCostingService {
       }),
     );
 
-    const lines = charges.map((c) => this.mapGridLine(c, revMap.get(c.id) ?? 0));
+    const labels = await this.resolveCostingLabels(tenantId, charges);
+    const lines = charges.map((c) =>
+      this.mapGridLine(c, revMap.get(c.id) ?? 0, labels),
+    );
     const parties_included = await this.buildPartiesIncluded(tenantId, charges);
     const payload = {
       revenue_total: job.revenue_total,
@@ -168,9 +171,12 @@ export class JobCostingService {
     const revMap = new Map(
       revCounts.map((r) => [r.job_charge_id, r._count._all]),
     );
+    const labels = await this.resolveCostingLabels(tenantId, charges);
     return {
       success: true,
-      data: charges.map((c) => this.mapGridLine(c, revMap.get(c.id) ?? 0)),
+      data: charges.map((c) =>
+        this.mapGridLine(c, revMap.get(c.id) ?? 0, labels),
+      ),
     };
   }
 
@@ -202,8 +208,28 @@ export class JobCostingService {
       const lineNo =
         dto.charge.line_no ?? (await this.nextLineNo(tx, tenantId, jobId));
 
-      const sale = dto.sale;
-      const cost = dto.cost;
+      const sale = dto.sale
+        ? {
+            ...dto.sale,
+            bill_to: await this.resolvePartyRef(tx, tenantId, {
+              id: dto.sale.bill_to,
+              code: dto.sale.bill_to_code,
+              name: dto.sale.bill_to_name,
+              label: "bill_to",
+            }),
+          }
+        : undefined;
+      const cost = dto.cost
+        ? {
+            ...dto.cost,
+            vendor: await this.resolvePartyRef(tx, tenantId, {
+              id: dto.cost.vendor,
+              code: dto.cost.vendor_code,
+              name: dto.cost.vendor_name,
+              label: "vendor",
+            }),
+          }
+        : undefined;
       const hasSale = !!sale && (sale.amount != null || sale.fcy_amount != null);
       const hasCost = !!cost && (cost.amount != null || cost.fcy_amount != null);
 
@@ -1496,8 +1522,28 @@ export class JobCostingService {
       });
       if (!existing) throw new NotFoundException("Charge line not found.");
 
-      const sale = parts.sale;
-      const cost = parts.cost;
+      const sale = parts.sale
+        ? {
+            ...parts.sale,
+            bill_to: await this.resolvePartyRef(tx, tenantId, {
+              id: parts.sale.bill_to,
+              code: parts.sale.bill_to_code,
+              name: parts.sale.bill_to_name,
+              label: "bill_to",
+            }),
+          }
+        : undefined;
+      const cost = parts.cost
+        ? {
+            ...parts.cost,
+            vendor: await this.resolvePartyRef(tx, tenantId, {
+              id: parts.cost.vendor,
+              code: parts.cost.vendor_code,
+              name: parts.cost.vendor_name,
+              label: "vendor",
+            }),
+          }
+        : undefined;
       const nextSaleAmt =
         sale?.amount != null
           ? Number(sale.amount)
@@ -1566,6 +1612,50 @@ export class JobCostingService {
       return row;
     });
     return { success: true, data: updated };
+  }
+
+  /**
+   * Resolve a party by UUID, code, or name — never require the user to type a UUID.
+   */
+  private async resolvePartyRef(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    ref: {
+      id?: string;
+      code?: string;
+      name?: string;
+      label: string;
+    },
+  ): Promise<string | undefined> {
+    if (ref.id) {
+      const byId = await tx.party.findFirst({
+        where: { id: ref.id, tenant_id: tenantId, deleted_at: null },
+        select: { id: true },
+      });
+      if (!byId) {
+        throw new NotFoundException(`Party for ${ref.label} not found.`);
+      }
+      return byId.id;
+    }
+    const key = (ref.code ?? ref.name ?? "").trim();
+    if (!key) return undefined;
+    const party = await tx.party.findFirst({
+      where: {
+        tenant_id: tenantId,
+        deleted_at: null,
+        OR: [
+          { code: { equals: key, mode: "insensitive" } },
+          { name: { equals: key, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!party) {
+      throw new NotFoundException(
+        `Party "${key}" not found for ${ref.label}. Use party code or name — UUID is not required.`,
+      );
+    }
+    return party.id;
   }
 
   private saleFields(sale?: SaleSectionDto) {
@@ -1712,6 +1802,65 @@ export class JobCostingService {
     });
   }
 
+  private async resolveCostingLabels(
+    tenantId: string,
+    charges: Array<{
+      charge_code_id: string | null;
+      sale_party_id?: string | null;
+      cost_party_id?: string | null;
+      party_id?: string | null;
+    }>,
+  ) {
+    const partyIds = [
+      ...new Set(
+        charges
+          .flatMap((c) => [c.sale_party_id, c.cost_party_id, c.party_id])
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const chargeCodeIds = [
+      ...new Set(
+        charges
+          .map((c) => c.charge_code_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    const [parties, chargeCodes] = await Promise.all([
+      partyIds.length
+        ? this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.party.findMany({
+              where: {
+                tenant_id: tenantId,
+                id: { in: partyIds },
+                deleted_at: null,
+              },
+              select: { id: true, name: true, code: true },
+            }),
+          )
+        : Promise.resolve([] as { id: string; name: string; code: string }[]),
+      chargeCodeIds.length
+        ? this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.chargeCode.findMany({
+              where: {
+                tenant_id: tenantId,
+                id: { in: chargeCodeIds },
+                deleted_at: null,
+              },
+              select: { id: true, code: true, description: true },
+            }),
+          )
+        : Promise.resolve(
+            [] as { id: string; code: string; description: string }[],
+          ),
+    ]);
+
+    return {
+      parties: new Map(parties.map((p) => [p.id, p])),
+      chargeCodes: new Map(chargeCodes.map((c) => [c.id, c])),
+    };
+  }
+
   private mapGridLine(
     c: Prisma.JobChargeGetPayload<{
       include: {
@@ -1721,6 +1870,13 @@ export class JobCostingService {
       };
     }> & { revisions?: { id: string }[] },
     historyCount: number,
+    labels?: {
+      parties: Map<string, { id: string; name: string; code: string }>;
+      chargeCodes: Map<
+        string,
+        { id: string; code: string; description: string }
+      >;
+    },
   ) {
     const saleAtt = (c.attachments ?? []).filter(
       (a) => a.side === JobChargeAttachmentSide.SALE,
@@ -1728,6 +1884,13 @@ export class JobCostingService {
     const costAtt = (c.attachments ?? []).filter(
       (a) => a.side === JobChargeAttachmentSide.COST,
     );
+    const vendorId = c.cost_party_id ?? c.party_id;
+    const billToId = c.sale_party_id;
+    const vendor = vendorId ? labels?.parties.get(vendorId) : undefined;
+    const billTo = billToId ? labels?.parties.get(billToId) : undefined;
+    const chargeCode = c.charge_code_id
+      ? labels?.chargeCodes.get(c.charge_code_id)
+      : undefined;
     return {
       id: c.id,
       line_no: c.line_no,
@@ -1735,6 +1898,8 @@ export class JobCostingService {
       unit: c.unit,
       charge: {
         charge_code_id: c.charge_code_id,
+        charge_code: chargeCode?.code ?? null,
+        charge_code_name: chargeCode?.description ?? null,
         quantity: c.quantity,
         remarks: c.remarks,
         pp_cc: c.pp_cc,
@@ -1744,7 +1909,9 @@ export class JobCostingService {
       },
       sale: c.sale_amount != null || !c.is_cost
         ? {
-            bill_to: c.sale_party_id,
+            bill_to: billToId,
+            bill_to_name: billTo?.name ?? null,
+            bill_to_code: billTo?.code ?? null,
             amount: c.sale_amount ?? (!c.is_cost ? c.amount : null),
             tax_amount: c.sale_tax_amount ?? (!c.is_cost ? c.tax_amount : null),
             dr_cr: c.sale_dr_cr,
@@ -1761,7 +1928,9 @@ export class JobCostingService {
         : null,
       cost: c.cost_amount != null || c.is_cost
         ? {
-            vendor: c.cost_party_id ?? c.party_id,
+            vendor: vendorId,
+            vendor_name: vendor?.name ?? null,
+            vendor_code: vendor?.code ?? null,
             amount: c.cost_amount ?? (c.is_cost ? c.amount : null),
             tax_amount: c.cost_tax_amount,
             dr_cr: c.cost_dr_cr,

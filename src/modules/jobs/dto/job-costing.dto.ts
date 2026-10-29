@@ -69,10 +69,28 @@ export class ChargeSectionDto {
 }
 
 export class SaleSectionDto {
-  @ApiPropertyOptional({ format: "uuid", description: "Bill-to party" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    deprecated: true,
+    description: "Prefer bill_to_code / bill_to_name",
+  })
   @IsOptional()
   @IsUUID()
   bill_to?: string;
+
+  @ApiPropertyOptional({
+    description: "Bill-to party code (preferred over UUID)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  bill_to_code?: string;
+
+  @ApiPropertyOptional({ description: "Bill-to party name (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  bill_to_name?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -151,12 +169,27 @@ export class SaleSectionDto {
 export class CostSectionDto {
   @ApiPropertyOptional({
     format: "uuid",
+    deprecated: true,
     description:
-      "Cost-side party (vendor, shipper, agent, or other Party). Use multiple charge lines for multiple parties.",
+      "Prefer vendor_code / vendor_name. Cost-side party (vendor, shipper, agent).",
   })
   @IsOptional()
   @IsUUID()
   vendor?: string;
+
+  @ApiPropertyOptional({
+    description: "Vendor / cost party code (preferred over UUID)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  vendor_code?: string;
+
+  @ApiPropertyOptional({ description: "Vendor / cost party name (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  vendor_name?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
