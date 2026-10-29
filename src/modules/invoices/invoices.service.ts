@@ -158,9 +158,9 @@ export class InvoicesService {
 
       if (invoice.job?.job_type) {
         assertJobTypeAccess(permissions, invoice.job.job_type, "see");
-      } else if (invoiceJobTypeScope(permissions)) {
-        throw new NotFoundException("Invoice not found.");
       }
+      // Manual invoices (no job) are always visible to invoice readers — do not
+      // hide them when the ops job-type matrix is active.
 
       const [parties, chargeCodes, taxRates, shipment] = await Promise.all([
         this.masterLabels.resolvePartiesWithPrimaryContact(
