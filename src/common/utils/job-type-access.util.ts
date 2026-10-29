@@ -36,7 +36,7 @@ export function jobTypeInFilter(
 
 /**
  * Invoice list/get filter via linked job.job_type.
- * Invoices with no job are hidden when the ops matrix is active.
+ * Manual invoices (no job) stay visible — finance can create/edit them outside ops modes.
  */
 export function invoiceJobTypeScope(
   permissions: string[] | null | undefined,
@@ -44,10 +44,14 @@ export function invoiceJobTypeScope(
   const allowed = visibleJobTypes(permissions ?? []);
   if (allowed === null) return undefined;
   if (allowed.length === 0) {
-    return { id: { in: [] } };
+    // Matrix present but no job types granted — still allow job-less (manual) invoices.
+    return { job_id: null };
   }
   return {
-    job: { is: { job_type: { in: allowed }, deleted_at: null } },
+    OR: [
+      { job_id: null },
+      { job: { is: { job_type: { in: allowed }, deleted_at: null } } },
+    ],
   };
 }
 
