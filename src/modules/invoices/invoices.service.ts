@@ -81,7 +81,7 @@ export class InvoicesService {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where = this.buildWhere(tenantId, query, invoiceType, permissions);
 
-      const [data, total] = await Promise.all([
+      const [rows, total] = await Promise.all([
         tx.invoice.findMany({
           where,
           include: {
@@ -94,6 +94,15 @@ export class InvoicesService {
         }),
         tx.invoice.count({ where }),
       ]);
+
+      const data = rows.map((row) => ({
+        ...row,
+        id: row.id,
+        invoice_id: row.id,
+        party: row.party
+          ? { ...row.party, party_id: row.party.id }
+          : null,
+      }));
 
       return {
         data,
@@ -230,6 +239,8 @@ export class InvoicesService {
 
       return {
         ...rest,
+        id: invoice.id,
+        invoice_id: invoice.id,
         job_id: invoice.job_id,
         job_number: job?.job_number ?? null,
         job: job
@@ -239,7 +250,12 @@ export class InvoicesService {
               job_type: job.job_type,
             }
           : null,
-        party,
+        party: party
+          ? {
+              ...party,
+              party_id: party.id,
+            }
+          : null,
         party_name: party?.name ?? null,
         party_phone: party?.phone ?? null,
         party_email: party?.email ?? null,
@@ -1357,7 +1373,8 @@ export class InvoicesService {
         count,
         invoice.vat_rate,
       );
-      return this.recalculateAndReturn(tx, tenantId, invoiceId);
+      const updated = await this.recalculateAndReturn(tx, tenantId, invoiceId);
+      return this.shapeCreateResponse(updated);
     });
   }
 
@@ -1579,7 +1596,12 @@ export class InvoicesService {
       })
       .catch(() => undefined);
 
-    return { ...posted, gl_auto_post: gl };
+    return {
+      ...posted,
+      id: posted.id,
+      invoice_id: posted.id,
+      gl_auto_post: gl,
+    };
   }
 
   /**
@@ -2137,9 +2159,9 @@ export class InvoicesService {
   /**
    * Create/navigation-safe payload for FE + internal callers:
    * - Spreads full invoice fields at the top level (status, totals, etc.)
-   * - Adds explicit `invoice_id` (same as invoice `id`)
-   * - Nested `party` uses `party_id` instead of `id` so FE deep-id lookups
-   *   cannot navigate to a party UUID
+   * - Top-level `id` / `invoice_id` are ALWAYS the invoice UUID (set last)
+   * - Nested `party` uses `party_id` only (no competing `id`) so deep-id
+   *   lookups cannot navigate to a party UUID
    */
   private shapeCreateResponse<
     T extends {
@@ -2164,13 +2186,16 @@ export class InvoicesService {
       ...created,
       party,
       lines,
+      id: created.id,
+      invoice_id: created.id,
     };
+    // Set id / invoice_id LAST so they always win over any nested spread.
     return {
       ...flat,
       success: true as const,
+      data: flat,
       id: created.id,
       invoice_id: created.id,
-      data: flat,
     };
   }
 

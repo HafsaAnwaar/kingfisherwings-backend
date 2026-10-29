@@ -183,7 +183,11 @@ export class InvoicesController {
 
   @Post(":id/lines")
   @RequirePermissions(INVOICES_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Add a line to a draft invoice" })
+  @ApiOperation({
+    summary: "Add a line to a draft invoice",
+    description:
+      "Body requires description + unit_price (amount accepted as unit_price alias). Invoice must be DRAFT.",
+  })
   addLine(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
