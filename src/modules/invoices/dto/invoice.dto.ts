@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
+  Allow,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -18,6 +19,10 @@ import {
 import { InvoiceStatus, InvoiceType } from "@prisma/client";
 import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 
+/** Empty string / null → undefined so optional UUID fields do not 400. */
+const emptyToUndef = ({ value }: { value: unknown }) =>
+  value === "" || value === null ? undefined : value;
+
 export class CreateInvoiceLineDto {
   @ApiProperty({ example: "Ocean Freight" })
   @IsString()
@@ -31,39 +36,92 @@ export class CreateInvoiceLineDto {
   @Min(0)
   quantity?: number;
 
-  @ApiProperty({ example: 1500 })
-  @Type(() => Number)
+  @ApiProperty({
+    example: 1500,
+    description:
+      "Unit price. If omitted, `amount` is accepted as a FE alias (treated as unit_price).",
+  })
+  @Transform(({ value, obj }) => {
+    const raw =
+      value !== undefined && value !== null && value !== ""
+        ? value
+        : (obj as { amount?: unknown })?.amount;
+    return raw === undefined || raw === null || raw === ""
+      ? raw
+      : Number(raw);
+  })
   @IsNumber()
   @Min(0)
   unit_price!: number;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  /** FE alias for unit_price — whitelisted so forbidNonWhitelisted does not 400. */
+  @ApiPropertyOptional({
+    example: 1500,
+    description: "Alias for unit_price when quantity is 1",
+  })
   @IsOptional()
-  @IsUUID()
-  charge_code_id?: string;
+  @Allow()
+  @Type(() => Number)
+  amount?: number;
 
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
+  @Transform(({ value, obj }) => {
+    const asUuid = (v: unknown) =>
+      typeof v === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        v,
+      )
+        ? v
+        : undefined;
+    const fromValue = asUuid(value);
+    if (fromValue) return fromValue;
+    const cc = (obj as { charge_code?: unknown })?.charge_code;
+    if (cc && typeof cc === "object" && cc !== null && "id" in cc) {
+      return asUuid((cc as { id: unknown }).id);
+    }
+    return asUuid(cc);
+  })
+  @IsUUID()
+  charge_code_id?: string;
+
+  /** FE may send nested charge_code / code string — allow through whitelist. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  charge_code?: unknown;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @Transform(emptyToUndef)
   @IsUUID()
   tax_rate_id?: string;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === "true" || value === 1 || value === "1") return true;
+    if (value === "false" || value === 0 || value === "0") return false;
+    return value;
+  })
   @IsBoolean()
   is_taxable?: boolean;
 
   @ApiPropertyOptional({ default: 0 })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   sort_order?: number;
 
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
+  @Transform(emptyToUndef)
   @IsUUID()
   job_charge_id?: string;
 
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
+  @Transform(emptyToUndef)
   @IsUUID()
   job_id?: string;
 }
@@ -77,11 +135,16 @@ export class CreateInvoiceDto {
 
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
+  @Transform(emptyToUndef)
   @IsUUID()
   company_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Omit for manual invoices (no linked job)",
+  })
   @IsOptional()
+  @Transform(emptyToUndef)
   @IsUUID()
   job_id?: string;
 
