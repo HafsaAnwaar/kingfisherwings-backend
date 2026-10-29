@@ -1,24 +1,47 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsDateString, IsOptional, IsString } from "class-validator";
+import { IsDateString, IsOptional, IsString, MaxLength } from "class-validator";
 
 export class UpdateJobMilestoneDto {
   @ApiPropertyOptional({
-    example: "2026-07-15",
+    example: "2026-07-15T14:30:00.000Z",
     description:
-      "Actual completion date — set this to mark the milestone complete.",
+      "Actual completion date (or date-time). Sets completed_at for customer date+time display.",
   })
   @IsOptional()
   @IsDateString()
   actual_date?: string;
+
+  @ApiPropertyOptional({
+    example: "2026-07-15T14:30:00.000Z",
+    description:
+      "Explicit completion timestamp shown to customers. Defaults to now when marking complete.",
+  })
+  @IsOptional()
+  @IsDateString()
+  completed_at?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
   planned_date?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    example: "Cargo cleared; awaiting pickup at CFS.",
+    description:
+      "Customer-visible description shown with every milestone (date & time).",
+  })
   @IsOptional()
   @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: "Alias of description (kept for older clients)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
   notes?: string;
 }
 
@@ -41,8 +64,21 @@ export class CreateCustomMilestoneDto {
   @IsDateString()
   actual_date?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    example: "Query raised with customs for HS code clarification.",
+    description: "Customer-visible description",
+  })
   @IsOptional()
   @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: "Alias of description",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
   notes?: string;
 }

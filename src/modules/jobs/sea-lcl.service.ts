@@ -340,6 +340,7 @@ export class SeaLclService {
       where: { id: milestone.id },
       data: {
         actual_date: actualDate,
+        completed_at: actualDate,
         completed_by: actorId,
         updated_by: actorId,
       },

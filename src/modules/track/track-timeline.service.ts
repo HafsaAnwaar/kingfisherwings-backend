@@ -60,7 +60,9 @@ export type TrackTimelinePayload = {
     milestone: string;
     planned_date: Date | null;
     actual_date: Date | null;
+    completed_at?: Date | null;
     is_completed: boolean;
+    description?: string | null;
     notes?: string | null;
   }>;
   history: TrackHistoryEvent[];
@@ -104,6 +106,8 @@ export class TrackTimelineService {
       milestone: string;
       planned_date: Date | null;
       actual_date: Date | null;
+      completed_at?: Date | null;
+      description?: string | null;
       notes?: string | null;
     }>;
     courier_checkpoints: Array<{
@@ -189,14 +193,18 @@ export class TrackTimelineService {
     }
 
     for (const m of parts.milestones) {
+      const description = m.description ?? m.notes ?? null;
       events.push({
         type: "MILESTONE",
         code: m.milestone,
         label: humanLabel(m.milestone),
         planned_at: m.planned_date,
-        actual_at: m.actual_date,
-        is_completed: Boolean(m.actual_date),
-        notes: notes ? (m.notes ?? null) : null,
+        // Prefer precise completed_at (date + time) for customer timelines.
+        actual_at: m.completed_at ?? m.actual_date,
+        is_completed: Boolean(m.actual_date ?? m.completed_at),
+        description,
+        // Always surface customer-facing description (not gated).
+        notes: description,
       });
     }
 
@@ -370,6 +378,8 @@ export class TrackTimelineService {
               milestone: true,
               planned_date: true,
               actual_date: true,
+              completed_at: true,
+              description: true,
               notes: true,
             },
           },
@@ -700,13 +710,20 @@ export class TrackTimelineService {
         hbl_number: s.hbl_number,
         mbl_number: s.mbl_number,
       })),
-      milestones: job.milestones.map((m) => ({
-        milestone: m.milestone,
-        planned_date: m.planned_date,
-        actual_date: m.actual_date,
-        is_completed: Boolean(m.actual_date),
-        ...(includeNotes ? { notes: m.notes } : {}),
-      })),
+      milestones: job.milestones.map((m) => {
+        const description = m.description ?? m.notes ?? null;
+        const completedAt = m.completed_at ?? null;
+        return {
+          milestone: m.milestone,
+          planned_date: m.planned_date,
+          actual_date: m.actual_date,
+          /** Precise date + time for customer UI. */
+          completed_at: completedAt,
+          is_completed: Boolean(m.actual_date ?? completedAt),
+          description,
+          notes: description,
+        };
+      }),
       history,
       summary,
       tracking_token: token,

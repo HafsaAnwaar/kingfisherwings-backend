@@ -3254,22 +3254,51 @@ export class JobsService {
         );
       }
 
-      const { planned_date, actual_date, ...rest } = dto;
+      const description =
+        dto.description !== undefined
+          ? dto.description
+          : dto.notes !== undefined
+            ? dto.notes
+            : undefined;
+      const completing = Boolean(dto.actual_date || dto.completed_at);
+      const completedAt = dto.completed_at
+        ? new Date(dto.completed_at)
+        : dto.actual_date
+          ? new Date(dto.actual_date)
+          : undefined;
+      // Prefer full timestamp when ISO includes time; otherwise stamp "now" for customer time display.
+      const completedAtPrecise =
+        completing && completedAt
+          ? dto.completed_at ||
+            (dto.actual_date && dto.actual_date.includes("T")
+              ? completedAt
+              : new Date())
+          : undefined;
 
       return tx.jobMilestone.update({
         where: { id: milestone.id },
         data: {
-          ...rest,
-          ...(planned_date ? { planned_date: new Date(planned_date) } : {}),
-          ...(actual_date
-            ? { actual_date: new Date(actual_date), completed_by: actorId }
+          ...(dto.planned_date
+            ? { planned_date: new Date(dto.planned_date) }
+            : {}),
+          ...(dto.actual_date || dto.completed_at
+            ? {
+                actual_date: new Date(
+                  (dto.actual_date ?? dto.completed_at) as string,
+                ),
+                completed_at: completedAtPrecise,
+                completed_by: actorId,
+              }
+            : {}),
+          ...(description !== undefined
+            ? { description, notes: description }
             : {}),
           updated_by: actorId,
         },
       });
     });
 
-    if (dto.actual_date) {
+    if (dto.actual_date || dto.completed_at) {
       // Fire-and-forget status email (Week 6) — failure must not roll back milestone.
       void this.notifyMilestoneStatus(
         tenantId,
@@ -3302,6 +3331,13 @@ export class JobsService {
         throw new NotFoundException("Job not found.");
       }
 
+      const description = dto.description ?? dto.notes ?? null;
+      const completedAt = dto.actual_date
+        ? dto.actual_date.includes("T")
+          ? new Date(dto.actual_date)
+          : new Date()
+        : undefined;
+
       return tx.jobMilestone.create({
         data: {
           tenant_id: tenantId,
@@ -3311,7 +3347,9 @@ export class JobsService {
             ? new Date(dto.planned_date)
             : undefined,
           actual_date: dto.actual_date ? new Date(dto.actual_date) : undefined,
-          notes: dto.notes,
+          description,
+          notes: description,
+          completed_at: completedAt,
           completed_by: dto.actual_date ? actorId : undefined,
           created_by: actorId,
           updated_by: actorId,
@@ -4906,12 +4944,20 @@ export class JobsService {
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       if (!prepared.milestone.actual_date) {
+        const now = new Date();
+        const description =
+          dto.message ??
+          prepared.milestone.description ??
+          prepared.milestone.notes ??
+          null;
         await tx.jobMilestone.update({
           where: { id: prepared.milestone.id },
           data: {
-            actual_date: new Date(),
+            actual_date: now,
+            completed_at: now,
             completed_by: actorId,
-            notes: dto.message ?? prepared.milestone.notes,
+            description,
+            notes: description,
             updated_by: actorId,
           },
         });
@@ -5116,6 +5162,7 @@ export class JobsService {
       where: { id: milestone.id },
       data: {
         actual_date: actualDate,
+        completed_at: actualDate,
         completed_by: actorId,
         updated_by: actorId,
       },

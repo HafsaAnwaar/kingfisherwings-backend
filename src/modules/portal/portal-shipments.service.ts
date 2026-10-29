@@ -906,6 +906,8 @@ export class PortalShipmentsService {
               milestone: true,
               planned_date: true,
               actual_date: true,
+              completed_at: true,
+              description: true,
               notes: true,
               created_at: true,
               updated_at: true,
@@ -1351,16 +1353,21 @@ export class PortalShipmentsService {
             })),
           }
         : null,
-      milestones: (row.milestones ?? []).map((m) => ({
-        id: m.id,
-        milestone: m.milestone,
-        planned_date: m.planned_date,
-        actual_date: m.actual_date,
-        notes: m.notes,
-        is_completed: Boolean(m.actual_date),
-        created_at: m.created_at,
-        updated_at: m.updated_at,
-      })),
+      milestones: (row.milestones ?? []).map((m) => {
+        const description =
+          (m as { description?: string | null }).description ?? m.notes ?? null;
+        const completedAt =
+          (m as { completed_at?: Date | null }).completed_at ?? null;
+        return {
+          milestone: m.milestone,
+          planned_date: m.planned_date,
+          actual_date: m.actual_date,
+          completed_at: completedAt,
+          description,
+          notes: description,
+          is_completed: Boolean(m.actual_date ?? completedAt),
+        };
+      }),
       path_hints: {
         documents: `/portal/shipments/${row.id}/documents`,
         document_download: `/portal/shipments/${row.id}/documents/{docId}/download`,
