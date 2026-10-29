@@ -41,9 +41,19 @@ export class SeaFclImportService {
       tx.containerFreeDays.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
         orderBy: { created_at: "asc" },
+        include: {
+          container: { select: { container_number: true, line_no: true } },
+        },
       }),
     );
-    return rows.map((r) => this.withTrafficLight(r));
+    return rows.map((r) => {
+      const { container, ...rest } = r;
+      return {
+        ...this.withTrafficLight(rest),
+        container_number: container?.container_number ?? null,
+        line_no: container?.line_no ?? null,
+      };
+    });
   }
 
   async upsertFreeDays(
@@ -54,11 +64,17 @@ export class SeaFclImportService {
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
-      await this.assertContainerOnDetail(
+      const containerKey = dto.container_number ?? dto.container_id;
+      if (!containerKey) {
+        throw new BadRequestException(
+          "Provide container_number (preferred) or container_id.",
+        );
+      }
+      const container = await this.assertContainerOnDetail(
         tx,
         tenantId,
         detail.id,
-        dto.container_id,
+        containerKey,
       );
 
       const data = {
@@ -79,7 +95,7 @@ export class SeaFclImportService {
 
       const existing = await tx.containerFreeDays.findFirst({
         where: {
-          container_id: dto.container_id,
+          container_id: container.id,
           tenant_id: tenantId,
           deleted_at: null,
         },
@@ -94,7 +110,7 @@ export class SeaFclImportService {
             data: {
               tenant_id: tenantId,
               job_id: jobId,
-              container_id: dto.container_id,
+              container_id: container.id,
               ...data,
               created_by: actorId,
             },
@@ -411,19 +427,24 @@ export class SeaFclImportService {
   async returnContainer(
     tenantId: string,
     jobId: string,
-    containerId: string,
+    containerKey: string,
     dto: ReturnContainerDto,
     actorId?: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getFclImportDetailOrThrow(tx, tenantId, jobId);
-      await this.assertContainerOnDetail(tx, tenantId, detail.id, containerId);
+      const existing = await this.assertContainerOnDetail(
+        tx,
+        tenantId,
+        detail.id,
+        containerKey,
+      );
 
       const returnedAt = dto.returned_at
         ? new Date(dto.returned_at)
         : new Date();
       const container = await tx.jobContainer.update({
-        where: { id: containerId },
+        where: { id: existing.id },
         data: {
           returned_at: returnedAt,
           return_condition: dto.return_condition,
@@ -979,18 +1000,29 @@ export class SeaFclImportService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     seaFclDetailId: string,
-    containerId: string,
+    containerKey: string,
   ) {
+    const key = containerKey.trim();
+    const byUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        key,
+      );
     const container = await tx.jobContainer.findFirst({
       where: {
-        id: containerId,
         sea_fcl_detail_id: seaFclDetailId,
         tenant_id: tenantId,
         deleted_at: null,
+        ...(byUuid
+          ? { id: key }
+          : { container_number: { equals: key, mode: "insensitive" } }),
       },
     });
     if (!container)
-      throw new NotFoundException("Container not found on this job.");
+      throw new NotFoundException(
+        byUuid
+          ? "Container not found on this job."
+          : `Container "${key}" not found. Use container_number, not a UUID.`,
+      );
     return container;
   }
 

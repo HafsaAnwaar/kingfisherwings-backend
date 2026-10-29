@@ -27,9 +27,22 @@ const CUSTOMS_STATUSES = [
 ] as const;
 
 export class UpsertContainerFreeDaysDto {
-  @ApiProperty({ format: "uuid" })
+  @ApiPropertyOptional({
+    example: "MSCU1234567",
+    description: "Container number (preferred — customers never type UUIDs)",
+  })
+  @IsOptional()
+  @IsString()
+  container_number?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    deprecated: true,
+    description: "Prefer container_number",
+  })
+  @IsOptional()
   @IsUUID()
-  container_id!: string;
+  container_id?: string;
 
   @ApiPropertyOptional({ default: 7 })
   @IsOptional()

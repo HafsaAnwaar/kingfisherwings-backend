@@ -1228,15 +1228,22 @@ export class JobsController {
     return this.service.getContainerFill(tenantId, id);
   }
 
-  @Get(":id/containers/:containerId/fill")
+  @Get(":id/containers/:containerKey/fill")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Container fill indicator for one container" })
+  @ApiOperation({
+    summary:
+      "Container fill indicator for one container (UUID or container_number)",
+  })
   getContainerFill(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Param("containerId", ParseUUIDPipe) containerId: string,
+    @Param("containerKey") containerKey: string,
   ) {
-    return this.service.getContainerFill(tenantId, id, containerId);
+    return this.service.getContainerFill(
+      tenantId,
+      id,
+      decodeURIComponent(containerKey),
+    );
   }
 
   @Get(":id/cutoffs")
@@ -1942,22 +1949,23 @@ export class JobsController {
     return this.transport.listForJob(tenantId, id);
   }
 
-  @Patch(":id/milestones/:milestoneId")
+  @Patch(":id/milestones/:milestoneKey")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Update a milestone — set actual_date to mark it complete",
+    summary:
+      "Update a milestone — set actual_date to mark it complete. Pass milestone code/name (e.g. SI_SUBMITTED), not a UUID.",
   })
   completeMilestone(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Param("milestoneId", ParseUUIDPipe) milestoneId: string,
+    @Param("milestoneKey") milestoneKey: string,
     @Body() dto: UpdateJobMilestoneDto,
   ) {
     return this.service.completeMilestone(
       tenantId,
       id,
-      milestoneId,
+      decodeURIComponent(milestoneKey),
       dto,
       actorId,
     );
@@ -3522,81 +3530,105 @@ export class JobsController {
     return this.containerTab.pushToSubJobs(tenantId, id, dto, actorId);
   }
 
-  @Get(":id/containers/:containerId")
+  @Get(":id/containers/:containerKey")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "View a single container" })
+  @ApiOperation({
+    summary: "View a single container (UUID or container_number)",
+  })
   getContainer(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Param("containerId", ParseUUIDPipe) containerId: string,
+    @Param("containerKey") containerKey: string,
   ) {
-    return this.containerTab.getOne(tenantId, id, containerId);
+    return this.containerTab.getOne(
+      tenantId,
+      id,
+      decodeURIComponent(containerKey),
+    );
   }
 
-  @Patch(":id/containers/:containerId")
+  @Patch(":id/containers/:containerKey")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Update a container on a job" })
+  @ApiOperation({
+    summary: "Update a container on a job (UUID or container_number)",
+  })
   updateContainer(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Param("containerId", ParseUUIDPipe) containerId: string,
+    @Param("containerKey") containerKey: string,
     @Body() dto: UpdateJobContainerDto,
   ) {
     return this.containerTab.update(
       tenantId,
       id,
-      containerId,
+      decodeURIComponent(containerKey),
       dto,
       actorId,
     );
   }
 
-  @Delete(":id/containers/:containerId")
+  @Delete(":id/containers/:containerKey")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Remove a container from a job" })
+  @ApiOperation({
+    summary: "Remove a container from a job (UUID or container_number)",
+  })
   async removeContainer(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Param("containerId", ParseUUIDPipe) containerId: string,
+    @Param("containerKey") containerKey: string,
   ) {
-    return this.containerTab.remove(tenantId, id, containerId, actorId);
+    return this.containerTab.remove(
+      tenantId,
+      id,
+      decodeURIComponent(containerKey),
+      actorId,
+    );
   }
 
-  @Post(":id/containers/:containerId/cargo")
+  @Post(":id/containers/:containerKey/cargo")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Assign an existing cargo line to a container" })
+  @ApiOperation({
+    summary:
+      "Assign an existing cargo line to a container (UUID or container_number)",
+  })
   assignCargoToContainer(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Param("containerId", ParseUUIDPipe) containerId: string,
+    @Param("containerKey") containerKey: string,
     @Body() dto: AssignCargoToContainerDto,
   ) {
     return this.service.assignCargoToContainer(
       tenantId,
       id,
-      containerId,
+      decodeURIComponent(containerKey),
       dto,
       actorId,
     );
   }
 
-  @Post(":id/containers/:containerId/split")
+  @Post(":id/containers/:containerKey/split")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Split one container across multiple house consignees (co-loading)",
+      "Split one container across multiple house consignees (co-loading). Path accepts UUID or container_number.",
   })
   splitContainer(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Param("containerId", ParseUUIDPipe) containerId: string,
+    @Param("containerKey") containerKey: string,
     @Body() dto: SplitContainerDto,
   ) {
-    return this.service.splitContainer(tenantId, id, containerId, dto, actorId);
+    return this.service.splitContainer(
+      tenantId,
+      id,
+      decodeURIComponent(containerKey),
+      dto,
+      actorId,
+    );
   }
 
   @Post(":id/cargo")
@@ -3910,20 +3942,23 @@ export class JobsController {
     return this.seaFclImport.updateCustomsStatus(tenantId, id, dto, actorId);
   }
 
-  @Post(":id/containers/:containerId/return")
+  @Post(":id/containers/:containerKey/return")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Record container return to shipping line" })
+  @ApiOperation({
+    summary:
+      "Record container return to shipping line (UUID or container_number)",
+  })
   returnContainer(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @Param("containerId", ParseUUIDPipe) containerId: string,
+    @Param("containerKey") containerKey: string,
     @Body() dto: ReturnContainerDto,
   ) {
     return this.seaFclImport.returnContainer(
       tenantId,
       id,
-      containerId,
+      decodeURIComponent(containerKey),
       dto,
       actorId,
     );

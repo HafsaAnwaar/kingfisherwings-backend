@@ -32,6 +32,7 @@ import { seedJobTypeExtras } from "./utils/job-type-seed.util";
 import { mintTrackingToken } from "./utils/tracking-token.util";
 import { barcodeFromJobNumber } from "./utils/job-barcode.util";
 import { markJobMilestoneIfPresent } from "./utils/mark-milestone.util";
+import { looksLikeUuid } from "../../common/utils/business-key.util";
 import { defaultVisibleToCustomer } from "./utils/job-document-visibility.util";
 import {
   canSeeJobType,
@@ -2406,7 +2407,7 @@ export class JobsService {
   async getContainerFill(
     tenantId: string,
     jobId: string,
-    containerId?: string,
+    containerKey?: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
@@ -2414,19 +2415,34 @@ export class JobsService {
         select: { id: true },
       });
       if (!job) throw new NotFoundException("Job not found.");
+      const key = containerKey?.trim();
+      const byUuid = key ? looksLikeUuid(key) : false;
       const containers = await tx.jobContainer.findMany({
         where: {
           tenant_id: tenantId,
           job_id: jobId,
           deleted_at: null,
-          ...(containerId ? { id: containerId } : {}),
+          ...(key
+            ? byUuid
+              ? { id: key }
+              : {
+                  container_number: {
+                    equals: key,
+                    mode: "insensitive",
+                  },
+                }
+            : {}),
         },
         include: { cargo_lines: { where: { deleted_at: null } } },
         orderBy: { created_at: "asc" },
       });
 
-      if (containerId && containers.length === 0) {
-        throw new NotFoundException("Container not found.");
+      if (key && containers.length === 0) {
+        throw new NotFoundException(
+          byUuid
+            ? "Container not found."
+            : `Container "${key}" not found. Use container_number.`,
+        );
       }
 
       const fills = await Promise.all(
@@ -2479,7 +2495,7 @@ export class JobsService {
         }),
       );
 
-      return containerId ? fills[0] : fills;
+      return key ? fills[0] : fills;
     });
   }
 
@@ -2489,9 +2505,6 @@ export class JobsService {
     dto: CreateJobContainerDto,
     actorId?: string,
   ) {
-    if (!dto.container_type_id) {
-      throw new BadRequestException("container_type_id is required.");
-    }
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
@@ -2503,11 +2516,7 @@ export class JobsService {
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
         select: { id: true },
       });
-      const type = await this.assertContainerTypeExists(
-        tx,
-        tenantId,
-        dto.container_type_id!,
-      );
+      const type = await this.resolveContainerTypeForCreate(tx, tenantId, dto);
 
       const {
         gate_in_at,
@@ -2523,6 +2532,9 @@ export class JobsService {
         volume_weight,
         chargeable_units,
         shipment_id,
+        container_type_id: _typeId,
+        container_type_code: _typeCode,
+        iso_size: _iso,
         ...rest
       } = dto;
 
@@ -2536,7 +2548,7 @@ export class JobsService {
           tenant_id: tenantId,
           job_id: jobId,
           sea_fcl_detail_id: detail?.id ?? null,
-          container_type_id: rest.container_type_id!,
+          container_type_id: type.id,
           container_kind: container_kind ?? "ACTUAL",
           line_no: line_no ?? (maxLine._max.line_no ?? 0) + 1,
           container_number: rest.container_number,
@@ -2727,28 +2739,33 @@ export class JobsService {
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.assertSeaCargoJob(tx, tenantId, jobId);
+      const containerKey = dto.container_number ?? dto.container_id;
 
       if (this.isSeaLclJobType(job.job_type)) {
-        if (dto.container_id) {
+        if (containerKey) {
           throw new BadRequestException(
             "LCL cargo lines cannot be assigned to containers.",
           );
         }
-      } else if (dto.container_id) {
+      }
+
+      let containerId: string | undefined;
+      if (containerKey) {
         const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
-        await this.assertContainerOnDetail(
+        const container = await this.assertContainerOnDetail(
           tx,
           tenantId,
           detail.id,
-          dto.container_id,
+          containerKey,
         );
+        containerId = container.id;
       }
 
       return tx.jobCargo.create({
         data: {
           tenant_id: tenantId,
           job_id: jobId,
-          container_id: dto.container_id,
+          container_id: containerId,
           consignee_id: dto.consignee_id,
           commodity: dto.commodity,
           hs_code: dto.hs_code,
@@ -2786,24 +2803,32 @@ export class JobsService {
         throw new NotFoundException("Cargo line not found.");
       }
 
-      if (dto.container_id) {
+      const containerKey = dto.container_number ?? dto.container_id;
+      let containerId: string | undefined | null = undefined;
+      if (containerKey) {
         if (this.isSeaLclJobType(job.job_type)) {
           throw new BadRequestException(
             "LCL cargo lines cannot be assigned to containers.",
           );
         }
         const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
-        await this.assertContainerOnDetail(
+        const container = await this.assertContainerOnDetail(
           tx,
           tenantId,
           detail.id,
-          dto.container_id,
+          containerKey,
         );
+        containerId = container.id;
       }
 
+      const { container_number: _cn, container_id: _cid, ...rest } = dto;
       return tx.jobCargo.update({
         where: { id: cargoId },
-        data: { ...dto, updated_by: actorId },
+        data: {
+          ...rest,
+          ...(containerId !== undefined ? { container_id: containerId } : {}),
+          updated_by: actorId,
+        },
       });
     });
   }
@@ -2839,13 +2864,18 @@ export class JobsService {
   async assignCargoToContainer(
     tenantId: string,
     jobId: string,
-    containerId: string,
+    containerKey: string,
     dto: AssignCargoToContainerDto,
     actorId?: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
-      await this.assertContainerOnDetail(tx, tenantId, detail.id, containerId);
+      const container = await this.assertContainerOnDetail(
+        tx,
+        tenantId,
+        detail.id,
+        containerKey,
+      );
 
       const cargo = await tx.jobCargo.findFirst({
         where: {
@@ -2862,7 +2892,7 @@ export class JobsService {
 
       return tx.jobCargo.update({
         where: { id: cargo.id },
-        data: { container_id: containerId, updated_by: actorId },
+        data: { container_id: container.id, updated_by: actorId },
       });
     });
   }
@@ -2870,13 +2900,18 @@ export class JobsService {
   async splitContainer(
     tenantId: string,
     jobId: string,
-    containerId: string,
+    containerKey: string,
     dto: SplitContainerDto,
     actorId?: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const detail = await this.getSeaFclDetailOrThrow(tx, tenantId, jobId);
-      await this.assertContainerOnDetail(tx, tenantId, detail.id, containerId);
+      const container = await this.assertContainerOnDetail(
+        tx,
+        tenantId,
+        detail.id,
+        containerKey,
+      );
 
       const created = [];
       for (const portion of dto.portions) {
@@ -2885,7 +2920,7 @@ export class JobsService {
             data: {
               tenant_id: tenantId,
               job_id: jobId,
-              container_id: containerId,
+              container_id: container.id,
               consignee_id: portion.consignee_id,
               commodity: portion.commodity,
               marks_numbers: portion.marks_numbers,
@@ -3193,28 +3228,36 @@ export class JobsService {
   async completeMilestone(
     tenantId: string,
     jobId: string,
-    milestoneId: string,
+    milestoneKey: string,
     dto: UpdateJobMilestoneDto,
     actorId?: string,
   ) {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const key = milestoneKey.trim();
+      const byUuid = looksLikeUuid(key);
       const milestone = await tx.jobMilestone.findFirst({
         where: {
-          id: milestoneId,
           job_id: jobId,
           tenant_id: tenantId,
           deleted_at: null,
+          ...(byUuid
+            ? { id: key }
+            : { milestone: { equals: key, mode: "insensitive" } }),
         },
       });
 
       if (!milestone) {
-        throw new NotFoundException("Milestone not found.");
+        throw new NotFoundException(
+          byUuid
+            ? "Milestone not found."
+            : `Milestone "${key}" not found on this job. Use the milestone code/name from GET /jobs/:id/milestones.`,
+        );
       }
 
       const { planned_date, actual_date, ...rest } = dto;
 
       return tx.jobMilestone.update({
-        where: { id: milestoneId },
+        where: { id: milestone.id },
         data: {
           ...rest,
           ...(planned_date ? { planned_date: new Date(planned_date) } : {}),
@@ -5021,19 +5064,27 @@ export class JobsService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     seaFclDetailId: string,
-    containerId: string,
+    containerKey: string,
   ) {
+    const key = containerKey.trim();
+    const byUuid = looksLikeUuid(key);
     const container = await tx.jobContainer.findFirst({
       where: {
-        id: containerId,
         sea_fcl_detail_id: seaFclDetailId,
         tenant_id: tenantId,
         deleted_at: null,
+        ...(byUuid
+          ? { id: key }
+          : { container_number: { equals: key, mode: "insensitive" } }),
       },
     });
 
     if (!container) {
-      throw new NotFoundException("Container not found.");
+      throw new NotFoundException(
+        byUuid
+          ? "Container not found."
+          : `Container "${key}" not found. Use container_number, not a UUID.`,
+      );
     }
 
     return container;
@@ -5088,6 +5139,42 @@ export class JobsService {
     }
 
     return exists;
+  }
+
+  private async resolveContainerTypeForCreate(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    dto: {
+      container_type_id?: string;
+      container_type_code?: string;
+      iso_size?: string;
+    },
+  ) {
+    if (dto.container_type_id) {
+      return this.assertContainerTypeExists(tx, tenantId, dto.container_type_id);
+    }
+    const code = (dto.container_type_code ?? dto.iso_size ?? "").trim();
+    if (!code) {
+      throw new BadRequestException(
+        "Provide container_type_code (e.g. 20GP / 40HC). UUID is not required.",
+      );
+    }
+    const type = await tx.containerType.findFirst({
+      where: {
+        tenant_id: tenantId,
+        deleted_at: null,
+        OR: [
+          { code: { equals: code, mode: "insensitive" } },
+          { name: { equals: code, mode: "insensitive" } },
+        ],
+      },
+    });
+    if (!type) {
+      throw new NotFoundException(
+        `Container type "${code}" not found. Use a type code like 20GP.`,
+      );
+    }
+    return type;
   }
 
   private async recalculateTotals(

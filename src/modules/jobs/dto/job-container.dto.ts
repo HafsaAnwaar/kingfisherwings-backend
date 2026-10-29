@@ -30,10 +30,32 @@ const CONTAINER_STATUSES = [
 ] as const;
 
 export class CreateJobContainerDto {
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    deprecated: true,
+    description: "Prefer container_type_code (e.g. 20GP). UUID not required.",
+  })
   @IsOptional()
   @IsUUID()
   container_type_id?: string;
+
+  @ApiPropertyOptional({
+    example: "20GP",
+    description: "Container type code or name (preferred over UUID)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  container_type_code?: string;
+
+  @ApiPropertyOptional({
+    example: "40HC",
+    description: "Alias for container_type_code",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  iso_size?: string;
 
   @ApiPropertyOptional({ enum: JobContainerKind, default: "ACTUAL" })
   @IsOptional()

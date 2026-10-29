@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import { parse as parseCsv } from "csv-parse/sync";
 import * as ExcelJS from "exceljs";
+import { looksLikeUuid } from "../../common/utils/business-key.util";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   BulkJobContainersDto,
@@ -116,13 +117,11 @@ export class JobContainerTabService {
     actorId?: string,
   ) {
     const job = await this.assertJob(tenantId, jobId);
-    if (!dto.container_type_id) {
-      throw new BadRequestException("container_type_id is required.");
-    }
-    const type = await this.assertContainerType(
-      tenantId,
-      dto.container_type_id,
-    );
+    const type = await this.resolveContainerType(tenantId, {
+      container_type_id: dto.container_type_id,
+      container_type_code: dto.container_type_code,
+      iso_size: dto.iso_size,
+    });
     const seaFcl = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.seaFclJobDetail.findFirst({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
@@ -154,7 +153,7 @@ export class JobContainerTabService {
           tenant_id: tenantId,
           job_id: jobId,
           sea_fcl_detail_id: seaFcl?.id ?? null,
-          container_type_id: dto.container_type_id!,
+          container_type_id: type.id,
           container_kind: dto.container_kind ?? JobContainerKind.ACTUAL,
           line_no: lineNo,
           container_number: dto.container_number,
@@ -214,9 +213,19 @@ export class JobContainerTabService {
     dto: UpdateJobContainerDto,
     actorId?: string,
   ) {
-    await this.getOrThrow(tenantId, jobId, containerId);
-    if (dto.container_type_id) {
-      await this.assertContainerType(tenantId, dto.container_type_id);
+    const existing = await this.getOrThrow(tenantId, jobId, containerId);
+    let resolvedTypeId: string | undefined;
+    if (
+      dto.container_type_id ||
+      dto.container_type_code ||
+      dto.iso_size
+    ) {
+      const type = await this.resolveContainerType(tenantId, {
+        container_type_id: dto.container_type_id,
+        container_type_code: dto.container_type_code,
+        iso_size: dto.iso_size,
+      });
+      resolvedTypeId = type.id;
     }
     const warnings: string[] = [];
     if (dto.container_number) {
@@ -224,7 +233,7 @@ export class JobContainerTabService {
         tenantId,
         dto.container_number,
         jobId,
-        containerId,
+        existing.id,
       );
       if (dup) {
         warnings.push(
@@ -234,11 +243,16 @@ export class JobContainerTabService {
     }
 
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const { gate_in_at, status, ...rest } = dto;
+      const { gate_in_at, status, container_type_code, iso_size, ...rest } =
+        dto as UpdateJobContainerDto & {
+          container_type_code?: string;
+          iso_size?: string;
+        };
       return tx.jobContainer.update({
-        where: { id: containerId },
+        where: { id: existing.id },
         data: {
           ...rest,
+          ...(resolvedTypeId ? { container_type_id: resolvedTypeId } : {}),
           ...(status ? { status: status as ContainerStatus } : {}),
           ...(gate_in_at ? { gate_in_at: new Date(gate_in_at) } : {}),
           ...(dto.seal_number && !dto.actual_seal
@@ -261,10 +275,10 @@ export class JobContainerTabService {
     containerId: string,
     actorId?: string,
   ) {
-    await this.getOrThrow(tenantId, jobId, containerId);
+    const existing = await this.getOrThrow(tenantId, jobId, containerId);
     await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobContainer.update({
-        where: { id: containerId },
+        where: { id: existing.id },
         data: { deleted_at: new Date(), updated_by: actorId },
       }),
     );
@@ -996,22 +1010,75 @@ export class JobContainerTabService {
     return type;
   }
 
-  private async getOrThrow(
+  /** Resolve container type by UUID, code, name, or ISO size string. */
+  private async resolveContainerType(
     tenantId: string,
-    jobId: string,
-    containerId: string,
+    opts: {
+      container_type_id?: string;
+      container_type_code?: string;
+      iso_size?: string;
+    },
   ) {
-    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.jobContainer.findFirst({
+    if (opts.container_type_id) {
+      return this.assertContainerType(tenantId, opts.container_type_id);
+    }
+    const code = (opts.container_type_code ?? opts.iso_size ?? "").trim();
+    if (!code) {
+      throw new BadRequestException(
+        "Provide container_type_code (or iso_size), e.g. 20GP — UUID is not required.",
+      );
+    }
+    const type = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.containerType.findFirst({
         where: {
-          id: containerId,
           tenant_id: tenantId,
-          job_id: jobId,
           deleted_at: null,
+          OR: [
+            { code: { equals: code, mode: "insensitive" } },
+            { name: { equals: code, mode: "insensitive" } },
+          ],
         },
       }),
     );
-    if (!row) throw new NotFoundException("Container not found.");
+    if (!type) {
+      throw new NotFoundException(
+        `Container type "${code}" not found. Use a type code like 20GP / 40HC.`,
+      );
+    }
+    return type;
+  }
+
+  /**
+   * Resolve a job container by UUID or container_number (case-insensitive).
+   */
+  private async getOrThrow(
+    tenantId: string,
+    jobId: string,
+    containerKey: string,
+  ) {
+    const key = decodeURIComponent(containerKey).trim();
+    const byUuid = looksLikeUuid(key);
+    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobContainer.findFirst({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          ...(byUuid
+            ? { id: key }
+            : {
+                container_number: { equals: key, mode: "insensitive" },
+              }),
+        },
+      }),
+    );
+    if (!row) {
+      throw new NotFoundException(
+        byUuid
+          ? "Container not found."
+          : `Container "${key}" not found on this job. Use container_number (e.g. MSCU1234567).`,
+      );
+    }
     return row;
   }
 
