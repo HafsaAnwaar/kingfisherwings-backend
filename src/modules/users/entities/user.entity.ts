@@ -26,6 +26,12 @@ export class UserEntity {
   phone?: string;
 
   @Expose()
+  whatsapp_number?: string;
+
+  @Expose()
+  whatsapp_notifications_opt_in!: boolean;
+
+  @Expose()
   avatar_url?: string;
 
   @Expose()

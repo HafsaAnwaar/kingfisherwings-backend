@@ -17,6 +17,12 @@ export class UserResponse {
 
   @ApiPropertyOptional() phone?: string;
   @ApiPropertyOptional({
+    description: "E.164 WhatsApp number for receiving notifications.",
+  })
+  whatsapp_number?: string;
+  @ApiProperty()
+  whatsapp_notifications_opt_in!: boolean;
+  @ApiPropertyOptional({
     description:
       "Optional preferred country (ISO 3166-1 alpha-2). Not required.",
   })

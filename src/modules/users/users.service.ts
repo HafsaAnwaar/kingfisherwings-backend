@@ -422,6 +422,9 @@ export class UsersService {
             first_name: dto.first_name,
             last_name: dto.last_name,
             phone: dto.phone,
+            whatsapp_number: dto.whatsapp_number,
+            whatsapp_notifications_opt_in:
+              dto.whatsapp_notifications_opt_in ?? false,
             preferred_country_code: dto.preferred_country_code,
             avatar_url: dto.avatar_url,
             role: dto.role,

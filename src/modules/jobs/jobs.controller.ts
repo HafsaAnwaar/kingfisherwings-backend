@@ -3146,7 +3146,8 @@ export class JobsController {
   @Post(":id/whatsapp/status")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Send WhatsApp status stub (logged until WHATSAPP_ENABLED=true)",
+    summary:
+      "Send WhatsApp job status update (Twilio when WHATSAPP_ENABLED=true + creds; else stub log)",
   })
   sendWhatsApp(
     @CurrentUser("tenantId") tenantId: string,
