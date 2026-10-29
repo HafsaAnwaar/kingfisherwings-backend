@@ -2135,8 +2135,11 @@ export class InvoicesService {
   }
 
   /**
-   * Create/navigation-safe payload: top-level `id` / `invoice_id` are always
-   * the invoice UUID. Nested party keeps display fields without a competing `id`.
+   * Create/navigation-safe payload for FE + internal callers:
+   * - Spreads full invoice fields at the top level (status, totals, etc.)
+   * - Adds explicit `invoice_id` (same as invoice `id`)
+   * - Nested `party` uses `party_id` instead of `id` so FE deep-id lookups
+   *   cannot navigate to a party UUID
    */
   private shapeCreateResponse<
     T extends {
@@ -2157,16 +2160,17 @@ export class InvoicesService {
       line_id: lineId,
       id: lineId,
     }));
-    const data = {
+    const flat = {
       ...created,
       party,
       lines,
     };
     return {
+      ...flat,
       success: true as const,
       id: created.id,
       invoice_id: created.id,
-      data,
+      data: flat,
     };
   }
 
