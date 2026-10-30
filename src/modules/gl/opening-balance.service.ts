@@ -1,14 +1,13 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
-  forwardRef,
 } from "@nestjs/common";
-import { InvoiceType } from "@prisma/client";
+import { DocumentNumberType, InvoiceType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { InvoicesService } from "../invoices/invoices.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import { ChartOfAccountsService } from "./chart-of-accounts.service";
+import { GlAutoPostService } from "./gl-auto-post.service";
 import { VouchersService } from "./vouchers.service";
 import {
   CoaOpeningBalanceDto,
@@ -21,8 +20,8 @@ export class OpeningBalanceService {
     private readonly prisma: PrismaService,
     private readonly chartOfAccounts: ChartOfAccountsService,
     private readonly vouchers: VouchersService,
-    @Inject(forwardRef(() => InvoicesService))
-    private readonly invoices: InvoicesService,
+    private readonly glAutoPost: GlAutoPostService,
+    private readonly numberGenerator: NumberGeneratorService,
   ) {}
 
   async createPartyOpeningBalance(
@@ -55,41 +54,18 @@ export class OpeningBalanceService {
     let gl_voucher_id: string | null = null;
 
     if (createInvoice) {
-      const invoiceType: InvoiceType =
-        side === "AR" ? "CUSTOMER_INVOICE" : "PURCHASE_INVOICE";
-      const created = await this.invoices.create(
+      const created = await this.createAndPostManualInvoice(
         tenantId,
-        {
-          party_id: dto.party_id,
-          company_id: dto.company_id,
-          currency_code: dto.currency_code,
-          invoice_date: date,
-          vat_rate: 0,
-          remarks: narration,
-          lines: [
-            {
-              description: narration,
-              quantity: 1,
-              unit_price: amount,
-              is_taxable: false,
-            },
-          ],
-        },
+        side,
+        dto,
+        narration,
+        date,
+        amount,
         actorId,
-        invoiceType,
       );
-      const createdId =
-        (created as { invoice_id?: string; id?: string }).invoice_id ??
-        (created as { id?: string }).id;
-      if (!createdId) {
-        throw new BadRequestException("Failed to create opening-balance invoice.");
-      }
-      const posted = await this.invoices.post(tenantId, createdId, actorId);
-      invoice_id = posted.id;
-      invoice_number = posted.invoice_number;
-      gl_voucher_id =
-        (posted as { gl_auto_post?: { voucher_id?: string | null } })
-          .gl_auto_post?.voucher_id ?? null;
+      invoice_id = created.invoice_id;
+      invoice_number = created.invoice_number;
+      gl_voucher_id = created.gl_voucher_id;
     } else {
       const control = await this.chartOfAccounts.ensureAccount(
         tenantId,
@@ -167,7 +143,6 @@ export class OpeningBalanceService {
       const prev = Number(control.opening_balance ?? 0);
       const nextType: "DEBIT" | "CREDIT" =
         side === "AR" ? "DEBIT" : "CREDIT";
-      // Normalize previous to signed then re-apply absolute with type
       let signed = prev;
       if (control.opening_balance_type === "CREDIT") signed = -prev;
       signed += side === "AR" ? amount : -amount;
@@ -301,6 +276,106 @@ export class OpeningBalanceService {
       account: updated,
       gl_voucher_id,
       date,
+    };
+  }
+
+  /**
+   * Creates a job-less posted CI/PI for party statements without importing
+   * InvoicesModule (avoids Gl ↔ Invoices ↔ Payments circular DI).
+   */
+  private async createAndPostManualInvoice(
+    tenantId: string,
+    side: "AR" | "AP",
+    dto: PartyOpeningBalanceDto,
+    narration: string,
+    date: string,
+    amount: number,
+    actorId?: string,
+  ) {
+    const invoiceType: InvoiceType =
+      side === "AR" ? "CUSTOMER_INVOICE" : "PURCHASE_INVOICE";
+    const docType: DocumentNumberType =
+      side === "AR" ? "INVOICE" : "PURCHASE_INVOICE";
+    const invoiceNumber = await this.numberGenerator.generate(
+      tenantId,
+      docType,
+    );
+
+    const invoice = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const companyId =
+        dto.company_id ??
+        (
+          await tx.company.findFirst({
+            where: { tenant_id: tenantId, deleted_at: null, is_active: true },
+            orderBy: { created_at: "asc" },
+            select: { id: true },
+          })
+        )?.id;
+
+      const created = await tx.invoice.create({
+        data: {
+          tenant_id: tenantId,
+          company_id: companyId,
+          invoice_number: invoiceNumber,
+          invoice_type: invoiceType,
+          status: "DRAFT",
+          job_id: null,
+          party_id: dto.party_id,
+          invoice_date: new Date(date),
+          currency_code: dto.currency_code,
+          exchange_rate: 1,
+          vat_rate: 0,
+          remarks: narration,
+          created_by: actorId,
+          updated_by: actorId,
+          lines: {
+            create: [
+              {
+                tenant_id: tenantId,
+                description: narration,
+                quantity: 1,
+                unit_price: amount,
+                amount,
+                tax_rate: 0,
+                tax_amount: 0,
+                is_taxable: false,
+                sort_order: 0,
+                created_by: actorId,
+                updated_by: actorId,
+              },
+            ],
+          },
+        },
+        select: { id: true, invoice_number: true },
+      });
+
+      await tx.invoice.update({
+        where: { id: created.id },
+        data: {
+          subtotal: amount,
+          tax_amount: 0,
+          total_amount: amount,
+          balance_due: amount,
+          amount_paid: 0,
+          status: "POSTED",
+          posted_at: new Date(),
+          updated_by: actorId,
+        },
+      });
+
+      return created;
+    });
+
+    const gl = await this.glAutoPost.postInvoiceToGl(
+      tenantId,
+      invoice.id,
+      actorId,
+    );
+
+    return {
+      invoice_id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      gl_voucher_id: gl.voucher_id ?? null,
     };
   }
 }
