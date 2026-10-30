@@ -26,13 +26,18 @@ import {
   TrialBalanceQueryDto,
   UpdateChartOfAccountDto,
 } from "./dto/gl.dto";
+import { CoaOpeningBalanceDto } from "./dto/opening-balance.dto";
+import { OpeningBalanceService } from "./opening-balance.service";
 
 @ApiTags("GL — Chart of Accounts")
 @ApiBearerAuth()
 @UseGuards(RolesGuard, PermissionsGuard)
 @Controller("gl/accounts")
 export class ChartOfAccountsController {
-  constructor(private readonly service: ChartOfAccountsService) {}
+  constructor(
+    private readonly service: ChartOfAccountsService,
+    private readonly openingBalance: OpeningBalanceService,
+  ) {}
 
   @Get()
   @RequirePermissions(GL_PERMISSIONS.VIEW)
@@ -106,6 +111,26 @@ export class ChartOfAccountsController {
     @Body() dto: CreateChartOfAccountDto,
   ) {
     return this.service.create(tenantId, dto, actorId);
+  }
+
+  @Post(":id/opening-balance")
+  @RequirePermissions(GL_PERMISSIONS.MANAGE_COA)
+  @ApiOperation({
+    summary:
+      "Set CoA opening balance and optionally post an OPENING_BALANCE voucher",
+  })
+  setOpeningBalance(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CoaOpeningBalanceDto,
+  ) {
+    return this.openingBalance.setCoaOpeningBalance(
+      tenantId,
+      id,
+      dto,
+      actorId,
+    );
   }
 
   @Patch(":id")

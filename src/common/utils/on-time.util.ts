@@ -13,6 +13,7 @@ export type OnTimeSummary = {
 };
 
 const TERMINAL_DELIVERED = new Set(["DELIVERED", "COMPLETED"]);
+const TERMINAL_ALL = new Set(["DELIVERED", "COMPLETED", "CANCELLED"]);
 
 /**
  * Score jobs whose ETA falls in the period.
@@ -60,6 +61,22 @@ export function summarizeOnTimePerformance(
   };
 }
 
+/**
+ * Operational "delayed" bucket: open (non-terminal) job past ETA with no delivery yet.
+ */
+export function isOpenJobDelayed(
+  job: OnTimeJobLike,
+  asOf: Date = new Date(),
+): boolean {
+  if (job.status && TERMINAL_ALL.has(job.status)) return false;
+  const eta = toDate(job.eta);
+  if (!eta) return false;
+  const actual =
+    toDate(job.actual_delivery) ?? toDate(job.actual_eta) ?? null;
+  if (actual) return false;
+  return asOf.getTime() > eta.getTime();
+}
+
 function toDate(v: Date | string | null | undefined): Date | null {
   if (!v) return null;
   const d = v instanceof Date ? v : new Date(v);
@@ -85,3 +102,43 @@ export const TERMINAL_JOB_STATUSES = [
   "COMPLETED",
   "CANCELLED",
 ] as const;
+
+/** Dashboard / list category buckets (not 1:1 with JobStatus). */
+export const JOB_DASHBOARD_CATEGORIES = [
+  "on_hold",
+  "delayed",
+  "delivered",
+  "cancelled",
+  "completed",
+  "in_progress",
+] as const;
+
+export type JobDashboardCategory = (typeof JOB_DASHBOARD_CATEGORIES)[number];
+
+export function jobStatusesForCategory(
+  category: JobDashboardCategory,
+): string[] | null {
+  switch (category) {
+    case "on_hold":
+      return ["ON_HOLD"];
+    case "delivered":
+      return ["DELIVERED"];
+    case "cancelled":
+      return ["CANCELLED"];
+    case "completed":
+      return ["COMPLETED"];
+    case "in_progress":
+      return [
+        "IN_PROGRESS",
+        "DOCS_PENDING",
+        "CUSTOMS_CLEARANCE",
+        "OPEN",
+        "APPROVED",
+        "BOOKING_CONFIRMED",
+      ];
+    case "delayed":
+      return null; // computed via isOpenJobDelayed / ETA filter
+    default:
+      return null;
+  }
+}

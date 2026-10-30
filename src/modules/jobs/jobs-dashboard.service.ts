@@ -5,6 +5,7 @@ import {
 } from "../../common/dto/dashboard-period-query.dto";
 import {
   DEFAULT_OPS_CAPACITY,
+  isOpenJobDelayed,
   OPEN_JOB_STATUSES,
 } from "../../common/utils/on-time.util";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -24,7 +25,7 @@ export class JobsDashboardService {
         ...(query.job_type ? { job_type: query.job_type as JobType } : {}),
       };
 
-      const [byStatus, byType, createdInPeriod] = await Promise.all([
+      const [byStatus, byType, createdInPeriod, openWithEta] = await Promise.all([
         tx.job.groupBy({
           by: ["status"],
           where: base,
@@ -41,6 +42,18 @@ export class JobsDashboardService {
             created_at: { gte: from, lte: to },
           },
         }),
+        tx.job.findMany({
+          where: {
+            ...base,
+            status: { in: [...OPEN_JOB_STATUSES] as JobStatus[] },
+            eta: { not: null },
+          },
+          select: {
+            id: true,
+            status: true,
+            eta: true,
+          },
+        }),
       ]);
 
       const statusMap: Record<string, number> = {};
@@ -52,10 +65,18 @@ export class JobsDashboardService {
         (sum, s) => sum + (statusMap[s] ?? 0),
         0,
       );
-      const in_progress = statusMap["IN_PROGRESS"] ?? 0;
-      const delivered =
-        (statusMap["DELIVERED"] ?? 0) + (statusMap["COMPLETED"] ?? 0);
+      const in_progress =
+        (statusMap["IN_PROGRESS"] ?? 0) +
+        (statusMap["DOCS_PENDING"] ?? 0) +
+        (statusMap["CUSTOMS_CLEARANCE"] ?? 0) +
+        (statusMap["OPEN"] ?? 0) +
+        (statusMap["APPROVED"] ?? 0) +
+        (statusMap["BOOKING_CONFIRMED"] ?? 0);
+      const delivered = statusMap["DELIVERED"] ?? 0;
+      const completed = statusMap["COMPLETED"] ?? 0;
       const cancelled = statusMap["CANCELLED"] ?? 0;
+      const on_hold = statusMap["ON_HOLD"] ?? 0;
+      const delayed = openWithEta.filter((j) => isOpenJobDelayed(j)).length;
 
       return {
         success: true,
@@ -65,7 +86,10 @@ export class JobsDashboardService {
           to: to.toISOString(),
           open,
           in_progress,
+          on_hold,
+          delayed,
           delivered,
+          completed,
           cancelled,
           by_status: statusMap,
           by_job_type: Object.fromEntries(
@@ -253,6 +277,131 @@ export class JobsDashboardService {
                 : null,
           },
         },
+      };
+    });
+  }
+
+  async listOnHoldWithDocs(tenantId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const jobs = await tx.job.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          status: JobStatus.ON_HOLD,
+        },
+        orderBy: { held_at: "desc" },
+        select: {
+          id: true,
+          job_number: true,
+          job_type: true,
+          status: true,
+          status_code: true,
+          hold_reason: true,
+          held_at: true,
+          expected_release_at: true,
+          resume_reason: true,
+          resumed_at: true,
+          commodity: true,
+          eta: true,
+          etd: true,
+          shipper_id: true,
+          consignee_id: true,
+          billing_party_id: true,
+          created_at: true,
+          updated_at: true,
+          documents: {
+            where: {
+              deleted_at: null,
+              visible_to_customer: true,
+            },
+            orderBy: { created_at: "desc" },
+            select: {
+              id: true,
+              document_type: true,
+              file_name: true,
+              reference_number: true,
+              visible_to_customer: true,
+              downloadable_by_customer: true,
+              created_at: true,
+            },
+          },
+        },
+      });
+
+      return {
+        success: true,
+        data: jobs.map((job) => ({
+          id: job.id,
+          job_number: job.job_number,
+          job_type: job.job_type,
+          status: job.status,
+          status_code: job.status_code,
+          hold_reason: job.hold_reason,
+          held_at: job.held_at,
+          expected_release_at: job.expected_release_at,
+          resume_reason: job.resume_reason,
+          resumed_at: job.resumed_at,
+          commodity: job.commodity,
+          eta: job.eta,
+          etd: job.etd,
+          shipper_id: job.shipper_id,
+          consignee_id: job.consignee_id,
+          billing_party_id: job.billing_party_id,
+          created_at: job.created_at,
+          updated_at: job.updated_at,
+          customer_visible_documents: job.documents.map((d) => ({
+            id: d.id,
+            document_type: d.document_type,
+            file_name: d.file_name,
+            reference_number: d.reference_number,
+            downloadable_by_customer: d.downloadable_by_customer,
+            created_at: d.created_at,
+          })),
+          customer_visible_document_count: job.documents.length,
+        })),
+      };
+    });
+  }
+
+  async pendingQuotations(tenantId: string) {
+    const PENDING: string[] = [
+      "DRAFT",
+      "SUBMITTED",
+      "INTERNALLY_APPROVED",
+      "SENT",
+      "NEGOTIATING",
+      "CUSTOMER_REVIEW",
+      "VERIFIED",
+    ];
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const rows = await tx.quotation.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          status: { in: PENDING as never },
+        },
+        orderBy: { updated_at: "desc" },
+        select: {
+          id: true,
+          quotation_number: true,
+          status: true,
+          status_code: true,
+          job_type: true,
+          customer_id: true,
+          valid_until: true,
+          revenue_total: true,
+          currency_code: true,
+          converted_job_id: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: rows,
+        meta: { total: rows.length },
       };
     });
   }

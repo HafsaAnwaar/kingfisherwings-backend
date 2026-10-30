@@ -40,7 +40,9 @@ import { JobsDashboardService } from "./jobs-dashboard.service";
 import { JobDetailService } from "./job-detail.service";
 import {
   ChangeJobStatusDto,
+  PatchShowAllDto,
   ReopenJobDto,
+  ResumeJobDto,
   StopJobDto,
 } from "./dto/job-detail.dto";
 import { PatchJobClosedOverridesDto } from "./dto/job-closed-overrides.dto";
@@ -307,7 +309,7 @@ export class JobsController {
   @ApiOperation({
     summary: "Job KPI counters for staff dashboards",
     description:
-      "Single-round-trip aggregates by status/type. Supports period=7d|30d|mtd|custom.",
+      "Buckets: open, in_progress, on_hold, delayed, delivered, completed, cancelled. Supports period=7d|30d|mtd|custom.",
   })
   dashboardCounts(
     @CurrentUser("tenantId") tenantId: string,
@@ -328,6 +330,26 @@ export class JobsController {
     @Query() query: JobsDashboardQueryDto,
   ) {
     return this.dashboard.teamWorkload(tenantId, query);
+  }
+
+  @Get("pending-quotations")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Pending quotations relevant to jobs pipeline",
+    description:
+      "Returns quotations in DRAFT|SUBMITTED|INTERNALLY_APPROVED|SENT|NEGOTIATING|CUSTOMER_REVIEW|VERIFIED.",
+  })
+  pendingQuotations(@CurrentUser("tenantId") tenantId: string) {
+    return this.dashboard.pendingQuotations(tenantId);
+  }
+
+  @Get("by-category/on_hold")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "Jobs currently on hold with customer-visible document summary",
+  })
+  listOnHoldByCategory(@CurrentUser("tenantId") tenantId: string) {
+    return this.dashboard.listOnHoldWithDocs(tenantId);
   }
 
   @Get("status-options")
@@ -473,6 +495,21 @@ export class JobsController {
     @Param("tab") tab: string,
   ) {
     return this.detail.getDetailTab(tenantId, id, tab);
+  }
+
+  @Patch(":id/detail/show_all")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Patch show_all / info header fields (ports & parties by name/code)",
+  })
+  patchShowAll(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PatchShowAllDto,
+  ) {
+    return this.detail.patchShowAll(tenantId, id, dto, actorId);
   }
 
   @Get(":id/detail")
@@ -1095,7 +1132,21 @@ export class JobsController {
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: StopJobDto,
   ) {
-    return this.detail.stop(tenantId, id, dto.reason, actorId);
+    return this.detail.stop(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/resume")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Resume job from hold (status → IN_PROGRESS or dto.status)",
+  })
+  resumeJob(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ResumeJobDto,
+  ) {
+    return this.detail.resume(tenantId, id, dto, actorId);
   }
 
   @Get(":id")
@@ -2501,6 +2552,20 @@ export class JobsController {
   @UseInterceptors(
     FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        visible_to_customer: { type: "boolean" },
+        visible_to_vendor: { type: "boolean" },
+        downloadable_by_customer: { type: "boolean" },
+        downloadable_by_vendor: { type: "boolean" },
+      },
+    },
+  })
   @ApiOperation({
     summary:
       "Multipart upload a typed job document (HAWB, MAWB, HBL, COMMERCIAL_INVOICE, …)",
@@ -2511,6 +2576,13 @@ export class JobsController {
     @Param("id", ParseUUIDPipe) id: string,
     @Param("documentType") documentType: string,
     @UploadedFile() file: Express.Multer.File,
+    @Body()
+    body: {
+      visible_to_customer?: string | boolean;
+      visible_to_vendor?: string | boolean;
+      downloadable_by_customer?: string | boolean;
+      downloadable_by_vendor?: string | boolean;
+    },
   ) {
     return this.documentUpload.uploadForJob(
       tenantId,
@@ -2518,6 +2590,16 @@ export class JobsController {
       documentType,
       file,
       { userId: actorId, side: OpsUploaderSide.STAFF },
+      {
+        visible_to_customer: multipartOptionalBool(body.visible_to_customer),
+        visible_to_vendor: multipartOptionalBool(body.visible_to_vendor),
+        downloadable_by_customer: multipartOptionalBool(
+          body.downloadable_by_customer,
+        ),
+        downloadable_by_vendor: multipartOptionalBool(
+          body.downloadable_by_vendor,
+        ),
+      },
     );
   }
 
@@ -2542,7 +2624,8 @@ export class JobsController {
   @Patch(":id/documents/:documentId/visibility")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Set customer/vendor visibility flags on a job document",
+    summary:
+      "Set customer/vendor visibility and downloadable flags on a job document",
   })
   patchDocumentVisibility(
     @CurrentUser("tenantId") tenantId: string,
@@ -4008,6 +4091,56 @@ export class JobsController {
     return this.acknowledgement.getForJob(tenantId, id);
   }
 
+  @Get(":id/acknowledgement/attachments")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List delivery acknowledgement attachments" })
+  listAcknowledgementAttachments(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.acknowledgement.listAttachments(tenantId, id);
+  }
+
+  @Post(":id/acknowledgement/attachments")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({ summary: "Upload a delivery acknowledgement attachment" })
+  uploadAcknowledgementAttachment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.acknowledgement.uploadAttachment(tenantId, id, file, actorId);
+  }
+
+  @Get(":id/acknowledgement/attachments/:attachmentId/download")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Download a delivery acknowledgement attachment" })
+  downloadAcknowledgementAttachment(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ) {
+    return this.acknowledgement.downloadAttachment(
+      tenantId,
+      id,
+      attachmentId,
+      res,
+    );
+  }
+
   @Post(":id/acknowledgement/receive")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
@@ -4363,4 +4496,12 @@ export class JobsController {
       actorId,
     );
   }
+}
+
+function multipartOptionalBool(
+  v: string | boolean | undefined,
+): boolean | undefined {
+  if (v === undefined || v === null || v === "") return undefined;
+  if (typeof v === "boolean") return v;
+  return v === "true" || v === "1";
 }

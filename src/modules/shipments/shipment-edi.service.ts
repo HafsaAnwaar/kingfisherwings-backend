@@ -66,6 +66,8 @@ export class ShipmentEdiService {
       dto.edi_type,
       ctx.jobId!,
       actorId,
+      "JOB",
+      { company_codes: dto.company_codes },
     );
     return {
       success: true,

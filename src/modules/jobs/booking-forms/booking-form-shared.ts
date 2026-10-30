@@ -289,3 +289,86 @@ export function assertWhStockLines(lines: WhStockLineInput[] | undefined) {
     }
   }
 }
+
+/** Free-form booking extras stored on Job/Shipment.booking_custom_fields. */
+export type BookingCustomField = {
+  key: string;
+  label: string;
+  value: unknown;
+  type?: string;
+};
+
+/**
+ * Accept Array<{key,label,value,type?}> or Record&lt;key, value | {label?,value?,type?}&gt;.
+ * Returns null when input is undefined (caller should leave existing value unchanged).
+ */
+export function normalizeBookingCustomFields(
+  input: unknown,
+): BookingCustomField[] | null {
+  if (input === undefined) return null;
+  if (input === null) return [];
+
+  if (Array.isArray(input)) {
+    return input.map((raw, i) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+        throw new BadRequestException(
+          `custom_fields[${i}] must be an object with key/label/value`,
+        );
+      }
+      const row = raw as Record<string, unknown>;
+      const key = String(row.key ?? "").trim();
+      if (!key) {
+        throw new BadRequestException(`custom_fields[${i}].key is required`);
+      }
+      const label = String(row.label ?? key).trim() || key;
+      const out: BookingCustomField = {
+        key,
+        label,
+        value: row.value ?? null,
+      };
+      if (row.type != null && String(row.type).trim()) {
+        out.type = String(row.type).trim();
+      }
+      return out;
+    });
+  }
+
+  if (typeof input === "object") {
+    return Object.entries(input as Record<string, unknown>).map(
+      ([keyRaw, raw]) => {
+        const key = String(keyRaw).trim();
+        if (!key) {
+          throw new BadRequestException("custom_fields keys must be non-empty");
+        }
+        if (raw != null && typeof raw === "object" && !Array.isArray(raw)) {
+          const row = raw as Record<string, unknown>;
+          const shaped =
+            "value" in row || "label" in row || "type" in row;
+          if (shaped) {
+            const out: BookingCustomField = {
+              key,
+              label: String(row.label ?? key).trim() || key,
+              value: row.value ?? null,
+            };
+            if (row.type != null && String(row.type).trim()) {
+              out.type = String(row.type).trim();
+            }
+            return out;
+          }
+          return { key, label: key, value: raw };
+        }
+        return { key, label: key, value: raw ?? null };
+      },
+    );
+  }
+
+  throw new BadRequestException(
+    "custom_fields must be an array of {key,label,value,type?} or a record",
+  );
+}
+
+/** Coerce stored Json to the API shape (always an array). */
+export function readBookingCustomFields(stored: unknown): BookingCustomField[] {
+  const normalized = normalizeBookingCustomFields(stored ?? []);
+  return normalized ?? [];
+}

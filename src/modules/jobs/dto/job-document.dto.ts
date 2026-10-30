@@ -48,6 +48,32 @@ export class CreateJobDocumentDto {
   @IsOptional()
   @IsString()
   mime_type?: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  visible_to_customer?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  visible_to_vendor?: boolean;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: "When visible to customer: allow file download (false = view metadata only).",
+  })
+  @IsOptional()
+  @IsBoolean()
+  downloadable_by_customer?: boolean;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: "When visible to vendor: allow file download (false = view metadata only).",
+  })
+  @IsOptional()
+  @IsBoolean()
+  downloadable_by_vendor?: boolean;
 }
 
 export class UpdateJobDocumentDto extends PartialType(CreateJobDocumentDto) {}
@@ -69,6 +95,20 @@ export class PatchJobDocumentVisibilityDto {
   @IsOptional()
   @IsBoolean()
   visible_to_vendor?: boolean;
+
+  @ApiPropertyOptional({
+    description: "When visible to customer: allow file download.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  downloadable_by_customer?: boolean;
+
+  @ApiPropertyOptional({
+    description: "When visible to vendor: allow file download.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  downloadable_by_vendor?: boolean;
 }
 
 export class ListJobDocumentsQueryDto {

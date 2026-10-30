@@ -47,6 +47,35 @@ export class JobQueryDto {
   @IsEnum(JobStatus)
   status?: JobStatus;
 
+  @ApiPropertyOptional({
+    enum: [
+      "on_hold",
+      "delayed",
+      "delivered",
+      "cancelled",
+      "completed",
+      "in_progress",
+    ],
+    description:
+      "Dashboard category filter. delayed = open jobs past ETA (on-time util).",
+  })
+  @IsOptional()
+  @IsIn([
+    "on_hold",
+    "delayed",
+    "delivered",
+    "cancelled",
+    "completed",
+    "in_progress",
+  ])
+  category?:
+    | "on_hold"
+    | "delayed"
+    | "delivered"
+    | "cancelled"
+    | "completed"
+    | "in_progress";
+
   @ApiPropertyOptional({ enum: JobType })
   @IsOptional()
   @IsEnum(JobType)

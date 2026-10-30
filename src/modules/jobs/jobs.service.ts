@@ -40,6 +40,10 @@ import {
   visibleJobTypes,
 } from "../../common/constants/module-permission-tree";
 import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
+import {
+  jobStatusesForCategory,
+  OPEN_JOB_STATUSES,
+} from "../../common/utils/on-time.util";
 import { MasterLabelService } from "../masters/master-label.service";
 import { PortsService } from "../masters/ports/ports.service";
 import { ShipmentsService } from "../shipments/shipments.service";
@@ -720,6 +724,17 @@ export class JobsService {
       };
 
       if (query.status) where.status = query.status;
+      if (query.category && !query.status) {
+        const statuses = jobStatusesForCategory(query.category);
+        if (statuses) {
+          where.status = { in: statuses as never };
+        } else if (query.category === "delayed") {
+          where.status = {
+            in: [...OPEN_JOB_STATUSES] as never,
+          };
+          where.eta = { lt: new Date() };
+        }
+      }
       if (query.job_type) where.job_type = query.job_type;
       const allowedTypes = visibleJobTypes(permissions ?? []);
       if (allowedTypes) {
@@ -4523,6 +4538,8 @@ export class JobsService {
       // Prefer stable API download over possibly-expired presigned file_url.
       return rows.map((doc) => ({
         ...doc,
+        downloadable_by_customer: doc.downloadable_by_customer,
+        downloadable_by_vendor: doc.downloadable_by_vendor,
         download_path: `/jobs/${jobId}/documents/${doc.id}/download`,
         can_download: !!(doc.s3_key || doc.file_url),
       }));
@@ -4551,8 +4568,12 @@ export class JobsService {
           mime_type: dto.mime_type,
           source: "UPLOADED",
           uploader_side: OpsUploaderSide.STAFF,
-          visible_to_customer: defaultVisibleToCustomer(dto.document_type),
-          visible_to_vendor: false,
+          visible_to_customer:
+            dto.visible_to_customer ??
+            defaultVisibleToCustomer(dto.document_type),
+          visible_to_vendor: dto.visible_to_vendor ?? false,
+          downloadable_by_customer: dto.downloadable_by_customer ?? true,
+          downloadable_by_vendor: dto.downloadable_by_vendor ?? true,
           uploaded_by: actorId,
           created_by: actorId,
           updated_by: actorId,

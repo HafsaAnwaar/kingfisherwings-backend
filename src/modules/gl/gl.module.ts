@@ -1,9 +1,10 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { EmailModule } from "../../shared/email/email.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { InvoicesModule } from "../invoices/invoices.module";
 import { GlDocumentShareService } from "./gl-document-share.service";
 import { ChartOfAccountsController } from "./chart-of-accounts.controller";
 import { ChartOfAccountsService } from "./chart-of-accounts.service";
@@ -15,6 +16,7 @@ import { PaymentsController } from "./payments.controller";
 import { PaymentsService } from "./payments.service";
 import { ArApController } from "./ar-ap.controller";
 import { ArApService } from "./ar-ap.service";
+import { OpeningBalanceService } from "./opening-balance.service";
 import { ChequesController } from "./cheques.controller";
 import { ChequesService } from "./cheques.service";
 import { BankReconciliationController } from "./bank-reconciliation.controller";
@@ -33,6 +35,7 @@ import { SavedReportsService } from "./saved-reports.service";
     NotificationsModule,
     EmailModule,
     StorageModule,
+    forwardRef(() => InvoicesModule),
   ],
   controllers: [
     ChartOfAccountsController,
@@ -52,6 +55,7 @@ import { SavedReportsService } from "./saved-reports.service";
     GlAutoPostService,
     PaymentsService,
     ArApService,
+    OpeningBalanceService,
     ChequesService,
     BankReconciliationService,
     FinancialReportsService,
@@ -66,6 +70,7 @@ import { SavedReportsService } from "./saved-reports.service";
     GlAutoPostService,
     PaymentsService,
     ArApService,
+    OpeningBalanceService,
     ChequesService,
     BankReconciliationService,
     FinancialReportsService,

@@ -8,6 +8,7 @@ import {
 } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
+  Allow,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -265,6 +266,16 @@ export class ModeBookingFormBaseDto {
   @IsOptional()
   @IsBoolean()
   consent_accepted?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      "Free-form booking extras: Array<{key,label,value,type?}> or Record. Stored on Job.booking_custom_fields.",
+  })
+  @IsOptional()
+  @Allow()
+  custom_fields?:
+    | Array<{ key: string; label: string; value?: unknown; type?: string }>
+    | Record<string, unknown>;
 }
 
 export class UpsertSeaFclBookingFormDto extends ModeBookingFormBaseDto {

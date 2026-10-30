@@ -9,6 +9,7 @@ import {
   DocumentType,
   OpsUploaderSide,
 } from "@prisma/client";
+import { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
 import { StorageService } from "../../shared/storage/storage.service";
 import { EmailService } from "../../shared/email/email.service";
@@ -59,6 +60,12 @@ export class DeliveryAcknowledgementService {
     const ack = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.deliveryAcknowledgement.findFirst({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        include: {
+          attachments: {
+            where: { deleted_at: null },
+            orderBy: { created_at: "desc" },
+          },
+        },
       }),
     );
     return {
@@ -73,9 +80,123 @@ export class DeliveryAcknowledgementService {
           receive: `/jobs/${jobId}/acknowledgement/receive`,
           upload_signature: `/portal/shipments/{id}/acknowledgement/signature`,
           generate_pdf: `/jobs/${jobId}/acknowledgement/generate-pdf`,
+          list_attachments: `/jobs/${jobId}/acknowledgement/attachments`,
+          upload_attachment: `/jobs/${jobId}/acknowledgement/attachments`,
         },
       },
     };
+  }
+
+  async listAttachments(tenantId: string, jobId: string) {
+    const ack = await this.getOrCreateDraft(tenantId, jobId);
+    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.deliveryAcknowledgementAttachment.findMany({
+        where: {
+          tenant_id: tenantId,
+          acknowledgement_id: ack.id,
+          deleted_at: null,
+        },
+        orderBy: { created_at: "desc" },
+      }),
+    );
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        ...r,
+        download_path: `/jobs/${jobId}/acknowledgement/attachments/${r.id}/download`,
+      })),
+    };
+  }
+
+  async uploadAttachment(
+    tenantId: string,
+    jobId: string,
+    file: Express.Multer.File,
+    actorId: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException(
+        "File is required (multipart field name: file).",
+      );
+    }
+    const ack = await this.getOrCreateDraft(tenantId, jobId, actorId);
+    if (ack.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN) {
+      throw new BadRequestException(
+        "Acknowledgement already received by admin; attachments are locked.",
+      );
+    }
+    const stored = await this.storage.saveBuffer(
+      tenantId,
+      file.buffer,
+      file.originalname || "acknowledgement-attachment.bin",
+      file.mimetype || "application/octet-stream",
+    );
+    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.deliveryAcknowledgementAttachment.create({
+        data: {
+          tenant_id: tenantId,
+          acknowledgement_id: ack.id,
+          file_name: file.originalname || stored.s3Key,
+          file_url: stored.fileUrl,
+          s3_key: stored.s3Key,
+          mime_type: stored.mimeType,
+          file_size: stored.fileSize,
+          uploaded_by: actorId,
+        },
+      }),
+    );
+    return {
+      success: true,
+      data: {
+        ...row,
+        download_path: `/jobs/${jobId}/acknowledgement/attachments/${row.id}/download`,
+      },
+    };
+  }
+
+  async downloadAttachment(
+    tenantId: string,
+    jobId: string,
+    attachmentId: string,
+    res: Response,
+  ) {
+    const ack = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.deliveryAcknowledgement.findFirst({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        select: { id: true },
+      }),
+    );
+    if (!ack) throw new NotFoundException("No acknowledgement found.");
+
+    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.deliveryAcknowledgementAttachment.findFirst({
+        where: {
+          id: attachmentId,
+          tenant_id: tenantId,
+          acknowledgement_id: ack.id,
+          deleted_at: null,
+        },
+      }),
+    );
+    if (!row) throw new NotFoundException("Attachment not found.");
+
+    const file = await this.storage.readByStoredFile(tenantId, {
+      file_name: row.file_name,
+      file_url: row.file_url,
+      s3_key: row.s3_key,
+      mime_type: row.mime_type,
+    });
+    res.setHeader("Content-Type", file.mimeType);
+    const inline =
+      !!file.mimeType &&
+      (file.mimeType.startsWith("image/") ||
+        file.mimeType === "application/pdf" ||
+        file.mimeType.startsWith("text/"));
+    res.setHeader(
+      "Content-Disposition",
+      `${inline ? "inline" : "attachment"}; filename="${file.fileName.replace(/"/g, "")}"`,
+    );
+    res.send(file.buffer);
   }
 
   async getOrCreateDraft(tenantId: string, jobId: string, actorId?: string) {

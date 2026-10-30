@@ -514,6 +514,7 @@ export class JobTabPanelsService {
   ) {
     await this.assertJob(tenantId, jobId);
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const refs = await this.resolveRoutingRefs(tx, tenantId, dto);
       const max = await tx.jobRoutingLeg.aggregate({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
         _max: { leg_sequence: true },
@@ -524,12 +525,12 @@ export class JobTabPanelsService {
           job_id: jobId,
           leg_sequence: dto.leg_sequence ?? (max._max.leg_sequence ?? 0) + 1,
           transport_mode: dto.transport_mode,
-          port_id: dto.port_id,
-          origin_port_id: dto.origin_port_id,
-          dest_port_id: dto.dest_port_id,
+          port_id: refs.port_id,
+          origin_port_id: refs.origin_port_id,
+          dest_port_id: refs.dest_port_id,
           etd: dto.etd ? new Date(dto.etd) : undefined,
           eta: dto.eta ? new Date(dto.eta) : undefined,
-          carrier_id: dto.carrier_id,
+          carrier_id: refs.carrier_id,
           vessel_name: dto.vessel_name,
           voyage_number: dto.voyage_number,
         },
@@ -547,7 +548,10 @@ export class JobTabPanelsService {
       });
       return created;
     });
-    return { success: true, data: row };
+    return {
+      success: true,
+      data: await this.labels.enrichOne(tenantId, row),
+    };
   }
 
   async updateRoutingLeg(
@@ -568,6 +572,7 @@ export class JobTabPanelsService {
         },
       });
       if (!leg) throw new NotFoundException("Routing leg not found.");
+      const refs = await this.resolveRoutingRefs(tx, tenantId, dto);
       const updated = await tx.jobRoutingLeg.update({
         where: { id: legId },
         data: {
@@ -577,12 +582,12 @@ export class JobTabPanelsService {
           ...(dto.transport_mode !== undefined
             ? { transport_mode: dto.transport_mode }
             : {}),
-          ...(dto.port_id !== undefined ? { port_id: dto.port_id } : {}),
-          ...(dto.origin_port_id !== undefined
-            ? { origin_port_id: dto.origin_port_id }
+          ...(refs.port_id !== undefined ? { port_id: refs.port_id } : {}),
+          ...(refs.origin_port_id !== undefined
+            ? { origin_port_id: refs.origin_port_id }
             : {}),
-          ...(dto.dest_port_id !== undefined
-            ? { dest_port_id: dto.dest_port_id }
+          ...(refs.dest_port_id !== undefined
+            ? { dest_port_id: refs.dest_port_id }
             : {}),
           ...(dto.etd !== undefined
             ? { etd: dto.etd ? new Date(dto.etd) : null }
@@ -590,8 +595,8 @@ export class JobTabPanelsService {
           ...(dto.eta !== undefined
             ? { eta: dto.eta ? new Date(dto.eta) : null }
             : {}),
-          ...(dto.carrier_id !== undefined
-            ? { carrier_id: dto.carrier_id }
+          ...(refs.carrier_id !== undefined
+            ? { carrier_id: refs.carrier_id }
             : {}),
           ...(dto.vessel_name !== undefined
             ? { vessel_name: dto.vessel_name }
@@ -616,7 +621,38 @@ export class JobTabPanelsService {
       });
       return updated;
     });
-    return { success: true, data: row };
+    return {
+      success: true,
+      data: await this.labels.enrichOne(tenantId, row),
+    };
+  }
+
+  private async resolveRoutingRefs(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    dto: UpsertJobRoutingLegDto,
+  ) {
+    const port_id = await this.lookups.resolvePort(tx, tenantId, {
+      id: dto.port_id,
+      name: dto.port_name,
+      code: dto.port_code,
+    });
+    const origin_port_id = await this.lookups.resolvePort(tx, tenantId, {
+      id: dto.origin_port_id,
+      name: dto.origin_port_name,
+      code: dto.origin_port_code,
+    });
+    const dest_port_id = await this.lookups.resolvePort(tx, tenantId, {
+      id: dto.dest_port_id,
+      name: dto.dest_port_name,
+      code: dto.dest_port_code,
+    });
+    const carrier_id = await this.lookups.resolveParty(tx, tenantId, {
+      id: dto.carrier_id,
+      name: dto.carrier_name,
+      label: "carrier",
+    });
+    return { port_id, origin_port_id, dest_port_id, carrier_id };
   }
 
   async deleteRoutingLeg(

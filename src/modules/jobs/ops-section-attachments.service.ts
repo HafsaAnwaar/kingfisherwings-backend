@@ -143,12 +143,16 @@ export class OpsSectionAttachmentsService {
       record_id?: string;
       visible_to_customer?: boolean;
       visible_to_vendor?: boolean;
+      downloadable_by_customer?: boolean;
+      downloadable_by_vendor?: boolean;
     },
   ) {
     const section = this.parseSection(sectionRaw);
     const vis = OPS_SECTION_VISIBILITY[section];
     const visibleCustomer = opts?.visible_to_customer ?? vis.customer;
     const visibleVendor = opts?.visible_to_vendor ?? vis.vendor;
+    const downloadableCustomer = opts?.downloadable_by_customer ?? true;
+    const downloadableVendor = opts?.downloadable_by_vendor ?? true;
     const jobId = await this.resolveJobId(tenantId, owner, ownerId);
 
     const notes = [
@@ -188,6 +192,8 @@ export class OpsSectionAttachmentsService {
           reference_number: opts?.record_id,
           visible_to_customer: visibleCustomer,
           visible_to_vendor: visibleVendor,
+          downloadable_by_customer: downloadableCustomer,
+          downloadable_by_vendor: downloadableVendor,
         },
       );
     }
@@ -202,6 +208,8 @@ export class OpsSectionAttachmentsService {
         shown_in_documents: !!jobDoc,
         visible_to_customer: visibleCustomer,
         visible_to_vendor: visibleVendor,
+        downloadable_by_customer: downloadableCustomer,
+        downloadable_by_vendor: downloadableVendor,
       },
       path_hints: this.pathHints(owner, ownerId, section),
     };
@@ -300,6 +308,8 @@ export class OpsSectionAttachmentsService {
       file_size: number | null;
       visible_to_customer: boolean;
       visible_to_vendor: boolean;
+      downloadable_by_customer?: boolean;
+      downloadable_by_vendor?: boolean;
       reference_number: string | null;
       created_at: Date;
     },
@@ -315,6 +325,8 @@ export class OpsSectionAttachmentsService {
       record_id: d.reference_number,
       visible_to_customer: d.visible_to_customer,
       visible_to_vendor: d.visible_to_vendor,
+      downloadable_by_customer: d.downloadable_by_customer ?? true,
+      downloadable_by_vendor: d.downloadable_by_vendor ?? true,
       created_at: d.created_at,
       open_url: hints.download.replace(":documentId", d.id),
       download_url: hints.download.replace(":documentId", d.id),

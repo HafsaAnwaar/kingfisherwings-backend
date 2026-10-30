@@ -17,7 +17,9 @@ import { DocumentShareEmailDto } from "../../shared/email/dto/document-share-ema
 import { GL_PERMISSIONS } from "./constants/gl-permission.constants";
 import { ArApService } from "./ar-ap.service";
 import { AgingQueryDto } from "./dto/ar-ap.dto";
+import { PartyOpeningBalanceDto } from "./dto/opening-balance.dto";
 import { GlDocumentShareService } from "./gl-document-share.service";
+import { OpeningBalanceService } from "./opening-balance.service";
 
 @ApiTags("GL — AR / AP Aging")
 @ApiBearerAuth()
@@ -27,6 +29,7 @@ export class ArApController {
   constructor(
     private readonly service: ArApService,
     private readonly share: GlDocumentShareService,
+    private readonly openingBalance: OpeningBalanceService,
   ) {}
 
   @Get("ar/aging")
@@ -101,6 +104,44 @@ export class ArApController {
     @Body() dto: DocumentShareEmailDto,
   ) {
     return this.share.sendApStatement(tenantId, partyId, dto, query, actorId);
+  }
+
+  @Post("ar/opening-balance")
+  @RequirePermissions(GL_PERMISSIONS.POST)
+  @ApiOperation({
+    summary:
+      "Party AR opening balance — optional manual CUSTOMER_INVOICE + GL link",
+  })
+  arOpeningBalance(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Body() dto: PartyOpeningBalanceDto,
+  ) {
+    return this.openingBalance.createPartyOpeningBalance(
+      tenantId,
+      "AR",
+      dto,
+      actorId,
+    );
+  }
+
+  @Post("ap/opening-balance")
+  @RequirePermissions(GL_PERMISSIONS.POST)
+  @ApiOperation({
+    summary:
+      "Party AP opening balance — optional manual PURCHASE_INVOICE + GL link",
+  })
+  apOpeningBalance(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Body() dto: PartyOpeningBalanceDto,
+  ) {
+    return this.openingBalance.createPartyOpeningBalance(
+      tenantId,
+      "AP",
+      dto,
+      actorId,
+    );
   }
 
   @Get("ar/open-items")

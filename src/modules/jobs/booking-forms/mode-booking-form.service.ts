@@ -32,6 +32,8 @@ import {
   ContainerSizeLine,
   locationFallbacksFromPayload,
   mergeBookingFormPayload,
+  normalizeBookingCustomFields,
+  readBookingCustomFields,
   requireFields,
   WhStockLineInput,
 } from "./booking-form-shared";
@@ -169,8 +171,13 @@ export class ModeBookingFormService {
           s3_key: true,
         },
       });
+      const jobRow = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: { booking_custom_fields: true },
+      });
       return {
         ...form,
+        custom_fields: readBookingCustomFields(jobRow?.booking_custom_fields),
         documents: bookingDocsStatus(form as never, {
           jobId,
           jobDocuments,
@@ -330,6 +337,10 @@ export class ModeBookingFormService {
         await this.upsertParties(tx, kind, tenantId, form.id, dto.parties);
       }
 
+      const customFields = normalizeBookingCustomFields(
+        (dto as { custom_fields?: unknown }).custom_fields,
+      );
+
       const scope =
         (dto.service_scope as ServiceScope | undefined) ?? undefined;
       await tx.job.update({
@@ -344,6 +355,12 @@ export class ModeBookingFormService {
             : {}),
           ...(dto.cargo_category !== undefined
             ? { cargo_category: dto.cargo_category }
+            : {}),
+          ...(customFields !== null
+            ? {
+                booking_custom_fields:
+                  customFields as unknown as Prisma.InputJsonValue,
+              }
             : {}),
           updated_by: actorId,
         },
@@ -370,7 +387,15 @@ export class ModeBookingFormService {
         );
       }
 
-      return this.findForm(tx, kind, tenantId, jobId);
+      const updated = await this.findForm(tx, kind, tenantId, jobId);
+      const jobRow = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: { booking_custom_fields: true },
+      });
+      return {
+        ...updated,
+        custom_fields: readBookingCustomFields(jobRow?.booking_custom_fields),
+      };
     });
   }
 
@@ -687,6 +712,7 @@ export class ModeBookingFormService {
       stock_lines,
       expected_inbound_at,
       expected_outbound_at,
+      custom_fields: _cf,
       ...rest
     } = dto;
 

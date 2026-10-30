@@ -32,7 +32,7 @@ import { PaymentProofsService } from "./payment-proofs/payment-proofs.service";
     PdfModule,
     StorageModule,
     EmailModule,
-    GlModule,
+    forwardRef(() => GlModule),
     NotificationsModule,
     PublicApiModule,
     MastersModule,
