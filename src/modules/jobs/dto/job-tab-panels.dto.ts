@@ -107,15 +107,51 @@ export class UpsertJobRoutingLegDto {
   @IsUUID()
   port_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({ description: "Via / call port name (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  port_name?: string;
+
+  @ApiPropertyOptional({ description: "Via / call port UN/LOCODE" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  port_code?: string;
+
+  @ApiPropertyOptional({ format: "uuid", deprecated: true })
   @IsOptional()
   @IsUUID()
   origin_port_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({ description: "Origin port name (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  origin_port_name?: string;
+
+  @ApiPropertyOptional({ description: "Origin port UN/LOCODE" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  origin_port_code?: string;
+
+  @ApiPropertyOptional({ format: "uuid", deprecated: true })
   @IsOptional()
   @IsUUID()
   dest_port_id?: string;
+
+  @ApiPropertyOptional({ description: "Destination port name (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  dest_port_name?: string;
+
+  @ApiPropertyOptional({ description: "Destination port UN/LOCODE" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  dest_port_code?: string;
 
   @ApiPropertyOptional({ format: "date" })
   @IsOptional()
@@ -127,10 +163,16 @@ export class UpsertJobRoutingLegDto {
   @IsDateString()
   eta?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({ format: "uuid", deprecated: true })
   @IsOptional()
   @IsUUID()
   carrier_id?: string;
+
+  @ApiPropertyOptional({ description: "Carrier party name or code (preferred)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  carrier_name?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

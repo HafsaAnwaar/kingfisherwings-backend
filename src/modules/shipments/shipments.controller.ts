@@ -46,6 +46,7 @@ import {
   MergeShipmentsDto,
   SplitShipmentDto,
 } from "./dto/shipment-detail.dto";
+import { PatchShowAllDto } from "../jobs/dto/job-detail.dto";
 import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
 import { BookingFormEntityService } from "../jobs/booking-forms/booking-form-entity.service";
 import { BlDraftFromBookingService } from "../jobs/bl-draft-from-booking.service";
@@ -155,6 +156,21 @@ export class ShipmentsController {
     @Param("tab") tab: string,
   ) {
     return this.detail.getDetailTab(tenantId, id, tab);
+  }
+
+  @Patch(":id/detail/show_all")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Patch show_all / info header fields (ports & parties by name/code)",
+  })
+  patchShowAll(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PatchShowAllDto,
+  ) {
+    return this.detail.patchShowAll(tenantId, id, dto, actorId);
   }
 
   @Get(":id/detail")

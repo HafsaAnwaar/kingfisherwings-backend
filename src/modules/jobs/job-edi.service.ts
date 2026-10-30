@@ -58,6 +58,8 @@ export class JobEdiService {
       dto.edi_type,
       jobId,
       actorId,
+      "JOB",
+      { company_codes: dto.company_codes },
     );
     const isTxt = dto.edi_type === "MANIFEST_CSDP";
     return {

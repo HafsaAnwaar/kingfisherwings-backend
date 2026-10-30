@@ -258,6 +258,77 @@ export class PortalShipmentsController {
     );
   }
 
+  @Get(":id/acknowledgement/attachments")
+  @ApiOperation({ summary: "List delivery acknowledgement attachments" })
+  async listAcknowledgementAttachments(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    const jobId = await this.requireJobId(user, id);
+    const result = await this.acknowledgement.listAttachments(
+      user.tenantId,
+      jobId,
+    );
+    return {
+      ...result,
+      data: (result.data ?? []).map((r: { id: string }) => ({
+        ...r,
+        download_path: `/portal/shipments/${id}/acknowledgement/attachments/${r.id}/download`,
+      })),
+    };
+  }
+
+  @Post(":id/acknowledgement/attachments")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiOperation({ summary: "Upload a delivery acknowledgement attachment" })
+  async uploadAcknowledgementAttachment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const jobId = await this.requireJobId(user, id);
+    const result = await this.acknowledgement.uploadAttachment(
+      user.tenantId,
+      jobId,
+      file,
+      user.id,
+    );
+    return {
+      ...result,
+      data: {
+        ...result.data,
+        download_path: `/portal/shipments/${id}/acknowledgement/attachments/${result.data.id}/download`,
+      },
+    };
+  }
+
+  @Get(":id/acknowledgement/attachments/:attachmentId/download")
+  @ApiOperation({ summary: "Download a delivery acknowledgement attachment" })
+  async downloadAcknowledgementAttachment(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ) {
+    const jobId = await this.requireJobId(user, id);
+    return this.acknowledgement.downloadAttachment(
+      user.tenantId,
+      jobId,
+      attachmentId,
+      res,
+    );
+  }
+
   @Get(":id")
   @ApiOperation({
     summary: "Shipment detail with cargo summary and milestone timeline",

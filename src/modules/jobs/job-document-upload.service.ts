@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -46,6 +47,8 @@ export class JobDocumentUploadService {
       skip_allowlist?: boolean;
       visible_to_customer?: boolean;
       visible_to_vendor?: boolean;
+      downloadable_by_customer?: boolean;
+      downloadable_by_vendor?: boolean;
       reference_number?: string;
     },
   ) {
@@ -105,6 +108,8 @@ export class JobDocumentUploadService {
           uploaded_by_party_id: actor.partyId ?? null,
           visible_to_customer: visibleCustomer,
           visible_to_vendor: visibleVendor,
+          downloadable_by_customer: opts?.downloadable_by_customer ?? true,
+          downloadable_by_vendor: opts?.downloadable_by_vendor ?? true,
           booking_form_kind: opts?.booking_form_kind ?? null,
           uploaded_by: actor.userId,
           created_by: actor.userId,
@@ -228,6 +233,17 @@ export class JobDocumentUploadService {
     const doc = docs.find((d) => d.id === documentId);
     if (!doc) throw new NotFoundException("Document not found.");
 
+    if (audience === "CUSTOMER" && doc.downloadable_by_customer === false) {
+      throw new ForbiddenException(
+        "This document is visible but download is disabled for customers.",
+      );
+    }
+    if (audience === "VENDOR" && doc.downloadable_by_vendor === false) {
+      throw new ForbiddenException(
+        "This document is visible but download is disabled for vendors.",
+      );
+    }
+
     const s3Key =
       doc.s3_key?.trim() ||
       deriveObjectKeyFromUrl(doc.file_url, tenantId) ||
@@ -256,7 +272,12 @@ export class JobDocumentUploadService {
     tenantId: string,
     jobId: string,
     documentId: string,
-    dto: { visible_to_customer?: boolean; visible_to_vendor?: boolean },
+    dto: {
+      visible_to_customer?: boolean;
+      visible_to_vendor?: boolean;
+      downloadable_by_customer?: boolean;
+      downloadable_by_vendor?: boolean;
+    },
     actorId: string,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -278,6 +299,12 @@ export class JobDocumentUploadService {
             : {}),
           ...(dto.visible_to_vendor !== undefined
             ? { visible_to_vendor: dto.visible_to_vendor }
+            : {}),
+          ...(dto.downloadable_by_customer !== undefined
+            ? { downloadable_by_customer: dto.downloadable_by_customer }
+            : {}),
+          ...(dto.downloadable_by_vendor !== undefined
+            ? { downloadable_by_vendor: dto.downloadable_by_vendor }
             : {}),
           updated_by: actorId,
         },

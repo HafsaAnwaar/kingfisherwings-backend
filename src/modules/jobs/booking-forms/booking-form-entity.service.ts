@@ -5,7 +5,7 @@ import {
   NotFoundException,
   forwardRef,
 } from "@nestjs/common";
-import { JobType, UserRole } from "@prisma/client";
+import { JobType, Prisma, UserRole } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { QuotationsService } from "../../quotations/quotations.service";
 import { ShipmentsService } from "../../shipments/shipments.service";
@@ -18,6 +18,10 @@ import {
   BookingFormAudience,
   QuotationBookingFormService,
 } from "./quotation-booking-form.service";
+import {
+  normalizeBookingCustomFields,
+  readBookingCustomFields,
+} from "./booking-form-shared";
 
 type Actor = { id: string; role?: UserRole };
 
@@ -261,12 +265,18 @@ export class BookingFormEntityService {
         actor?.id,
       );
     }
-    return this.getByJob(
+    const result = await this.getByJob(
       tenantId,
       resolved.jobId,
       resolved.jobType,
       resolved.provisional,
     );
+    const customFields = await this.resolveShipmentCustomFields(
+      tenantId,
+      shipmentId,
+      resolved.jobId,
+    );
+    return { ...result, custom_fields: customFields };
   }
 
   async upsertForQuotation(
@@ -311,14 +321,30 @@ export class BookingFormEntityService {
       shipmentId,
       actor.id,
     );
-    return this.upsertByJob(
+    const { custom_fields, ...rest } = dto;
+    await this.persistCustomFields(
+      tenantId,
+      {
+        shipmentId,
+        jobId: resolved.jobId,
+        customFields: custom_fields,
+      },
+      actor.id,
+    );
+    const result = await this.upsertByJob(
       tenantId,
       resolved.jobId,
       resolved.jobType,
-      dto,
+      rest,
       actor,
       resolved.provisional,
     );
+    const customFields = await this.resolveShipmentCustomFields(
+      tenantId,
+      shipmentId,
+      resolved.jobId,
+    );
+    return { ...result, custom_fields: customFields };
   }
 
   async completeForQuotation(
@@ -527,6 +553,7 @@ export class BookingFormEntityService {
     provisional = false,
   ) {
     const kind = this.kindForJobType(jobType);
+    const customFields = await this.loadJobCustomFields(tenantId, jobId);
     if (kind === "air") {
       const form = await this.airForms.get(tenantId, jobId);
       return this.withJobMeta(
@@ -535,6 +562,7 @@ export class BookingFormEntityService {
           job_type: jobType,
           kind,
           form,
+          custom_fields: customFields,
           submitted: !!(form as { is_complete?: boolean } | null)?.is_complete,
         },
         provisional,
@@ -547,6 +575,8 @@ export class BookingFormEntityService {
         job_type: jobType,
         kind,
         form,
+        custom_fields:
+          (form as { custom_fields?: unknown })?.custom_fields ?? customFields,
         submitted: !!(form as { is_complete?: boolean } | null)?.is_complete,
       },
       provisional,
@@ -561,16 +591,28 @@ export class BookingFormEntityService {
     actor: Actor,
     provisional = false,
   ) {
+    const { custom_fields, ...rest } = dto;
+    await this.persistCustomFields(
+      tenantId,
+      { jobId, customFields: custom_fields },
+      actor.id,
+    );
     const kind = this.kindForJobType(jobType);
     if (kind === "air") {
       const form = await this.airForms.upsertDraft(
         tenantId,
         jobId,
-        dto as UpsertAirComplianceBookingFormDto,
+        rest as UpsertAirComplianceBookingFormDto,
         actor.id,
       );
       return this.withJobMeta(
-        { job_id: jobId, job_type: jobType, kind, form },
+        {
+          job_id: jobId,
+          job_type: jobType,
+          kind,
+          form,
+          custom_fields: await this.loadJobCustomFields(tenantId, jobId),
+        },
         provisional,
       );
     }
@@ -578,13 +620,86 @@ export class BookingFormEntityService {
       kind,
       tenantId,
       jobId,
-      dto as never,
+      rest as never,
       actor.id,
     );
     return this.withJobMeta(
-      { job_id: jobId, job_type: jobType, kind, form },
+      {
+        job_id: jobId,
+        job_type: jobType,
+        kind,
+        form,
+        custom_fields:
+          (form as { custom_fields?: unknown })?.custom_fields ??
+          (await this.loadJobCustomFields(tenantId, jobId)),
+      },
       provisional,
     );
+  }
+
+  private async loadJobCustomFields(tenantId: string, jobId: string) {
+    const job = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: { booking_custom_fields: true },
+      }),
+    );
+    return readBookingCustomFields(job?.booking_custom_fields);
+  }
+
+  private async resolveShipmentCustomFields(
+    tenantId: string,
+    shipmentId: string,
+    jobId: string,
+  ) {
+    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.shipment.findFirst({
+        where: { id: shipmentId, tenant_id: tenantId, deleted_at: null },
+        select: {
+          booking_custom_fields: true,
+          job: { select: { booking_custom_fields: true } },
+        },
+      }),
+    );
+    if (row?.booking_custom_fields != null) {
+      return readBookingCustomFields(row.booking_custom_fields);
+    }
+    if (row?.job?.booking_custom_fields != null) {
+      return readBookingCustomFields(row.job.booking_custom_fields);
+    }
+    return this.loadJobCustomFields(tenantId, jobId);
+  }
+
+  private async persistCustomFields(
+    tenantId: string,
+    opts: {
+      jobId: string;
+      shipmentId?: string;
+      customFields: unknown;
+    },
+    actorId?: string,
+  ) {
+    const normalized = normalizeBookingCustomFields(opts.customFields);
+    if (normalized === null) return;
+    const json = normalized as unknown as Prisma.InputJsonValue;
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await tx.job.update({
+        where: { id: opts.jobId },
+        data: {
+          booking_custom_fields: json,
+          updated_by: actorId,
+        },
+      });
+      if (opts.shipmentId) {
+        await tx.shipment.update({
+          where: { id: opts.shipmentId },
+          data: {
+            booking_custom_fields: json,
+            updated_by: actorId,
+          },
+        });
+      }
+    });
   }
 
   private async completeByJob(

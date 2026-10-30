@@ -2735,6 +2735,15 @@ model Job {
   gp_amount     Decimal @default(0) @db.Decimal(18, 4)
   gp_percent    Decimal @default(0) @db.Decimal(7, 4)
 
+  /// ON_HOLD lifecycle (reason required on stop/resume).
+  hold_reason          String?   @db.Text
+  held_at              DateTime? @db.Timestamptz
+  expected_release_at  DateTime? @db.Timestamptz
+  resume_reason        String?   @db.Text
+  resumed_at           DateTime? @db.Timestamptz
+  /// Free-form booking form extras (key/label/value) shared across modes.
+  booking_custom_fields Json?
+
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
   created_by String?   @db.Uuid
@@ -4223,11 +4232,32 @@ model DeliveryAcknowledgement {
   updated_by           String?                        @db.Uuid
   deleted_at           DateTime?                      @db.Timestamptz
 
-  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  job         Job                              @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  attachments DeliveryAcknowledgementAttachment[]
 
   @@unique([tenant_id, job_id])
   @@index([tenant_id, status])
   @@map("delivery_acknowledgements")
+}
+
+model DeliveryAcknowledgementAttachment {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String    @db.Uuid
+  acknowledgement_id String    @db.Uuid
+  file_name          String    @db.VarChar(300)
+  file_url           String    @db.Text
+  s3_key             String?   @db.Text
+  mime_type          String?   @db.VarChar(120)
+  file_size          Int?
+  uploaded_by        String?   @db.Uuid
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @updatedAt @db.Timestamptz
+  deleted_at         DateTime? @db.Timestamptz
+
+  acknowledgement DeliveryAcknowledgement @relation(fields: [acknowledgement_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, acknowledgement_id])
+  @@map("delivery_acknowledgement_attachments")
 }
 
 model JobPartyReference {
@@ -4453,6 +4483,9 @@ model JobDocument {
   uploaded_by_party_id String?                  @db.Uuid
   visible_to_customer  Boolean                  @default(true)
   visible_to_vendor    Boolean                  @default(false)
+  /// When visible: allow download (true) vs view-only (false). Defaults preserve legacy download.
+  downloadable_by_customer Boolean              @default(true)
+  downloadable_by_vendor   Boolean              @default(true)
   /// When mirrored from booking-form attach (e.g. commercial_invoice).
   booking_form_kind    String?                  @db.VarChar(60)
   created_at           DateTime                 @default(now()) @db.Timestamptz
@@ -4572,6 +4605,9 @@ model Shipment {
   cost_total    Decimal @default(0) @db.Decimal(18, 4)
   gp_amount     Decimal @default(0) @db.Decimal(18, 4)
   gp_percent    Decimal @default(0) @db.Decimal(7, 4)
+
+  /// Free-form booking form extras (key/label/value).
+  booking_custom_fields Json?
 
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
@@ -7925,6 +7961,8 @@ model DocumentationEdiSubmission {
   external_ref      String?                @db.VarChar(100)
   payload_hash      String?                @db.VarChar(64)
   error_message     String?                @db.Text
+  /// Audit bag (e.g. company_codes used for MANIFEST_CSDP).
+  metadata          Json?
   amendment_of_id   String?                @db.Uuid
   submitted_by      String?                @db.Uuid
   submitted_at      DateTime?              @db.Timestamptz

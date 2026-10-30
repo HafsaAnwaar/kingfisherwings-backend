@@ -10,6 +10,9 @@ export type TrackSummary = {
   current_status: string;
   current_status_label: string;
   status_code: string | null;
+  headline: string;
+  detail: string | null;
+  is_on_hold: boolean;
   last_event: TrackHistoryEvent | null;
   next_event: TrackHistoryEvent | null;
   progress: { completed: number; total: number; percent: number };
@@ -28,6 +31,16 @@ export type TrackTimelinePayload = {
   status_label: string;
   etd: Date | null;
   eta: Date | null;
+  /** Planned / promised delivery date (same source as eta when set). */
+  expected_delivery: Date | null;
+  hold: {
+    is_on_hold: boolean;
+    hold_reason: string | null;
+    held_at: Date | null;
+    expected_release_at: Date | null;
+    resume_reason: string | null;
+    resumed_at: Date | null;
+  };
   commodity: string | null;
   pieces: number | null;
   gross_weight: unknown;
@@ -85,6 +98,8 @@ const LIFECYCLE_ACTIONS = new Set([
   "JOB_CLOSED",
   "JOB_CANCELLED",
   "JOB_REOPENED",
+  "JOB_ON_HOLD",
+  "JOB_RESUMED",
   "SHIPMENT_CREATED",
   "SHIPMENT_STATUS_CHANGE",
   "SHIPMENT_BL_STATUS_CHANGE",
@@ -130,6 +145,13 @@ export class TrackTimelineService {
       reason?: string | null;
       action?: string | null;
     }>;
+    hold?: {
+      hold_reason?: string | null;
+      held_at?: Date | null;
+      expected_release_at?: Date | null;
+      resume_reason?: string | null;
+      resumed_at?: Date | null;
+    } | null;
     includeNotes?: boolean;
   }): TrackHistoryEvent[] {
     const events: TrackHistoryEvent[] = [];
@@ -139,7 +161,7 @@ export class TrackTimelineService {
       events.push({
         type: "STATUS",
         code: "CREATED",
-        label: "Shipment / job created",
+        label: "Shipment created",
         planned_at: null,
         actual_at: parts.created_at,
         is_completed: true,
@@ -156,16 +178,26 @@ export class TrackTimelineService {
         // unless we have no created_at.
         if (parts.created_at) continue;
         code = "CREATED";
-        label = "Shipment / job created";
+        label = "Shipment created";
       } else if (action === "JOB_CLOSED" || /CLOSED/.test(action)) {
         code = "CLOSED";
-        label = "Job closed";
+        label = "Shipment closed";
       } else if (action === "JOB_CANCELLED" || /CANCEL/.test(action)) {
         code = "CANCELLED";
-        label = "Job cancelled";
+        label = "Shipment cancelled";
       } else if (action === "JOB_REOPENED" || /REOPEN/.test(action)) {
         code = "REOPENED";
-        label = "Job reopened";
+        label = "Shipment reopened";
+      } else if (
+        action === "JOB_ON_HOLD" ||
+        /ON_HOLD/i.test(sc.to) ||
+        /ON_HOLD/i.test(sc.to_code ?? "")
+      ) {
+        code = "ON_HOLD";
+        label = "Shipment placed on hold";
+      } else if (action === "JOB_RESUMED" || /RESUMED/.test(action)) {
+        code = "RESUMED";
+        label = "Shipment resumed from hold";
       } else if (/APPROV/.test(action) || /APPROV/i.test(sc.to)) {
         code = sc.to_code ?? sc.to ?? "APPROVED";
         label = sc.from
@@ -177,7 +209,7 @@ export class TrackTimelineService {
       } else {
         const toLabel = humanLabel(sc.to_code ?? sc.to);
         label = sc.from
-          ? `Status changed to ${toLabel}`
+          ? `Status updated to ${toLabel}`
           : `Status set to ${toLabel}`;
       }
 
@@ -189,6 +221,36 @@ export class TrackTimelineService {
         actual_at: sc.at,
         is_completed: true,
         notes: notes ? (sc.reason ?? null) : null,
+      });
+    }
+
+    const hold = parts.hold;
+    if (hold?.held_at) {
+      const releaseNote = hold.expected_release_at
+        ? `Expected release: ${hold.expected_release_at.toISOString().slice(0, 10)}.`
+        : null;
+      const reasonNote = hold.hold_reason?.trim() || null;
+      events.push({
+        type: "STATUS",
+        code: "ON_HOLD",
+        label: "Shipment placed on hold",
+        planned_at: hold.expected_release_at ?? null,
+        actual_at: hold.held_at,
+        is_completed: true,
+        notes: notes
+          ? [reasonNote, releaseNote].filter(Boolean).join(" ") || null
+          : null,
+      });
+    }
+    if (hold?.resumed_at) {
+      events.push({
+        type: "STATUS",
+        code: "RESUMED",
+        label: "Shipment resumed from hold",
+        planned_at: null,
+        actual_at: hold.resumed_at,
+        is_completed: true,
+        notes: notes ? (hold.resume_reason?.trim() || null) : null,
       });
     }
 
@@ -266,6 +328,11 @@ export class TrackTimelineService {
     status: string,
     statusCode?: string | null,
     updatedAt?: Date | null,
+    hold?: {
+      hold_reason?: string | null;
+      held_at?: Date | null;
+      expected_release_at?: Date | null;
+    } | null,
   ): TrackSummary {
     const completed = history.filter((e) => e.is_completed);
     const pending = history.filter((e) => !e.is_completed);
@@ -279,10 +346,41 @@ export class TrackTimelineService {
     const next = pending[0] ?? null;
     const total = history.length;
     const done = completed.length;
+    const statusLabel = humanLabel(statusCode ?? status);
+    let headline = `Current status: ${statusLabel}`;
+    let detail: string | null = null;
+    if (status === "ON_HOLD") {
+      headline = "Shipment is currently on hold";
+      const bits = [
+        hold?.hold_reason?.trim()
+          ? `Reason: ${hold.hold_reason.trim()}.`
+          : null,
+        hold?.expected_release_at
+          ? `Expected release: ${hold.expected_release_at.toISOString().slice(0, 10)}.`
+          : null,
+      ].filter(Boolean);
+      detail = bits.length ? bits.join(" ") : "Operations will resume movement once the hold is cleared.";
+    } else if (status === "DELIVERED" || status === "COMPLETED") {
+      headline = "Shipment delivered";
+      detail = last?.label ? `Latest update: ${last.label}.` : null;
+    } else if (status === "CANCELLED") {
+      headline = "Shipment cancelled";
+      detail = last?.notes ?? null;
+    } else if (next?.label) {
+      headline = `In progress — next: ${next.label}`;
+      detail = last?.label ? `Latest update: ${last.label}.` : null;
+    } else if (last?.label) {
+      headline = statusLabel;
+      detail = `Latest update: ${last.label}.`;
+    }
+
     return {
       current_status: status,
-      current_status_label: humanLabel(statusCode ?? status),
+      current_status_label: statusLabel,
       status_code: statusCode ?? null,
+      headline,
+      detail,
+      is_on_hold: status === "ON_HOLD",
       last_event: last,
       next_event: next,
       progress: {
@@ -556,12 +654,21 @@ export class TrackTimelineService {
       ? airportMap.get(job.air_details.dest_airport_id)
       : null;
 
+    const holdInfo = {
+      hold_reason: job.hold_reason ?? null,
+      held_at: job.held_at ?? null,
+      expected_release_at: job.expected_release_at ?? null,
+      resume_reason: job.resume_reason ?? null,
+      resumed_at: job.resumed_at ?? null,
+    };
+
     const history = this.buildHistory({
       created_at: job.created_at,
       milestones: job.milestones,
       courier_checkpoints,
       containers: job.containers_job,
       status_changes,
+      hold: holdInfo,
       includeNotes,
     });
 
@@ -570,6 +677,7 @@ export class TrackTimelineService {
       job.status,
       job.status_code,
       job.updated_at,
+      holdInfo,
     );
 
     const linked = job.shipments;
@@ -605,6 +713,20 @@ export class TrackTimelineService {
         job.sea_lcl_details?.eta ??
         job.land_details?.eta ??
         null,
+      expected_delivery:
+        job.eta ??
+        job.sea_fcl_details?.eta ??
+        job.sea_lcl_details?.eta ??
+        job.land_details?.eta ??
+        null,
+      hold: {
+        is_on_hold: job.status === "ON_HOLD",
+        hold_reason: holdInfo.hold_reason,
+        held_at: holdInfo.held_at,
+        expected_release_at: holdInfo.expected_release_at,
+        resume_reason: holdInfo.resume_reason,
+        resumed_at: holdInfo.resumed_at,
+      },
       commodity: job.commodity,
       pieces: job.pieces,
       gross_weight: job.gross_weight,
@@ -744,11 +866,19 @@ export class TrackTimelineService {
       return false;
     }
     if (LIFECYCLE_ACTIONS.has(a)) return true;
-    if (/STATUS|CREATED|APPROV|VERIF|CLOSED|CANCEL|REOPEN|GENERATE/.test(a)) {
+    if (
+      /STATUS|CREATED|APPROV|VERIF|CLOSED|CANCEL|REOPEN|GENERATE|HOLD|RESUMED/.test(
+        a,
+      )
+    ) {
       return true;
     }
     // Free-text audit actions from older writers
-    if (/changed status|approved|verified|created|closed|cancelled|reopened/i.test(action)) {
+    if (
+      /changed status|approved|verified|created|closed|cancelled|reopened|on hold|resumed/i.test(
+        action,
+      )
+    ) {
       return true;
     }
     return false;

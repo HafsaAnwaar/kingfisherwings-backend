@@ -167,6 +167,86 @@ export class JobLookupsService {
     );
   }
 
+  async resolvePort(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    opts: {
+      id?: string | null;
+      name?: string | null;
+      code?: string | null;
+    },
+  ) {
+    if (opts.id) {
+      const row = await tx.port.findFirst({
+        where: { id: opts.id, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!row) throw new NotFoundException("Port not found.");
+      return row.id;
+    }
+    const code = opts.code?.trim();
+    const name = opts.name?.trim();
+    if (!code && !name) return undefined;
+    const or: Prisma.PortWhereInput[] = [];
+    if (code) {
+      or.push({ un_locode: { equals: code, mode: "insensitive" } });
+    }
+    if (name) {
+      or.push({ name: { equals: name, mode: "insensitive" } });
+      if (!code) {
+        or.push({ un_locode: { equals: name, mode: "insensitive" } });
+      }
+    }
+    return this.oneByName(
+      await tx.port.findMany({
+        where: { tenant_id: tenantId, deleted_at: null, OR: or },
+        select: { id: true, name: true },
+      }),
+      "port",
+      code || name || "",
+    );
+  }
+
+  async resolveParty(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    opts: {
+      id?: string | null;
+      name?: string | null;
+      code?: string | null;
+      label?: string;
+    },
+  ) {
+    const label = opts.label ?? "party";
+    if (opts.id) {
+      const row = await tx.party.findFirst({
+        where: { id: opts.id, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!row) throw new NotFoundException(`${label} not found.`);
+      return row.id;
+    }
+    const code = opts.code?.trim();
+    const name = opts.name?.trim();
+    if (!code && !name) return undefined;
+    const or: Prisma.PartyWhereInput[] = [];
+    if (code) {
+      or.push({ code: { equals: code, mode: "insensitive" } });
+    }
+    if (name) {
+      or.push({ name: { equals: name, mode: "insensitive" } });
+      if (!code) {
+        or.push({ code: { equals: name, mode: "insensitive" } });
+      }
+    }
+    return this.oneByName(
+      await tx.party.findMany({
+        where: { tenant_id: tenantId, deleted_at: null, OR: or },
+        select: { id: true, name: true },
+      }),
+      label,
+      code || name || "",
+    );
+  }
+
   async resolveUser(
     tx: Prisma.TransactionClient,
     tenantId: string,

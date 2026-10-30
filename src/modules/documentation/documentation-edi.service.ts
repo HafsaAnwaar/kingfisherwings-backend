@@ -135,10 +135,25 @@ export class DocumentationEdiService {
     referenceId: string,
     actorId?: string,
     referenceType = "JOB",
+    opts?: { company_codes?: string[] },
   ) {
     const isTxt = ediType === "MANIFEST_CSDP";
+    if (isTxt) {
+      const codes = (opts?.company_codes ?? [])
+        .map((c) => String(c).trim())
+        .filter(Boolean);
+      if (!codes.length) {
+        throw new BadRequestException(
+          "company_codes is required for MANIFEST_CSDP (at least one company code).",
+        );
+      }
+    }
     const payload = isTxt
-      ? await this.buildManifestCsdpTxt(tenantId, referenceId)
+      ? await this.buildManifestCsdpTxt(
+          tenantId,
+          referenceId,
+          opts?.company_codes ?? [],
+        )
       : await this.buildPayload(tenantId, ediType, referenceId);
     const buffer = Buffer.from(payload, "utf8");
     const hash = createHash("sha256").update(buffer).digest("hex");
@@ -156,6 +171,11 @@ export class DocumentationEdiService {
       isTxt ? "text/plain" : "application/xml",
     );
 
+    const meta =
+      isTxt && opts?.company_codes?.length
+        ? { company_codes: opts.company_codes }
+        : undefined;
+
     return this.prisma.runWithTenant(tenantId, (tx) =>
       tx.documentationEdiSubmission.create({
         data: {
@@ -166,6 +186,9 @@ export class DocumentationEdiService {
           status: "GENERATED",
           file_storage_key: stored.s3Key,
           payload_hash: hash,
+          ...(meta
+            ? { metadata: meta as Prisma.InputJsonValue }
+            : {}),
           created_by: actorId,
           updated_by: actorId,
         },
@@ -425,11 +448,13 @@ ${partyEdiXml}
 
   /**
    * CSDP/DP World–style sea manifest TXT (VOY / BOL / CTR / CON / END).
-   * Field layout matches sample: KFSSKY28MUNJEA ( 2CNTR ) MENIFIEST.txt
+   * Each company_code emits VOY+BOL+CTR*+CON; one END at file end.
+   * Company code fills voyage fields as in format (e.g. 64085L / 64085).
    */
   private async buildManifestCsdpTxt(
     tenantId: string,
     jobId: string,
+    companyCodes: string[],
   ): Promise<string> {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
@@ -485,6 +510,13 @@ ${partyEdiXml}
       return `${dd}-${months[dt.getUTCMonth()]}-${dt.getUTCFullYear()}`;
     };
 
+    const normalizeCompanyCode = (raw: string) => {
+      const code = raw.trim().toUpperCase();
+      const base = code.endsWith("L") ? code.slice(0, -1) : code;
+      const leg = `${base}L`;
+      return { base, leg };
+    };
+
     const orgByType = (t: string) =>
       job.organizations.find((o) => String(o.org_type) === t)?.party;
     const shipper = orgByType("SHIPPER");
@@ -500,12 +532,6 @@ ${partyEdiXml}
       p?.country_code ||
       "";
 
-    const voyageRaw =
-      (sea as { voyage_number?: string | null } | null)?.voyage_number ??
-      (nvocc as { voyage_number?: string | null } | null)?.voyage_number ??
-      job.job_number.slice(-5);
-    const voyage = String(voyageRaw);
-    const voyageLeg = voyage.endsWith("L") ? voyage : `${voyage}L`;
     const vessel =
       (sea as { vessel_name?: string | null } | null)?.vessel_name ??
       (nvocc as { vessel_name?: string | null } | null)?.vessel_name ??
@@ -555,124 +581,140 @@ ${partyEdiXml}
     const etd =
       (sea as { etd?: Date | null } | null)?.etd ?? job.created_at;
 
-    const lines: string[] = [];
-    lines.push(
-      [
-        q("VOY"),
-        q(voyageLeg),
-        q(voyage.replace(/L$/, "")),
-        q(vessel),
-        q(voyage.replace(/L$/, "") || "0000"),
-        q(destCode),
-        q(fmtDate(etd)),
-        q(job.job_number.replace(/\D/g, "").slice(-6) || "000000"),
-        q("MFI"),
-        q("1"),
-        q(String(containers.length).padStart(5, "0")),
-      ].join(","),
-    );
-
-    lines.push(
-      [
-        q("BOL"),
-        q(blNo),
-        q(voyageLeg),
-        q(voyage.replace(/L$/, "")),
-        q(originCode),
-        q(originCode),
-        q(destCode),
-        q(destCode),
-        q("01-Jan-1900"),
-        q(""),
-        q("I"),
-        q(""),
-        q(""),
-        q(""),
-        q("F"),
-        q("N"),
-        q(""),
-        q(String(job.job_type).includes("FCL") ? "FCL" : "FCL/LCL"),
-        q((originCode || "XX").slice(0, 2)),
-        q(""),
-        q(""),
-        q(""),
-        q(""),
-        q(""),
-        q(""),
-        q(""),
-        q(shipper?.name ?? ""),
-        q(partyPlace(shipper)),
-        q(shipper?.country_code ?? ""),
-        q(""),
-        q(consignee?.name ?? ""),
-        q(partyPlace(consignee)),
-        q(""),
-        q(notify?.name ?? ""),
-        q(partyPlace(notify)),
-        q(""),
-        q(""),
-        q(""),
-        q(""),
-        q(""),
-        q(""),
-        q(ctrSummary),
-        q(hs),
-        q(commodity),
-        q(String(pieces)),
-        q("BAGS"),
-        q(packageType),
-        q(""),
-        q("0"),
-        q(String(containers.length || 1)),
-        q("6"),
-        q("0"),
-        q(String(Math.round(Number(weight)))),
-        q(weight),
-        q("0.000"),
-        q("0"),
-        q("0"),
-        q("0"),
-        q(""),
-        q(""),
-        q(""),
-      ].join(","),
-    );
-
-    for (const [i, c] of containers.entries()) {
-      const no = (c.container_number ?? `UNK${i}`).replace(/\s/g, "");
-      const short = no.length > 10 ? no.slice(0, 10) : no;
-      const seal = c.seal_number ?? String(1000 + i);
-      lines.push([q("CTR"), q(short), q("9"), q("0"), q(seal)].join(","));
+    const codes = companyCodes.map((c) => c.trim()).filter(Boolean);
+    if (!codes.length) {
+      throw new BadRequestException(
+        "At least one company_code is required for MANIFEST_CSDP.",
+      );
     }
 
-    lines.push(
-      [
-        q("CON"),
-        q("1"),
-        q(ctrSummary),
-        q(commodity),
-        q("N"),
-        q(hs),
-        q(String(pieces)),
-        q("BAGS"),
-        q(packageType),
-        q("0"),
-        q(weight),
-        q("0.000"),
-        q("N"),
-        q(""),
-        q(""),
-        q("0"),
-        q(""),
-        q("D"),
-        q("N"),
-        q(""),
-        q(""),
-        q(""),
-      ].join(","),
-    );
+    const lines: string[] = [];
+    for (const rawCode of codes) {
+      const { base, leg } = normalizeCompanyCode(rawCode);
 
-    lines.push([q("END"), q("1"), q("0"), q("CSDPAEDI: 1.02")].join(","));
+      lines.push(
+        [
+          q("VOY"),
+          q(leg),
+          q(base),
+          q(vessel),
+          q(base || "0000"),
+          q(destCode),
+          q(fmtDate(etd)),
+          q(job.job_number.replace(/\D/g, "").slice(-6) || "000000"),
+          q("MFI"),
+          q("1"),
+          q(String(containers.length).padStart(5, "0")),
+        ].join(","),
+      );
+
+      lines.push(
+        [
+          q("BOL"),
+          q(blNo),
+          q(leg),
+          q(base),
+          q(originCode),
+          q(originCode),
+          q(destCode),
+          q(destCode),
+          q("01-Jan-1900"),
+          q(""),
+          q("I"),
+          q(""),
+          q(""),
+          q(""),
+          q("F"),
+          q("N"),
+          q(""),
+          q(String(job.job_type).includes("FCL") ? "FCL" : "FCL/LCL"),
+          q((originCode || "XX").slice(0, 2)),
+          q(""),
+          q(""),
+          q(""),
+          q(""),
+          q(""),
+          q(""),
+          q(""),
+          q(shipper?.name ?? ""),
+          q(partyPlace(shipper)),
+          q(shipper?.country_code ?? ""),
+          q(""),
+          q(consignee?.name ?? ""),
+          q(partyPlace(consignee)),
+          q(""),
+          q(notify?.name ?? ""),
+          q(partyPlace(notify)),
+          q(""),
+          q(""),
+          q(""),
+          q(""),
+          q(""),
+          q(""),
+          q(ctrSummary),
+          q(hs),
+          q(commodity),
+          q(String(pieces)),
+          q("BAGS"),
+          q(packageType),
+          q(""),
+          q("0"),
+          q(String(containers.length || 1)),
+          q("6"),
+          q("0"),
+          q(String(Math.round(Number(weight)))),
+          q(weight),
+          q("0.000"),
+          q("0"),
+          q("0"),
+          q("0"),
+          q(""),
+          q(""),
+          q(""),
+        ].join(","),
+      );
+
+      for (const [i, c] of containers.entries()) {
+        const no = (c.container_number ?? `UNK${i}`).replace(/\s/g, "");
+        const short = no.length > 10 ? no.slice(0, 10) : no;
+        const seal = c.seal_number ?? String(1000 + i);
+        lines.push([q("CTR"), q(short), q("9"), q("0"), q(seal)].join(","));
+      }
+
+      lines.push(
+        [
+          q("CON"),
+          q("1"),
+          q(ctrSummary),
+          q(commodity),
+          q("N"),
+          q(hs),
+          q(String(pieces)),
+          q("BAGS"),
+          q(packageType),
+          q("0"),
+          q(weight),
+          q("0.000"),
+          q("N"),
+          q(""),
+          q(""),
+          q("0"),
+          q(""),
+          q("D"),
+          q("N"),
+          q(""),
+          q(""),
+          q(""),
+        ].join(","),
+      );
+    }
+
+    lines.push([
+      q("END"),
+      q(String(codes.length)),
+      q("0"),
+      q("CSDPAEDI: 1.02"),
+    ].join(","));
     return lines.join("\n") + "\n";
   }
 }

@@ -58,6 +58,7 @@ export class ArApService {
           as_of: asOf,
           invoices: [],
           payments: [],
+          opening_balance_vouchers: [],
           summary: null,
         };
 
@@ -107,7 +108,30 @@ export class ArApService {
         },
       });
 
-      const openBalance = invoices
+      // OB vouchers without a linked invoice still appear on the statement.
+      const openingBalanceVouchers = await tx.voucher.findMany({
+        where: {
+          tenant_id: tenantId,
+          party_id: partyId,
+          deleted_at: null,
+          status: "POSTED",
+          voucher_type: "OPENING_BALANCE",
+          invoice_id: null,
+        },
+        orderBy: { voucher_date: "asc" },
+        take: STATEMENT_ROW_CAP,
+        select: {
+          id: true,
+          voucher_number: true,
+          voucher_date: true,
+          narration: true,
+          currency_code: true,
+          total_debit: true,
+          total_credit: true,
+        },
+      });
+
+      const invoiceOpen = invoices
         .filter((i) => Number(i.balance_due) > 0.0001)
         .reduce(
           (s, i) =>
@@ -115,6 +139,11 @@ export class ArApService {
             Number(i.balance_due) * (i.invoice_type === "CREDIT_NOTE" ? -1 : 1),
           0,
         );
+      const voucherOpen = openingBalanceVouchers.reduce(
+        (s, v) => s + Number(v.total_debit),
+        0,
+      );
+      const openBalance = invoiceOpen + voucherOpen;
 
       return {
         party,
@@ -122,6 +151,7 @@ export class ArApService {
         side,
         invoices,
         payments,
+        opening_balance_vouchers: openingBalanceVouchers,
         summary: {
           invoice_count: invoices.length,
           open_balance: openBalance,
@@ -131,7 +161,8 @@ export class ArApService {
           ),
           truncated:
             invoices.length >= STATEMENT_ROW_CAP ||
-            payments.length >= STATEMENT_ROW_CAP,
+            payments.length >= STATEMENT_ROW_CAP ||
+            openingBalanceVouchers.length >= STATEMENT_ROW_CAP,
         },
       };
     });

@@ -428,6 +428,7 @@ export class MasterLabelService {
     add("dest_port", maps.ports);
     add("por_port", maps.ports);
     add("pof_port", maps.ports);
+    add("port", maps.ports);
     return out;
   }
 
@@ -466,6 +467,7 @@ export class MasterLabelService {
           ...pick("dest_port_id"),
           ...pick("por_port_id"),
           ...pick("pof_port_id"),
+          ...pick("port_id"),
         ],
       },
       tx,

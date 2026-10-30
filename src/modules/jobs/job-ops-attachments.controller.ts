@@ -71,6 +71,8 @@ export class JobOpsAttachmentsController {
         record_id: { type: "string" },
         visible_to_customer: { type: "boolean" },
         visible_to_vendor: { type: "boolean" },
+        downloadable_by_customer: { type: "boolean" },
+        downloadable_by_vendor: { type: "boolean" },
       },
     },
   })
@@ -89,12 +91,16 @@ export class JobOpsAttachmentsController {
       record_id?: string;
       visible_to_customer?: string | boolean;
       visible_to_vendor?: string | boolean;
+      downloadable_by_customer?: string | boolean;
+      downloadable_by_vendor?: string | boolean;
     },
   ) {
     return this.attachments.upload(tenantId, "JOB", id, section, file, actorId, {
       record_id: body.record_id,
       visible_to_customer: optionalBool(body.visible_to_customer),
       visible_to_vendor: optionalBool(body.visible_to_vendor),
+      downloadable_by_customer: optionalBool(body.downloadable_by_customer),
+      downloadable_by_vendor: optionalBool(body.downloadable_by_vendor),
     });
   }
 

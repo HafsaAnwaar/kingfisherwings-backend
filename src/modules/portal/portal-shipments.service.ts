@@ -22,6 +22,7 @@ import {
   shipmentTrackRefOrClauses,
 } from "../track/tracking-ref.util";
 import { TrackTimelineService } from "../track/track-timeline.service";
+import { isOpenJobDelayed } from "../../common/utils/on-time.util";
 
 const JOB_DETAIL_INCLUDE = {
   air_details: {
@@ -469,6 +470,8 @@ export class PortalShipmentsService {
       JobStatus.ENQUIRY,
       JobStatus.QUOTATION,
       JobStatus.BOOKING_CONFIRMED,
+      JobStatus.APPROVED,
+      JobStatus.OPEN,
       JobStatus.IN_PROGRESS,
       JobStatus.DOCS_PENDING,
       JobStatus.CUSTOMS_CLEARANCE,
@@ -477,7 +480,55 @@ export class PortalShipmentsService {
     const inTransit =
       byStatus.IN_PROGRESS + byStatus.DOCS_PENDING + byStatus.CUSTOMS_CLEARANCE;
     const open = openStatuses.reduce((sum, s) => sum + byStatus[s], 0);
-    const completed = byStatus.DELIVERED + byStatus.COMPLETED;
+    const completed = byStatus.COMPLETED;
+    const delivered = byStatus.DELIVERED;
+    const on_hold = byStatus.ON_HOLD;
+    const in_progress =
+      byStatus.IN_PROGRESS +
+      byStatus.DOCS_PENDING +
+      byStatus.CUSTOMS_CLEARANCE +
+      byStatus.OPEN +
+      byStatus.APPROVED +
+      byStatus.BOOKING_CONFIRMED;
+
+    const delayedJobs = await this.prisma.runWithTenant(
+      user.tenantId,
+      async (tx) => {
+        const [shipJobs, legacyJobs] = await Promise.all([
+          tx.shipment.findMany({
+            where: shipmentBase,
+            select: {
+              status: true,
+              job: { select: { status: true, eta: true } },
+            },
+          }),
+          tx.job.findMany({
+            where: {
+              ...legacyJobBase,
+              status: { in: openStatuses },
+              eta: { not: null },
+            },
+            select: { status: true, eta: true },
+          }),
+        ]);
+        let n = 0;
+        for (const s of shipJobs) {
+          const st = s.job?.status ?? this.mapShipmentStatusToJobBucket(s.status);
+          if (
+            isOpenJobDelayed({
+              status: st,
+              eta: s.job?.eta ?? null,
+            })
+          ) {
+            n += 1;
+          }
+        }
+        for (const j of legacyJobs) {
+          if (isOpenJobDelayed(j)) n += 1;
+        }
+        return n;
+      },
+    );
 
     return {
       success: true,
@@ -485,6 +536,10 @@ export class PortalShipmentsService {
         total,
         open,
         in_transit: inTransit,
+        in_progress,
+        on_hold,
+        delayed: delayedJobs,
+        delivered,
         completed,
         cancelled: byStatus.CANCELLED,
         by_status: byStatus,

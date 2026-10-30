@@ -5,7 +5,12 @@ import {
   NotFoundException,
   forwardRef,
 } from "@nestjs/common";
-import { DocumentType, JobContainerKind, JobType } from "@prisma/client";
+import {
+  DocumentType,
+  JobContainerKind,
+  JobType,
+  Prisma,
+} from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ShipmentsService } from "./shipments.service";
 import { JobsService } from "../jobs/jobs.service";
@@ -16,12 +21,14 @@ import {
   MergeShipmentsDto,
   SplitShipmentDto,
 } from "./dto/shipment-detail.dto";
+import { PatchShowAllDto } from "../jobs/dto/job-detail.dto";
 import { CreateSubJobDto } from "../jobs/dto/week4-6-ops.dto";
 import { ShipmentTabParityService } from "./shipment-tab-parity.service";
 import {
   PatchJobDepartmentDto,
   UpsertJobRoutingLegDto,
 } from "../jobs/dto/job-tab-panels.dto";
+import { JobLookupsService } from "../jobs/job-lookups.service";
 import {
   opsContinuumActions,
   opsContinuumPathHints,
@@ -61,6 +68,7 @@ export class ShipmentDetailService {
     private readonly timeline: EntityTimelineService,
     private readonly labels: MasterLabelService,
     private readonly track: TrackService,
+    private readonly lookups: JobLookupsService,
   ) {}
 
   async getDetail(tenantId: string, id: string) {
@@ -145,6 +153,149 @@ export class ShipmentDetailService {
 
   async history(tenantId: string, id: string) {
     return this.timeline.getTimeline(tenantId, "SHIPMENT", id);
+  }
+
+  async patchShowAll(
+    tenantId: string,
+    id: string,
+    dto: PatchShowAllDto,
+    actorId?: string,
+  ) {
+    const shipment = await this.loadShipment(tenantId, id);
+    if (shipment.status === "CANCELLED") {
+      throw new BadRequestException("Cannot edit a CANCELLED shipment.");
+    }
+
+    const hasField =
+      dto.commodity !== undefined ||
+      dto.pieces !== undefined ||
+      dto.gross_weight !== undefined ||
+      dto.volume_cbm !== undefined ||
+      dto.etd !== undefined ||
+      dto.eta !== undefined ||
+      dto.job_date !== undefined ||
+      dto.mbl_number !== undefined ||
+      dto.hbl_number !== undefined ||
+      dto.origin_port_name !== undefined ||
+      dto.origin_port_code !== undefined ||
+      dto.dest_port_name !== undefined ||
+      dto.dest_port_code !== undefined ||
+      dto.shipper_name !== undefined ||
+      dto.shipper_code !== undefined ||
+      dto.consignee_name !== undefined ||
+      dto.consignee_code !== undefined ||
+      dto.billing_party_name !== undefined ||
+      dto.billing_party_code !== undefined ||
+      dto.customer_name !== undefined ||
+      dto.customer_code !== undefined ||
+      dto.carrier_name !== undefined ||
+      dto.carrier_code !== undefined ||
+      dto.agent_name !== undefined ||
+      dto.agent_code !== undefined;
+    if (!hasField) {
+      throw new BadRequestException(
+        "Provide at least one show_all field to update.",
+      );
+    }
+
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const originPortId = await this.lookups.resolvePort(tx, tenantId, {
+        name: dto.origin_port_name,
+        code: dto.origin_port_code,
+      });
+      const destPortId = await this.lookups.resolvePort(tx, tenantId, {
+        name: dto.dest_port_name,
+        code: dto.dest_port_code,
+      });
+      const shipperId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.shipper_name,
+        code: dto.shipper_code,
+        label: "shipper",
+      });
+      const consigneeId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.consignee_name,
+        code: dto.consignee_code,
+        label: "consignee",
+      });
+      const customerId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.customer_name ?? dto.billing_party_name,
+        code: dto.customer_code ?? dto.billing_party_code,
+        label: "customer",
+      });
+      const carrierId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.carrier_name,
+        code: dto.carrier_code,
+        label: "carrier",
+      });
+      const agentId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.agent_name,
+        code: dto.agent_code,
+        label: "agent",
+      });
+
+      await tx.shipment.update({
+        where: { id },
+        data: {
+          ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
+          ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
+          ...(dto.gross_weight !== undefined
+            ? { gross_weight: dto.gross_weight }
+            : {}),
+          ...(dto.volume_cbm !== undefined
+            ? { volume_cbm: dto.volume_cbm }
+            : {}),
+          ...(dto.etd !== undefined
+            ? { etd: dto.etd ? new Date(dto.etd) : null }
+            : {}),
+          ...(dto.eta !== undefined
+            ? { eta: dto.eta ? new Date(dto.eta) : null }
+            : {}),
+          ...(dto.job_date !== undefined
+            ? {
+                shipment_date: dto.job_date ? new Date(dto.job_date) : null,
+              }
+            : {}),
+          ...(dto.mbl_number !== undefined
+            ? { mbl_number: dto.mbl_number }
+            : {}),
+          ...(dto.hbl_number !== undefined
+            ? { hbl_number: dto.hbl_number }
+            : {}),
+          ...(originPortId !== undefined
+            ? { origin_port_id: originPortId }
+            : {}),
+          ...(destPortId !== undefined ? { dest_port_id: destPortId } : {}),
+          ...(shipperId !== undefined ? { shipper_id: shipperId } : {}),
+          ...(consigneeId !== undefined ? { consignee_id: consigneeId } : {}),
+          ...(customerId !== undefined ? { customer_id: customerId } : {}),
+          ...(carrierId !== undefined ? { carrier_id: carrierId } : {}),
+          ...(agentId !== undefined ? { delivery_agent_id: agentId } : {}),
+          updated_by: actorId,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "SHIPMENT_SHOW_ALL_PATCH",
+          entity: "SHIPMENT",
+          entity_id: id,
+          metadata: { fields: Object.keys(dto) } as Prisma.InputJsonValue,
+        },
+      });
+    });
+
+    const refreshed = await this.loadShipment(tenantId, id);
+    const links = await this.resolveLinks(tenantId, refreshed);
+    return {
+      success: true,
+      data: await this.headerPayload(
+        tenantId,
+        refreshed,
+        links.job?.job_number ?? null,
+      ),
+    };
   }
 
   createRoutingLeg(
@@ -552,6 +703,7 @@ export class ShipmentDetailService {
       id: shipment.id,
       shipment_number: shipment.shipment_number,
       shipment_date: shipment.shipment_date,
+      job_date: shipment.shipment_date,
       status: shipment.status,
       job_type: shipment.job_type,
       company_id: shipment.company_id,
@@ -578,6 +730,10 @@ export class ShipmentDetailService {
       hbl_date: shipment.hbl_date,
       is_cross_trade: shipment.is_cross_trade,
       marks_numbers: shipment.marks_numbers,
+      commodity: shipment.commodity,
+      pieces: shipment.pieces,
+      gross_weight: shipment.gross_weight,
+      volume_cbm: shipment.volume_cbm,
       etd: shipment.etd,
       eta: shipment.eta,
       vessel_name: shipment.vessel_name,

@@ -40,6 +40,8 @@ export type PortalDocumentListItem = {
   file_size: number | null;
   mime_type: string | null;
   can_download: boolean;
+  downloadable_by_customer?: boolean;
+  downloadable_by_vendor?: boolean;
   created_at: Date;
   job_id: string | null;
   job_number: string | null;
@@ -154,6 +156,12 @@ export class PortalDocumentsService {
       throw new NotFoundException("Document not found.");
     }
 
+    if (doc.downloadable_by_customer === false) {
+      throw new ForbiddenException(
+        "This document is visible but download is disabled for customers.",
+      );
+    }
+
     await this.streamJobDocument(user, doc.document_type, doc, res);
   }
 
@@ -246,7 +254,9 @@ export class PortalDocumentsService {
       // visible_to_customer docs always appear; portal_permissions only gates download.
       const canView = this.permissions.assertCanView(matrix, portalType);
       const canDownload =
-        canView && this.permissions.assertCanDownload(matrix, portalType);
+        canView &&
+        doc.downloadable_by_customer !== false &&
+        this.permissions.assertCanDownload(matrix, portalType);
 
       items.push({
         id: doc.id,
@@ -258,6 +268,8 @@ export class PortalDocumentsService {
         file_size: doc.file_size,
         mime_type: doc.mime_type,
         can_download: canDownload,
+        downloadable_by_customer: doc.downloadable_by_customer ?? true,
+        downloadable_by_vendor: doc.downloadable_by_vendor ?? true,
         created_at: doc.created_at,
         job_id: doc.job_id,
         job_number: doc.job?.job_number ?? null,
@@ -317,6 +329,8 @@ export class PortalDocumentsService {
           file_name: true,
           file_size: true,
           mime_type: true,
+          downloadable_by_customer: true,
+          downloadable_by_vendor: true,
           created_at: true,
           job: { select: { job_number: true } },
         },

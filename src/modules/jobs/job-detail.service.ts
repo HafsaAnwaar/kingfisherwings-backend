@@ -9,7 +9,10 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ShipmentsService } from "../shipments/shipments.service";
 import {
   ChangeJobStatusDto,
+  PatchShowAllDto,
   ReopenJobDto,
+  ResumeJobDto,
+  StopJobDto,
 } from "./dto/job-detail.dto";
 import { PatchJobClosedOverridesDto } from "./dto/job-closed-overrides.dto";
 import {
@@ -26,6 +29,7 @@ import { JobContainerTabService } from "./job-container-tab.service";
 import { JobCostingService } from "./job-costing.service";
 import { JobEdiService } from "./job-edi.service";
 import { JobTabPanelsService } from "./job-tab-panels.service";
+import { JobLookupsService } from "./job-lookups.service";
 import { EntityTimelineService } from "../ops-activity/entity-timeline.service";
 import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
@@ -78,6 +82,7 @@ export class JobDetailService {
     private readonly timeline: EntityTimelineService,
     private readonly labels: MasterLabelService,
     private readonly acknowledgement: DeliveryAcknowledgementService,
+    private readonly lookups: JobLookupsService,
   ) {}
 
   async getDetail(tenantId: string, id: string, permissions?: string[]) {
@@ -156,6 +161,148 @@ export class JobDetailService {
       return { success: true, data: rows };
     }
     return { success: true, data: {} };
+  }
+
+  async patchShowAll(
+    tenantId: string,
+    id: string,
+    dto: PatchShowAllDto,
+    actorId?: string,
+  ) {
+    const job = await this.loadJob(tenantId, id);
+    if (job.status === "COMPLETED" || job.status === "CANCELLED") {
+      throw new BadRequestException(`Cannot edit a ${job.status} job.`);
+    }
+
+    const hasField =
+      dto.commodity !== undefined ||
+      dto.pieces !== undefined ||
+      dto.gross_weight !== undefined ||
+      dto.volume_cbm !== undefined ||
+      dto.etd !== undefined ||
+      dto.eta !== undefined ||
+      dto.job_date !== undefined ||
+      dto.mbl_number !== undefined ||
+      dto.hbl_number !== undefined ||
+      dto.origin_port_name !== undefined ||
+      dto.origin_port_code !== undefined ||
+      dto.dest_port_name !== undefined ||
+      dto.dest_port_code !== undefined ||
+      dto.shipper_name !== undefined ||
+      dto.shipper_code !== undefined ||
+      dto.consignee_name !== undefined ||
+      dto.consignee_code !== undefined ||
+      dto.billing_party_name !== undefined ||
+      dto.billing_party_code !== undefined ||
+      dto.agent_name !== undefined ||
+      dto.agent_code !== undefined;
+    if (!hasField) {
+      throw new BadRequestException(
+        "Provide at least one show_all field to update.",
+      );
+    }
+
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const originPortId = await this.lookups.resolvePort(tx, tenantId, {
+        name: dto.origin_port_name,
+        code: dto.origin_port_code,
+      });
+      const destPortId = await this.lookups.resolvePort(tx, tenantId, {
+        name: dto.dest_port_name,
+        code: dto.dest_port_code,
+      });
+      const shipperId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.shipper_name,
+        code: dto.shipper_code,
+        label: "shipper",
+      });
+      const consigneeId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.consignee_name,
+        code: dto.consignee_code,
+        label: "consignee",
+      });
+      const billingPartyId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.billing_party_name,
+        code: dto.billing_party_code,
+        label: "billing party",
+      });
+      const agentId = await this.lookups.resolveParty(tx, tenantId, {
+        name: dto.agent_name,
+        code: dto.agent_code,
+        label: "agent",
+      });
+
+      await tx.job.update({
+        where: { id },
+        data: {
+          ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
+          ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
+          ...(dto.gross_weight !== undefined
+            ? { gross_weight: dto.gross_weight }
+            : {}),
+          ...(dto.volume_cbm !== undefined
+            ? { volume_cbm: dto.volume_cbm }
+            : {}),
+          ...(dto.etd !== undefined
+            ? { etd: dto.etd ? new Date(dto.etd) : null }
+            : {}),
+          ...(dto.eta !== undefined
+            ? { eta: dto.eta ? new Date(dto.eta) : null }
+            : {}),
+          ...(dto.job_date !== undefined
+            ? { job_date: dto.job_date ? new Date(dto.job_date) : null }
+            : {}),
+          ...(originPortId !== undefined
+            ? { origin_port_id: originPortId }
+            : {}),
+          ...(destPortId !== undefined ? { dest_port_id: destPortId } : {}),
+          ...(shipperId !== undefined ? { shipper_id: shipperId } : {}),
+          ...(consigneeId !== undefined ? { consignee_id: consigneeId } : {}),
+          ...(billingPartyId !== undefined
+            ? { billing_party_id: billingPartyId }
+            : {}),
+          ...(agentId !== undefined ? { agent_id: agentId } : {}),
+          updated_by: actorId,
+        },
+      });
+
+      if (dto.mbl_number !== undefined || dto.hbl_number !== undefined) {
+        const sea = await tx.seaFclJobDetail.findFirst({
+          where: { job_id: id, tenant_id: tenantId },
+          select: { job_id: true },
+        });
+        if (sea) {
+          await tx.seaFclJobDetail.update({
+            where: { job_id: id },
+            data: {
+              ...(dto.mbl_number !== undefined
+                ? { mbl_number: dto.mbl_number }
+                : {}),
+              ...(dto.hbl_number !== undefined
+                ? { hbl_number: dto.hbl_number }
+                : {}),
+            },
+          });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_SHOW_ALL_PATCH",
+          entity: "JOB",
+          entity_id: id,
+          metadata: { fields: Object.keys(dto) } as Prisma.InputJsonValue,
+        },
+      });
+    });
+
+    const refreshed = await this.loadJob(tenantId, id);
+    return {
+      success: true,
+      data: await this.headerPayload(tenantId, refreshed),
+    };
   }
 
   async changeStatus(
@@ -557,15 +704,111 @@ export class JobDetailService {
   async stop(
     tenantId: string,
     id: string,
-    reason?: string,
+    dto: StopJobDto,
     actorId?: string,
   ) {
-    return this.changeStatus(
-      tenantId,
-      id,
-      { status: "ON_HOLD", reason: reason ?? "Stopped / put on hold" },
-      actorId,
-    );
+    const reason = dto.reason?.trim();
+    if (!reason) {
+      throw new BadRequestException("reason is required to put a job on hold.");
+    }
+    const job = await this.loadJob(tenantId, id);
+    if (TERMINAL_STATUSES.includes(job.status)) {
+      throw new BadRequestException(
+        "Cannot put a completed or cancelled job on hold.",
+      );
+    }
+    if (job.status === "ON_HOLD") {
+      throw new BadRequestException("Job is already on hold.");
+    }
+    await this.statusCatalog.assertActiveCode(tenantId, "ON_HOLD");
+
+    const heldAt = new Date();
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.job.update({
+        where: { id },
+        data: {
+          status: "ON_HOLD",
+          status_code: "ON_HOLD",
+          hold_reason: reason,
+          held_at: heldAt,
+          expected_release_at: dto.expected_release_at
+            ? new Date(dto.expected_release_at)
+            : null,
+          updated_by: actorId,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_ON_HOLD",
+          entity: "JOB",
+          entity_id: id,
+          metadata: {
+            from: job.status,
+            to: "ON_HOLD",
+            reason,
+            expected_release_at: dto.expected_release_at ?? null,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return row;
+    });
+    return { success: true, data: updated };
+  }
+
+  async resume(
+    tenantId: string,
+    id: string,
+    dto: ResumeJobDto,
+    actorId?: string,
+  ) {
+    const reason = dto.reason?.trim();
+    if (!reason) {
+      throw new BadRequestException("reason is required to resume a job.");
+    }
+    const job = await this.loadJob(tenantId, id);
+    if (job.status !== "ON_HOLD") {
+      throw new BadRequestException("Resume applies only to jobs on hold.");
+    }
+    const target = (dto.status ?? "IN_PROGRESS") as JobStatus;
+    await this.statusCatalog.assertActiveCode(tenantId, target);
+    const clearExpected = dto.clear_expected_release !== false;
+    const resumedAt = new Date();
+
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.job.update({
+        where: { id },
+        data: {
+          status: target,
+          status_code: target,
+          resume_reason: reason,
+          resumed_at: resumedAt,
+          ...(clearExpected ? { expected_release_at: null } : {}),
+          // Keep hold_reason / held_at for history.
+          updated_by: actorId,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_RESUMED",
+          entity: "JOB",
+          entity_id: id,
+          metadata: {
+            from: job.status,
+            to: target,
+            reason,
+            hold_reason: job.hold_reason ?? null,
+            held_at: job.held_at ?? null,
+            clear_expected_release: clearExpected,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return row;
+    });
+    return { success: true, data: updated };
   }
 
   async history(tenantId: string, id: string) {
@@ -646,6 +889,7 @@ export class JobDetailService {
       can_reopen:
         closed || job.status === "DELIVERED",
       can_stop: !closed && job.status !== "ON_HOLD",
+      can_resume: job.status === "ON_HOLD",
       can_close: !closed,
       can_cancel: !closed,
       can_copy: true,
@@ -667,6 +911,8 @@ export class JobDetailService {
       path_hints: {
         close: `/jobs/${job.id}/close`,
         reopen: `/jobs/${job.id}/reopen`,
+        stop: `/jobs/${job.id}/stop`,
+        resume: `/jobs/${job.id}/resume`,
         change_status: `/jobs/${job.id}/change-status`,
         status_options: `/jobs/status-options?job_id=${job.id}`,
         gpum: `/jobs/${job.id}/gpum`,
