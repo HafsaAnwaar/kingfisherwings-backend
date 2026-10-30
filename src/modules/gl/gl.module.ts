@@ -1,10 +1,9 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { EmailModule } from "../../shared/email/email.module";
 import { StorageModule } from "../../shared/storage/storage.module";
 import { OrganizationModule } from "../organization/organization.module";
 import { NotificationsModule } from "../notifications/notifications.module";
-import { InvoicesModule } from "../invoices/invoices.module";
 import { GlDocumentShareService } from "./gl-document-share.service";
 import { ChartOfAccountsController } from "./chart-of-accounts.controller";
 import { ChartOfAccountsService } from "./chart-of-accounts.service";
@@ -35,7 +34,6 @@ import { SavedReportsService } from "./saved-reports.service";
     NotificationsModule,
     EmailModule,
     StorageModule,
-    forwardRef(() => InvoicesModule),
   ],
   controllers: [
     ChartOfAccountsController,

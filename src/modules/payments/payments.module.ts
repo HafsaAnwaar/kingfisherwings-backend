@@ -42,7 +42,8 @@ import { StripeWebhookService } from "./stripe-webhook.service";
 @Module({
   imports: [
     PrismaModule,
-    GlModule,
+    // forwardRef: InvoicesModule also imports PaymentsModule.
+    forwardRef(() => GlModule),
     NotificationsModule,
     EmailModule,
     StorageModule,
