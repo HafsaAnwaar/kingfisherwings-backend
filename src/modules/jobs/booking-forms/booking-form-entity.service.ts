@@ -21,6 +21,7 @@ import {
 import {
   normalizeBookingCustomFields,
   readBookingCustomFields,
+  unwrapBookingFormWritePayload,
 } from "./booking-form-shared";
 
 type Actor = { id: string; role?: UserRole };
@@ -321,16 +322,39 @@ export class BookingFormEntityService {
       shipmentId,
       actor.id,
     );
-    const { custom_fields, ...rest } = dto;
-    await this.persistCustomFields(
-      tenantId,
-      {
-        shipmentId,
-        jobId: resolved.jobId,
-        customFields: custom_fields,
-      },
-      actor.id,
-    );
+    // FE often PUTs the GET envelope ({ form, custom_fields, job_id, …}).
+    const payload = unwrapBookingFormWritePayload(dto);
+    const customFieldsInput =
+      payload.custom_fields !== undefined
+        ? payload.custom_fields
+        : payload.fields !== undefined
+          ? payload.fields
+          : payload.booking_custom_fields;
+    const {
+      custom_fields: _cf,
+      fields: _fields,
+      booking_custom_fields: _bcf,
+      ...rest
+    } = payload;
+    try {
+      await this.persistCustomFields(
+        tenantId,
+        {
+          shipmentId,
+          jobId: resolved.jobId,
+          customFields: customFieldsInput,
+        },
+        actor.id,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/booking_custom_fields|P2022|Unknown column|column .* does not exist/i.test(msg)) {
+        throw new BadRequestException(
+          "booking_custom_fields column missing — run prisma migrate deploy (ops_enhancements_batch).",
+        );
+      }
+      throw err;
+    }
     const result = await this.upsertByJob(
       tenantId,
       resolved.jobId,
@@ -591,7 +615,8 @@ export class BookingFormEntityService {
     actor: Actor,
     provisional = false,
   ) {
-    const { custom_fields, ...rest } = dto;
+    const payload = unwrapBookingFormWritePayload(dto);
+    const { custom_fields, ...rest } = payload;
     await this.persistCustomFields(
       tenantId,
       { jobId, customFields: custom_fields },

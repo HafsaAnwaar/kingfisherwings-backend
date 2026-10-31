@@ -25,6 +25,18 @@ function joinUrl(base: string, path: string): string {
   return `${b}/${p}`;
 }
 
+/**
+ * Accept pasted full endpoints like
+ * https://host/wp-json/kfpp/v1/quotes → strip /quotes so list path is not doubled.
+ */
+function normalizeKfppBaseUrl(raw: string): string {
+  let url = raw.trim().replace(/\/+$/, "");
+  url = url.replace(/\/quotes\/?$/i, "");
+  url = url.replace(/\/quote-requests\/?$/i, "");
+  url = url.replace(/\/inquiries\/?$/i, "");
+  return url;
+}
+
 export class KfppWpConnector implements QuoteRequestConnector {
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -33,7 +45,7 @@ export class KfppWpConnector implements QuoteRequestConnector {
   private readonly fetchImpl: typeof fetch;
 
   constructor(opts: KfppWpConnectorOptions) {
-    this.baseUrl = opts.baseUrl.trim().replace(/\/+$/, "");
+    this.baseUrl = normalizeKfppBaseUrl(opts.baseUrl);
     this.apiKey = opts.apiKey.trim();
     this.authHeaderName = opts.authHeaderName?.trim() || "X-KFPP-Api-Key";
     this.timeoutMs = opts.timeoutMs ?? 15_000;
@@ -56,8 +68,24 @@ export class KfppWpConnector implements QuoteRequestConnector {
   }
 
   async list(): Promise<{ total: number; items: NormalizedQuoteRequest[] }> {
-    const json = await this.request("GET", "quotes");
-    return normalizeQuoteRequestList(json);
+    // Prefer /quotes; fall back if the saved base_url already points at another collection.
+    const candidates = ["quotes", "quote-requests", "inquiries"];
+    let lastErr: unknown;
+    for (const path of candidates) {
+      try {
+        const json = await this.request("GET", path);
+        return normalizeQuoteRequestList(json);
+      } catch (err) {
+        lastErr = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!/HTTP 404|not found|Cannot GET/i.test(msg)) {
+          throw err;
+        }
+      }
+    }
+    throw lastErr instanceof Error
+      ? lastErr
+      : new BadGatewayException("External quote-requests list failed.");
   }
 
   async get(externalId: string): Promise<NormalizedQuoteRequest> {
@@ -93,13 +121,19 @@ export class KfppWpConnector implements QuoteRequestConnector {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const res = await this.fetchImpl(joinUrl(this.baseUrl, path), {
+      const url = joinUrl(this.baseUrl, path);
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+        [this.authHeaderName]: this.apiKey,
+        // Common WP / generic REST aliases (harmless if unused)
+        Authorization: `Bearer ${this.apiKey}`,
+        "X-API-Key": this.apiKey,
+      };
+      if (body) headers["Content-Type"] = "application/json";
+
+      const res = await this.fetchImpl(url, {
         method,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          [this.authHeaderName]: this.apiKey,
-        },
+        headers,
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });

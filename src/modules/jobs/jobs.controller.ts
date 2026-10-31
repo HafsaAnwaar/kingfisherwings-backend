@@ -17,6 +17,8 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  UsePipes,
+  ValidationPipe,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import {
@@ -44,7 +46,15 @@ import {
   ReopenJobDto,
   ResumeJobDto,
   StopJobDto,
+  UpdateHoldDto,
 } from "./dto/job-detail.dto";
+
+/** FE often PATCHes the full show_all GET payload; strip extras, don't 400. */
+const showAllPatchPipe = new ValidationPipe({
+  whitelist: true,
+  transform: true,
+  forbidNonWhitelisted: false,
+});
 import { PatchJobClosedOverridesDto } from "./dto/job-closed-overrides.dto";
 import {
   PatchJobDimensionsDto,
@@ -499,6 +509,7 @@ export class JobsController {
 
   @Patch(":id/detail/show_all")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @UsePipes(showAllPatchPipe)
   @ApiOperation({
     summary:
       "Patch show_all / info header fields (ports & parties by name/code)",
@@ -1133,6 +1144,21 @@ export class JobsController {
     @Body() dto: StopJobDto,
   ) {
     return this.detail.stop(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/hold")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Update hold reason / expected release while job is ON_HOLD (also accepts hold_reason alias)",
+  })
+  patchHold(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateHoldDto,
+  ) {
+    return this.detail.updateHold(tenantId, id, dto, actorId);
   }
 
   @Post(":id/resume")

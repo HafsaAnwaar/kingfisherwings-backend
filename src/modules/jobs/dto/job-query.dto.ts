@@ -62,19 +62,27 @@ export class JobQueryDto {
   @IsOptional()
   @IsIn([
     "on_hold",
+    "hold",
     "delayed",
     "delivered",
     "cancelled",
     "completed",
     "in_progress",
+    "pending",
+    "draft",
+    "open",
   ])
   category?:
     | "on_hold"
+    | "hold"
     | "delayed"
     | "delivered"
     | "cancelled"
     | "completed"
-    | "in_progress";
+    | "in_progress"
+    | "pending"
+    | "draft"
+    | "open";
 
   @ApiPropertyOptional({ enum: JobType })
   @IsOptional()

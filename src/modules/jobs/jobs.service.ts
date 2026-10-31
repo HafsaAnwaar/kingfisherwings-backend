@@ -723,16 +723,27 @@ export class JobsService {
         deleted_at: null,
       };
 
+      const andFilters: Prisma.JobWhereInput[] = [];
+
       if (query.status) where.status = query.status;
       if (query.category && !query.status) {
         const statuses = jobStatusesForCategory(query.category);
         if (statuses) {
           where.status = { in: statuses as never };
         } else if (query.category === "delayed") {
+          // Align with isOpenJobDelayed: open statuses, ETA in the past,
+          // no air actual_eta yet (proxy for "not delivered").
           where.status = {
             in: [...OPEN_JOB_STATUSES] as never,
           };
           where.eta = { lt: new Date() };
+          andFilters.push({
+            OR: [
+              { air_details: null },
+              { air_details: { actual_eta: null } },
+              { air_details: { deleted_at: { not: null } } },
+            ],
+          });
         }
       }
       if (query.job_type) where.job_type = query.job_type;
@@ -757,8 +768,6 @@ export class JobsService {
       if (query.dest_port_id) where.dest_port_id = query.dest_port_id;
       if (query.parent_job_id) where.parent_job_id = query.parent_job_id;
       if (query.masters_only) where.parent_job_id = null;
-
-      const andFilters: Prisma.JobWhereInput[] = [];
 
       const opsActor = actor ?? { permissions };
       if (isOpsOnlyActor(opsActor)) {
