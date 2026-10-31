@@ -2744,6 +2744,15 @@ model Job {
   /// Free-form booking form extras (key/label/value) shared across modes.
   booking_custom_fields Json?
 
+  /// Ops identity for show_all / portal / EDI / track (denormalized).
+  rotation_number            String?          @db.VarChar(50)
+  primary_container_number   String?          @db.VarChar(20)
+  primary_container_status   ContainerStatus?
+  edi_company_code           String?          @db.VarChar(40)
+  vessel_name                String?          @db.VarChar(200)
+  voyage_number              String?          @db.VarChar(50)
+  line_code                  String?          @db.VarChar(40)
+
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
   created_by String?   @db.Uuid
@@ -3667,8 +3676,12 @@ model NvoccJobDetail {
   stage_override_reason String?      @db.Text
   port_gate_token     String?        @db.VarChar(64)
   port_token_obtained_at DateTime?   @db.Timestamptz
+  /// Customer port-token confirm form payload (BL, container, delivery, receiver).
+  port_token_form     Json?
   draft_bl_requested_at DateTime?    @db.Timestamptz
   draft_bl_issued_at  DateTime?      @db.Timestamptz
+  /// Customer comment when requesting draft BL (visible to admin).
+  draft_bl_customer_comment String?  @db.Text
   payment_confirmed_at DateTime?     @db.Timestamptz
   payment_confirmed_by String?       @db.Uuid
   created_at          DateTime       @default(now()) @db.Timestamptz

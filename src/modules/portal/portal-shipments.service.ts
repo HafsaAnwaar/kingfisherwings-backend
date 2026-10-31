@@ -174,7 +174,16 @@ type PortalRow = {
   voyage_number: string | null;
   flight_number: string | null;
   hbl_number: string | null;
+  mbl_number: string | null;
   container_numbers: string | null;
+  primary_container_number: string | null;
+  primary_container_status: string | null;
+  rotation_number: string | null;
+  hold_reason: string | null;
+  held_at: Date | null;
+  expected_release_at: Date | null;
+  resume_reason: string | null;
+  resumed_at: Date | null;
   created_at: Date;
   updated_at: Date;
   air_details: JobDetailSlice;
@@ -706,6 +715,7 @@ export class PortalShipmentsService {
       status: payload.status,
       status_label: payload.status_label,
       containers: payload.containers,
+      hold: payload.hold ?? null,
       public_url: payload.public_url,
     };
   }
@@ -1037,11 +1047,20 @@ export class PortalShipmentsService {
       customer_remarks: job?.customer_remarks ?? shipment.notes,
       incoterms: shipment.incoterms ?? job?.incoterms ?? null,
       is_dg: shipment.is_dg || job?.is_dg || false,
-      vessel_name: shipment.vessel_name,
-      voyage_number: shipment.voyage_number,
+      vessel_name: job?.vessel_name ?? shipment.vessel_name,
+      voyage_number: job?.voyage_number ?? shipment.voyage_number,
       flight_number: shipment.flight_number,
-      hbl_number: shipment.hbl_number,
+      hbl_number: job?.sea_fcl_details?.hbl_number ?? shipment.hbl_number,
+      mbl_number: job?.sea_fcl_details?.mbl_number ?? shipment.mbl_number,
       container_numbers: shipment.container_numbers,
+      primary_container_number: job?.primary_container_number ?? null,
+      primary_container_status: job?.primary_container_status ?? null,
+      rotation_number: job?.rotation_number ?? null,
+      hold_reason: job?.hold_reason ?? null,
+      held_at: job?.held_at ?? null,
+      expected_release_at: job?.expected_release_at ?? null,
+      resume_reason: job?.resume_reason ?? null,
+      resumed_at: job?.resumed_at ?? null,
       created_at: shipment.created_at,
       updated_at: shipment.updated_at,
       air_details: job?.air_details ?? null,
@@ -1074,11 +1093,20 @@ export class PortalShipmentsService {
       customer_remarks: job.customer_remarks,
       incoterms: job.incoterms,
       is_dg: job.is_dg,
-      vessel_name: null,
-      voyage_number: null,
+      vessel_name: job.vessel_name ?? null,
+      voyage_number: job.voyage_number ?? job.sea_fcl_details?.voyage_number ?? null,
       flight_number: null,
-      hbl_number: null,
+      hbl_number: job.sea_fcl_details?.hbl_number ?? null,
+      mbl_number: job.sea_fcl_details?.mbl_number ?? null,
       container_numbers: null,
+      primary_container_number: job.primary_container_number ?? null,
+      primary_container_status: job.primary_container_status ?? null,
+      rotation_number: job.rotation_number ?? null,
+      hold_reason: job.hold_reason ?? null,
+      held_at: job.held_at ?? null,
+      expected_release_at: job.expected_release_at ?? null,
+      resume_reason: job.resume_reason ?? null,
+      resumed_at: job.resumed_at ?? null,
       created_at: job.created_at,
       updated_at: job.updated_at,
       air_details: job.air_details,
@@ -1267,6 +1295,31 @@ export class PortalShipmentsService {
   }
 
   private toListItem(row: EnrichedPortalRow, partyId: string) {
+    const hbl =
+      row.sea_fcl_details?.hbl_number ?? row.hbl_number ?? null;
+    const mbl =
+      row.sea_fcl_details?.mbl_number ?? row.mbl_number ?? null;
+    const fromSea = (row.sea_fcl_details?.containers ?? [])
+      .map((c) => c.container_number)
+      .filter((n): n is string => Boolean(n));
+    const fromText = (row.container_numbers ?? "")
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const container_numbers = [
+      ...(row.primary_container_number
+        ? [row.primary_container_number]
+        : []),
+      ...fromSea,
+      ...fromText,
+    ].filter((v, i, a) => a.indexOf(v) === i);
+    const container_number =
+      row.primary_container_number ?? container_numbers[0] ?? null;
+    const container_status =
+      row.primary_container_status ??
+      row.sea_fcl_details?.containers?.[0]?.status ??
+      null;
+
     return {
       id: row.id,
       shipment_id: row.shipment_id,
@@ -1282,6 +1335,24 @@ export class PortalShipmentsService {
       gross_weight: row.gross_weight,
       chargeable_weight: row.chargeable_weight,
       volume_cbm: row.volume_cbm,
+      bl_number: mbl ?? hbl,
+      hbl_number: hbl,
+      mbl_number: mbl,
+      container_number,
+      container_numbers,
+      container_status,
+      rotation_number: row.rotation_number ?? null,
+      hold:
+        row.status === "ON_HOLD" || row.hold_reason || row.held_at
+          ? {
+              is_on_hold: row.status === "ON_HOLD",
+              hold_reason: row.hold_reason,
+              held_at: row.held_at,
+              expected_release_at: row.expected_release_at,
+              resume_reason: row.resume_reason,
+              resumed_at: row.resumed_at,
+            }
+          : null,
       role: this.partyRole(row, partyId),
       origin:
         this.formatPort(row._origin_port) ??
@@ -1292,9 +1363,8 @@ export class PortalShipmentsService {
       references: {
         hawb_number: row.air_details?.hawb_number ?? null,
         mawb_number: row.air_details?.mawb_number ?? null,
-        hbl_number:
-          row.sea_fcl_details?.hbl_number ?? row.hbl_number ?? null,
-        mbl_number: row.sea_fcl_details?.mbl_number ?? null,
+        hbl_number: hbl,
+        mbl_number: mbl,
         booking_number: row.sea_fcl_details?.booking_number ?? null,
         flight_number:
           row.air_details?.flight_number ?? row.flight_number ?? null,
@@ -1313,12 +1383,17 @@ export class PortalShipmentsService {
     const containerNumbersFromJob = (row.sea_fcl_details?.containers ?? [])
       .map((c) => c.container_number)
       .filter((n): n is string => Boolean(n));
-    const containerNumbers = containerNumbersFromJob.length
-      ? containerNumbersFromJob
-      : (row.container_numbers ?? "")
-          .split(/[,;\s]+/)
-          .map((s) => s.trim())
-          .filter(Boolean);
+    const fromText = (row.container_numbers ?? "")
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const containerNumbers = [
+      ...(row.primary_container_number
+        ? [row.primary_container_number]
+        : []),
+      ...containerNumbersFromJob,
+      ...fromText,
+    ].filter((v, i, a) => a.indexOf(v) === i);
     const vesselName = row._vessel?.name ?? row.vessel_name ?? null;
     const voyage =
       row.sea_fcl_details?.voyage_number ?? row.voyage_number ?? null;
@@ -1357,8 +1432,34 @@ export class PortalShipmentsService {
           ? `${vesselName} / ${voyage}`
           : vesselName
         : flight,
-      mbl_number: row.sea_fcl_details?.mbl_number ?? null,
-      hbl_number: row.sea_fcl_details?.hbl_number ?? row.hbl_number ?? null,
+      mbl_number:
+        row.sea_fcl_details?.mbl_number ?? row.mbl_number ?? null,
+      hbl_number:
+        row.sea_fcl_details?.hbl_number ?? row.hbl_number ?? null,
+      bl_number:
+        row.sea_fcl_details?.mbl_number ??
+        row.mbl_number ??
+        row.sea_fcl_details?.hbl_number ??
+        row.hbl_number ??
+        null,
+      container_number:
+        row.primary_container_number ?? containerNumbers[0] ?? null,
+      container_status:
+        row.primary_container_status ??
+        row.sea_fcl_details?.containers?.[0]?.status ??
+        null,
+      rotation_number: row.rotation_number ?? null,
+      hold:
+        row.status === "ON_HOLD" || row.hold_reason || row.held_at
+          ? {
+              is_on_hold: row.status === "ON_HOLD",
+              hold_reason: row.hold_reason,
+              held_at: row.held_at,
+              expected_release_at: row.expected_release_at,
+              resume_reason: row.resume_reason,
+              resumed_at: row.resumed_at,
+            }
+          : null,
       mawb_number: row.air_details?.mawb_number ?? null,
       hawb_number: row.air_details?.hawb_number ?? null,
       airline_name: airlineName,

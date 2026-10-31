@@ -533,9 +533,15 @@ ${partyEdiXml}
       "";
 
     const vessel =
+      job.vessel_name ??
       (sea as { vessel_name?: string | null } | null)?.vessel_name ??
       (nvocc as { vessel_name?: string | null } | null)?.vessel_name ??
       "VESSEL";
+
+    const voyageNo =
+      job.voyage_number ??
+      (sea as { voyage_number?: string | null } | null)?.voyage_number ??
+      "";
 
     const ports = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.port.findMany({
@@ -557,14 +563,37 @@ ${partyEdiXml}
 
     const blNo =
       (sea as { hbl_number?: string | null; mbl_number?: string | null } | null)
-        ?.hbl_number ??
-      (sea as { mbl_number?: string | null } | null)?.mbl_number ??
-      (nvocc as { hbl_number?: string | null; mbl_number?: string | null } | null)
-        ?.hbl_number ??
+        ?.mbl_number ??
+      (sea as { hbl_number?: string | null } | null)?.hbl_number ??
       (nvocc as { mbl_number?: string | null } | null)?.mbl_number ??
-      job.job_number.replace(/[^A-Z0-9]/gi, "").slice(0, 16);
+      (nvocc as { hbl_number?: string | null } | null)?.hbl_number ??
+      null;
 
-    const containers = job.containers_job ?? [];
+    let containers = job.containers_job ?? [];
+    if (
+      !containers.length &&
+      job.primary_container_number
+    ) {
+      containers = [
+        {
+          container_number: job.primary_container_number,
+          seal_number: null,
+          status: job.primary_container_status,
+        } as (typeof containers)[number],
+      ];
+    }
+
+    if (!blNo?.trim()) {
+      throw new BadRequestException(
+        "BL number (MBL/HBL) is required on show_all before generating MANIFEST_CSDP EDI.",
+      );
+    }
+    if (!containers.some((c) => c.container_number?.trim())) {
+      throw new BadRequestException(
+        "At least one container number is required on show_all before generating MANIFEST_CSDP EDI.",
+      );
+    }
+
     const ctrSummary = containers
       .map((c, i) => {
         const no = (c.container_number ?? "").replace(/\s/g, "");
@@ -580,11 +609,15 @@ ${partyEdiXml}
     const packageType = "PKG";
     const etd =
       (sea as { etd?: Date | null } | null)?.etd ?? job.created_at;
+    const rotation = job.rotation_number ?? "";
 
     const codes = companyCodes.map((c) => c.trim()).filter(Boolean);
+    if (!codes.length && job.edi_company_code?.trim()) {
+      codes.push(job.edi_company_code.trim());
+    }
     if (!codes.length) {
       throw new BadRequestException(
-        "At least one company_code is required for MANIFEST_CSDP.",
+        "At least one company_code is required for MANIFEST_CSDP (body company_codes or show_all company_code).",
       );
     }
 
@@ -598,7 +631,7 @@ ${partyEdiXml}
           q(leg),
           q(base),
           q(vessel),
-          q(base || "0000"),
+          q(voyageNo || base || "0000"),
           q(destCode),
           q(fmtDate(etd)),
           q(job.job_number.replace(/\D/g, "").slice(-6) || "000000"),
@@ -619,7 +652,7 @@ ${partyEdiXml}
           q(destCode),
           q(destCode),
           q("01-Jan-1900"),
-          q(""),
+          q(rotation),
           q("I"),
           q(""),
           q(""),

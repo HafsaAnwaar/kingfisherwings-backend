@@ -298,10 +298,11 @@ export type BookingCustomField = {
   type?: string;
 };
 
-/** GET envelope keys that must never be written into mode-form Prisma rows. */
+/** GET envelope / meta keys that must never be written into mode-form Prisma rows. */
 const BOOKING_FORM_ENVELOPE_KEYS = new Set([
   "form",
   "documents",
+  "job_documents_upload",
   "job_id",
   "job_type",
   "kind",
@@ -317,7 +318,96 @@ const BOOKING_FORM_ENVELOPE_KEYS = new Set([
   "custom_fields",
   "fields",
   "booking_custom_fields",
+  "parties",
+  "mark_complete",
+  "consent_accepted",
+  "containers",
+  "cargo_lines",
+  "stock_lines",
+  "id",
+  "tenant_id",
+  "created_at",
+  "updated_at",
+  "created_by",
+  "deleted_at",
 ]);
+
+/**
+ * Scalar columns safe to write on any mode booking-form row.
+ * Mode-specific extras are added in toUpdateData (containers_json, etc.).
+ */
+export const BOOKING_FORM_WRITABLE_COLUMNS = new Set([
+  "date_of_request",
+  "client_booking_no",
+  "voyage_ref",
+  "service_scope",
+  "origin_door_address",
+  "dest_door_address",
+  "pol",
+  "pod",
+  "shipper_owned_container",
+  "teu_count",
+  "containers_json",
+  "cfs_warehouse",
+  "etd",
+  "eta",
+  "incoterms",
+  "freight_terms",
+  "commodity",
+  "hs_code",
+  "cargo_category",
+  "is_dg",
+  "dg_class",
+  "gross_weight_kg",
+  "net_weight_kg",
+  "volume_cbm",
+  "pieces",
+  "insurance_details",
+  "request_details",
+  "tracking_number",
+  "direction",
+  "border_or_port",
+  "entry_type",
+  "freight_job_id",
+  "expected_inbound_at",
+  "expected_outbound_at",
+  "cargo_lines_json",
+  "stock_lines_json",
+  "attach_commercial_invoice",
+  "attach_packing_list",
+  "attach_bl_awb_copy",
+  "attach_carnet",
+  "attach_vehicle_title",
+  "attach_msds",
+  "attach_dangerous_goods_declaration",
+  "attach_health_veterinary",
+  "attach_fda_moh",
+  "attach_licence",
+  "attach_uat_tax_certificate",
+  "doc_commercial_invoice_key",
+  "doc_packing_list_key",
+  "doc_bl_awb_copy_key",
+  "doc_licence_key",
+  "doc_uat_tax_certificate_key",
+  "consent_accepted_at",
+  "is_complete",
+  "completed_at",
+  "completed_by",
+  "updated_by",
+]);
+
+/** Keep only known booking-form DB columns (prevents Prisma 500 on unknown keys). */
+export function pickWritableBookingFormData(
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!BOOKING_FORM_WRITABLE_COLUMNS.has(key)) continue;
+    if (value === undefined) continue;
+    out[key] = value;
+  }
+  return out;
+}
 
 /**
  * Accept either a flat form DTO or a round-tripped GET payload

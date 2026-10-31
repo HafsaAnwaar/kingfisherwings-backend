@@ -16,6 +16,8 @@ export function jobTrackRefOrClauses(q: string): Prisma.JobWhereInput[] {
   return [
     { tracking_token: q },
     { job_number: eq },
+    { primary_container_number: eq },
+    { rotation_number: eq },
     { air_details: { hawb_number: eq } },
     { air_details: { mawb_number: eq } },
     {
@@ -116,7 +118,7 @@ export function publicTrackUrl(ref: string, tenantSlug?: string | null): string 
 }
 
 export type TrackHistoryEvent = {
-  type: "MILESTONE" | "COURIER_CHECKPOINT" | "CONTAINER" | "STATUS";
+  type: "MILESTONE" | "COURIER_CHECKPOINT" | "CONTAINER" | "STATUS" | "OPS";
   code: string;
   label: string;
   planned_at: Date | null;
