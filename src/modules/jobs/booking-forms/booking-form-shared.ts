@@ -298,6 +298,67 @@ export type BookingCustomField = {
   type?: string;
 };
 
+/** GET envelope keys that must never be written into mode-form Prisma rows. */
+const BOOKING_FORM_ENVELOPE_KEYS = new Set([
+  "form",
+  "documents",
+  "job_id",
+  "job_type",
+  "kind",
+  "submitted",
+  "mode",
+  "provisional",
+  "provisional_job_id",
+  "quotation_id",
+  "shipment_id",
+  "success",
+  "data",
+  "warnings",
+  "custom_fields",
+  "fields",
+  "booking_custom_fields",
+]);
+
+/**
+ * Accept either a flat form DTO or a round-tripped GET payload
+ * `{ form: {...}, custom_fields, job_id, … }` and return writable form fields.
+ */
+export function unwrapBookingFormWritePayload(
+  dto: Record<string, unknown>,
+): Record<string, unknown> {
+  const nested =
+    dto.form && typeof dto.form === "object" && !Array.isArray(dto.form)
+      ? (dto.form as Record<string, unknown>)
+      : null;
+
+  const merged: Record<string, unknown> = {
+    ...(nested ?? {}),
+    ...dto,
+  };
+
+  // Prefer top-level custom_fields over nested form.custom_fields.
+  if (dto.custom_fields !== undefined) {
+    merged.custom_fields = dto.custom_fields;
+  } else if (dto.fields !== undefined) {
+    merged.custom_fields = dto.fields;
+  } else if (nested?.custom_fields !== undefined) {
+    merged.custom_fields = nested.custom_fields;
+  }
+
+  for (const key of BOOKING_FORM_ENVELOPE_KEYS) {
+    if (
+      key === "custom_fields" ||
+      key === "fields" ||
+      key === "booking_custom_fields"
+    ) {
+      continue;
+    }
+    delete merged[key];
+  }
+  delete merged.documents;
+  return merged;
+}
+
 /**
  * Accept Array<{key,label,value,type?}> or Record&lt;key, value | {label?,value?,type?}&gt;.
  * Returns null when input is undefined (caller should leave existing value unchanged).

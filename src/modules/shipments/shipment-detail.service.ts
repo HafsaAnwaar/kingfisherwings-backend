@@ -166,6 +166,7 @@ export class ShipmentDetailService {
       throw new BadRequestException("Cannot edit a CANCELLED shipment.");
     }
 
+    const shipmentDate = dto.job_date ?? dto.shipment_date;
     const hasField =
       dto.commodity !== undefined ||
       dto.pieces !== undefined ||
@@ -173,25 +174,33 @@ export class ShipmentDetailService {
       dto.volume_cbm !== undefined ||
       dto.etd !== undefined ||
       dto.eta !== undefined ||
-      dto.job_date !== undefined ||
+      shipmentDate !== undefined ||
       dto.mbl_number !== undefined ||
       dto.hbl_number !== undefined ||
       dto.origin_port_name !== undefined ||
       dto.origin_port_code !== undefined ||
+      dto.origin_port_id !== undefined ||
       dto.dest_port_name !== undefined ||
       dto.dest_port_code !== undefined ||
+      dto.dest_port_id !== undefined ||
       dto.shipper_name !== undefined ||
       dto.shipper_code !== undefined ||
+      dto.shipper_id !== undefined ||
       dto.consignee_name !== undefined ||
       dto.consignee_code !== undefined ||
+      dto.consignee_id !== undefined ||
       dto.billing_party_name !== undefined ||
       dto.billing_party_code !== undefined ||
+      dto.billing_party_id !== undefined ||
       dto.customer_name !== undefined ||
       dto.customer_code !== undefined ||
+      dto.customer_id !== undefined ||
       dto.carrier_name !== undefined ||
       dto.carrier_code !== undefined ||
+      dto.carrier_id !== undefined ||
       dto.agent_name !== undefined ||
-      dto.agent_code !== undefined;
+      dto.agent_code !== undefined ||
+      dto.agent_id !== undefined;
     if (!hasField) {
       throw new BadRequestException(
         "Provide at least one show_all field to update.",
@@ -199,39 +208,60 @@ export class ShipmentDetailService {
     }
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const originPortId = await this.lookups.resolvePort(tx, tenantId, {
-        name: dto.origin_port_name,
-        code: dto.origin_port_code,
-      });
-      const destPortId = await this.lookups.resolvePort(tx, tenantId, {
-        name: dto.dest_port_name,
-        code: dto.dest_port_code,
-      });
-      const shipperId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.shipper_name,
-        code: dto.shipper_code,
-        label: "shipper",
-      });
-      const consigneeId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.consignee_name,
-        code: dto.consignee_code,
-        label: "consignee",
-      });
-      const customerId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.customer_name ?? dto.billing_party_name,
-        code: dto.customer_code ?? dto.billing_party_code,
-        label: "customer",
-      });
-      const carrierId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.carrier_name,
-        code: dto.carrier_code,
-        label: "carrier",
-      });
-      const agentId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.agent_name,
-        code: dto.agent_code,
-        label: "agent",
-      });
+      const originPortId =
+        dto.origin_port_id !== undefined
+          ? dto.origin_port_id
+          : await this.lookups.resolvePort(tx, tenantId, {
+              name: dto.origin_port_name,
+              code: dto.origin_port_code,
+            });
+      const destPortId =
+        dto.dest_port_id !== undefined
+          ? dto.dest_port_id
+          : await this.lookups.resolvePort(tx, tenantId, {
+              name: dto.dest_port_name,
+              code: dto.dest_port_code,
+            });
+      const shipperId =
+        dto.shipper_id !== undefined
+          ? dto.shipper_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.shipper_name,
+              code: dto.shipper_code,
+              label: "shipper",
+            });
+      const consigneeId =
+        dto.consignee_id !== undefined
+          ? dto.consignee_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.consignee_name,
+              code: dto.consignee_code,
+              label: "consignee",
+            });
+      const customerId =
+        dto.customer_id !== undefined
+          ? dto.customer_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.customer_name ?? dto.billing_party_name,
+              code: dto.customer_code ?? dto.billing_party_code,
+              label: "customer",
+            });
+      const carrierId =
+        dto.carrier_id !== undefined
+          ? dto.carrier_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.carrier_name,
+              code: dto.carrier_code,
+              label: "carrier",
+            });
+      const agentId =
+        dto.agent_id !== undefined
+          ? dto.agent_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.agent_name,
+              code: dto.agent_code,
+              label: "agent",
+            });
 
       await tx.shipment.update({
         where: { id },
@@ -250,9 +280,11 @@ export class ShipmentDetailService {
           ...(dto.eta !== undefined
             ? { eta: dto.eta ? new Date(dto.eta) : null }
             : {}),
-          ...(dto.job_date !== undefined
+          ...(shipmentDate !== undefined
             ? {
-                shipment_date: dto.job_date ? new Date(dto.job_date) : null,
+                shipment_date: shipmentDate
+                  ? new Date(shipmentDate)
+                  : null,
               }
             : {}),
           ...(dto.mbl_number !== undefined
@@ -714,6 +746,8 @@ export class ShipmentDetailService {
       shipper_id: shipment.shipper_id,
       consignee_id: shipment.consignee_id,
       carrier_id: shipment.carrier_id,
+      agent_id: shipment.delivery_agent_id,
+      delivery_agent_id: shipment.delivery_agent_id,
       customer_address: shipment.customer_address,
       freight_terms: shipment.freight_terms,
       freight_payable_at: shipment.freight_payable_at,

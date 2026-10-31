@@ -11,6 +11,8 @@ import {
   Query,
   Res,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from "@nestjs/common";
 import type { Response } from "express";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -160,6 +162,13 @@ export class ShipmentsController {
 
   @Patch(":id/detail/show_all")
   @RequirePermissions(SHIPMENTS_PERMISSIONS.UPDATE)
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: false,
+    }),
+  )
   @ApiOperation({
     summary:
       "Patch show_all / info header fields (ports & parties by name/code)",

@@ -13,6 +13,7 @@ import {
   ReopenJobDto,
   ResumeJobDto,
   StopJobDto,
+  UpdateHoldDto,
 } from "./dto/job-detail.dto";
 import { PatchJobClosedOverridesDto } from "./dto/job-closed-overrides.dto";
 import {
@@ -174,6 +175,7 @@ export class JobDetailService {
       throw new BadRequestException(`Cannot edit a ${job.status} job.`);
     }
 
+    const jobDate = dto.job_date ?? dto.shipment_date;
     const hasField =
       dto.commodity !== undefined ||
       dto.pieces !== undefined ||
@@ -181,21 +183,27 @@ export class JobDetailService {
       dto.volume_cbm !== undefined ||
       dto.etd !== undefined ||
       dto.eta !== undefined ||
-      dto.job_date !== undefined ||
+      jobDate !== undefined ||
       dto.mbl_number !== undefined ||
       dto.hbl_number !== undefined ||
       dto.origin_port_name !== undefined ||
       dto.origin_port_code !== undefined ||
+      dto.origin_port_id !== undefined ||
       dto.dest_port_name !== undefined ||
       dto.dest_port_code !== undefined ||
+      dto.dest_port_id !== undefined ||
       dto.shipper_name !== undefined ||
       dto.shipper_code !== undefined ||
+      dto.shipper_id !== undefined ||
       dto.consignee_name !== undefined ||
       dto.consignee_code !== undefined ||
+      dto.consignee_id !== undefined ||
       dto.billing_party_name !== undefined ||
       dto.billing_party_code !== undefined ||
+      dto.billing_party_id !== undefined ||
       dto.agent_name !== undefined ||
-      dto.agent_code !== undefined;
+      dto.agent_code !== undefined ||
+      dto.agent_id !== undefined;
     if (!hasField) {
       throw new BadRequestException(
         "Provide at least one show_all field to update.",
@@ -203,34 +211,52 @@ export class JobDetailService {
     }
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const originPortId = await this.lookups.resolvePort(tx, tenantId, {
-        name: dto.origin_port_name,
-        code: dto.origin_port_code,
-      });
-      const destPortId = await this.lookups.resolvePort(tx, tenantId, {
-        name: dto.dest_port_name,
-        code: dto.dest_port_code,
-      });
-      const shipperId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.shipper_name,
-        code: dto.shipper_code,
-        label: "shipper",
-      });
-      const consigneeId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.consignee_name,
-        code: dto.consignee_code,
-        label: "consignee",
-      });
-      const billingPartyId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.billing_party_name,
-        code: dto.billing_party_code,
-        label: "billing party",
-      });
-      const agentId = await this.lookups.resolveParty(tx, tenantId, {
-        name: dto.agent_name,
-        code: dto.agent_code,
-        label: "agent",
-      });
+      const originPortId =
+        dto.origin_port_id !== undefined
+          ? dto.origin_port_id
+          : await this.lookups.resolvePort(tx, tenantId, {
+              name: dto.origin_port_name,
+              code: dto.origin_port_code,
+            });
+      const destPortId =
+        dto.dest_port_id !== undefined
+          ? dto.dest_port_id
+          : await this.lookups.resolvePort(tx, tenantId, {
+              name: dto.dest_port_name,
+              code: dto.dest_port_code,
+            });
+      const shipperId =
+        dto.shipper_id !== undefined
+          ? dto.shipper_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.shipper_name,
+              code: dto.shipper_code,
+              label: "shipper",
+            });
+      const consigneeId =
+        dto.consignee_id !== undefined
+          ? dto.consignee_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.consignee_name,
+              code: dto.consignee_code,
+              label: "consignee",
+            });
+      const billingPartyId =
+        dto.billing_party_id !== undefined
+          ? dto.billing_party_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.billing_party_name,
+              code: dto.billing_party_code,
+              label: "billing party",
+            });
+      const agentId =
+        dto.agent_id !== undefined
+          ? dto.agent_id
+          : await this.lookups.resolveParty(tx, tenantId, {
+              name: dto.agent_name,
+              code: dto.agent_code,
+              label: "agent",
+            });
 
       await tx.job.update({
         where: { id },
@@ -249,8 +275,8 @@ export class JobDetailService {
           ...(dto.eta !== undefined
             ? { eta: dto.eta ? new Date(dto.eta) : null }
             : {}),
-          ...(dto.job_date !== undefined
-            ? { job_date: dto.job_date ? new Date(dto.job_date) : null }
+          ...(jobDate !== undefined
+            ? { job_date: jobDate ? new Date(jobDate) : null }
             : {}),
           ...(originPortId !== undefined
             ? { origin_port_id: originPortId }
@@ -267,23 +293,26 @@ export class JobDetailService {
       });
 
       if (dto.mbl_number !== undefined || dto.hbl_number !== undefined) {
-        const sea = await tx.seaFclJobDetail.findFirst({
+        const blData = {
+          ...(dto.mbl_number !== undefined
+            ? { mbl_number: dto.mbl_number }
+            : {}),
+          ...(dto.hbl_number !== undefined
+            ? { hbl_number: dto.hbl_number }
+            : {}),
+        };
+        await tx.seaFclJobDetail.updateMany({
           where: { job_id: id, tenant_id: tenantId },
-          select: { job_id: true },
+          data: blData,
         });
-        if (sea) {
-          await tx.seaFclJobDetail.update({
-            where: { job_id: id },
-            data: {
-              ...(dto.mbl_number !== undefined
-                ? { mbl_number: dto.mbl_number }
-                : {}),
-              ...(dto.hbl_number !== undefined
-                ? { hbl_number: dto.hbl_number }
-                : {}),
-            },
-          });
-        }
+        await tx.seaLclJobDetail.updateMany({
+          where: { job_id: id, tenant_id: tenantId },
+          data: blData,
+        });
+        await tx.nvoccJobDetail.updateMany({
+          where: { job_id: id, tenant_id: tenantId, deleted_at: null },
+          data: blData,
+        });
       }
 
       await tx.auditLog.create({
@@ -717,8 +746,17 @@ export class JobDetailService {
         "Cannot put a completed or cancelled job on hold.",
       );
     }
+    // Already on hold → treat as hold-details update (FE may retry stop after PATCH miss).
     if (job.status === "ON_HOLD") {
-      throw new BadRequestException("Job is already on hold.");
+      return this.updateHold(
+        tenantId,
+        id,
+        {
+          reason,
+          expected_release_at: dto.expected_release_at ?? null,
+        },
+        actorId,
+      );
     }
     await this.statusCatalog.assertActiveCode(tenantId, "ON_HOLD");
 
@@ -749,6 +787,64 @@ export class JobDetailService {
             to: "ON_HOLD",
             reason,
             expected_release_at: dto.expected_release_at ?? null,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return row;
+    });
+    return { success: true, data: updated };
+  }
+
+  async updateHold(
+    tenantId: string,
+    id: string,
+    dto: UpdateHoldDto,
+    actorId?: string,
+  ) {
+    const job = await this.loadJob(tenantId, id);
+    if (job.status !== "ON_HOLD") {
+      throw new BadRequestException(
+        "Hold details can only be updated while the job is ON_HOLD. Use POST /jobs/:id/stop first.",
+      );
+    }
+    const reason = (dto.reason ?? dto.hold_reason)?.trim();
+    if (
+      reason === undefined &&
+      dto.expected_release_at === undefined
+    ) {
+      throw new BadRequestException(
+        "Provide reason/hold_reason and/or expected_release_at.",
+      );
+    }
+
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.job.update({
+        where: { id },
+        data: {
+          ...(reason !== undefined ? { hold_reason: reason } : {}),
+          ...(dto.expected_release_at !== undefined
+            ? {
+                expected_release_at: dto.expected_release_at
+                  ? new Date(dto.expected_release_at)
+                  : null,
+              }
+            : {}),
+          updated_by: actorId,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "JOB_HOLD_UPDATED",
+          entity: "JOB",
+          entity_id: id,
+          metadata: {
+            hold_reason: reason ?? job.hold_reason ?? null,
+            expected_release_at:
+              dto.expected_release_at !== undefined
+                ? dto.expected_release_at
+                : (job.expected_release_at?.toISOString() ?? null),
           } as Prisma.InputJsonValue,
         },
       });

@@ -123,13 +123,20 @@ export function normalizeQuoteRequestList(payload: unknown): {
   items: NormalizedQuoteRequest[];
 } {
   const obj = asRecord(payload);
+  const dataObj = asRecord(obj?.data);
   const rawItems = Array.isArray(payload)
     ? payload
     : Array.isArray(obj?.items)
       ? obj!.items
       : Array.isArray(obj?.data)
         ? obj!.data
-        : [];
+        : Array.isArray(dataObj?.items)
+          ? dataObj!.items
+          : Array.isArray(obj?.quotes)
+            ? obj!.quotes
+            : Array.isArray(obj?.results)
+              ? obj!.results
+              : [];
   const items = rawItems
     .map((item) => normalizeQuoteRequestItem(item))
     .filter((x): x is NormalizedQuoteRequest => Boolean(x));

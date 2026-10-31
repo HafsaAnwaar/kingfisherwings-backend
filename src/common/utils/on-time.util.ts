@@ -111,15 +111,18 @@ export const JOB_DASHBOARD_CATEGORIES = [
   "cancelled",
   "completed",
   "in_progress",
+  "pending",
+  "open",
 ] as const;
 
 export type JobDashboardCategory = (typeof JOB_DASHBOARD_CATEGORIES)[number];
 
 export function jobStatusesForCategory(
-  category: JobDashboardCategory,
+  category: JobDashboardCategory | string,
 ): string[] | null {
   switch (category) {
     case "on_hold":
+    case "hold":
       return ["ON_HOLD"];
     case "delivered":
       return ["DELIVERED"];
@@ -128,14 +131,12 @@ export function jobStatusesForCategory(
     case "completed":
       return ["COMPLETED"];
     case "in_progress":
-      return [
-        "IN_PROGRESS",
-        "DOCS_PENDING",
-        "CUSTOMS_CLEARANCE",
-        "OPEN",
-        "APPROVED",
-        "BOOKING_CONFIRMED",
-      ];
+      return ["IN_PROGRESS", "DOCS_PENDING", "CUSTOMS_CLEARANCE"];
+    case "pending":
+    case "draft":
+      return ["ENQUIRY", "QUOTATION", "APPROVED", "BOOKING_CONFIRMED"];
+    case "open":
+      return ["OPEN", "ENQUIRY", "QUOTATION", "APPROVED", "BOOKING_CONFIRMED"];
     case "delayed":
       return null; // computed via isOpenJobDelayed / ETA filter
     default:

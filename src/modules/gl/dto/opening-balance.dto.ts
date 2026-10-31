@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
+  Allow,
   IsBoolean,
   IsDateString,
   IsIn,
@@ -21,10 +23,27 @@ export class PartyOpeningBalanceDto {
   @Min(0.0001)
   amount!: number;
 
-  @ApiProperty({ example: "AED" })
+  @ApiProperty({
+    example: "AED",
+    description: "ISO currency code (also accepts alias `currency`)",
+  })
+  @Transform(({ value, obj }) => {
+    const raw =
+      value ??
+      (obj as { currency?: unknown }).currency ??
+      (obj as { currencyCode?: unknown }).currencyCode;
+    if (typeof raw === "string") return raw.trim().toUpperCase();
+    return raw;
+  })
   @IsString()
   @Length(3, 3)
   currency_code!: string;
+
+  /** FE alias — whitelisted so forbidNonWhitelisted does not 400. */
+  @ApiPropertyOptional({ example: "AED" })
+  @IsOptional()
+  @Allow()
+  currency?: string;
 
   @ApiPropertyOptional({ description: "ISO date for invoice / voucher" })
   @IsOptional()

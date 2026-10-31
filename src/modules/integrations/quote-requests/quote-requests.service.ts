@@ -75,7 +75,12 @@ export class QuoteRequestsService {
     const prefix = secretPrefix(dto.api_key);
     const data = {
       provider: dto.provider ?? ExternalQuoteRequestProvider.KFPP_WP,
-      base_url: dto.base_url.trim().replace(/\/+$/, ""),
+      base_url: dto.base_url
+        .trim()
+        .replace(/\/+$/, "")
+        .replace(/\/quotes\/?$/i, "")
+        .replace(/\/quote-requests\/?$/i, "")
+        .replace(/\/inquiries\/?$/i, ""),
       api_key_ciphertext: ciphertext,
       api_key_prefix: prefix,
       auth_header_name: dto.auth_header_name?.trim() || "X-KFPP-Api-Key",

@@ -68,10 +68,14 @@ export class JobsDashboardService {
       const in_progress =
         (statusMap["IN_PROGRESS"] ?? 0) +
         (statusMap["DOCS_PENDING"] ?? 0) +
-        (statusMap["CUSTOMS_CLEARANCE"] ?? 0) +
-        (statusMap["OPEN"] ?? 0) +
+        (statusMap["CUSTOMS_CLEARANCE"] ?? 0);
+      const pending =
+        (statusMap["ENQUIRY"] ?? 0) +
+        (statusMap["QUOTATION"] ?? 0) +
         (statusMap["APPROVED"] ?? 0) +
         (statusMap["BOOKING_CONFIRMED"] ?? 0);
+      const open_bucket =
+        (statusMap["OPEN"] ?? 0) + pending;
       const delivered = statusMap["DELIVERED"] ?? 0;
       const completed = statusMap["COMPLETED"] ?? 0;
       const cancelled = statusMap["CANCELLED"] ?? 0;
@@ -85,6 +89,9 @@ export class JobsDashboardService {
           from: from.toISOString(),
           to: to.toISOString(),
           open,
+          open_bucket,
+          pending,
+          draft: pending,
           in_progress,
           on_hold,
           delayed,
