@@ -37,6 +37,10 @@ import { eligibleEdiTypes } from "../jobs/utils/edi-eligibility.util";
 import { EntityTimelineService } from "../ops-activity/entity-timeline.service";
 import { MasterLabelService } from "../masters/master-label.service";
 import { TrackService } from "../track/track.service";
+import {
+  optionalFkPatch,
+  requiredFk,
+} from "../jobs/utils/show-all-fk.util";
 
 const DETAIL_TABS = [
   "show_all",
@@ -263,47 +267,48 @@ export class ShipmentDetailService {
               label: "agent",
             });
 
+      // Use UncheckedUpdateInput so scalar FKs are typed correctly.
+      // customer_id is REQUIRED on Shipment — never pass null (FE echoes nulls).
+      const customerFk = requiredFk(customerId);
+      const data: Prisma.ShipmentUncheckedUpdateInput = {
+        updated_by: actorId,
+        ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
+        ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
+        ...(dto.gross_weight !== undefined
+          ? { gross_weight: dto.gross_weight }
+          : {}),
+        ...(dto.volume_cbm !== undefined
+          ? { volume_cbm: dto.volume_cbm }
+          : {}),
+        ...(dto.etd !== undefined
+          ? { etd: dto.etd ? new Date(dto.etd) : null }
+          : {}),
+        ...(dto.eta !== undefined
+          ? { eta: dto.eta ? new Date(dto.eta) : null }
+          : {}),
+        ...(shipmentDate !== undefined
+          ? {
+              shipment_date: shipmentDate ? new Date(shipmentDate) : null,
+            }
+          : {}),
+        ...(dto.mbl_number !== undefined
+          ? { mbl_number: dto.mbl_number }
+          : {}),
+        ...(dto.hbl_number !== undefined
+          ? { hbl_number: dto.hbl_number }
+          : {}),
+        ...optionalFkPatch("origin_port_id", originPortId),
+        ...optionalFkPatch("dest_port_id", destPortId),
+        ...optionalFkPatch("shipper_id", shipperId),
+        ...optionalFkPatch("consignee_id", consigneeId),
+        ...(customerFk ? { customer_id: customerFk } : {}),
+        ...optionalFkPatch("carrier_id", carrierId),
+        ...optionalFkPatch("delivery_agent_id", agentId),
+      };
+
       await tx.shipment.update({
         where: { id },
-        data: {
-          ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
-          ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
-          ...(dto.gross_weight !== undefined
-            ? { gross_weight: dto.gross_weight }
-            : {}),
-          ...(dto.volume_cbm !== undefined
-            ? { volume_cbm: dto.volume_cbm }
-            : {}),
-          ...(dto.etd !== undefined
-            ? { etd: dto.etd ? new Date(dto.etd) : null }
-            : {}),
-          ...(dto.eta !== undefined
-            ? { eta: dto.eta ? new Date(dto.eta) : null }
-            : {}),
-          ...(shipmentDate !== undefined
-            ? {
-                shipment_date: shipmentDate
-                  ? new Date(shipmentDate)
-                  : null,
-              }
-            : {}),
-          ...(dto.mbl_number !== undefined
-            ? { mbl_number: dto.mbl_number }
-            : {}),
-          ...(dto.hbl_number !== undefined
-            ? { hbl_number: dto.hbl_number }
-            : {}),
-          ...(originPortId !== undefined
-            ? { origin_port_id: originPortId }
-            : {}),
-          ...(destPortId !== undefined ? { dest_port_id: destPortId } : {}),
-          ...(shipperId !== undefined ? { shipper_id: shipperId } : {}),
-          ...(consigneeId !== undefined ? { consignee_id: consigneeId } : {}),
-          ...(customerId !== undefined ? { customer_id: customerId } : {}),
-          ...(carrierId !== undefined ? { carrier_id: carrierId } : {}),
-          ...(agentId !== undefined ? { delivery_agent_id: agentId } : {}),
-          updated_by: actorId,
-        },
+        data,
       });
 
       await tx.auditLog.create({

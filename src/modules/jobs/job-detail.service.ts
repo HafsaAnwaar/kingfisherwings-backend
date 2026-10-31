@@ -42,6 +42,7 @@ import {
 } from "../ops-activity/ops-continuum-path-hints";
 import { MasterLabelService } from "../masters/master-label.service";
 import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
+import { optionalFkPatch } from "./utils/show-all-fk.util";
 
 const DETAIL_TABS = [
   "show_all",
@@ -258,38 +259,36 @@ export class JobDetailService {
               label: "agent",
             });
 
+      const data: Prisma.JobUncheckedUpdateInput = {
+        updated_by: actorId,
+        ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
+        ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
+        ...(dto.gross_weight !== undefined
+          ? { gross_weight: dto.gross_weight }
+          : {}),
+        ...(dto.volume_cbm !== undefined
+          ? { volume_cbm: dto.volume_cbm }
+          : {}),
+        ...(dto.etd !== undefined
+          ? { etd: dto.etd ? new Date(dto.etd) : null }
+          : {}),
+        ...(dto.eta !== undefined
+          ? { eta: dto.eta ? new Date(dto.eta) : null }
+          : {}),
+        ...(jobDate !== undefined
+          ? { job_date: jobDate ? new Date(jobDate) : null }
+          : {}),
+        ...optionalFkPatch("origin_port_id", originPortId),
+        ...optionalFkPatch("dest_port_id", destPortId),
+        ...optionalFkPatch("shipper_id", shipperId),
+        ...optionalFkPatch("consignee_id", consigneeId),
+        ...optionalFkPatch("billing_party_id", billingPartyId),
+        ...optionalFkPatch("agent_id", agentId),
+      };
+
       await tx.job.update({
         where: { id },
-        data: {
-          ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
-          ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
-          ...(dto.gross_weight !== undefined
-            ? { gross_weight: dto.gross_weight }
-            : {}),
-          ...(dto.volume_cbm !== undefined
-            ? { volume_cbm: dto.volume_cbm }
-            : {}),
-          ...(dto.etd !== undefined
-            ? { etd: dto.etd ? new Date(dto.etd) : null }
-            : {}),
-          ...(dto.eta !== undefined
-            ? { eta: dto.eta ? new Date(dto.eta) : null }
-            : {}),
-          ...(jobDate !== undefined
-            ? { job_date: jobDate ? new Date(jobDate) : null }
-            : {}),
-          ...(originPortId !== undefined
-            ? { origin_port_id: originPortId }
-            : {}),
-          ...(destPortId !== undefined ? { dest_port_id: destPortId } : {}),
-          ...(shipperId !== undefined ? { shipper_id: shipperId } : {}),
-          ...(consigneeId !== undefined ? { consignee_id: consigneeId } : {}),
-          ...(billingPartyId !== undefined
-            ? { billing_party_id: billingPartyId }
-            : {}),
-          ...(agentId !== undefined ? { agent_id: agentId } : {}),
-          updated_by: actorId,
-        },
+        data,
       });
 
       if (dto.mbl_number !== undefined || dto.hbl_number !== undefined) {
