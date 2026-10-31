@@ -136,6 +136,8 @@ export class TrackTimelineService {
       status: string;
       gate_in_at: Date | null;
       returned_at: Date | null;
+      created_at?: Date | null;
+      updated_at?: Date | null;
     }>;
     status_changes?: Array<{
       from: string | null;
@@ -152,6 +154,13 @@ export class TrackTimelineService {
       resume_reason?: string | null;
       resumed_at?: Date | null;
     } | null;
+    ops_events?: Array<{
+      code: string;
+      label: string;
+      at: Date;
+      notes?: string | null;
+      container_number?: string | null;
+    }>;
     includeNotes?: boolean;
   }): TrackHistoryEvent[] {
     const events: TrackHistoryEvent[] = [];
@@ -285,6 +294,17 @@ export class TrackTimelineService {
 
     for (const c of parts.containers) {
       if (!c.container_number) continue;
+      if (c.created_at) {
+        events.push({
+          type: "CONTAINER",
+          code: "ALLOCATED",
+          label: `Container ${c.container_number} allocated`,
+          planned_at: null,
+          actual_at: c.created_at,
+          is_completed: true,
+          container_number: c.container_number,
+        });
+      }
       if (c.gate_in_at) {
         events.push({
           type: "CONTAINER",
@@ -307,7 +327,26 @@ export class TrackTimelineService {
           container_number: c.container_number,
         });
       }
-      if (!c.gate_in_at && !c.returned_at) {
+      // Current status move (completed when we have a timestamp beyond allocation).
+      const statusAt =
+        c.updated_at &&
+        c.created_at &&
+        c.updated_at.getTime() > c.created_at.getTime()
+          ? c.updated_at
+          : c.gate_in_at || c.returned_at
+            ? null
+            : c.updated_at ?? null;
+      if (c.status && statusAt) {
+        events.push({
+          type: "CONTAINER",
+          code: c.status,
+          label: `Container ${c.container_number} · ${humanLabel(c.status)}`,
+          planned_at: null,
+          actual_at: statusAt,
+          is_completed: true,
+          container_number: c.container_number,
+        });
+      } else if (!c.gate_in_at && !c.returned_at && !c.created_at) {
         events.push({
           type: "CONTAINER",
           code: c.status,
@@ -318,6 +357,19 @@ export class TrackTimelineService {
           container_number: c.container_number,
         });
       }
+    }
+
+    for (const op of parts.ops_events ?? []) {
+      events.push({
+        type: "OPS",
+        code: op.code,
+        label: op.label,
+        planned_at: null,
+        actual_at: op.at,
+        is_completed: true,
+        container_number: op.container_number ?? null,
+        notes: op.notes ?? null,
+      });
     }
 
     return sortTrackHistory(events);
@@ -446,7 +498,17 @@ export class TrackTimelineService {
             },
           },
           nvocc_details: {
-            select: { hbl_number: true, mbl_number: true },
+            select: {
+              hbl_number: true,
+              mbl_number: true,
+              port_token_obtained_at: true,
+              port_token_form: true,
+              draft_bl_requested_at: true,
+              draft_bl_issued_at: true,
+              draft_bl_customer_comment: true,
+              workflow_stage: true,
+              stage_changed_at: true,
+            },
           },
           land_details: {
             select: {
@@ -491,6 +553,8 @@ export class TrackTimelineService {
               gate_in_at: true,
               returned_at: true,
               container_kind: true,
+              created_at: true,
+              updated_at: true,
             },
           },
           shipments: {
@@ -662,6 +726,73 @@ export class TrackTimelineService {
       resumed_at: job.resumed_at ?? null,
     };
 
+    const ops_events: Array<{
+      code: string;
+      label: string;
+      at: Date;
+      notes?: string | null;
+      container_number?: string | null;
+    }> = [];
+    const nvocc = job.nvocc_details;
+    if (nvocc?.port_token_obtained_at) {
+      const form = (nvocc.port_token_form ?? null) as Record<
+        string,
+        unknown
+      > | null;
+      const ctr =
+        (typeof form?.container_number === "string" &&
+          form.container_number) ||
+        job.primary_container_number ||
+        null;
+      const bits = [
+        typeof form?.bl_number === "string" ? `BL ${form.bl_number}` : null,
+        typeof form?.delivery_location === "string"
+          ? `Delivery: ${form.delivery_location}`
+          : null,
+        typeof form?.receiver_name === "string"
+          ? `Receiver: ${form.receiver_name}`
+          : null,
+      ].filter(Boolean);
+      ops_events.push({
+        code: "PORT_TOKEN",
+        label: "Port gate token confirmed",
+        at: nvocc.port_token_obtained_at,
+        notes: bits.length ? bits.join(" · ") : null,
+        container_number: ctr,
+      });
+    }
+    if (nvocc?.draft_bl_requested_at) {
+      const comment = nvocc.draft_bl_customer_comment?.trim() || null;
+      ops_events.push({
+        code: "DRAFT_BL_REQUESTED",
+        label: "Draft BL requested",
+        at: nvocc.draft_bl_requested_at,
+        notes: comment
+          ? comment.length > 160
+            ? `${comment.slice(0, 157)}…`
+            : comment
+          : null,
+      });
+    }
+    if (nvocc?.draft_bl_issued_at) {
+      ops_events.push({
+        code: "DRAFT_BL_ISSUED",
+        label: "Draft BL issued",
+        at: nvocc.draft_bl_issued_at,
+      });
+    }
+    if (
+      nvocc?.stage_changed_at &&
+      nvocc.workflow_stage &&
+      nvocc.workflow_stage !== "BOOKING_FORM_COMPLETE"
+    ) {
+      ops_events.push({
+        code: `NVOCC_${nvocc.workflow_stage}`,
+        label: `NVOCC stage · ${humanLabel(nvocc.workflow_stage)}`,
+        at: nvocc.stage_changed_at,
+      });
+    }
+
     const history = this.buildHistory({
       created_at: job.created_at,
       milestones: job.milestones,
@@ -669,6 +800,7 @@ export class TrackTimelineService {
       containers: job.containers_job,
       status_changes,
       hold: holdInfo,
+      ops_events,
       includeNotes,
     });
 
@@ -798,18 +930,27 @@ export class TrackTimelineService {
           job.sea_lcl_details?.booking_number ??
           null,
         shipment_numbers: linked.map((s) => s.shipment_number),
-        container_numbers: job.containers_job
-          .map((c) => c.container_number)
-          .filter(Boolean),
+        container_number: job.primary_container_number ?? null,
+        container_numbers: [
+          ...(job.primary_container_number
+            ? [job.primary_container_number]
+            : []),
+          ...job.containers_job
+            .map((c) => c.container_number)
+            .filter((n): n is string => Boolean(n)),
+        ].filter((v, i, a) => a.indexOf(v) === i),
+        container_status: job.primary_container_status ?? null,
+        rotation_number: job.rotation_number ?? null,
         flight_number:
           job.air_details?.flight_number ??
           job.air_details?.arrival_flight_number ??
           null,
         voyage_number:
+          job.voyage_number ??
           job.sea_fcl_details?.voyage_number ??
           job.sea_lcl_details?.voyage_number ??
           null,
-        vessel_name: vessel?.name ?? null,
+        vessel_name: job.vessel_name ?? vessel?.name ?? null,
         vehicle_number:
           job.land_details?.vehicle_number ??
           job.road_freight_details?.vehicle_number ??

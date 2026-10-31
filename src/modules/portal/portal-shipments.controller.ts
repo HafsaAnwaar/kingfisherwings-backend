@@ -29,6 +29,10 @@ import { SubmitDeliveryAcknowledgementDto } from "../jobs/dto/delivery-acknowled
 import { CurrentPortal } from "./decorators/portal.decorators";
 import { PortalShipmentLookupDto } from "./dto/portal-shipment-lookup.dto";
 import { PortalShipmentQueryDto } from "./dto/portal-shipment-query.dto";
+import {
+  PortalConfirmPortTokenDto,
+  PortalRequestDraftBlDto,
+} from "./dto/portal-nvocc-workflow.dto";
 import { PortalAuthGuard } from "./guards/portal-auth.guard";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalDocumentsService } from "./portal-documents.service";
@@ -150,22 +154,26 @@ export class PortalShipmentsController {
 
   @Post(":id/port-token/confirm")
   @ApiOperation({ summary: "Customer confirms port gate token obtained" })
+  @ApiBody({ type: PortalConfirmPortTokenDto })
   async confirmPortToken(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PortalConfirmPortTokenDto,
   ) {
     const jobId = await this.requireJobId(user, id);
-    return this.nvoccWorkflow.confirmPortToken(user, jobId);
+    return this.nvoccWorkflow.confirmPortToken(user, jobId, dto);
   }
 
   @Post(":id/request-draft-bl")
   @ApiOperation({ summary: "Customer requests draft BL from Docs" })
+  @ApiBody({ type: PortalRequestDraftBlDto })
   async requestDraftBl(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PortalRequestDraftBlDto,
   ) {
     const jobId = await this.requireJobId(user, id);
-    return this.nvoccWorkflow.requestDraftBl(user, jobId);
+    return this.nvoccWorkflow.requestDraftBl(user, jobId, dto);
   }
 
   @Post(":id/request-draft-hawb")

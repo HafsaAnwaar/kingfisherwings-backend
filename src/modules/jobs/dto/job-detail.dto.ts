@@ -124,6 +124,69 @@ export class PatchShowAllDto {
   @MaxLength(50)
   hbl_number?: string | null;
 
+  /** Alias — prefers writing MBL when set. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  bl_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  rotation_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  container_number?: string | null;
+
+  @ApiPropertyOptional({
+    description: "Primary JobContainer status (EMPTY, PICKED, …)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  container_status?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  vessel_name?: string | null;
+
+  /** Alias for vessel_name */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  vessel_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  voyage_number?: string | null;
+
+  @ApiPropertyOptional({ description: "Shipping line code" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  line_code?: string | null;
+
+  @ApiPropertyOptional({ description: "Alias for line_code" })
+  @IsOptional()
+  @Allow()
+  line_no?: string | number | null;
+
+  @ApiPropertyOptional({ description: "EDI / CSDP company code" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  company_code?: string | null;
+
   @ApiPropertyOptional({ description: "Origin port name (preferred)" })
   @IsOptional()
   @Transform(({ value, obj }) => {
@@ -541,6 +604,15 @@ export class UpdateHoldDto {
   @ValidateIf((_, v) => v !== null)
   @IsDateString()
   expected_release_at?: string | null;
+
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "When the job was put on hold (editable)",
+  })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsDateString()
+  held_at?: string | null;
 }
 
 export class ResumeJobDto {

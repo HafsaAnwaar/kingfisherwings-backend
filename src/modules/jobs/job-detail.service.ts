@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { JobStatus, JobType, Prisma } from "@prisma/client";
+import { ContainerStatus, JobStatus, JobType, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ShipmentsService } from "../shipments/shipments.service";
 import {
@@ -177,6 +177,12 @@ export class JobDetailService {
     }
 
     const jobDate = dto.job_date ?? dto.shipment_date;
+    const vesselName = dto.vessel_name ?? dto.vessel_number;
+    const lineCode =
+      dto.line_code ??
+      (dto.line_no != null && dto.line_no !== ""
+        ? String(dto.line_no)
+        : undefined);
     const hasField =
       dto.commodity !== undefined ||
       dto.pieces !== undefined ||
@@ -187,6 +193,14 @@ export class JobDetailService {
       jobDate !== undefined ||
       dto.mbl_number !== undefined ||
       dto.hbl_number !== undefined ||
+      dto.bl_number !== undefined ||
+      dto.rotation_number !== undefined ||
+      dto.container_number !== undefined ||
+      dto.container_status !== undefined ||
+      vesselName !== undefined ||
+      dto.voyage_number !== undefined ||
+      lineCode !== undefined ||
+      dto.company_code !== undefined ||
       dto.origin_port_name !== undefined ||
       dto.origin_port_code !== undefined ||
       dto.origin_port_id !== undefined ||
@@ -259,6 +273,11 @@ export class JobDetailService {
               label: "agent",
             });
 
+      const containerStatus =
+        dto.container_status != null && String(dto.container_status).trim()
+          ? (String(dto.container_status).trim().toUpperCase() as ContainerStatus)
+          : undefined;
+
       const data: Prisma.JobUncheckedUpdateInput = {
         updated_by: actorId,
         ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
@@ -278,6 +297,23 @@ export class JobDetailService {
         ...(jobDate !== undefined
           ? { job_date: jobDate ? new Date(jobDate) : null }
           : {}),
+        ...(dto.rotation_number !== undefined
+          ? { rotation_number: dto.rotation_number }
+          : {}),
+        ...(dto.container_number !== undefined
+          ? { primary_container_number: dto.container_number }
+          : {}),
+        ...(containerStatus !== undefined
+          ? { primary_container_status: containerStatus }
+          : {}),
+        ...(vesselName !== undefined ? { vessel_name: vesselName } : {}),
+        ...(dto.voyage_number !== undefined
+          ? { voyage_number: dto.voyage_number }
+          : {}),
+        ...(lineCode !== undefined ? { line_code: lineCode } : {}),
+        ...(dto.company_code !== undefined
+          ? { edi_company_code: dto.company_code }
+          : {}),
         ...optionalFkPatch("origin_port_id", originPortId),
         ...optionalFkPatch("dest_port_id", destPortId),
         ...optionalFkPatch("shipper_id", shipperId),
@@ -291,14 +327,17 @@ export class JobDetailService {
         data,
       });
 
-      if (dto.mbl_number !== undefined || dto.hbl_number !== undefined) {
+      const mbl =
+        dto.mbl_number !== undefined
+          ? dto.mbl_number
+          : dto.bl_number !== undefined
+            ? dto.bl_number
+            : undefined;
+      const hbl = dto.hbl_number;
+      if (mbl !== undefined || hbl !== undefined) {
         const blData = {
-          ...(dto.mbl_number !== undefined
-            ? { mbl_number: dto.mbl_number }
-            : {}),
-          ...(dto.hbl_number !== undefined
-            ? { hbl_number: dto.hbl_number }
-            : {}),
+          ...(mbl !== undefined ? { mbl_number: mbl } : {}),
+          ...(hbl !== undefined ? { hbl_number: hbl } : {}),
         };
         await tx.seaFclJobDetail.updateMany({
           where: { job_id: id, tenant_id: tenantId },
@@ -312,6 +351,73 @@ export class JobDetailService {
           where: { job_id: id, tenant_id: tenantId, deleted_at: null },
           data: blData,
         });
+        await tx.shipment.updateMany({
+          where: { job_id: id, tenant_id: tenantId, deleted_at: null },
+          data: blData,
+        });
+      }
+
+      if (dto.voyage_number !== undefined || vesselName !== undefined) {
+        const voyagePatch = {
+          ...(dto.voyage_number !== undefined
+            ? { voyage_number: dto.voyage_number }
+            : {}),
+        };
+        if (Object.keys(voyagePatch).length) {
+          await tx.seaFclJobDetail.updateMany({
+            where: { job_id: id, tenant_id: tenantId },
+            data: voyagePatch,
+          });
+          await tx.seaLclJobDetail.updateMany({
+            where: { job_id: id, tenant_id: tenantId },
+            data: voyagePatch,
+          });
+        }
+      }
+
+      // Sync primary JobContainer number/status when provided.
+      if (
+        dto.container_number !== undefined ||
+        containerStatus !== undefined
+      ) {
+        const existing = await tx.jobContainer.findFirst({
+          where: { job_id: id, tenant_id: tenantId, deleted_at: null },
+          orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+        });
+        if (existing) {
+          await tx.jobContainer.update({
+            where: { id: existing.id },
+            data: {
+              ...(dto.container_number !== undefined
+                ? { container_number: dto.container_number }
+                : {}),
+              ...(containerStatus !== undefined
+                ? { status: containerStatus }
+                : {}),
+              updated_by: actorId,
+            },
+          });
+        } else if (dto.container_number) {
+          const defaultType = await tx.containerType.findFirst({
+            where: { tenant_id: tenantId, deleted_at: null },
+            select: { id: true },
+            orderBy: { created_at: "asc" },
+          });
+          if (defaultType) {
+            await tx.jobContainer.create({
+              data: {
+                tenant_id: tenantId,
+                job_id: id,
+                container_number: dto.container_number,
+                container_type_id: defaultType.id,
+                status: containerStatus ?? "EMPTY",
+                line_no: 1,
+                created_by: actorId,
+                updated_by: actorId,
+              },
+            });
+          }
+        }
       }
 
       await tx.auditLog.create({
@@ -809,10 +915,11 @@ export class JobDetailService {
     const reason = (dto.reason ?? dto.hold_reason)?.trim();
     if (
       reason === undefined &&
-      dto.expected_release_at === undefined
+      dto.expected_release_at === undefined &&
+      dto.held_at === undefined
     ) {
       throw new BadRequestException(
-        "Provide reason/hold_reason and/or expected_release_at.",
+        "Provide reason/hold_reason, held_at, and/or expected_release_at.",
       );
     }
 
@@ -828,6 +935,11 @@ export class JobDetailService {
                   : null,
               }
             : {}),
+          ...(dto.held_at !== undefined
+            ? {
+                held_at: dto.held_at ? new Date(dto.held_at) : null,
+              }
+            : {}),
           updated_by: actorId,
         },
       });
@@ -840,6 +952,10 @@ export class JobDetailService {
           entity_id: id,
           metadata: {
             hold_reason: reason ?? job.hold_reason ?? null,
+            held_at:
+              dto.held_at !== undefined
+                ? dto.held_at
+                : (job.held_at?.toISOString() ?? null),
             expected_release_at:
               dto.expected_release_at !== undefined
                 ? dto.expected_release_at
@@ -920,7 +1036,14 @@ export class JobDetailService {
             orderBy: { created_at: "asc" },
           },
           sea_fcl_details: true,
+          sea_lcl_details: true,
+          nvocc_details: true,
           air_details: true,
+          containers_job: {
+            where: { deleted_at: null },
+            orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+            take: 20,
+          },
         },
       }),
     );
@@ -932,7 +1055,20 @@ export class JobDetailService {
     tenantId: string,
     job: Awaited<ReturnType<typeof this.loadJob>>,
   ) {
-    const sea = job.sea_fcl_details;
+    const sea = job.sea_fcl_details ?? job.sea_lcl_details;
+    const nvocc = job.nvocc_details;
+    const mbl =
+      sea?.mbl_number ?? nvocc?.mbl_number ?? null;
+    const hbl =
+      sea?.hbl_number ?? nvocc?.hbl_number ?? null;
+    const primaryCtr =
+      job.primary_container_number ??
+      job.containers_job?.[0]?.container_number ??
+      null;
+    const primaryStatus =
+      job.primary_container_status ??
+      job.containers_job?.[0]?.status ??
+      null;
     return this.labels.enrichOne(tenantId, {
       id: job.id,
       job_number: job.job_number,
@@ -956,8 +1092,20 @@ export class JobDetailService {
       pieces: job.pieces,
       gross_weight: job.gross_weight,
       volume_cbm: job.volume_cbm,
-      mbl_number: sea?.mbl_number ?? null,
-      hbl_number: sea?.hbl_number ?? null,
+      mbl_number: mbl,
+      hbl_number: hbl,
+      bl_number: mbl ?? hbl,
+      rotation_number: job.rotation_number ?? null,
+      container_number: primaryCtr,
+      container_status: primaryStatus,
+      vessel_name: job.vessel_name ?? null,
+      vessel_number: job.vessel_name ?? null,
+      voyage_number: job.voyage_number ?? sea?.voyage_number ?? null,
+      line_code: job.line_code ?? null,
+      company_code: job.edi_company_code ?? null,
+      hold_reason: job.hold_reason ?? null,
+      held_at: job.held_at ?? null,
+      expected_release_at: job.expected_release_at ?? null,
       created_from_quote_id: job.created_from_quote_id,
       parent_job_id: job.parent_job_id,
       tracking_token: job.tracking_token,

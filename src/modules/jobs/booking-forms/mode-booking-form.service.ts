@@ -33,6 +33,7 @@ import {
   locationFallbacksFromPayload,
   mergeBookingFormPayload,
   normalizeBookingCustomFields,
+  pickWritableBookingFormData,
   readBookingCustomFields,
   requireFields,
   WhStockLineInput,
@@ -331,7 +332,21 @@ export class ModeBookingFormService {
         actorId,
         markComplete,
       );
-      await this.updateForm(tx, kind, form.id, data);
+      try {
+        await this.updateForm(tx, kind, form.id, data);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (
+          /Unknown arg|Unknown field|Invalid.*invocation|P2009|P2012|P2022/i.test(
+            msg,
+          )
+        ) {
+          throw new BadRequestException(
+            `Invalid booking-form fields for ${kind}: ${msg.slice(0, 300)}`,
+          );
+        }
+        throw err;
+      }
 
       if (dto.parties?.length) {
         await this.upsertParties(tx, kind, tenantId, form.id, dto.parties);
@@ -700,78 +715,48 @@ export class ModeBookingFormService {
     actorId?: string,
     markComplete?: boolean,
   ): Record<string, unknown> {
-    const {
-      parties: _p,
-      mark_complete: _m,
-      consent_accepted,
-      date_of_request,
-      etd,
-      eta,
-      containers,
-      cargo_lines,
-      stock_lines,
-      expected_inbound_at,
-      expected_outbound_at,
-      custom_fields: _cf,
-      // Strip GET envelope / non-column keys so Prisma does not 500.
-      form: _form,
-      documents: _docs,
-      job_id: _jobId,
-      job_type: _jobType,
-      kind: _kind,
-      submitted: _submitted,
-      mode: _mode,
-      provisional: _prov,
-      provisional_job_id: _pjob,
-      quotation_id: _qid,
-      shipment_id: _sid,
-      success: _ok,
-      data: _data,
-      warnings: _warn,
-      id: _id,
-      tenant_id: _tid,
-      created_at: _ca,
-      updated_at: _ua,
-      created_by: _cb,
-      is_complete: _ic,
-      completed_at: _cat,
-      completed_by: _cby,
-      consent_accepted_at: _caa,
-      ...rest
-    } = dto;
+    const consent_accepted = dto.consent_accepted;
+    const date_of_request = dto.date_of_request;
+    const etd = dto.etd;
+    const eta = dto.eta;
+    const containers = dto.containers;
+    const cargo_lines = (dto as { cargo_lines?: unknown }).cargo_lines;
+    const stock_lines = (dto as { stock_lines?: unknown }).stock_lines;
+    const expected_inbound_at = (dto as { expected_inbound_at?: string })
+      .expected_inbound_at;
+    const expected_outbound_at = (dto as { expected_outbound_at?: string })
+      .expected_outbound_at;
 
-    const data: Record<string, unknown> = {
-      ...rest,
+    const raw: Record<string, unknown> = {
+      ...dto,
       updated_by: actorId,
     };
-    if (date_of_request) data.date_of_request = new Date(date_of_request);
-    if (typeof etd === "string" && etd) data.etd = new Date(etd);
-    if (typeof eta === "string" && eta) data.eta = new Date(eta);
+    if (date_of_request) raw.date_of_request = new Date(date_of_request as string);
+    if (typeof etd === "string" && etd) raw.etd = new Date(etd);
+    if (typeof eta === "string" && eta) raw.eta = new Date(eta);
     if (typeof expected_inbound_at === "string" && expected_inbound_at) {
-      data.expected_inbound_at = new Date(expected_inbound_at);
+      raw.expected_inbound_at = new Date(expected_inbound_at);
     }
     if (typeof expected_outbound_at === "string" && expected_outbound_at) {
-      data.expected_outbound_at = new Date(expected_outbound_at);
+      raw.expected_outbound_at = new Date(expected_outbound_at);
     }
     if (kind === "sea_fcl" && containers) {
-      data.containers_json = JSON.parse(JSON.stringify(containers));
+      raw.containers_json = JSON.parse(JSON.stringify(containers));
     }
     if (kind === "customs_clearance" && cargo_lines) {
-      data.cargo_lines_json = JSON.parse(JSON.stringify(cargo_lines));
+      raw.cargo_lines_json = JSON.parse(JSON.stringify(cargo_lines));
     }
     if (kind === "warehouse" && stock_lines) {
-      data.stock_lines_json = JSON.parse(JSON.stringify(stock_lines));
+      raw.stock_lines_json = JSON.parse(JSON.stringify(stock_lines));
     }
-    if (consent_accepted) data.consent_accepted_at = new Date();
+    if (consent_accepted) raw.consent_accepted_at = new Date();
     if (markComplete) {
-      data.is_complete = true;
-      data.completed_at = new Date();
-      data.completed_by = actorId;
+      raw.is_complete = true;
+      raw.completed_at = new Date();
+      raw.completed_by = actorId;
     }
-    delete data.containers;
-    delete data.cargo_lines;
-    delete data.stock_lines;
-    return data;
+
+    return pickWritableBookingFormData(raw);
   }
 
   /** Soft-sync intake fields onto ops detail without touching workflow status. */
