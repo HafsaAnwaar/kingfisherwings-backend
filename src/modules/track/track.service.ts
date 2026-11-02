@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PdfService } from "../../shared/pdf/pdf.service";
 import { buildTrackTraceHtml } from "./track-pdf.util";
-import { jobTrackRefOrClauses } from "./tracking-ref.util";
+import { jobPublicTrackRefOrClauses } from "./tracking-ref.util";
 import {
   TrackTimelinePayload,
   TrackTimelineService,
@@ -13,6 +13,26 @@ type TenantResolveInput = {
   host?: string;
 };
 
+type PublicTenantBrand = {
+  id: string;
+  slug: string;
+  name: string;
+  display_name: string | null;
+  logo_url: string | null;
+  primary_color: string | null;
+  website: string | null;
+  domain: string | null;
+};
+
+type PublicJobHit = {
+  id: string;
+  primary_container_number: string | null;
+  containers_job: Array<{
+    container_number: string | null;
+    container_kind: string | null;
+  }>;
+};
+
 @Injectable()
 export class TrackService {
   constructor(
@@ -21,37 +41,32 @@ export class TrackService {
     private readonly pdf: PdfService,
   ) {}
 
-  async track(ref: string, resolve: TenantResolveInput) {
-    const tenant = await this.resolveTenant(resolve, true);
-    if (!tenant) {
-      throw new NotFoundException("Shipment not found.");
-    }
-
+  /**
+   * Public track — `ref` only (container / BL / AWB / booking / token).
+   * `tenant_slug` is optional hint; never required.
+   */
+  async track(ref: string, resolve: TenantResolveInput = {}) {
     const q = ref.trim();
     if (q.length < 2) {
       throw new NotFoundException("Shipment not found.");
     }
 
-    const job = await this.prisma.runWithTenant(tenant.id, (tx) =>
-      tx.job.findFirst({
-        where: {
-          tenant_id: tenant.id,
-          deleted_at: null,
-          OR: jobTrackRefOrClauses(q),
-        },
-        orderBy: { updated_at: "desc" },
-        select: {
-          id: true,
-          primary_container_number: true,
-          containers_job: {
-            where: { deleted_at: null },
-            select: { container_number: true, container_kind: true },
-          },
-        },
-      }),
-    );
+    const hinted = await this.resolveTenant(resolve, true);
+    let tenant: PublicTenantBrand | null = hinted;
+    let job: PublicJobHit | null = null;
 
+    if (tenant) {
+      job = await this.findPublicJobInTenant(tenant.id, q);
+    }
     if (!job) {
+      const hit = await this.findPublicJobAcrossTenants(q, tenant?.id);
+      if (hit) {
+        tenant = hit.tenant;
+        job = hit.job;
+      }
+    }
+
+    if (!tenant || !job) {
       throw new NotFoundException("Shipment not found.");
     }
 
@@ -96,11 +111,7 @@ export class TrackService {
         milestones: payload.milestones,
         summary: payload.summary,
         public_url: payload.public_url,
-        pdf_url: `/track/pdf?ref=${encodeURIComponent(q)}${
-          tenant.slug
-            ? `&tenant_slug=${encodeURIComponent(tenant.slug)}`
-            : ""
-        }`,
+        pdf_url: `/track/pdf?ref=${encodeURIComponent(q)}`,
       },
     };
   }
@@ -195,8 +206,7 @@ export class TrackService {
         track_endpoint: "/track",
         track_pdf_endpoint: "/track/pdf",
         widget_script: `/track/widget.js?tenant_slug=${encodeURIComponent(tenant.slug)}`,
-        placeholder:
-          "Enter job, shipment, BL, AWB, booking, or container number",
+        placeholder: "Enter container, BL, or AWB number",
       },
     };
   }
@@ -211,10 +221,8 @@ export class TrackService {
     const name = (tenant.display_name ?? tenant.name)
       .replace(/\\/g, "\\\\")
       .replace(/'/g, "\\'");
-    const slug = tenant.slug;
 
     return `(function(){
-  var SLUG='${slug}';
   var COLOR='${color}';
   var NAME='${name}';
   var root=document.currentScript && document.currentScript.parentElement || document.body;
@@ -222,7 +230,7 @@ export class TrackService {
   box.setAttribute('data-kf-track','1');
   box.style.cssText='font-family:system-ui,sans-serif;max-width:520px;border:1px solid #E2E8F0;padding:16px;border-radius:8px;background:#fff;';
   box.innerHTML='<div style="font-weight:600;color:'+COLOR+';margin-bottom:8px;">'+NAME+' Track & Trace</div>'+
-    '<input id="kf-track-ref" placeholder="Job / shipment / BL / AWB / container" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;"/>'+
+    '<input id="kf-track-ref" placeholder="Container / BL / AWB number" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;"/>'+
     '<button id="kf-track-btn" style="background:'+COLOR+';color:#fff;border:0;padding:8px 14px;border-radius:4px;cursor:pointer;">Track</button>'+
     '<div id="kf-track-out" style="margin-top:12px;font-size:13px;line-height:1.45;color:#0F172A;"></div>';
   root.appendChild(box);
@@ -236,7 +244,7 @@ export class TrackService {
     var out=document.getElementById('kf-track-out');
     if(!ref){ out.textContent='Enter a reference.'; return; }
     out.textContent='Loading…';
-    fetch(apiBase()+'/track?tenant_slug='+encodeURIComponent(SLUG)+'&ref='+encodeURIComponent(ref))
+    fetch(apiBase()+'/track?ref='+encodeURIComponent(ref))
       .then(function(r){ return r.json().then(function(j){ if(!r.ok) throw new Error(j.message||'Not found'); return j; }); })
       .then(function(j){
         var s=j.data && j.data.shipment;
@@ -270,6 +278,64 @@ export class TrackService {
       .catch(function(e){ out.textContent=e.message||'Error'; });
   };
 })();`;
+  }
+
+  private async findPublicJobInTenant(
+    tenantId: string,
+    q: string,
+  ): Promise<PublicJobHit | null> {
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findFirst({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          OR: jobPublicTrackRefOrClauses(q),
+        },
+        orderBy: { updated_at: "desc" },
+        select: {
+          id: true,
+          primary_container_number: true,
+          containers_job: {
+            where: { deleted_at: null },
+            select: { container_number: true, container_kind: true },
+          },
+        },
+      }),
+    );
+  }
+
+  /**
+   * Cross-tenant public lookup when no slug/host is provided.
+   * Scans active tenants until the first container/BL/AWB hit.
+   */
+  private async findPublicJobAcrossTenants(
+    q: string,
+    skipTenantId?: string,
+  ): Promise<{ tenant: PublicTenantBrand; job: PublicJobHit } | null> {
+    const tenants = await this.prisma.tenant.findMany({
+      where: {
+        deleted_at: null,
+        is_active: true,
+        ...(skipTenantId ? { id: { not: skipTenantId } } : {}),
+      },
+      orderBy: { updated_at: "desc" },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        display_name: true,
+        logo_url: true,
+        primary_color: true,
+        website: true,
+        domain: true,
+      },
+    });
+
+    for (const tenant of tenants) {
+      const job = await this.findPublicJobInTenant(tenant.id, q);
+      if (job) return { tenant, job };
+    }
+    return null;
   }
 
   private toPublicShipment(payload: TrackTimelinePayload) {
