@@ -6,9 +6,12 @@ import {
   Param,
   Query,
   Res,
+  StreamableFile,
 } from "@nestjs/common";
 import {
+  ApiOkResponse,
   ApiOperation,
+  ApiProduces,
   ApiProperty,
   ApiPropertyOptional,
   ApiTags,
@@ -18,6 +21,7 @@ import { IsOptional, IsString, Length } from "class-validator";
 import { Response } from "express";
 import { Public } from "../../common/decorators/public.decorators";
 import { TrackService } from "./track.service";
+import { TrackShipmentResponseDto } from "./dto/track-response.dto";
 
 class TrackQueryDto {
   @ApiPropertyOptional({
@@ -62,8 +66,9 @@ export class TrackController {
   @ApiOperation({
     summary: "Public shipment track by reference",
     description:
-      "Returns current status, progress summary, and full history (created, status changes, milestones, courier checkpoints, container events). Resolve tenant via tenant_slug or Host/domain.",
+      "Live track by job no, BL, AWB, booking, or container. Returns current_status, container_number/type/iso_size, progress_legs/route_legs/ports, and history (completed_at, move, location, vessel/voyage).",
   })
+  @ApiOkResponse({ type: TrackShipmentResponseDto })
   trackShipment(
     @Query() query: TrackQueryDto,
     @Headers("host") host?: string,
@@ -73,6 +78,31 @@ export class TrackController {
       tenantSlug: query.tenant_slug,
       host: tenantDomain || host,
     });
+  }
+
+  @Get("pdf")
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  @ApiOperation({
+    summary: "Public Track & Trace PDF export",
+    description:
+      "Same live lookup as GET /track — returns an application/pdf for the matched job/container/BL/AWB.",
+  })
+  @ApiProduces("application/pdf")
+  async trackPdf(
+    @Query() query: TrackQueryDto,
+    @Headers("host") host?: string,
+    @Headers("x-tenant-domain") tenantDomain?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    const { buffer, filename } = await this.track.trackPdf(query.ref, {
+      tenantSlug: query.tenant_slug,
+      host: tenantDomain || host,
+    });
+    res!.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    });
+    return new StreamableFile(buffer);
   }
 
   @Get("embed")

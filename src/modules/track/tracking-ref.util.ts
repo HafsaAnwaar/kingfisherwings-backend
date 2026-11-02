@@ -121,11 +121,20 @@ export type TrackHistoryEvent = {
   type: "MILESTONE" | "COURIER_CHECKPOINT" | "CONTAINER" | "STATUS" | "OPS";
   code: string;
   label: string;
+  /** Alias of label — move text for FE reference UI. */
+  move?: string;
   planned_at: Date | null;
   actual_at: Date | null;
+  /** Alias of actual_at. */
+  completed_at?: Date | null;
+  /** Alias of actual_at. */
+  occurred_at?: Date | null;
   is_completed: boolean;
   location?: string | null;
+  terminal?: string | null;
   container_number?: string | null;
+  vessel_name?: string | null;
+  voyage_number?: string | null;
   /** Customer-visible milestone description (also mirrored on notes). */
   description?: string | null;
   notes?: string | null;
