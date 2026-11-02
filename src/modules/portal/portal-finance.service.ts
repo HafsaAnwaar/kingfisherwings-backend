@@ -168,21 +168,35 @@ export class PortalFinanceService {
   }
 
   /**
-   * Customer creates a debit note on a job they own.
-   * Party is always the portal party. Status is set to SENT so it appears
-   * in portal lists and is visible to staff on the job ledger.
+   * Customer creates a debit note: select job + enter amount.
+   * Party is always the portal party. Status is SENT so customer + admin see it.
    */
   async createDebitNote(
     user: CurrentPortalUser,
     dto: PortalCreateDebitNoteDto,
   ) {
+    const jobId = dto.job_id?.trim();
+    const jobNumber = dto.job_number?.trim();
+    if (!jobId && !jobNumber) {
+      throw new BadRequestException(
+        "Select a job (job_id or job_number) and enter an amount.",
+      );
+    }
+
+    const amount = Number(dto.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException("Amount must be greater than zero.");
+    }
+
     const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
       tx.job.findFirst({
         where: {
-          id: dto.job_id,
           tenant_id: user.tenantId,
           deleted_at: null,
           ...portalJobOwnershipWhere(user.partyId),
+          ...(jobId
+            ? { id: jobId }
+            : { job_number: { equals: jobNumber!, mode: "insensitive" } }),
         },
         select: { id: true, job_number: true },
       }),
@@ -193,57 +207,24 @@ export class PortalFinanceService {
       );
     }
 
-    if (dto.credited_invoice_id) {
-      const original = await this.prisma.runWithTenant(user.tenantId, (tx) =>
-        tx.invoice.findFirst({
-          where: {
-            id: dto.credited_invoice_id!,
-            tenant_id: user.tenantId,
-            party_id: user.partyId,
-            deleted_at: null,
-            invoice_type: InvoiceType.CUSTOMER_INVOICE,
-          },
-          select: { id: true, status: true },
-        }),
-      );
-      if (!original) {
-        throw new NotFoundException(
-          "Invoice not found on your account to debit against.",
-        );
-      }
-      if (
-        !["POSTED", "SENT", "PARTIALLY_PAID", "PAID"].includes(original.status)
-      ) {
-        throw new BadRequestException(
-          "Original invoice must be posted before attaching a debit note.",
-        );
-      }
-    }
-
-    const lines = dto.lines.map((l) => ({
-      description: l.description.trim(),
-      quantity: l.quantity ?? 1,
-      unit_price:
-        l.unit_price ??
-        (l.amount != null ? Number(l.amount) : undefined) ??
-        0,
-    }));
-    if (lines.some((l) => !l.description || l.unit_price < 0)) {
-      throw new BadRequestException(
-        "Each line needs a description and a non-negative unit_price.",
-      );
-    }
+    const remarks =
+      dto.remarks?.trim() ||
+      `Customer-submitted debit note for job ${job.job_number}`;
+    const lines = [
+      {
+        description: remarks.slice(0, 300),
+        quantity: 1,
+        unit_price: amount,
+      },
+    ];
 
     const created = await this.invoices.createDebitNote(
       user.tenantId,
       {
         job_id: job.id,
         party_id: user.partyId,
-        credited_invoice_id: dto.credited_invoice_id,
         currency_code: dto.currency_code,
-        remarks:
-          dto.remarks?.trim() ||
-          `Customer-submitted debit note for job ${job.job_number}`,
+        remarks,
         lines,
       },
       user.id,
