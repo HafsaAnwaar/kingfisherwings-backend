@@ -210,6 +210,30 @@ export class PortalNvoccWorkflowService {
       submitted_at: new Date().toISOString(),
     };
 
+    // When the job has multiple containers, customer must pick an existing number.
+    const containers = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.jobContainer.findMany({
+        where: {
+          tenant_id: user.tenantId,
+          job_id: job.id,
+          deleted_at: null,
+          container_number: { not: null },
+        },
+        select: { container_number: true },
+      }),
+    );
+    const numbers = containers
+      .map((c) => c.container_number?.toUpperCase())
+      .filter((n): n is string => Boolean(n));
+    if (
+      numbers.length > 1 &&
+      !numbers.includes(port_token_form.container_number)
+    ) {
+      throw new BadRequestException(
+        `Select a container on this job. Available: ${numbers.join(", ")}`,
+      );
+    }
+
     return this.prisma.runWithTenant(user.tenantId, async (tx) => {
       const detail = job.nvocc_details!;
       const token =
@@ -238,6 +262,113 @@ export class PortalNvoccWorkflowService {
         port_gate_token: updated.port_gate_token,
         port_token_obtained_at: updated.port_token_obtained_at,
         port_token_form,
+        received_by_admin: true,
+      };
+    });
+  }
+
+  /**
+   * Staff: read customer port-token form / issue token when customer did not.
+   */
+  async staffGetPortToken(tenantId: string, jobId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await tx.nvoccJobDetail.findFirst({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!detail) throw new NotFoundException("NVOCC details not found.");
+      const containers = await tx.jobContainer.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          container_number: { not: null },
+        },
+        select: {
+          id: true,
+          container_number: true,
+          status: true,
+          container_kind: true,
+        },
+        orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+      });
+      return {
+        success: true,
+        data: {
+          port_gate_token: detail.port_gate_token,
+          port_token_obtained_at: detail.port_token_obtained_at,
+          port_token_form: detail.port_token_form,
+          workflow_stage: detail.workflow_stage,
+          containers,
+        },
+      };
+    });
+  }
+
+  async staffConfirmPortToken(
+    tenantId: string,
+    jobId: string,
+    actorId: string,
+    dto: PortalConfirmPortTokenDto,
+  ) {
+    const formDate = new Date(dto.date);
+    if (Number.isNaN(formDate.getTime())) {
+      throw new BadRequestException("Invalid date");
+    }
+    const port_token_form = {
+      bl_number: dto.bl_number.trim(),
+      container_number: dto.container_number.trim().toUpperCase(),
+      date: formDate.toISOString().slice(0, 10),
+      delivery_location: dto.delivery_location.trim(),
+      receiver_name: dto.receiver_name.trim(),
+      receiver_contact: dto.receiver_contact.trim(),
+      submitted_at: new Date().toISOString(),
+      submitted_by: "STAFF",
+    };
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      let detail = await tx.nvoccJobDetail.findFirst({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!detail) {
+        detail = await tx.nvoccJobDetail.create({
+          data: {
+            tenant_id: tenantId,
+            job_id: jobId,
+            created_by: actorId,
+            updated_by: actorId,
+          },
+        });
+      }
+      const token =
+        dto.port_gate_token?.trim() ||
+        detail.port_gate_token ||
+        randomBytes(16).toString("hex");
+      const updated = await tx.nvoccJobDetail.update({
+        where: { id: detail.id },
+        data: {
+          port_gate_token: token,
+          port_token_obtained_at: new Date(),
+          port_token_form: port_token_form as Prisma.InputJsonValue,
+          workflow_stage: "PORT_TOKEN",
+          stage_changed_at: new Date(),
+          updated_by: actorId,
+        },
+      });
+      await tx.job.update({
+        where: { id: jobId },
+        data: {
+          primary_container_number: port_token_form.container_number,
+          updated_by: actorId,
+        },
+      });
+      return {
+        success: true,
+        data: {
+          port_gate_token: updated.port_gate_token,
+          port_token_obtained_at: updated.port_token_obtained_at,
+          port_token_form,
+        },
+        message: "Port token recorded by admin",
       };
     });
   }

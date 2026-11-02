@@ -602,6 +602,41 @@ export class UsersService {
     );
 
     const response = UserMapper.toResponse(user);
+    const [tenant, company, branch, department] = await Promise.all([
+      this.prisma.tenant.findFirst({
+        where: { id: tenantId },
+        select: { name: true, display_name: true },
+      }),
+      user.company_id
+        ? this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.company.findFirst({
+              where: { id: user.company_id!, tenant_id: tenantId },
+              select: { name: true },
+            }),
+          )
+        : null,
+      user.branch_id
+        ? this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.branch.findFirst({
+              where: { id: user.branch_id!, tenant_id: tenantId },
+              select: { name: true },
+            }),
+          )
+        : null,
+      user.department_id
+        ? this.prisma.runWithTenant(tenantId, (tx) =>
+            tx.department.findFirst({
+              where: { id: user.department_id!, tenant_id: tenantId },
+              select: { name: true },
+            }),
+          )
+        : null,
+    ]);
+    response.tenant_name = tenant?.display_name ?? tenant?.name ?? undefined;
+    response.company_name = company?.name ?? undefined;
+    response.branch_name = branch?.name ?? undefined;
+    response.department_name = department?.name ?? undefined;
+
     response.permission_matrix = await this.buildPermissionMatrixSummary(
       tenantId,
       id,

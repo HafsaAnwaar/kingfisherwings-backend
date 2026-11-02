@@ -46,6 +46,7 @@ import {
   PatchShowAllDto,
   ReopenJobDto,
   ResumeJobDto,
+  StaffConfirmPortTokenDto,
   StopJobDto,
   UpdateHoldDto,
 } from "./dto/job-detail.dto";
@@ -163,7 +164,10 @@ import {
 import { JobDocumentUploadService } from "./job-document-upload.service";
 import { OpsSectionAttachmentsService } from "./ops-section-attachments.service";
 import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
-import { ReceiveDeliveryAcknowledgementDto } from "./dto/delivery-acknowledgement.dto";
+import {
+  ReceiveDeliveryAcknowledgementDto,
+  SendDeliveryAcknowledgementDto,
+} from "./dto/delivery-acknowledgement.dto";
 import { TrackService } from "../track/track.service";
 import {
   BulkJobContainersDto,
@@ -1292,6 +1296,48 @@ export class JobsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.getPnl(tenantId, id);
+  }
+
+  @Get(":id/ledger")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Job finance ledger — invoices + credit/debit notes for this job (no invoice required for CN/DN)",
+  })
+  getJobLedger(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.getJobLedger(tenantId, id);
+  }
+
+  @Get(":id/port-token")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Admin: view customer port-token form + containers (customer confirm appears here)",
+  })
+  getPortToken(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.detail.getPortToken(tenantId, id);
+  }
+
+  @Post(":id/port-token/confirm")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Admin: issue/record port token when customer did not (same body as portal confirm)",
+  })
+  @ApiBody({ type: StaffConfirmPortTokenDto })
+  confirmPortTokenAdmin(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: StaffConfirmPortTokenDto,
+  ) {
+    return this.detail.confirmPortToken(tenantId, id, actorId, dto);
   }
 
   @Get(":id/notes")
@@ -3572,6 +3618,24 @@ export class JobsController {
     return this.containerTab.add(tenantId, id, dto, actorId);
   }
 
+  @Post(":id/containers/generate-shipments")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Create one shipment per ACTUAL numbered container (containers count = shipments count)",
+  })
+  generateShipmentsFromContainers(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.containerTab.generateShipmentsFromContainers(
+      tenantId,
+      id,
+      actorId,
+    );
+  }
+
   @Put(":id/containers/bulk")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({ summary: "Multiple update containers" })
@@ -4204,6 +4268,21 @@ export class JobsController {
       attachmentId,
       res,
     );
+  }
+
+  @Post(":id/acknowledgement/send")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Admin sends delivery acknowledgement to customer (optional container_id when multi-container)",
+  })
+  sendAcknowledgement(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: SendDeliveryAcknowledgementDto,
+  ) {
+    return this.acknowledgement.send(tenantId, id, dto, actorId);
   }
 
   @Post(":id/acknowledgement/receive")

@@ -42,8 +42,14 @@ export class UserMapper {
     response.avatar_url = user.avatar_url ?? undefined;
     response.role = user.role;
     response.status = user.status;
+    response.company_id = user.company_id ?? undefined;
     response.branch_id = user.branch_id ?? undefined;
     response.department_id = user.department_id ?? undefined;
+    response.single_device_login =
+      (user as { single_device_login?: boolean }).single_device_login ?? false;
+    response.single_device_policy =
+      (user as { single_device_policy?: string | null }).single_device_policy ??
+      undefined;
     response.is_salesperson = user.is_salesperson;
     response.is_cs_rep = user.is_cs_rep;
     response.is_operations = user.is_operations;

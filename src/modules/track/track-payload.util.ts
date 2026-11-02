@@ -196,6 +196,7 @@ export function enrichHistoryEvents(
     voyage_number?: string | null;
     origin_name?: string | null;
     dest_name?: string | null;
+    location_terminal?: string | null;
   },
 ): TrackHistoryEvent[] {
   return events.map((e) => {
@@ -205,12 +206,18 @@ export function enrichHistoryEvents(
     if (!location && e.type === "CONTAINER") {
       const code = (e.code ?? "").toUpperCase();
       if (["GATE_IN", "GATED_IN", "EMPTY", "PICKED", "STUFFED", "LOADED"].includes(code)) {
-        location = ctx.origin_name ?? null;
-        terminal = location;
+        location = ctx.location_terminal ?? ctx.origin_name ?? null;
+        terminal = ctx.location_terminal ?? location;
       } else if (["DISCHARGED", "RETURNED", "RETURNED_EMPTY"].includes(code)) {
-        location = ctx.dest_name ?? null;
-        terminal = location;
+        location = ctx.location_terminal ?? ctx.dest_name ?? null;
+        terminal = ctx.location_terminal ?? location;
       }
+    }
+    if (!terminal && ctx.location_terminal) {
+      terminal = ctx.location_terminal;
+    }
+    if (!location && ctx.location_terminal) {
+      location = ctx.location_terminal;
     }
     return {
       ...e,

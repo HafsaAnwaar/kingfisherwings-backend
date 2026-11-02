@@ -176,6 +176,29 @@ export class PatchShowAllDto {
   @MaxLength(40)
   line_code?: string | null;
 
+  @ApiPropertyOptional({
+    description: "Depot / terminal / location (shown on track & trace)",
+    example: "Jebel Ali Terminal 2",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  location_terminal?: string | null;
+
+  /** Alias for location_terminal */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  terminal?: string | null;
+
+  /** Alias for location_terminal */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  location?: string | null;
+
   @ApiPropertyOptional({ description: "Alias for line_code" })
   @IsOptional()
   @Allow()
@@ -613,6 +636,44 @@ export class UpdateHoldDto {
   @ValidateIf((_, v) => v !== null)
   @IsDateString()
   held_at?: string | null;
+}
+
+/** Admin port-token confirm (same fields as portal). */
+export class StaffConfirmPortTokenDto {
+  @ApiProperty({ example: "MBL123456" })
+  @IsString()
+  @MaxLength(50)
+  bl_number!: string;
+
+  @ApiProperty({ example: "MSCU1234567" })
+  @IsString()
+  @MaxLength(20)
+  container_number!: string;
+
+  @ApiProperty({ format: "date", example: "2026-10-31" })
+  @IsDateString()
+  date!: string;
+
+  @ApiProperty({ example: "Jebel Ali Gate 3" })
+  @IsString()
+  @MaxLength(300)
+  delivery_location!: string;
+
+  @ApiProperty({ example: "Ahmed Khan" })
+  @IsString()
+  @MaxLength(200)
+  receiver_name!: string;
+
+  @ApiProperty({ example: "+971501234567" })
+  @IsString()
+  @MaxLength(50)
+  receiver_contact!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  port_gate_token?: string;
 }
 
 export class ResumeJobDto {

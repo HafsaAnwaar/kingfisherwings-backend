@@ -220,12 +220,36 @@ export class CreateInvoiceDto {
 export class UpdateInvoiceDto extends PartialType(CreateInvoiceDto) {}
 
 export class CreateCreditNoteDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     format: "uuid",
-    description: "Original customer invoice being credited",
+    description:
+      "Original customer invoice being credited. Optional when job_id + party_id are set (job ledger advance / receipt without invoice).",
   })
+  @IsOptional()
   @IsUUID()
-  credited_invoice_id!: string;
+  credited_invoice_id?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Job ledger link — required when credited_invoice_id is omitted.",
+  })
+  @IsOptional()
+  @IsUUID()
+  job_id?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Customer party — required when credited_invoice_id is omitted.",
+  })
+  @IsOptional()
+  @IsUUID()
+  party_id?: string;
+
+  @ApiPropertyOptional({ example: "AED" })
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency_code?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -240,14 +264,38 @@ export class CreateCreditNoteDto {
   lines?: CreateInvoiceLineDto[];
 }
 
-/** Extra charge against a posted customer invoice (Ch.18). */
+/** Extra charge against a posted customer invoice, or job-only debit (no invoice). */
 export class CreateDebitNoteDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     format: "uuid",
-    description: "Original customer invoice being debited",
+    description:
+      "Original customer invoice being debited. Optional when job_id + party_id are set.",
   })
+  @IsOptional()
   @IsUUID()
-  credited_invoice_id!: string;
+  credited_invoice_id?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Job ledger link — required when credited_invoice_id is omitted.",
+  })
+  @IsOptional()
+  @IsUUID()
+  job_id?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Customer party — required when credited_invoice_id is omitted.",
+  })
+  @IsOptional()
+  @IsUUID()
+  party_id?: string;
+
+  @ApiPropertyOptional({ example: "AED" })
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency_code?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

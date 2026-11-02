@@ -32,8 +32,22 @@ export class UserResponse {
   @ApiProperty({ enum: UserRole }) role!: UserRole;
   @ApiProperty({ enum: UserStatus }) status!: UserStatus;
 
+  @ApiPropertyOptional() company_id?: string;
   @ApiPropertyOptional() branch_id?: string;
   @ApiPropertyOptional() department_id?: string;
+
+  @ApiPropertyOptional({ description: "Tenant display name" })
+  tenant_name?: string;
+  @ApiPropertyOptional() company_name?: string;
+  @ApiPropertyOptional() branch_name?: string;
+  @ApiPropertyOptional() department_name?: string;
+
+  @ApiPropertyOptional({
+    description: "When true, only one active session is allowed.",
+  })
+  single_device_login?: boolean;
+  @ApiPropertyOptional()
+  single_device_policy?: string;
 
   @ApiProperty() is_salesperson!: boolean;
   @ApiProperty() is_cs_rep!: boolean;

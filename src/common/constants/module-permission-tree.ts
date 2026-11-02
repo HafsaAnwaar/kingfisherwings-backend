@@ -67,6 +67,15 @@ export const MODULE_PERMISSION_TREE: PermissionModuleNode[] = [
     ],
   },
   {
+    key: "vendor",
+    label: "Vendor services",
+    submodules: [
+      { key: "users", label: "Vendor users" },
+      { key: "permissions", label: "Vendor permissions" },
+      { key: "disputes", label: "Vendor disputes" },
+    ],
+  },
+  {
     key: "shipments",
     label: "Shipments",
     submodules: [{ key: "module", label: "Shipments" }],

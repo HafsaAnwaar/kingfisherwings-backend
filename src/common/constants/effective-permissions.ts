@@ -1,7 +1,9 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { ALL_BRIDGED_CLASSIC_CODES } from "./matrix-to-classic-bridge";
 import { MODULE_ACCESS_LEVELS } from "./module-permission-tree";
 import { filterPermissionCodes } from "./tenant-enabled-modules";
+import { PARTIES_PERMISSIONS } from "../../modules/parties/constants/parties-permission.constants";
+import { VENDOR_PERMISSIONS } from "../../modules/vendor/constants/vendor-permission.constants";
 
 /**
  * Effective permission codes for JWT / matrix display.
@@ -48,6 +50,16 @@ export async function collectEffectivePermissionCodes(
   }
   for (const grant of direct) {
     codes.add(`${grant.permission.module}.${grant.permission.action}`);
+  }
+
+  // Tenant admins always retain parties + vendor services (matrix cannot lock them out).
+  const userRow = await tx.user.findFirst({
+    where: { id: userId, tenant_id: tenantId },
+    select: { role: true },
+  });
+  if (userRow?.role === UserRole.TENANT_ADMIN) {
+    for (const code of Object.values(PARTIES_PERMISSIONS)) codes.add(code);
+    for (const code of Object.values(VENDOR_PERMISSIONS)) codes.add(code);
   }
 
   let modules = enabledModules;
