@@ -1031,6 +1031,12 @@ export class InvoicesService {
     dto: CreateCreditNoteDto,
     actorId?: string,
   ) {
+    // Path A: against a posted customer invoice (classic).
+    // Path B: job ledger only — advance / receipt without an invoice.
+    if (!dto.credited_invoice_id) {
+      return this.createJobLedgerNote(tenantId, "CREDIT_NOTE", dto, actorId);
+    }
+
     const original = await this.findOne(tenantId, dto.credited_invoice_id);
 
     if (original.invoice_type !== "CUSTOMER_INVOICE") {
@@ -1077,7 +1083,7 @@ export class InvoicesService {
           invoice_number: invoiceNumber,
           invoice_type: "CREDIT_NOTE",
           status: "DRAFT",
-          job_id: original.job_id,
+          job_id: dto.job_id ?? original.job_id,
           party_id: original.party_id,
           branch_id: original.branch_id,
           department_id: original.department_id,
@@ -1113,6 +1119,10 @@ export class InvoicesService {
     dto: CreateDebitNoteDto,
     actorId?: string,
   ) {
+    if (!dto.credited_invoice_id) {
+      return this.createJobLedgerNote(tenantId, "DEBIT_NOTE", dto, actorId);
+    }
+
     const original = await this.findOne(tenantId, dto.credited_invoice_id);
 
     if (original.invoice_type !== "CUSTOMER_INVOICE") {
@@ -1151,7 +1161,7 @@ export class InvoicesService {
           invoice_number: invoiceNumber,
           invoice_type: "DEBIT_NOTE",
           status: "DRAFT",
-          job_id: original.job_id,
+          job_id: dto.job_id ?? original.job_id,
           party_id: original.party_id,
           branch_id: original.branch_id,
           department_id: original.department_id,
@@ -1179,6 +1189,93 @@ export class InvoicesService {
       }
 
       return this.recalculateAndReturn(tx, tenantId, debitNote.id);
+    });
+  }
+
+  /**
+   * Job-scoped CN/DN without a source invoice (advance receipts / charges).
+   * Appears on the job and in party AR; customer portal can list/pay by job.
+   */
+  private async createJobLedgerNote(
+    tenantId: string,
+    type: "CREDIT_NOTE" | "DEBIT_NOTE",
+    dto: CreateCreditNoteDto | CreateDebitNoteDto,
+    actorId?: string,
+  ) {
+    if (!dto.job_id || !dto.party_id) {
+      throw new BadRequestException(
+        `${type === "CREDIT_NOTE" ? "Credit" : "Debit"} note without an invoice requires job_id and party_id.`,
+      );
+    }
+    if (!dto.lines?.length) {
+      throw new BadRequestException(
+        `${type === "CREDIT_NOTE" ? "Credit" : "Debit"} note requires at least one line.`,
+      );
+    }
+
+    const job = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findFirst({
+        where: { id: dto.job_id!, tenant_id: tenantId, deleted_at: null },
+        select: {
+          id: true,
+          company_id: true,
+          branch_id: true,
+          department_id: true,
+          billing_party_id: true,
+        },
+      }),
+    );
+    if (!job) throw new NotFoundException("Job not found.");
+
+    const party = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.party.findFirst({
+        where: { id: dto.party_id!, tenant_id: tenantId, deleted_at: null },
+        select: { id: true, vat_number: true },
+      }),
+    );
+    if (!party) throw new NotFoundException("Party not found.");
+
+    const companyId =
+      job.company_id ?? (await this.resolveDefaultCompanyId(tenantId));
+    const currency =
+      dto.currency_code?.toUpperCase() ??
+      (await this.resolveDefaultCurrency(tenantId));
+    const invoiceNumber = await this.numberGenerator.generate(tenantId, type);
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const note = await tx.invoice.create({
+        data: {
+          tenant_id: tenantId,
+          company_id: companyId,
+          invoice_number: invoiceNumber,
+          invoice_type: type,
+          status: "DRAFT",
+          job_id: job.id,
+          party_id: party.id,
+          branch_id: job.branch_id,
+          department_id: job.department_id,
+          credited_invoice_id: null,
+          currency_code: currency,
+          party_vat_number: party.vat_number,
+          remarks: dto.remarks,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+
+      for (const [index, line] of dto.lines!.entries()) {
+        await this.createLineInternal(
+          tx,
+          tenantId,
+          note.id,
+          line,
+          actorId,
+          index,
+          note.vat_rate,
+        );
+      }
+
+      return this.recalculateAndReturn(tx, tenantId, note.id);
     });
   }
 
@@ -2245,5 +2342,13 @@ export class InvoicesService {
       }),
     );
     return company?.id;
+  }
+
+  private async resolveDefaultCurrency(tenantId: string): Promise<string> {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deleted_at: null },
+      select: { base_currency: true },
+    });
+    return (tenant?.base_currency ?? "AED").toUpperCase();
   }
 }

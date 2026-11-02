@@ -7,11 +7,13 @@ import {
   ContainerStatus,
   JobContainerKind,
   Prisma,
+  ShipmentStatus,
 } from "@prisma/client";
 import { parse as parseCsv } from "csv-parse/sync";
 import * as ExcelJS from "exceljs";
 import { looksLikeUuid } from "../../common/utils/business-key.util";
 import { PrismaService } from "../../prisma/prisma.service";
+import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import {
   BulkJobContainersDto,
   ConfirmContainerUploadDto,
@@ -43,7 +45,10 @@ const SAMPLE_HEADERS = [
 
 @Injectable()
 export class JobContainerTabService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly numberGenerator: NumberGeneratorService,
+  ) {}
 
   async getTab(
     tenantId: string,
@@ -198,12 +203,145 @@ export class JobContainerTabService {
       return created;
     });
 
-    void job;
+    // One ACTUAL container with a number → one linked shipment (parity).
+    let shipment_id = row.shipment_id;
+    if (
+      !shipment_id &&
+      row.container_kind === JobContainerKind.ACTUAL &&
+      row.container_number
+    ) {
+      shipment_id = await this.ensureShipmentForContainer(
+        tenantId,
+        job,
+        row.id,
+        row.container_number,
+        actorId,
+      );
+    }
+
     return {
       success: true,
-      data: await this.enrichOne(tenantId, row),
+      data: await this.enrichOne(
+        tenantId,
+        shipment_id && shipment_id !== row.shipment_id
+          ? { ...row, shipment_id }
+          : row,
+      ),
       warnings,
+      shipment_id,
     };
+  }
+
+  /**
+   * Ensure every ACTUAL numbered container on the job has a linked shipment.
+   * Count of such containers ≈ count of generated shipments.
+   */
+  async generateShipmentsFromContainers(
+    tenantId: string,
+    jobId: string,
+    actorId?: string,
+  ) {
+    const job = await this.assertJob(tenantId, jobId);
+    const containers = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobContainer.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          container_kind: JobContainerKind.ACTUAL,
+          container_number: { not: null },
+        },
+        orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+      }),
+    );
+
+    const created: string[] = [];
+    const linked: string[] = [];
+    for (const c of containers) {
+      if (c.shipment_id) {
+        linked.push(c.shipment_id);
+        continue;
+      }
+      if (!c.container_number) continue;
+      const sid = await this.ensureShipmentForContainer(
+        tenantId,
+        job,
+        c.id,
+        c.container_number,
+        actorId,
+      );
+      if (sid) created.push(sid);
+    }
+
+    return {
+      success: true,
+      data: {
+        container_count: containers.length,
+        shipment_count: created.length + linked.length,
+        created_shipment_ids: created,
+        existing_shipment_ids: linked,
+      },
+    };
+  }
+
+  private async ensureShipmentForContainer(
+    tenantId: string,
+    job: {
+      id: string;
+      job_type: import("@prisma/client").JobType;
+      shipper_id: string | null;
+      consignee_id: string | null;
+      billing_party_id: string | null;
+      origin_port_id: string | null;
+      dest_port_id: string | null;
+      commodity: string | null;
+      etd: Date | null;
+      eta: Date | null;
+    },
+    containerId: string,
+    containerNumber: string,
+    actorId?: string,
+  ): Promise<string | null> {
+    const shipmentNumber = await this.numberGenerator.generate(
+      tenantId,
+      "SHIPMENT",
+    );
+    const customerId =
+      job.billing_party_id ?? job.shipper_id ?? job.consignee_id;
+    if (!customerId) {
+      throw new BadRequestException(
+        "Cannot auto-create shipment for container: job needs billing party, shipper, or consignee.",
+      );
+    }
+
+    const shipment = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const created = await tx.shipment.create({
+        data: {
+          tenant_id: tenantId,
+          shipment_number: shipmentNumber,
+          job_id: job.id,
+          job_type: job.job_type,
+          status: ShipmentStatus.BOOKED,
+          shipper_id: job.shipper_id,
+          consignee_id: job.consignee_id,
+          customer_id: customerId,
+          origin_port_id: job.origin_port_id,
+          dest_port_id: job.dest_port_id,
+          commodity: job.commodity,
+          etd: job.etd,
+          eta: job.eta,
+          container_numbers: containerNumber,
+          created_by: actorId,
+          updated_by: actorId,
+        },
+      });
+      await tx.jobContainer.update({
+        where: { id: containerId },
+        data: { shipment_id: created.id, updated_by: actorId },
+      });
+      return created;
+    });
+    return shipment.id;
   }
 
   async update(
@@ -1086,7 +1224,19 @@ export class JobContainerTabService {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
-        select: { id: true, job_type: true, parent_job_id: true },
+        select: {
+          id: true,
+          job_type: true,
+          parent_job_id: true,
+          shipper_id: true,
+          consignee_id: true,
+          billing_party_id: true,
+          origin_port_id: true,
+          dest_port_id: true,
+          commodity: true,
+          etd: true,
+          eta: true,
+        },
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");

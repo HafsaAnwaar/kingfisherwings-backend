@@ -1,11 +1,41 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Allow, IsOptional, IsString, MaxLength } from "class-validator";
+import {
+  Allow,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from "class-validator";
+
+export class SendDeliveryAcknowledgementDto {
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "JobContainer to acknowledge when the job has multiple containers",
+  })
+  @IsOptional()
+  @IsUUID()
+  container_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  remarks?: string;
+}
 
 export class SubmitDeliveryAcknowledgementDto {
   @ApiProperty({ example: "Ahmed Al-Mansoori" })
   @IsString()
   @MaxLength(200)
   receiver_name!: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Container being acknowledged (required when job has multiple)",
+  })
+  @IsOptional()
+  @IsUUID()
+  container_id?: string;
 
   @ApiPropertyOptional({ example: "Warehouse Supervisor" })
   @IsOptional()

@@ -17,6 +17,7 @@ import { renderBrandedEmail } from "../../shared/email/branded-email.template";
 import { PdfService } from "../../shared/pdf/pdf.service";
 import {
   ReceiveDeliveryAcknowledgementDto,
+  SendDeliveryAcknowledgementDto,
   SubmitDeliveryAcknowledgementDto,
 } from "./dto/delivery-acknowledgement.dto";
 
@@ -76,6 +77,7 @@ export class DeliveryAcknowledgementService {
         template: this.formalTemplate(job),
         acknowledgement: ack,
         path_hints: {
+          send: `/jobs/${jobId}/acknowledgement/send`,
           submit: `/portal/shipments/{id}/acknowledgement`,
           receive: `/jobs/${jobId}/acknowledgement/receive`,
           upload_signature: `/portal/shipments/{id}/acknowledgement/signature`,
@@ -83,8 +85,60 @@ export class DeliveryAcknowledgementService {
           list_attachments: `/jobs/${jobId}/acknowledgement/attachments`,
           upload_attachment: `/jobs/${jobId}/acknowledgement/attachments`,
         },
+        flow: "admin_sends_then_customer_acknowledges",
       },
     };
+  }
+
+  /** Admin issues / sends acknowledgement request to the customer. */
+  async send(
+    tenantId: string,
+    jobId: string,
+    dto: SendDeliveryAcknowledgementDto,
+    actorId: string,
+  ) {
+    const job = await this.assertJob(tenantId, jobId);
+    if (dto.container_id) {
+      const ctr = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.jobContainer.findFirst({
+          where: {
+            id: dto.container_id!,
+            job_id: jobId,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { id: true },
+        }),
+      );
+      if (!ctr) throw new NotFoundException("Container not found on this job.");
+    }
+
+    const draft = await this.getOrCreateDraft(tenantId, jobId, actorId);
+    if (
+      draft.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN ||
+      draft.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER
+    ) {
+      throw new BadRequestException(
+        `Acknowledgement already ${draft.status}.`,
+      );
+    }
+
+    const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.deliveryAcknowledgement.update({
+        where: { id: draft.id },
+        data: {
+          status: DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER,
+          container_id: dto.container_id ?? draft.container_id,
+          sent_at: new Date(),
+          sent_by_user_id: actorId,
+          remarks: dto.remarks?.trim() ?? draft.remarks,
+          template_snapshot: this.formalTemplate(job) as never,
+          updated_by: actorId,
+        },
+      }),
+    );
+
+    return { success: true, data: updated, message: "Sent to customer" };
   }
 
   async listAttachments(tenantId: string, jobId: string) {
@@ -227,22 +281,46 @@ export class DeliveryAcknowledgementService {
   ) {
     const job = await this.assertJob(tenantId, jobId);
     const draft = await this.getOrCreateDraft(tenantId, jobId, opts.userId);
-    if (draft.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN) {
+    if (
+      draft.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN ||
+      draft.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER
+    ) {
       throw new BadRequestException(
-        "Acknowledgement already received by admin.",
+        "Acknowledgement already completed.",
       );
     }
+
+    if (dto.container_id) {
+      const ctr = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.jobContainer.findFirst({
+          where: {
+            id: dto.container_id!,
+            job_id: jobId,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { id: true },
+        }),
+      );
+      if (!ctr) throw new NotFoundException("Container not found on this job.");
+    }
+
+    const fromAdminSend =
+      draft.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER;
 
     const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.deliveryAcknowledgement.update({
         where: { id: draft.id },
         data: {
-          status: DeliveryAcknowledgementStatus.SUBMITTED,
+          status: fromAdminSend
+            ? DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER
+            : DeliveryAcknowledgementStatus.SUBMITTED,
           acknowledged_at: new Date(),
           receiver_name: dto.receiver_name.trim(),
           receiver_title: dto.receiver_title?.trim() ?? null,
           goods_condition: dto.goods_condition?.trim() ?? null,
           remarks: dto.remarks?.trim() ?? null,
+          container_id: dto.container_id ?? draft.container_id,
           submitted_by_user_id: opts.userId,
           submitted_by_party_id: opts.partyId ?? null,
           template_snapshot: this.formalTemplate(job) as never,
@@ -338,9 +416,12 @@ export class DeliveryAcknowledgementService {
     if (!ack) {
       throw new NotFoundException("No acknowledgement submitted yet.");
     }
-    if (ack.status !== DeliveryAcknowledgementStatus.SUBMITTED) {
+    if (
+      ack.status !== DeliveryAcknowledgementStatus.SUBMITTED &&
+      ack.status !== DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER
+    ) {
       throw new BadRequestException(
-        `Acknowledgement status is ${ack.status}; expected SUBMITTED.`,
+        `Acknowledgement status is ${ack.status}; expected SUBMITTED or ACKNOWLEDGED_BY_CUSTOMER.`,
       );
     }
 

@@ -45,6 +45,10 @@ export type TrackTimelinePayload = {
   container_type: string | null;
   iso_size: string | null;
   container_kind: string | null;
+  /** Depot / terminal from job show_all. */
+  location_terminal: string | null;
+  terminal: string | null;
+  location: string | null;
   /** POL / PTS / POD legs — same array as route_legs / ports. */
   progress_legs: TrackRouteLeg[];
   route_legs: TrackRouteLeg[];
@@ -930,6 +934,7 @@ export class TrackTimelineService {
       voyage_number: voyageNumber,
       origin_name: origin?.name ?? null,
       dest_name: destination?.name ?? null,
+      location_terminal: job.location_terminal ?? null,
     });
 
     const summary = this.buildSummary(
@@ -1052,6 +1057,9 @@ export class TrackTimelineService {
       destination,
       vessel_name: vesselName,
       voyage_number: voyageNumber,
+      location_terminal: job.location_terminal ?? null,
+      terminal: job.location_terminal ?? null,
+      location: job.location_terminal ?? null,
       references: {
         hawb_number: job.air_details?.hawb_number ?? null,
         mawb_number: job.air_details?.mawb_number ?? null,

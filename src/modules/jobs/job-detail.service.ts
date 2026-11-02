@@ -218,7 +218,10 @@ export class JobDetailService {
       dto.billing_party_id !== undefined ||
       dto.agent_name !== undefined ||
       dto.agent_code !== undefined ||
-      dto.agent_id !== undefined;
+      dto.agent_id !== undefined ||
+      dto.location_terminal !== undefined ||
+      dto.terminal !== undefined ||
+      dto.location !== undefined;
     if (!hasField) {
       throw new BadRequestException(
         "Provide at least one show_all field to update.",
@@ -313,6 +316,13 @@ export class JobDetailService {
         ...(lineCode !== undefined ? { line_code: lineCode } : {}),
         ...(dto.company_code !== undefined
           ? { edi_company_code: dto.company_code }
+          : {}),
+        ...((dto.location_terminal ?? dto.terminal ?? dto.location) !==
+        undefined
+          ? {
+              location_terminal:
+                dto.location_terminal ?? dto.terminal ?? dto.location ?? null,
+            }
           : {}),
         ...optionalFkPatch("origin_port_id", originPortId),
         ...optionalFkPatch("dest_port_id", destPortId),
@@ -1103,6 +1113,9 @@ export class JobDetailService {
       voyage_number: job.voyage_number ?? sea?.voyage_number ?? null,
       line_code: job.line_code ?? null,
       company_code: job.edi_company_code ?? null,
+      location_terminal: job.location_terminal ?? null,
+      terminal: job.location_terminal ?? null,
+      location: job.location_terminal ?? null,
       hold_reason: job.hold_reason ?? null,
       held_at: job.held_at ?? null,
       expected_release_at: job.expected_release_at ?? null,
@@ -1310,6 +1323,163 @@ export class JobDetailService {
             path_hint: `/shipments/${shipment.id}/detail`,
           }
         : null,
+    };
+  }
+
+  /** Admin view of customer port-token form + containers. */
+  async getPortToken(tenantId: string, jobId: string) {
+    await this.loadJob(tenantId, jobId);
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const detail = await tx.nvoccJobDetail.findFirst({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+      const containers = await tx.jobContainer.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          container_number: { not: null },
+        },
+        select: {
+          id: true,
+          container_number: true,
+          status: true,
+          container_kind: true,
+        },
+        orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+      });
+      return {
+        success: true,
+        data: {
+          port_gate_token: detail?.port_gate_token ?? null,
+          port_token_obtained_at: detail?.port_token_obtained_at ?? null,
+          port_token_form: detail?.port_token_form ?? null,
+          workflow_stage: detail?.workflow_stage ?? null,
+          containers,
+        },
+      };
+    });
+  }
+
+  /** Admin can record/issue port token if customer did not. */
+  async confirmPortToken(
+    tenantId: string,
+    jobId: string,
+    actorId: string,
+    dto: {
+      bl_number: string;
+      container_number: string;
+      date: string;
+      delivery_location: string;
+      receiver_name: string;
+      receiver_contact: string;
+      port_gate_token?: string;
+    },
+  ) {
+    await this.loadJob(tenantId, jobId);
+    const { randomBytes } = await import("crypto");
+    const formDate = new Date(dto.date);
+    if (Number.isNaN(formDate.getTime())) {
+      throw new BadRequestException("Invalid date");
+    }
+    const port_token_form = {
+      bl_number: dto.bl_number.trim(),
+      container_number: dto.container_number.trim().toUpperCase(),
+      date: formDate.toISOString().slice(0, 10),
+      delivery_location: dto.delivery_location.trim(),
+      receiver_name: dto.receiver_name.trim(),
+      receiver_contact: dto.receiver_contact.trim(),
+      submitted_at: new Date().toISOString(),
+      submitted_by: "STAFF",
+    };
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      let detail = await tx.nvoccJobDetail.findFirst({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!detail) {
+        detail = await tx.nvoccJobDetail.create({
+          data: {
+            tenant_id: tenantId,
+            job_id: jobId,
+            created_by: actorId,
+            updated_by: actorId,
+          },
+        });
+      }
+      const token =
+        dto.port_gate_token?.trim() ||
+        detail.port_gate_token ||
+        randomBytes(16).toString("hex");
+      const updated = await tx.nvoccJobDetail.update({
+        where: { id: detail.id },
+        data: {
+          port_gate_token: token,
+          port_token_obtained_at: new Date(),
+          port_token_form: port_token_form as Prisma.InputJsonValue,
+          workflow_stage: "PORT_TOKEN",
+          stage_changed_at: new Date(),
+          updated_by: actorId,
+        },
+      });
+      await tx.job.update({
+        where: { id: jobId },
+        data: {
+          primary_container_number: port_token_form.container_number,
+          updated_by: actorId,
+        },
+      });
+      return {
+        success: true,
+        data: {
+          port_gate_token: updated.port_gate_token,
+          port_token_obtained_at: updated.port_token_obtained_at,
+          port_token_form,
+        },
+        message: "Port token recorded by admin",
+      };
+    });
+  }
+
+  /** Job finance ledger: CN/DN (and invoices) linked to this job. */
+  async getJobLedger(tenantId: string, jobId: string) {
+    await this.loadJob(tenantId, jobId);
+    const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.findMany({
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          invoice_type: {
+            in: ["CREDIT_NOTE", "DEBIT_NOTE", "CUSTOMER_INVOICE"],
+          },
+        },
+        orderBy: { created_at: "desc" },
+        select: {
+          id: true,
+          invoice_number: true,
+          invoice_type: true,
+          status: true,
+          party_id: true,
+          currency_code: true,
+          total_amount: true,
+          balance_due: true,
+          amount_paid: true,
+          credited_invoice_id: true,
+          remarks: true,
+          invoice_date: true,
+          created_at: true,
+        },
+      }),
+    );
+    return {
+      success: true,
+      data: {
+        job_id: jobId,
+        entries: rows,
+        credit_notes: rows.filter((r) => r.invoice_type === "CREDIT_NOTE"),
+        debit_notes: rows.filter((r) => r.invoice_type === "DEBIT_NOTE"),
+      },
     };
   }
 

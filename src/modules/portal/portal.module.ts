@@ -150,6 +150,7 @@ import { PortalVerificationController } from "./portal-verification.controller";
     PortalCcpService,
     PortalPreferencesService,
     PortalTasksService,
+    PortalNvoccWorkflowService,
     PortalAuthGuard,
   ],
 })

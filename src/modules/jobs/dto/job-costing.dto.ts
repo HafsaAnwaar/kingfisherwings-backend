@@ -34,6 +34,25 @@ export class ChargeSectionDto {
   @IsUUID()
   charge_code_id!: string;
 
+  /** FE echo from GET — ignored on write; accepted so composite create does not 400. */
+  @ApiPropertyOptional({
+    description: "Echo-only; not persisted. Prefer charge_code_id.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  charge_code?: string;
+
+  /** FE echo from GET — ignored on write. Line text stays in `description`. */
+  @ApiPropertyOptional({
+    description:
+      "Echo-only charge master name; ignored. Use `description` for the line narrative (may differ from master).",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  charge_code_name?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -45,7 +64,11 @@ export class ChargeSectionDto {
   @IsString()
   remarks?: string;
 
-  @ApiProperty({ example: "Ocean Freight" })
+  @ApiProperty({
+    example: "Ocean Freight — MSCU1234567 POL/POD",
+    description:
+      "Free-text line description; independent of charge_code_name (master).",
+  })
   @IsString()
   @Length(1, 300)
   description!: string;

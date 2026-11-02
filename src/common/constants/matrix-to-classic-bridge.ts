@@ -2,6 +2,7 @@ import { QUOTATIONS_PERMISSIONS } from "../../modules/quotations/constants/quota
 import { SHIPMENTS_PERMISSIONS } from "../../modules/shipments/constants/shipments-permission.constants";
 import { CRM_PERMISSIONS } from "../../modules/crm/constants/crm-permission.constants";
 import { PARTIES_PERMISSIONS } from "../../modules/parties/constants/parties-permission.constants";
+import { VENDOR_PERMISSIONS } from "../../modules/vendor/constants/vendor-permission.constants";
 import { INVOICES_PERMISSIONS } from "../../modules/invoices/constants/invoices-permission.constants";
 import { GL_PERMISSIONS } from "../../modules/gl/constants/gl-permission.constants";
 import { PAYMENTS_PERMISSIONS } from "../../modules/payments/constants/payments-permission.constants";
@@ -116,6 +117,27 @@ export const MATRIX_TO_CLASSIC_BRIDGE: Record<string, BridgeEntry> = Object.from
       PARTIES_PERMISSIONS.UPDATE,
       PARTIES_PERMISSIONS.DELETE,
     ],
+  ),
+  node(
+    "vendor",
+    "users",
+    [VENDOR_PERMISSIONS.VIEW_USERS],
+    [VENDOR_PERMISSIONS.VIEW_USERS, VENDOR_PERMISSIONS.MANAGE_USERS],
+  ),
+  node(
+    "vendor",
+    "permissions",
+    [VENDOR_PERMISSIONS.VIEW_PERMISSIONS],
+    [
+      VENDOR_PERMISSIONS.VIEW_PERMISSIONS,
+      VENDOR_PERMISSIONS.MANAGE_PERMISSIONS,
+    ],
+  ),
+  node(
+    "vendor",
+    "disputes",
+    [VENDOR_PERMISSIONS.MANAGE_DISPUTES],
+    [VENDOR_PERMISSIONS.MANAGE_DISPUTES],
   ),
   node(
     "finance",

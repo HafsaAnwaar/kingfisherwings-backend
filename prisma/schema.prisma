@@ -2752,6 +2752,8 @@ model Job {
   vessel_name                String?          @db.VarChar(200)
   voyage_number              String?          @db.VarChar(50)
   line_code                  String?          @db.VarChar(40)
+  /// Depot / terminal / location shown on show_all and track & trace.
+  location_terminal          String?          @db.VarChar(200)
 
   created_at DateTime  @default(now()) @db.Timestamptz
   updated_at DateTime  @updatedAt @db.Timestamptz
@@ -3785,6 +3787,7 @@ model JobContainer {
   free_days        ContainerFreeDays?
   damage_reports   DamageReport[]
   dimension_lines  JobDimensionLine[]
+  delivery_acknowledgements DeliveryAcknowledgement[]
 
   @@index([tenant_id])
   @@index([tenant_id, job_id])
@@ -4216,15 +4219,21 @@ model QuotationStatusCatalog {
 
 enum DeliveryAcknowledgementStatus {
   DRAFT
+  /// Admin issued / sent acknowledgement request to customer.
+  SENT_TO_CUSTOMER
   SUBMITTED
+  /// Customer signed / acknowledged receipt (admin→customer flow).
+  ACKNOWLEDGED_BY_CUSTOMER
   RECEIVED_BY_ADMIN
 }
 
-/// Customer formal goods-received acknowledgement (portal → admin).
+/// Delivery acknowledgement (admin sends → customer acknowledges).
 model DeliveryAcknowledgement {
   id                   String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id            String                         @db.Uuid
   job_id               String                         @unique @db.Uuid
+  /// Optional JobContainer when multiple containers on the job.
+  container_id         String?                        @db.Uuid
   status               DeliveryAcknowledgementStatus  @default(DRAFT)
   acknowledged_at      DateTime?                      @db.Timestamptz
   receiver_name        String?                        @db.VarChar(200)
@@ -4236,6 +4245,8 @@ model DeliveryAcknowledgement {
   template_snapshot    Json?
   submitted_by_party_id String?                       @db.Uuid
   submitted_by_user_id String?                        @db.Uuid
+  sent_by_user_id      String?                        @db.Uuid
+  sent_at              DateTime?                      @db.Timestamptz
   received_by_user_id  String?                        @db.Uuid
   received_at          DateTime?                      @db.Timestamptz
   proof_of_delivery_id String?                        @db.Uuid
@@ -4246,10 +4257,12 @@ model DeliveryAcknowledgement {
   deleted_at           DateTime?                      @db.Timestamptz
 
   job         Job                              @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  container   JobContainer?                    @relation(fields: [container_id], references: [id], onDelete: SetNull)
   attachments DeliveryAcknowledgementAttachment[]
 
   @@unique([tenant_id, job_id])
   @@index([tenant_id, status])
+  @@index([tenant_id, container_id])
   @@map("delivery_acknowledgements")
 }
 
