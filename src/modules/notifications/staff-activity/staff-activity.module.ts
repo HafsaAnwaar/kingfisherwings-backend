@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Global, Module } from "@nestjs/common";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 import { BullModule } from "@nestjs/bull";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -21,7 +21,11 @@ const redisEnabled = isRedisEnabledEnv();
  * setup (same registration pattern as shared/queue) when Redis is enabled;
  * otherwise emails are sent in-process after the response.
  * Disable with STAFF_ACTIVITY_EMAILS=false.
+ *
+ * Marked @Global so AuthService can record login/logout without importing
+ * this module (avoids re-registering APP_INTERCEPTOR).
  */
+@Global()
 @Module({
   imports: [
     PrismaModule,

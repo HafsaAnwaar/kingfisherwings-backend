@@ -12,6 +12,7 @@ import { ConfigService } from "@nestjs/config";
 import { EmailService } from "../../shared/email/email.service";
 import {
   buildPasswordResetEmail,
+  buildStaffCredentialsEmail,
 } from "../../shared/email/branded-email.template";
 
 import {
@@ -551,6 +552,46 @@ export class UsersService {
       });
 
       this.log("CREATE_USER", `User ${user.email} created successfully.`);
+
+      if (dto.send_email !== false && this.email && user.email) {
+        const orgName =
+          tenant.display_name?.trim() || tenant.name?.trim() || "Your company";
+        const fullName =
+          [user.first_name, user.last_name].filter(Boolean).join(" ") ||
+          user.email;
+        const loginBase = (
+          this.config?.get<string>("FRONTEND_URL") ||
+          this.config?.get<string>("APP_URL") ||
+          process.env.FRONTEND_URL ||
+          process.env.APP_URL ||
+          ""
+        )
+          .trim()
+          .replace(/\/$/, "");
+        const branded = buildStaffCredentialsEmail({
+          recipientName: fullName,
+          organizationName: orgName,
+          email: user.email,
+          temporaryPassword,
+          loginUrl: loginBase || undefined,
+        });
+        try {
+          await this.email.send({
+            tenantId,
+            eventType: "USER_INVITE",
+            to: user.email,
+            subject: branded.subject,
+            body: branded.html,
+            createdBy: auditActorId,
+          });
+        } catch (err) {
+          this.logger.warn(
+            `Staff credentials email failed for ${user.email}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }
 
       return {
         user,

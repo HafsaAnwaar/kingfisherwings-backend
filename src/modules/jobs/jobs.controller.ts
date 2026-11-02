@@ -4272,17 +4272,43 @@ export class JobsController {
 
   @Post(":id/acknowledgement/send")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiConsumes("application/json", "multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        message: {
+          type: "string",
+          description: "Written acknowledgement message for the customer",
+        },
+        remarks: {
+          type: "string",
+          description: "Alias for message",
+        },
+        container_id: { type: "string", format: "uuid" },
+        file: {
+          type: "string",
+          format: "binary",
+          description: "Optional attachment",
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
   @ApiOperation({
     summary:
-      "Admin sends delivery acknowledgement to customer (optional container_id when multi-container)",
+      "Admin sends written delivery acknowledgement to customer (optional attachment)",
   })
   sendAcknowledgement(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: SendDeliveryAcknowledgementDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.acknowledgement.send(tenantId, id, dto, actorId);
+    return this.acknowledgement.send(tenantId, id, dto, actorId, file);
   }
 
   @Post(":id/acknowledgement/receive")

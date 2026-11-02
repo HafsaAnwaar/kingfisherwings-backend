@@ -1,13 +1,17 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   DeliveryAcknowledgementStatus,
   DocumentSource,
   DocumentType,
+  NotificationType,
   OpsUploaderSide,
+  Prisma,
 } from "@prisma/client";
 import { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -15,6 +19,8 @@ import { StorageService } from "../../shared/storage/storage.service";
 import { EmailService } from "../../shared/email/email.service";
 import { renderBrandedEmail } from "../../shared/email/branded-email.template";
 import { PdfService } from "../../shared/pdf/pdf.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { portalPartyIdsFromJob } from "../portal/helpers/portal-ownership.helper";
 import {
   ReceiveDeliveryAcknowledgementDto,
   SendDeliveryAcknowledgementDto,
@@ -23,24 +29,33 @@ import {
 
 @Injectable()
 export class DeliveryAcknowledgementService {
+  private readonly logger = new Logger(DeliveryAcknowledgementService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly email: EmailService,
     private readonly pdf: PdfService,
+    @Optional() private readonly notifications?: NotificationEmitterService,
   ) {}
 
-  formalTemplate(job: {
-    job_number: string;
-    commodity?: string | null;
-    pieces?: number | null;
-    gross_weight?: unknown;
-  }) {
+  formalTemplate(
+    job: {
+      job_number: string;
+      commodity?: string | null;
+      pieces?: number | null;
+      gross_weight?: unknown;
+    },
+    adminMessage?: string | null,
+  ) {
     return {
       title: "Goods Receipt Acknowledgement",
       company: "King Fisher Technologies",
+      message: adminMessage?.trim() || null,
       body: [
-        `I/We hereby acknowledge receipt of the goods under job ${job.job_number}.`,
+        adminMessage?.trim()
+          ? adminMessage.trim()
+          : `I/We hereby acknowledge receipt of the goods under job ${job.job_number}.`,
         job.commodity
           ? `Commodity / description: ${job.commodity}.`
           : "Commodity as per shipping documents.",
@@ -69,13 +84,35 @@ export class DeliveryAcknowledgementService {
         },
       }),
     );
+    const customerMarked =
+      ack?.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER ||
+      ack?.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN;
+    const snapshot =
+      ack?.template_snapshot &&
+      typeof ack.template_snapshot === "object" &&
+      !Array.isArray(ack.template_snapshot)
+        ? (ack.template_snapshot as Record<string, unknown>)
+        : null;
+    const adminMessage =
+      (typeof snapshot?.message === "string" ? snapshot.message : null) ||
+      ack?.remarks ||
+      null;
+
     return {
       success: true,
       data: {
         job_id: jobId,
         job_number: job.job_number,
-        template: this.formalTemplate(job),
-        acknowledgement: ack,
+        template: this.formalTemplate(job, adminMessage),
+        acknowledgement: ack
+          ? {
+              ...ack,
+              admin_message: adminMessage,
+              customer_marked_received: customerMarked,
+              customer_acknowledged_at: ack.acknowledged_at,
+            }
+          : null,
+        customer_marked_received: customerMarked,
         path_hints: {
           send: `/jobs/${jobId}/acknowledgement/send`,
           submit: `/portal/shipments/{id}/acknowledgement`,
@@ -90,14 +127,15 @@ export class DeliveryAcknowledgementService {
     };
   }
 
-  /** Admin issues / sends acknowledgement request to the customer. */
+  /** Admin issues / sends written acknowledgement (+ optional file) to the customer. */
   async send(
     tenantId: string,
     jobId: string,
     dto: SendDeliveryAcknowledgementDto,
     actorId: string,
+    file?: Express.Multer.File,
   ) {
-    const job = await this.assertJob(tenantId, jobId);
+    const job = await this.assertJobFull(tenantId, jobId);
     if (dto.container_id) {
       const ctr = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.jobContainer.findFirst({
@@ -123,22 +161,77 @@ export class DeliveryAcknowledgementService {
       );
     }
 
-    const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.deliveryAcknowledgement.update({
+    const message =
+      dto.message?.trim() || dto.remarks?.trim() || draft.remarks || null;
+    if (!message) {
+      throw new BadRequestException(
+        "A written acknowledgement message is required.",
+      );
+    }
+
+    const snapshot = this.formalTemplate(job, message);
+
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.deliveryAcknowledgement.update({
         where: { id: draft.id },
         data: {
           status: DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER,
           container_id: dto.container_id ?? draft.container_id,
           sent_at: new Date(),
           sent_by_user_id: actorId,
-          remarks: dto.remarks?.trim() ?? draft.remarks,
-          template_snapshot: this.formalTemplate(job) as never,
+          remarks: message,
+          template_snapshot: snapshot as never,
           updated_by: actorId,
         },
-      }),
-    );
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId,
+          action: "ACK_SENT_TO_CUSTOMER",
+          entity: "JOB",
+          entity_id: jobId,
+          new_values: {
+            status: DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER,
+          } as Prisma.InputJsonValue,
+          metadata: {
+            acknowledgement_id: row.id,
+            message: message.slice(0, 240),
+            has_attachment: Boolean(file?.buffer?.length),
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return row;
+    });
 
-    return { success: true, data: updated, message: "Sent to customer" };
+    if (file?.buffer?.length) {
+      await this.uploadAttachment(tenantId, jobId, file, actorId);
+    }
+
+    const partyIds = portalPartyIdsFromJob(job);
+    for (const partyId of partyIds) {
+      void this.notifications
+        ?.notifyPartyPortalUsers(tenantId, partyId, {
+          type: NotificationType.DOCUMENT_READY,
+          title: `Acknowledgement requested — ${job.job_number}`,
+          message:
+            "Your logistics partner has sent a delivery acknowledgement. Please review and mark as received.",
+          entity_type: "JOB",
+          entity_id: jobId,
+          link_path: `/portal/shipments`,
+        })
+        .catch(() => undefined);
+    }
+
+    return {
+      success: true,
+      data: {
+        ...updated,
+        admin_message: message,
+        customer_marked_received: false,
+      },
+      message: "Sent to customer",
+    };
   }
 
   async listAttachments(tenantId: string, jobId: string) {
@@ -285,8 +378,12 @@ export class DeliveryAcknowledgementService {
       draft.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN ||
       draft.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER
     ) {
+      throw new BadRequestException("Acknowledgement already completed.");
+    }
+
+    if (draft.status !== DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER) {
       throw new BadRequestException(
-        "Acknowledgement already completed.",
+        "Acknowledgement must be sent by admin before the customer can mark it received.",
       );
     }
 
@@ -305,63 +402,56 @@ export class DeliveryAcknowledgementService {
       if (!ctr) throw new NotFoundException("Container not found on this job.");
     }
 
-    const fromAdminSend =
-      draft.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER;
-
-    const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.deliveryAcknowledgement.update({
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.deliveryAcknowledgement.update({
         where: { id: draft.id },
         data: {
-          status: fromAdminSend
-            ? DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER
-            : DeliveryAcknowledgementStatus.SUBMITTED,
+          status: DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER,
           acknowledged_at: new Date(),
           receiver_name: dto.receiver_name.trim(),
           receiver_title: dto.receiver_title?.trim() ?? null,
           goods_condition: dto.goods_condition?.trim() ?? null,
-          remarks: dto.remarks?.trim() ?? null,
+          remarks: dto.remarks?.trim() ?? draft.remarks,
           container_id: dto.container_id ?? draft.container_id,
           submitted_by_user_id: opts.userId,
           submitted_by_party_id: opts.partyId ?? null,
-          template_snapshot: this.formalTemplate(job) as never,
           updated_by: opts.userId,
         },
-      }),
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: opts.userId,
+          action: "ACK_BY_CUSTOMER",
+          entity: "JOB",
+          entity_id: jobId,
+          new_values: {
+            status: DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER,
+            receiver_name: dto.receiver_name.trim(),
+          } as Prisma.InputJsonValue,
+          metadata: {
+            acknowledgement_id: row.id,
+            goods_condition: dto.goods_condition ?? null,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return row;
+    });
+
+    await this.emailTenantAdminsOnCustomerAck(
+      tenantId,
+      job.job_number,
+      dto,
+      opts.userId,
     );
 
-    try {
-      const branded = renderBrandedEmail({
-        subject: `Delivery acknowledgement received — ${job.job_number}`,
-        headline: "Customer delivery acknowledgement submitted",
-        recipientName: "Operations Team",
-        audience: "STAFF",
-        intro: [
-          `A formal goods receipt acknowledgement has been submitted for job ${job.job_number}.`,
-          `Receiver: ${dto.receiver_name}${dto.receiver_title ? ` (${dto.receiver_title})` : ""}.`,
-          dto.goods_condition
-            ? `Goods condition: ${dto.goods_condition}.`
-            : "No goods condition noted.",
-        ],
-        closing: [
-          "Please review the Acknowledgement tab on the job and mark as received.",
-        ],
-      });
-      await this.email.send({
-        tenantId,
-        eventType: "OTHER",
-        to:
-          process.env.SUPPORT_EMAIL?.trim() ||
-          process.env.SMTP_FROM_EMAIL?.trim() ||
-          "support@kingfisherwings.com",
-        subject: branded.subject,
-        body: branded.html,
-        createdBy: opts.userId,
-      });
-    } catch {
-      /* non-fatal */
-    }
-
-    return { success: true, data: updated };
+    return {
+      success: true,
+      data: {
+        ...updated,
+        customer_marked_received: true,
+      },
+    };
   }
 
   async uploadSignature(
@@ -438,8 +528,8 @@ export class DeliveryAcknowledgementService {
       /* non-fatal — admin can generate later */
     }
 
-    const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.deliveryAcknowledgement.update({
+    const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.deliveryAcknowledgement.update({
         where: { id: ack.id },
         data: {
           status: DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN,
@@ -451,10 +541,32 @@ export class DeliveryAcknowledgementService {
             : ack.remarks,
           updated_by: actorId,
         },
-      }),
-    );
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId,
+          action: "ACK_RECEIVED_BY_ADMIN",
+          entity: "JOB",
+          entity_id: jobId,
+          new_values: {
+            status: DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN,
+          } as Prisma.InputJsonValue,
+          metadata: {
+            acknowledgement_id: row.id,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return row;
+    });
 
-    return { success: true, data: updated };
+    return {
+      success: true,
+      data: {
+        ...updated,
+        customer_marked_received: true,
+      },
+    };
   }
 
   async generateFormalPdf(tenantId: string, jobId: string, actorId: string) {
@@ -490,6 +602,89 @@ export class DeliveryAcknowledgementService {
     };
   }
 
+  private async emailTenantAdminsOnCustomerAck(
+    tenantId: string,
+    jobNumber: string,
+    dto: SubmitDeliveryAcknowledgementDto,
+    actorId: string,
+  ) {
+    try {
+      const { tenant, admins } = await this.prisma.runWithTenant(
+        tenantId,
+        async (tx) => {
+          const tenant = await tx.tenant.findUnique({
+            where: { id: tenantId },
+            select: { email: true, name: true, display_name: true },
+          });
+          const admins = await tx.user.findMany({
+            where: {
+              tenant_id: tenantId,
+              role: "TENANT_ADMIN",
+              status: "ACTIVE",
+              deleted_at: null,
+            },
+            select: { email: true },
+            take: 20,
+          });
+          return { tenant, admins };
+        },
+      );
+      const recipients = [
+        ...new Set(
+          [tenant?.email, ...admins.map((a) => a.email)]
+            .filter((e): e is string => Boolean(e))
+            .map((e) => e.toLowerCase()),
+        ),
+      ];
+      if (!recipients.length) return;
+
+      const company = tenant?.display_name ?? tenant?.name ?? "Your company";
+      const branded = renderBrandedEmail({
+        subject: `Customer marked acknowledgement received — ${jobNumber}`,
+        headline: "Customer marked acknowledgement received",
+        recipientName: "Tenant Administrator",
+        organizationName: company,
+        audience: "STAFF",
+        intro: [
+          `The customer has marked the delivery acknowledgement as received for job ${jobNumber}.`,
+          `Receiver: ${dto.receiver_name}${dto.receiver_title ? ` (${dto.receiver_title})` : ""}.`,
+          dto.goods_condition
+            ? `Goods condition: ${dto.goods_condition}.`
+            : "No goods condition noted.",
+        ],
+        closing: [
+          "Open the job Acknowledgement tab to review and optionally mark as received by admin.",
+        ],
+      });
+
+      for (const to of recipients) {
+        try {
+          await this.email.send({
+            tenantId,
+            eventType: "OTHER",
+            to,
+            subject: branded.subject,
+            body: branded.html,
+            createdBy: actorId,
+            requireDelivery: false,
+          });
+        } catch (err) {
+          this.logger.warn(
+            `Ack admin email to ${to} failed: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Ack admin notify failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
   private async generateFormalPdfInternal(
     tenantId: string,
     jobId: string,
@@ -505,7 +700,16 @@ export class DeliveryAcknowledgementService {
     actorId: string,
   ) {
     const job = await this.assertJob(tenantId, jobId);
-    const template = this.formalTemplate(job);
+    const snapshot =
+      ack.template_snapshot &&
+      typeof ack.template_snapshot === "object" &&
+      !Array.isArray(ack.template_snapshot)
+        ? (ack.template_snapshot as { message?: string })
+        : null;
+    const template = this.formalTemplate(
+      job,
+      snapshot?.message ?? ack.remarks,
+    );
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/><title>${template.title}</title>
 <style>
@@ -582,6 +786,26 @@ export class DeliveryAcknowledgementService {
           commodity: true,
           pieces: true,
           gross_weight: true,
+        },
+      }),
+    );
+    if (!job) throw new NotFoundException("Job not found.");
+    return job;
+  }
+
+  private async assertJobFull(tenantId: string, jobId: string) {
+    const job = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        select: {
+          id: true,
+          job_number: true,
+          commodity: true,
+          pieces: true,
+          gross_weight: true,
+          shipper_id: true,
+          consignee_id: true,
+          billing_party_id: true,
         },
       }),
     );

@@ -249,12 +249,24 @@ describe("Docs / statuses / booking tab / acknowledgement (e2e)", () => {
     expect(tabs).toContain("booking_form");
   });
 
-  it("portal acknowledgement submit → admin receive", async () => {
+  it("admin send → portal mark received → admin receive", async () => {
+    await request(app.getHttpServer())
+      .post(`/jobs/${jobId}/acknowledgement/send`)
+      .set(auth(staffToken))
+      .send({
+        message: "Please confirm receipt of goods for this job.",
+      })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
     const get = await request(app.getHttpServer())
       .get(`/portal/shipments/${shipmentId}/acknowledgement`)
       .set(auth(portalToken))
       .expect(200);
     expect(get.body.data?.template || get.body.template).toBeTruthy();
+    expect(
+      get.body.data?.acknowledgement?.status ||
+        get.body.acknowledgement?.status,
+    ).toBe("SENT_TO_CUSTOMER");
 
     await request(app.getHttpServer())
       .post(`/portal/shipments/${shipmentId}/acknowledgement/signature`)
@@ -282,7 +294,11 @@ describe("Docs / statuses / booking tab / acknowledgement (e2e)", () => {
       .expect(200);
     const ack =
       tab.body.data?.acknowledgement ?? tab.body.acknowledgement ?? null;
-    expect(ack?.status === "SUBMITTED" || ack?.status).toBeTruthy();
+    expect(ack?.status).toBe("ACKNOWLEDGED_BY_CUSTOMER");
+    expect(
+      ack?.customer_marked_received === true ||
+        tab.body.data?.customer_marked_received === true,
+    ).toBe(true);
 
     await request(app.getHttpServer())
       .post(`/jobs/${jobId}/acknowledgement/receive`)

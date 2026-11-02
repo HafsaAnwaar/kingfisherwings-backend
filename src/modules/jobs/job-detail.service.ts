@@ -1196,6 +1196,7 @@ export class JobDetailService {
         ops_continuum: opsContinuumPathHints("JOB", job.id),
         booking_form: this.bookingFormPathHints(job.job_type, job.id),
         acknowledgement: `/jobs/${job.id}/detail/acknowledgement`,
+        acknowledgement_send: `/jobs/${job.id}/acknowledgement/send`,
         acknowledgement_receive: `/jobs/${job.id}/acknowledgement/receive`,
         acknowledgement_generate_pdf: `/jobs/${job.id}/acknowledgement/generate-pdf`,
         job_not_invoiced_do: `/operations/job-not-invoiced-do`,
