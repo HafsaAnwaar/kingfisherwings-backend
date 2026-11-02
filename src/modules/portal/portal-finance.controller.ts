@@ -30,6 +30,7 @@ import { InvoiceAttachmentService } from "../invoices/invoice-attachment.service
 import { VoucherAttachmentService } from "../gl/voucher-attachment.service";
 import { CurrentPortal } from "./decorators/portal.decorators";
 import {
+  PortalCreateDebitNoteDto,
   PortalCreditAgingQueryDto,
   PortalInvoiceQueryDto,
   PortalPaymentQueryDto,
@@ -324,6 +325,20 @@ export class PortalDebitNotesController {
     @Query() query: PortalInvoiceQueryDto,
   ) {
     return this.finance.listDebitNotes(user, query);
+  }
+
+  @Post()
+  @ApiOperation({
+    summary: "Create a debit note (customer → shows on account + job ledger)",
+    description:
+      "Creates a debit note for a job owned by the portal party (shipper/consignee/billing). Optional credited_invoice_id must belong to the same party. Status is SENT so it appears in portal lists and staff job ledger.",
+  })
+  @ApiBody({ type: PortalCreateDebitNoteDto })
+  create(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Body() dto: PortalCreateDebitNoteDto,
+  ) {
+    return this.finance.createDebitNote(user, dto);
   }
 
   @Get(":id")

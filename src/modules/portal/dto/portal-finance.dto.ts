@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
+  ArrayMinSize,
+  IsArray,
   IsDateString,
   IsEnum,
   IsInt,
@@ -8,11 +10,99 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Length,
   Max,
   MaxLength,
   Min,
+  MinLength,
+  ValidateNested,
 } from "class-validator";
 import { InvoiceStatus, InvoiceType } from "@prisma/client";
+
+export class PortalDebitNoteLineDto {
+  @ApiProperty({ example: "Advance payment proof — Job KF-J-001" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(300)
+  description!: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  quantity?: number;
+
+  @ApiProperty({
+    example: 1500,
+    description:
+      "Unit price. If omitted, `amount` is accepted as an alias (treated as unit_price).",
+  })
+  @Transform(({ value, obj }) => {
+    const raw =
+      value !== undefined && value !== null && value !== ""
+        ? value
+        : (obj as { amount?: unknown })?.amount;
+    return raw === undefined || raw === null || raw === ""
+      ? raw
+      : Number(raw);
+  })
+  @IsNumber()
+  @Min(0)
+  unit_price!: number;
+
+  @ApiPropertyOptional({
+    example: 1500,
+    description: "Alias for unit_price when quantity is 1",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  amount?: number;
+}
+
+/**
+ * Customer portal create debit note (shows on their account + job ledger for staff).
+ * Party is always the authenticated portal party — never accept party_id from body.
+ */
+export class PortalCreateDebitNoteDto {
+  @ApiProperty({
+    format: "uuid",
+    description: "Job this debit note belongs to (must be owned by the portal party)",
+  })
+  @IsUUID()
+  job_id!: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Optional posted customer invoice to attach against",
+  })
+  @IsOptional()
+  @IsUUID()
+  credited_invoice_id?: string;
+
+  @ApiPropertyOptional({ example: "AED" })
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency_code?: string;
+
+  @ApiPropertyOptional({
+    example: "Customer payment proof / advance for this job",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  remarks?: string;
+
+  @ApiProperty({ type: [PortalDebitNoteLineDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => PortalDebitNoteLineDto)
+  lines!: PortalDebitNoteLineDto[];
+}
 
 export class PortalInvoiceQueryDto {
   @ApiPropertyOptional({ default: 1 })
