@@ -559,21 +559,18 @@ export class UsersService {
         const fullName =
           [user.first_name, user.last_name].filter(Boolean).join(" ") ||
           user.email;
-        const loginBase = (
-          this.config?.get<string>("FRONTEND_URL") ||
-          this.config?.get<string>("APP_URL") ||
-          process.env.FRONTEND_URL ||
-          process.env.APP_URL ||
-          ""
-        )
-          .trim()
-          .replace(/\/$/, "");
+        const loginUrl =
+          (
+            this.config?.get<string>("STAFF_LOGIN_URL") ||
+            process.env.STAFF_LOGIN_URL ||
+            "https://freightnest.kingfishertec.com/login"
+          ).trim() || "https://freightnest.kingfishertec.com/login";
         const branded = buildStaffCredentialsEmail({
           recipientName: fullName,
           organizationName: orgName,
           email: user.email,
           temporaryPassword,
-          loginUrl: loginBase || undefined,
+          loginUrl,
         });
         try {
           await this.email.send({
