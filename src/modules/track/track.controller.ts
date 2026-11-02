@@ -26,7 +26,9 @@ import { TrackShipmentResponseDto } from "./dto/track-response.dto";
 class TrackQueryDto {
   @ApiPropertyOptional({
     example: "kingfisher",
-    description: "Tenant slug. Optional if Host matches Tenant.domain.",
+    deprecated: true,
+    description:
+      "Optional tenant hint only. Not required — public track resolves by container / BL / AWB alone.",
   })
   @IsOptional()
   @IsString()
@@ -34,9 +36,9 @@ class TrackQueryDto {
   tenant_slug?: string;
 
   @ApiProperty({
-    example: "KFW-J-00042",
+    example: "MSCU1234567",
     description:
-      "Job / shipment number, HAWB, MAWB, HBL, MBL, booking, courier tracking, vehicle, or container number.",
+      "Container number, HBL/MBL, HAWB/MAWB, booking ref, or public tracking token. No tenant slug or username required.",
   })
   @IsString()
   @Length(2, 100)
@@ -66,7 +68,7 @@ export class TrackController {
   @ApiOperation({
     summary: "Public shipment track by reference",
     description:
-      "Live track by job no, BL, AWB, booking, or container. Returns current_status, container_number/type/iso_size, progress_legs/route_legs/ports, and history (completed_at, move, location, vessel/voyage).",
+      "No auth and no tenant_slug required. Pass only ref = container number, BL (HBL/MBL), or AWB (HAWB/MAWB). Returns current_status, container meta, progress_legs, and history.",
   })
   @ApiOkResponse({ type: TrackShipmentResponseDto })
   trackShipment(
@@ -85,7 +87,7 @@ export class TrackController {
   @ApiOperation({
     summary: "Public Track & Trace PDF export",
     description:
-      "Same live lookup as GET /track — returns an application/pdf for the matched job/container/BL/AWB.",
+      "Same as GET /track — ref only (container / BL / AWB). No tenant_slug required.",
   })
   @ApiProduces("application/pdf")
   async trackPdf(
@@ -148,9 +150,9 @@ export class TrackController {
   @Get(":ref")
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOperation({
-    summary: "Public track by path reference (token / job / container alias)",
+    summary: "Public track by path reference (container / BL / AWB / token)",
     description:
-      "Same as GET /track?ref=… — supports share links shaped as /track/{token}.",
+      "Same as GET /track?ref=… — no tenant_slug required. Share links: /track/{token}.",
   })
   trackByPath(
     @Param("ref") ref: string,

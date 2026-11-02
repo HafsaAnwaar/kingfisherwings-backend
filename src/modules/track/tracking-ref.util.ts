@@ -110,10 +110,73 @@ export function shipmentTrackRefOrClauses(q: string): Prisma.ShipmentWhereInput[
   ];
 }
 
+/**
+ * Public track refs only — container, BL (HBL/MBL), AWB (HAWB/MAWB),
+ * booking, tracking token. No tenant slug / username required.
+ */
+export function jobPublicTrackRefOrClauses(q: string): Prisma.JobWhereInput[] {
+  const eq = { equals: q, mode: "insensitive" as const };
+  const containerSome = {
+    some: {
+      deleted_at: null,
+      container_number: eq,
+    },
+  };
+
+  return [
+    { tracking_token: q },
+    { primary_container_number: eq },
+    { air_details: { hawb_number: eq } },
+    { air_details: { mawb_number: eq } },
+    { air_details: { hawb_number_from_origin_agent: eq } },
+    { air_details: { mawb_number_from_origin: eq } },
+    { sea_fcl_details: { hbl_number: eq } },
+    { sea_fcl_details: { mbl_number: eq } },
+    { sea_fcl_details: { booking_number: eq } },
+    { sea_fcl_details: { carrier_booking_ref: eq } },
+    { sea_fcl_details: { mbl_number_from_line: eq } },
+    { sea_fcl_details: { hbl_number_from_agent: eq } },
+    { sea_lcl_details: { hbl_number: eq } },
+    { sea_lcl_details: { mbl_number: eq } },
+    { sea_lcl_details: { booking_number: eq } },
+    { sea_lcl_details: { carrier_booking_ref: eq } },
+    { sea_lcl_details: { mbl_number_from_line: eq } },
+    { sea_lcl_details: { hbl_number_from_agent: eq } },
+    { nvocc_details: { hbl_number: eq } },
+    { nvocc_details: { mbl_number: eq } },
+    { nvocc_details: { carrier_booking_ref: eq } },
+    { courier_details: { tracking_number: eq } },
+    { containers_job: containerSome },
+    { sea_fcl_details: { containers: containerSome } },
+    {
+      shipments: {
+        some: {
+          deleted_at: null,
+          OR: [
+            { hbl_number: eq },
+            { mbl_number: eq },
+            { container_numbers: { contains: q, mode: "insensitive" } },
+            {
+              container_actuals: {
+                some: { deleted_at: null, container_number: eq },
+              },
+            },
+            {
+              job_containers: {
+                some: { deleted_at: null, container_number: eq },
+              },
+            },
+          ],
+        },
+      },
+    },
+  ];
+}
+
 /** Canonical public track URL (query form). Path `/track/:ref` is also accepted. */
-export function publicTrackUrl(ref: string, tenantSlug?: string | null): string {
+export function publicTrackUrl(ref: string, _tenantSlug?: string | null): string {
+  // Public track resolves by ref alone — no tenant_slug required.
   const params = new URLSearchParams({ ref });
-  if (tenantSlug) params.set("tenant_slug", tenantSlug);
   return `/track?${params.toString()}`;
 }
 
