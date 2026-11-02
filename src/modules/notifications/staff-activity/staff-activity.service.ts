@@ -102,6 +102,8 @@ export class StaffActivityService {
               link_path: event.linkPath,
               detail: event.detail ?? null,
               occurred_at: event.occurredAt,
+              // Full phrase — audit `action` column is VarChar(50).
+              action_full: event.action,
             } as Prisma.InputJsonValue,
           },
         }),
@@ -192,7 +194,12 @@ export class StaffActivityService {
           .map((e) => e.toLowerCase()),
       ),
     ];
-    if (!recipients.length) return;
+    if (!recipients.length) {
+      this.logger.warn(
+        `Staff activity ${log.action}: no TENANT_ADMIN / tenant.email recipients for tenant ${job.tenantId}`,
+      );
+      return;
+    }
 
     // Skip when a Tenant Admin notification email already covered this entity+minute.
     if (
@@ -218,9 +225,10 @@ export class StaffActivityService {
     const app = process.env.APP_NAME?.replace(/"/g, "") || "Kingfisher";
     const reference = meta.reference ?? jobRef;
     const detail = meta.detail;
+    const actionLabel = (meta.action_full || log.action).trim();
 
     // Formal human headline: "Sarah Alami created Quotation Q-…"
-    const actionPhrase = log.action.replace(/\bof\b/gi, "").trim();
+    const actionPhrase = actionLabel.replace(/\bof\b/gi, "").trim();
     const targetLabel = reference
       ? `${log.entity} ${reference}`
       : log.entity;
@@ -230,11 +238,14 @@ export class StaffActivityService {
     const summaryLine = role
       ? `${formalHeadline} (${role})`
       : formalHeadline;
+    const subject = `[${app}] Staff Activity: ${actionLabel}${
+      reference ? ` — ${reference}` : ""
+    }`;
 
     const detailRows: Array<{ label: string; value: string }> = [
       { label: "Company", value: company },
       { label: "Performed by", value: performedBy },
-      { label: "Action", value: log.action },
+      { label: "Action", value: actionLabel },
       ...(reference
         ? [{ label: log.entity, value: reference }]
         : [{ label: "Record", value: log.entity }]),
@@ -248,7 +259,7 @@ export class StaffActivityService {
     ];
 
     const branded = renderBrandedEmail({
-      subject: `[${app}] ${formalHeadline}`,
+      subject,
       headline: formalHeadline,
       recipientName: "Tenant Administrator",
       organizationName: company,
@@ -273,7 +284,7 @@ export class StaffActivityService {
     const legacyRows: Array<[string, string | null]> = [
       ["Company", company],
       ["Performed by", performedBy],
-      ["Action", log.action],
+      ["Action", actionLabel],
       [log.entity, reference],
       ["Status", status],
       ["Details", detail ?? null],
@@ -305,7 +316,7 @@ export class StaffActivityService {
           tenantId: job.tenantId,
           eventType: "STAFF_ACTIVITY",
           to,
-          subject: branded.subject,
+          subject,
           body,
           createdBy: log.user_id ?? undefined,
           requireDelivery: false,
