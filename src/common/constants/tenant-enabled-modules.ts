@@ -27,6 +27,10 @@ export function normalizeEnabledModules(
   if (valid.includes("sales") && !valid.includes("shipments")) {
     valid.push("shipments");
   }
+  // Parties moved from Sales to its own product module.
+  if (valid.includes("sales") && !valid.includes("parties")) {
+    valid.push("parties");
+  }
   return [...new Set(valid)];
 }
 
@@ -45,7 +49,7 @@ const CLASSIC_MODULE_TO_PRODUCT: Record<string, string> = {
   quotations: "sales",
   shipments: "shipments",
   crm: "sales",
-  parties: "sales",
+  parties: "parties",
   invoices: "finance",
   "credit-notes": "finance",
   "debit-notes": "finance",

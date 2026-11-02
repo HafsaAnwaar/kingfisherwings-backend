@@ -107,9 +107,21 @@ export const MATRIX_TO_CLASSIC_BRIDGE: Record<string, BridgeEntry> = Object.from
     [CRM_PERMISSIONS.VIEW],
     Object.values(CRM_PERMISSIONS),
   ),
+  // Legacy grants under sales.parties still bridge if present in DB.
   node(
     "sales",
     "parties",
+    [PARTIES_PERMISSIONS.VIEW],
+    [
+      PARTIES_PERMISSIONS.VIEW,
+      PARTIES_PERMISSIONS.CREATE,
+      PARTIES_PERMISSIONS.UPDATE,
+      PARTIES_PERMISSIONS.DELETE,
+    ],
+  ),
+  node(
+    "parties",
+    "module",
     [PARTIES_PERMISSIONS.VIEW],
     [
       PARTIES_PERMISSIONS.VIEW,

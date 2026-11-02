@@ -51,6 +51,7 @@ export function getRoleMatrixPreset(role: UserRole): RoleMatrixGrant[] {
     case UserRole.BRANCH_MANAGER:
       setAccess(grants, "operations", "*", "write");
       setAccess(grants, "sales", "*", "write");
+      setAccess(grants, "parties", "module", "write");
       setAccess(grants, "finance", "*", "read");
       setAccess(grants, "masters", "*", "write");
       setAccess(grants, "admin", "users", "write");
@@ -65,7 +66,7 @@ export function getRoleMatrixPreset(role: UserRole): RoleMatrixGrant[] {
     case UserRole.FINANCE_MANAGER:
     case UserRole.ACCOUNTANT:
       setAccess(grants, "finance", "*", "write");
-      setAccess(grants, "sales", "parties", "read");
+      setAccess(grants, "parties", "module", "read");
       setAccess(grants, "sales", "quotations", "read");
       setAccess(grants, "operations", "*", "read");
       setAccess(grants, "masters", "*", "read");
@@ -75,6 +76,7 @@ export function getRoleMatrixPreset(role: UserRole): RoleMatrixGrant[] {
 
     case UserRole.SALES_MANAGER:
       setAccess(grants, "sales", "*", "write");
+      setAccess(grants, "parties", "module", "write");
       setAccess(grants, "operations", "*", "read");
       setAccess(grants, "masters", "*", "read");
       setAccess(grants, "support", "customer_support", "write");
@@ -83,6 +85,7 @@ export function getRoleMatrixPreset(role: UserRole): RoleMatrixGrant[] {
 
     case UserRole.SALES_EXECUTIVE:
       setAccess(grants, "sales", "*", "write");
+      setAccess(grants, "parties", "module", "write");
       setAccess(grants, "operations", "*", "read");
       setAccess(grants, "masters", "*", "read");
       break;
@@ -90,7 +93,7 @@ export function getRoleMatrixPreset(role: UserRole): RoleMatrixGrant[] {
     case UserRole.OPERATIONS_MANAGER:
     case UserRole.OPERATIONS_EXECUTIVE:
       setAccess(grants, "operations", "*", "write");
-      setAccess(grants, "sales", "parties", "read");
+      setAccess(grants, "parties", "module", "read");
       setAccess(grants, "sales", "quotations", "read");
       setAccess(grants, "masters", "*", "read");
       setAccess(grants, "wms", "module", "write");
@@ -103,7 +106,7 @@ export function getRoleMatrixPreset(role: UserRole): RoleMatrixGrant[] {
       setAccess(grants, "wms", "module", "write");
       setAccess(grants, "operations", "warehouse", "write");
       setAccess(grants, "masters", "*", "read");
-      setAccess(grants, "sales", "parties", "read");
+      setAccess(grants, "parties", "module", "read");
       setAccess(grants, "operations", "*", "read");
       break;
 
@@ -125,7 +128,7 @@ export function getRoleMatrixPreset(role: UserRole): RoleMatrixGrant[] {
 
     case UserRole.CUSTOMER_SUPPORT:
       setAccess(grants, "support", "customer_support", "write");
-      setAccess(grants, "sales", "parties", "read");
+      setAccess(grants, "parties", "module", "read");
       setAccess(grants, "sales", "quotations", "read");
       setAccess(grants, "operations", "*", "write");
       setAccess(grants, "masters", "*", "read");
@@ -144,6 +147,7 @@ export function getRoleMatrixPreset(role: UserRole): RoleMatrixGrant[] {
     case UserRole.AGENT:
       setAccess(grants, "support", "agent", "write");
       setAccess(grants, "sales", "*", "read");
+      setAccess(grants, "parties", "module", "read");
       setAccess(grants, "operations", "*", "read");
       break;
 
