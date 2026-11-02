@@ -20,12 +20,14 @@ import { PaymentsService } from "../gl/payments.service";
 import { InvoicesService } from "../invoices/invoices.service";
 import { PaymentProofsService } from "../invoices/payment-proofs/payment-proofs.service";
 import {
+  PortalCreateDebitNoteDto,
   PortalCreditAgingQueryDto,
   PortalInvoiceQueryDto,
   PortalPaymentQueryDto,
   PORTAL_VISIBLE_INVOICE_STATUSES,
 } from "./dto/portal-finance.dto";
 import { PORTAL_CSV_EXPORT_MAX_ROWS, toCsv } from "./helpers/portal-csv.helper";
+import { portalJobOwnershipWhere } from "./helpers/portal-ownership.helper";
 import { CurrentPortalUser } from "./interfaces/portal-auth.interfaces";
 import { PortalPermissionsService } from "./portal-permissions.service";
 
@@ -161,6 +163,127 @@ export class PortalFinanceService {
         limit: query.limit,
         total,
         totalPages: Math.ceil(total / query.limit) || 1,
+      },
+    };
+  }
+
+  /**
+   * Customer creates a debit note on a job they own.
+   * Party is always the portal party. Status is set to SENT so it appears
+   * in portal lists and is visible to staff on the job ledger.
+   */
+  async createDebitNote(
+    user: CurrentPortalUser,
+    dto: PortalCreateDebitNoteDto,
+  ) {
+    const job = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.job.findFirst({
+        where: {
+          id: dto.job_id,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          ...portalJobOwnershipWhere(user.partyId),
+        },
+        select: { id: true, job_number: true },
+      }),
+    );
+    if (!job) {
+      throw new NotFoundException(
+        "Job not found or not linked to your party account.",
+      );
+    }
+
+    if (dto.credited_invoice_id) {
+      const original = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+        tx.invoice.findFirst({
+          where: {
+            id: dto.credited_invoice_id!,
+            tenant_id: user.tenantId,
+            party_id: user.partyId,
+            deleted_at: null,
+            invoice_type: InvoiceType.CUSTOMER_INVOICE,
+          },
+          select: { id: true, status: true },
+        }),
+      );
+      if (!original) {
+        throw new NotFoundException(
+          "Invoice not found on your account to debit against.",
+        );
+      }
+      if (
+        !["POSTED", "SENT", "PARTIALLY_PAID", "PAID"].includes(original.status)
+      ) {
+        throw new BadRequestException(
+          "Original invoice must be posted before attaching a debit note.",
+        );
+      }
+    }
+
+    const lines = dto.lines.map((l) => ({
+      description: l.description.trim(),
+      quantity: l.quantity ?? 1,
+      unit_price:
+        l.unit_price ??
+        (l.amount != null ? Number(l.amount) : undefined) ??
+        0,
+    }));
+    if (lines.some((l) => !l.description || l.unit_price < 0)) {
+      throw new BadRequestException(
+        "Each line needs a description and a non-negative unit_price.",
+      );
+    }
+
+    const created = await this.invoices.createDebitNote(
+      user.tenantId,
+      {
+        job_id: job.id,
+        party_id: user.partyId,
+        credited_invoice_id: dto.credited_invoice_id,
+        currency_code: dto.currency_code,
+        remarks:
+          dto.remarks?.trim() ||
+          `Customer-submitted debit note for job ${job.job_number}`,
+        lines,
+      },
+      user.id,
+    );
+
+    // Portal lists only POSTED/SENT/… — promote out of DRAFT so customer + staff see it.
+    const submitted = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.invoice.update({
+        where: { id: created.id },
+        data: {
+          status: InvoiceStatus.SENT,
+          sent_at: new Date(),
+          updated_by: user.id,
+        },
+        include: {
+          job: { select: { id: true, job_number: true } },
+          lines: {
+            where: { deleted_at: null },
+            orderBy: { sort_order: "asc" },
+          },
+        },
+      }),
+    );
+
+    return {
+      success: true,
+      data: {
+        ...this.toInvoiceListItem({
+          ...submitted,
+          pdf_url: submitted.pdf_url ?? null,
+        }),
+        lines: submitted.lines.map((line) => ({
+          id: line.id,
+          description: line.description,
+          quantity: line.quantity,
+          unit_price: line.unit_price,
+          line_total: line.amount,
+        })),
+        message:
+          "Debit note created and sent to your account / job ledger for staff review.",
       },
     };
   }
