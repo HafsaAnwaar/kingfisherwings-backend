@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PdfService } from "../../shared/pdf/pdf.service";
+import { buildTrackTraceHtml } from "./track-pdf.util";
 import { jobTrackRefOrClauses } from "./tracking-ref.util";
-import { TrackTimelineService } from "./track-timeline.service";
+import {
+  TrackTimelinePayload,
+  TrackTimelineService,
+} from "./track-timeline.service";
 
 type TenantResolveInput = {
   tenantSlug?: string;
@@ -13,6 +18,7 @@ export class TrackService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TrackTimelineService,
+    private readonly pdf: PdfService,
   ) {}
 
   async track(ref: string, resolve: TenantResolveInput) {
@@ -36,9 +42,10 @@ export class TrackService {
         orderBy: { updated_at: "desc" },
         select: {
           id: true,
+          primary_container_number: true,
           containers_job: {
             where: { deleted_at: null },
-            select: { container_number: true },
+            select: { container_number: true, container_kind: true },
           },
         },
       }),
@@ -48,20 +55,20 @@ export class TrackService {
       throw new NotFoundException("Shipment not found.");
     }
 
-    const payload = await this.timeline.getTimelineForJob(tenant.id, job.id, {
-      includeNotes: false,
-      tenantSlug: tenant.slug,
-    });
-
     const qLower = q.toLowerCase();
     const matched =
       job.containers_job.find(
         (c) => c.container_number?.toLowerCase() === qLower,
       )?.container_number ??
-      (payload.references.container_numbers as string[] | undefined)?.find(
-        (n) => n?.toLowerCase() === qLower,
-      ) ??
-      null;
+      (job.primary_container_number?.toLowerCase() === qLower
+        ? job.primary_container_number
+        : null);
+
+    const payload = await this.timeline.getTimelineForJob(tenant.id, job.id, {
+      includeNotes: false,
+      tenantSlug: tenant.slug,
+      focusContainerNumber: matched,
+    });
 
     return {
       success: true,
@@ -73,33 +80,27 @@ export class TrackService {
           website: tenant.website,
         },
         query: q,
-        matched_container: matched,
-        shipment: {
-          job_id: payload.job_id,
-          job_number: payload.job_number,
-          job_type: payload.job_type,
-          shipment_id: payload.shipment_id,
-          shipment_number: payload.shipment_number,
-          shipment_status: payload.shipment_status,
-          status: payload.status,
-          status_code: payload.status_code,
-          status_label: payload.status_label,
-          etd: payload.etd,
-          eta: payload.eta,
-          commodity: payload.commodity,
-          pieces: payload.pieces,
-          gross_weight: payload.gross_weight,
-          origin: payload.origin,
-          destination: payload.destination,
-          references: payload.references,
-          containers: payload.containers,
-          linked_shipments: payload.linked_shipments,
-          /** @deprecated Prefer `history` — kept for embed/widget compatibility. */
-          milestones: payload.milestones,
-          history: payload.history,
-          summary: payload.summary,
-        },
+        matched_container: matched ?? payload.container_number,
+        shipment: this.toPublicShipment(payload),
+        /** Flat aliases for FE that reads data.* instead of data.shipment.* */
+        current_status: payload.current_status,
+        container_number: payload.container_number,
+        container_type: payload.container_type,
+        iso_size: payload.iso_size,
+        progress_legs: payload.progress_legs,
+        route_legs: payload.route_legs,
+        ports: payload.ports,
+        history: payload.history,
+        moves: payload.moves,
+        events: payload.events,
+        milestones: payload.milestones,
+        summary: payload.summary,
         public_url: payload.public_url,
+        pdf_url: `/track/pdf?ref=${encodeURIComponent(q)}${
+          tenant.slug
+            ? `&tenant_slug=${encodeURIComponent(tenant.slug)}`
+            : ""
+        }`,
       },
     };
   }
@@ -108,7 +109,11 @@ export class TrackService {
   async trackByJobId(
     tenantId: string,
     jobId: string,
-    opts?: { shipmentId?: string | null; includeNotes?: boolean },
+    opts?: {
+      shipmentId?: string | null;
+      includeNotes?: boolean;
+      focusContainerNumber?: string | null;
+    },
   ) {
     const tenant = await this.prisma.tenant.findFirst({
       where: { id: tenantId, deleted_at: null },
@@ -118,8 +123,59 @@ export class TrackService {
       includeNotes: opts?.includeNotes ?? true,
       shipmentId: opts?.shipmentId,
       tenantSlug: tenant?.slug,
+      focusContainerNumber: opts?.focusContainerNumber,
     });
-    return { success: true, data: payload };
+    return {
+      success: true,
+      data: {
+        ...payload,
+        pdf_url: `/jobs/${jobId}/tracking/pdf`,
+      },
+    };
+  }
+
+  async trackPdf(ref: string, resolve: TenantResolveInput): Promise<{
+    buffer: Buffer;
+    filename: string;
+  }> {
+    const result = await this.track(ref, resolve);
+    const shipment = result.data.shipment as TrackTimelinePayload;
+    const html = buildTrackTraceHtml(shipment, {
+      tenant_name: result.data.branding.tenant_name,
+      query: result.data.query,
+    });
+    const buffer = await this.pdf.renderHtmlToPdf(html);
+    const safe =
+      (shipment.container_number || shipment.job_number || "track")
+        .replace(/[^\w.-]+/g, "_")
+        .slice(0, 60) || "track";
+    return { buffer, filename: `track-${safe}.pdf` };
+  }
+
+  async trackPdfByJobId(
+    tenantId: string,
+    jobId: string,
+    opts?: { shipmentId?: string | null; focusContainerNumber?: string | null },
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const tracked = await this.trackByJobId(tenantId, jobId, {
+      ...opts,
+      includeNotes: false,
+    });
+    const payload = tracked.data;
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deleted_at: null },
+      select: { display_name: true, name: true },
+    });
+    const html = buildTrackTraceHtml(payload, {
+      tenant_name: tenant?.display_name ?? tenant?.name,
+      query: payload.job_number,
+    });
+    const buffer = await this.pdf.renderHtmlToPdf(html);
+    const safe =
+      (payload.container_number || payload.job_number || "track")
+        .replace(/[^\w.-]+/g, "_")
+        .slice(0, 60) || "track";
+    return { buffer, filename: `track-${safe}.pdf` };
   }
 
   async embedConfig(resolve: TenantResolveInput) {
@@ -137,6 +193,7 @@ export class TrackService {
         primary_color: tenant.primary_color ?? "#0B5FFF",
         website: tenant.website,
         track_endpoint: "/track",
+        track_pdf_endpoint: "/track/pdf",
         widget_script: `/track/widget.js?tenant_slug=${encodeURIComponent(tenant.slug)}`,
         placeholder:
           "Enter job, shipment, BL, AWB, booking, or container number",
@@ -185,11 +242,15 @@ export class TrackService {
         var s=j.data && j.data.shipment;
         if(!s){ out.textContent='No data'; return; }
         var sum=s.summary||{};
-        var hist=s.history||s.milestones||[];
+        var hist=s.history||s.moves||s.milestones||[];
         var head='<div style="font-weight:600;margin-bottom:6px;">'+
-          (s.job_number||'')+' · '+(s.status_label||s.status||'')+'</div>';
+          (s.job_number||'')+' · '+(s.current_status||s.status_label||s.status||'')+'</div>';
+        if(s.container_number){
+          head+='<div style="color:#475569;margin-bottom:6px;">Container '+(s.container_number||'')+
+            (s.iso_size?' · '+s.iso_size:'')+'</div>';
+        }
         if(sum.last_event){
-          head+='<div style="color:#475569;margin-bottom:8px;">Latest: '+(sum.last_event.label||'')+'</div>';
+          head+='<div style="color:#475569;margin-bottom:8px;">Latest: '+(sum.last_event.move||sum.last_event.label||'')+'</div>';
         }
         if(sum.progress){
           head+='<div style="color:#64748B;font-size:12px;margin-bottom:10px;">Progress '+
@@ -197,8 +258,8 @@ export class TrackService {
         }
         var lines=hist.map(function(m){
           var done=m.is_completed;
-          var label=m.label||m.milestone||m.code||'';
-          var when=m.actual_at||m.planned_at||'';
+          var label=m.move||m.label||m.milestone||m.code||'';
+          var when=m.completed_at||m.occurred_at||m.actual_at||m.planned_at||'';
           return '<div style="padding:4px 0;border-bottom:1px solid #F1F5F9;">'+
             (done?'✓ ':'○ ')+label+
             (when?' <span style="color:#94A3B8;font-size:11px;">'+when+'</span>':'')+
@@ -209,6 +270,48 @@ export class TrackService {
       .catch(function(e){ out.textContent=e.message||'Error'; });
   };
 })();`;
+  }
+
+  private toPublicShipment(payload: TrackTimelinePayload) {
+    return {
+      job_id: payload.job_id,
+      job_number: payload.job_number,
+      job_type: payload.job_type,
+      shipment_id: payload.shipment_id,
+      shipment_number: payload.shipment_number,
+      shipment_status: payload.shipment_status,
+      status: payload.status,
+      status_code: payload.status_code,
+      status_label: payload.status_label,
+      current_status: payload.current_status,
+      container_number: payload.container_number,
+      container_type: payload.container_type,
+      iso_size: payload.iso_size,
+      container_kind: payload.container_kind,
+      progress_legs: payload.progress_legs,
+      route_legs: payload.route_legs,
+      ports: payload.ports,
+      etd: payload.etd,
+      eta: payload.eta,
+      expected_delivery: payload.expected_delivery,
+      hold: payload.hold,
+      commodity: payload.commodity,
+      pieces: payload.pieces,
+      gross_weight: payload.gross_weight,
+      origin: payload.origin,
+      destination: payload.destination,
+      vessel_name: payload.vessel_name,
+      voyage_number: payload.voyage_number,
+      references: payload.references,
+      containers: payload.containers,
+      linked_shipments: payload.linked_shipments,
+      /** @deprecated Prefer `history` — kept for embed/widget compatibility. */
+      milestones: payload.milestones,
+      history: payload.history,
+      moves: payload.moves,
+      events: payload.events,
+      summary: payload.summary,
+    };
   }
 
   private async resolveTenant(

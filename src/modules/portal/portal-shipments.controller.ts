@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   Res,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -18,6 +19,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiProduces,
   ApiTags,
 } from "@nestjs/swagger";
 import { Response } from "express";
@@ -353,17 +355,41 @@ export class PortalShipmentsController {
   @Get(":id/tracking")
   @ApiOperation({
     summary:
-      "Full track & trace for a portal shipment (current status + complete history)",
+      "Full track & trace for a portal shipment (current_status, container, progress_legs, history)",
   })
   async tracking(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("container") container?: string,
   ) {
     const jobId = await this.requireJobId(user, id);
     return this.track.trackByJobId(user.tenantId, jobId, {
       shipmentId: id,
       includeNotes: false,
+      focusContainerNumber: container,
     });
+  }
+
+  @Get(":id/tracking/pdf")
+  @ApiOperation({ summary: "Portal Track & Trace PDF (live data)" })
+  @ApiProduces("application/pdf")
+  async trackingPdf(
+    @CurrentPortal() user: CurrentPortalUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("container") container?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    const jobId = await this.requireJobId(user, id);
+    const { buffer, filename } = await this.track.trackPdfByJobId(
+      user.tenantId,
+      jobId,
+      { shipmentId: id, focusContainerNumber: container },
+    );
+    res!.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    });
+    return new StreamableFile(buffer);
   }
 
   @Get(":id/milestones")

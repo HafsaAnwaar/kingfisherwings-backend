@@ -27,6 +27,7 @@ import {
   ApiConsumes,
   ApiOkResponse,
   ApiOperation,
+  ApiProduces,
   ApiTags,
 } from "@nestjs/swagger";
 import type { Response } from "express";
@@ -1209,13 +1210,39 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Track & trace for a job — current status, progress, and full history (milestones, containers, status changes)",
+      "Track & trace for a job — current_status, container type/iso, progress_legs, enriched history",
   })
   getJobTracking(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("container") container?: string,
   ) {
-    return this.track.trackByJobId(tenantId, id, { includeNotes: true });
+    return this.track.trackByJobId(tenantId, id, {
+      includeNotes: true,
+      focusContainerNumber: container,
+    });
+  }
+
+  @Get(":id/tracking/pdf")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Track & Trace PDF for a job (live data)" })
+  @ApiProduces("application/pdf")
+  async getJobTrackingPdf(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("container") container?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    const { buffer, filename } = await this.track.trackPdfByJobId(
+      tenantId,
+      id,
+      { focusContainerNumber: container },
+    );
+    res!.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    });
+    return new StreamableFile(buffer);
   }
 
   @Get(":id/milestones")
@@ -1235,9 +1262,21 @@ export class JobsController {
       success: true,
       data: tracked.data.milestones,
       history: tracked.data.history,
+      moves: tracked.data.moves,
+      events: tracked.data.events,
       summary: tracked.data.summary,
       status: tracked.data.status,
       status_label: tracked.data.status_label,
+      current_status: tracked.data.current_status,
+      container_number: tracked.data.container_number,
+      container_type: tracked.data.container_type,
+      iso_size: tracked.data.iso_size,
+      progress_legs: tracked.data.progress_legs,
+      route_legs: tracked.data.route_legs,
+      ports: tracked.data.ports,
+      vessel_name: tracked.data.vessel_name,
+      voyage_number: tracked.data.voyage_number,
+      containers: tracked.data.containers,
       public_url: tracked.data.public_url,
     };
   }

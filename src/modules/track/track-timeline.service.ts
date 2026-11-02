@@ -1,6 +1,16 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
+  buildRouteLegs,
+  containerMoveLabel,
+  enrichHistoryEvents,
+  isoSizeFromContainerSize,
+  pickFocusContainer,
+  resolveCurrentStatus,
+  type TrackContainerView,
+  type TrackRouteLeg,
+} from "./track-payload.util";
+import {
   publicTrackUrl,
   sortTrackHistory,
   TrackHistoryEvent,
@@ -29,6 +39,16 @@ export type TrackTimelinePayload = {
   status: string;
   status_code: string | null;
   status_label: string;
+  /** Human move text for FE (e.g. GATE IN EMPTY AT DEPOT). */
+  current_status: string;
+  container_number: string | null;
+  container_type: string | null;
+  iso_size: string | null;
+  container_kind: string | null;
+  /** POL / PTS / POD legs — same array as route_legs / ports. */
+  progress_legs: TrackRouteLeg[];
+  route_legs: TrackRouteLeg[];
+  ports: TrackRouteLeg[];
   etd: Date | null;
   eta: Date | null;
   /** Planned / promised delivery date (same source as eta when set). */
@@ -54,15 +74,10 @@ export type TrackTimelinePayload = {
     code: string | null;
     country_code: string | null;
   } | null;
+  vessel_name: string | null;
+  voyage_number: string | null;
   references: Record<string, unknown>;
-  containers: Array<{
-    container_number: string | null;
-    status: string;
-    seal_number: string | null;
-    kind?: string | null;
-    gate_in_at: Date | null;
-    returned_at: Date | null;
-  }>;
+  containers: TrackContainerView[];
   linked_shipments: Array<{
     shipment_number: string;
     status: string;
@@ -78,7 +93,10 @@ export type TrackTimelinePayload = {
     description?: string | null;
     notes?: string | null;
   }>;
+  /** Aliases for FE: history / moves / events. */
   history: TrackHistoryEvent[];
+  moves: TrackHistoryEvent[];
+  events: TrackHistoryEvent[];
   summary: TrackSummary;
   tracking_token: string | null;
   public_url: string | null;
@@ -455,6 +473,8 @@ export class TrackTimelineService {
       includeNotes?: boolean;
       shipmentId?: string | null;
       tenantSlug?: string | null;
+      /** When tracking by container number, prefer that unit. */
+      focusContainerNumber?: string | null;
     },
   ): Promise<TrackTimelinePayload> {
     const includeNotes = opts?.includeNotes ?? true;
@@ -484,6 +504,9 @@ export class TrackTimelineService {
               vessel_id: true,
               etd: true,
               eta: true,
+              place_of_receipt: true,
+              place_of_delivery: true,
+              transhipment_port: true,
             },
           },
           sea_lcl_details: {
@@ -495,6 +518,9 @@ export class TrackTimelineService {
               vessel_id: true,
               etd: true,
               eta: true,
+              place_of_receipt: true,
+              place_of_delivery: true,
+              transhipment_port: true,
             },
           },
           nvocc_details: {
@@ -553,6 +579,7 @@ export class TrackTimelineService {
               gate_in_at: true,
               returned_at: true,
               container_kind: true,
+              container_type_id: true,
               created_at: true,
               updated_at: true,
             },
@@ -793,15 +820,116 @@ export class TrackTimelineService {
       });
     }
 
-    const history = this.buildHistory({
+    const typeIds = [
+      ...new Set(
+        job.containers_job
+          .map((c) => c.container_type_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const containerTypes = typeIds.length
+      ? await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.containerType.findMany({
+            where: {
+              tenant_id: tenantId,
+              id: { in: typeIds },
+              deleted_at: null,
+            },
+            select: { id: true, code: true, name: true, size: true },
+          }),
+        )
+      : [];
+    const typeMap = new Map(containerTypes.map((t) => [t.id, t]));
+
+    const containersSorted = [...job.containers_job].sort((a, b) => {
+      const ak = a.container_kind === "ACTUAL" ? 0 : 1;
+      const bk = b.container_kind === "ACTUAL" ? 0 : 1;
+      if (ak !== bk) return ak - bk;
+      return a.created_at.getTime() - b.created_at.getTime();
+    });
+
+    const focusContainer = pickFocusContainer(containersSorted, {
+      focusNumber: opts?.focusContainerNumber,
+      primaryNumber: job.primary_container_number,
+    });
+    const focusType = focusContainer?.container_type_id
+      ? typeMap.get(focusContainer.container_type_id)
+      : null;
+
+    const origin = originPort
+      ? {
+          name: originPort.name,
+          code: originPort.un_locode,
+          country_code: originPort.country_code,
+        }
+      : originAirport
+        ? {
+            name: originAirport.name,
+            code: originAirport.iata_code,
+            country_code: originAirport.country_code,
+          }
+        : job.land_details?.origin_city_country
+          ? {
+              name: job.land_details.origin_city_country,
+              code: null,
+              country_code: null,
+            }
+          : job.courier_details?.pickup_address
+            ? {
+                name: job.courier_details.pickup_address,
+                code: null,
+                country_code: null,
+              }
+            : null;
+    const destination = destPort
+      ? {
+          name: destPort.name,
+          code: destPort.un_locode,
+          country_code: destPort.country_code,
+        }
+      : destAirport
+        ? {
+            name: destAirport.name,
+            code: destAirport.iata_code,
+            country_code: destAirport.country_code,
+          }
+        : job.land_details?.destination_city_country
+          ? {
+              name: job.land_details.destination_city_country,
+              code: null,
+              country_code: null,
+            }
+          : job.courier_details?.delivery_address
+            ? {
+                name: job.courier_details.delivery_address,
+                code: null,
+                country_code: null,
+              }
+            : null;
+
+    const vesselName = job.vessel_name ?? vessel?.name ?? null;
+    const voyageNumber =
+      job.voyage_number ??
+      job.sea_fcl_details?.voyage_number ??
+      job.sea_lcl_details?.voyage_number ??
+      null;
+
+    const rawHistory = this.buildHistory({
       created_at: job.created_at,
       milestones: job.milestones,
       courier_checkpoints,
-      containers: job.containers_job,
+      containers: containersSorted,
       status_changes,
       hold: holdInfo,
       ops_events,
       includeNotes,
+    });
+
+    const history = enrichHistoryEvents(rawHistory, {
+      vessel_name: vesselName,
+      voyage_number: voyageNumber,
+      origin_name: origin?.name ?? null,
+      dest_name: destination?.name ?? null,
     });
 
     const summary = this.buildSummary(
@@ -811,6 +939,36 @@ export class TrackTimelineService {
       job.updated_at,
       holdInfo,
     );
+
+    const containerStatus =
+      focusContainer?.status ?? job.primary_container_status ?? null;
+    const currentStatus = resolveCurrentStatus({
+      hold: job.status === "ON_HOLD",
+      job_status: job.status,
+      container_status: containerStatus,
+      last_event: summary.last_event,
+    });
+    summary.current_status = currentStatus;
+    summary.current_status_label = currentStatus;
+
+    const legs = buildRouteLegs({
+      origin,
+      destination,
+      place_of_receipt:
+        job.sea_fcl_details?.place_of_receipt ??
+        job.sea_lcl_details?.place_of_receipt ??
+        null,
+      place_of_delivery:
+        job.sea_fcl_details?.place_of_delivery ??
+        job.sea_lcl_details?.place_of_delivery ??
+        null,
+      transhipment_port:
+        job.sea_fcl_details?.transhipment_port ??
+        job.sea_lcl_details?.transhipment_port ??
+        null,
+      container_status: containerStatus,
+      job_status: job.status,
+    });
 
     const linked = job.shipments;
     const focusShipment =
@@ -823,6 +981,26 @@ export class TrackTimelineService {
     const slug = opts?.tenantSlug ?? tenant?.slug ?? null;
     const token = job.tracking_token ?? null;
 
+    const containerViews: TrackContainerView[] = containersSorted.map((c) => {
+      const t = c.container_type_id ? typeMap.get(c.container_type_id) : null;
+      return {
+        container_number: c.container_number,
+        status: c.status,
+        status_label: containerMoveLabel(c.status),
+        seal_number: c.seal_number,
+        kind: c.container_kind,
+        container_type: t?.code ?? t?.name ?? null,
+        iso_size: isoSizeFromContainerSize(t?.size ?? null),
+        gate_in_at: c.gate_in_at,
+        returned_at: c.returned_at,
+      };
+    });
+
+    const focusNumber =
+      focusContainer?.container_number ??
+      job.primary_container_number ??
+      null;
+
     return {
       job_id: job.id,
       job_number: job.job_number,
@@ -832,7 +1010,15 @@ export class TrackTimelineService {
       shipment_status: focusShipment?.status ?? null,
       status: job.status,
       status_code: job.status_code,
-      status_label: summary.current_status_label,
+      status_label: currentStatus,
+      current_status: currentStatus,
+      container_number: focusNumber,
+      container_type: focusType?.code ?? focusType?.name ?? null,
+      iso_size: isoSizeFromContainerSize(focusType?.size ?? null),
+      container_kind: focusContainer?.container_kind ?? null,
+      progress_legs: legs,
+      route_legs: legs,
+      ports: legs,
       etd:
         job.etd ??
         job.sea_fcl_details?.etd ??
@@ -862,56 +1048,10 @@ export class TrackTimelineService {
       commodity: job.commodity,
       pieces: job.pieces,
       gross_weight: job.gross_weight,
-      origin: originPort
-        ? {
-            name: originPort.name,
-            code: originPort.un_locode,
-            country_code: originPort.country_code,
-          }
-        : originAirport
-          ? {
-              name: originAirport.name,
-              code: originAirport.iata_code,
-              country_code: originAirport.country_code,
-            }
-          : job.land_details?.origin_city_country
-            ? {
-                name: job.land_details.origin_city_country,
-                code: null,
-                country_code: null,
-              }
-            : job.courier_details?.pickup_address
-              ? {
-                  name: job.courier_details.pickup_address,
-                  code: null,
-                  country_code: null,
-                }
-              : null,
-      destination: destPort
-        ? {
-            name: destPort.name,
-            code: destPort.un_locode,
-            country_code: destPort.country_code,
-          }
-        : destAirport
-          ? {
-              name: destAirport.name,
-              code: destAirport.iata_code,
-              country_code: destAirport.country_code,
-            }
-          : job.land_details?.destination_city_country
-            ? {
-                name: job.land_details.destination_city_country,
-                code: null,
-                country_code: null,
-              }
-            : job.courier_details?.delivery_address
-              ? {
-                  name: job.courier_details.delivery_address,
-                  code: null,
-                  country_code: null,
-                }
-              : null,
+      origin,
+      destination,
+      vessel_name: vesselName,
+      voyage_number: voyageNumber,
       references: {
         hawb_number: job.air_details?.hawb_number ?? null,
         mawb_number: job.air_details?.mawb_number ?? null,
@@ -930,27 +1070,25 @@ export class TrackTimelineService {
           job.sea_lcl_details?.booking_number ??
           null,
         shipment_numbers: linked.map((s) => s.shipment_number),
-        container_number: job.primary_container_number ?? null,
+        container_number: focusNumber,
         container_numbers: [
           ...(job.primary_container_number
             ? [job.primary_container_number]
             : []),
-          ...job.containers_job
+          ...containersSorted
             .map((c) => c.container_number)
             .filter((n): n is string => Boolean(n)),
         ].filter((v, i, a) => a.indexOf(v) === i),
-        container_status: job.primary_container_status ?? null,
+        container_status: containerStatus,
+        container_type: focusType?.code ?? focusType?.name ?? null,
+        iso_size: isoSizeFromContainerSize(focusType?.size ?? null),
         rotation_number: job.rotation_number ?? null,
         flight_number:
           job.air_details?.flight_number ??
           job.air_details?.arrival_flight_number ??
           null,
-        voyage_number:
-          job.voyage_number ??
-          job.sea_fcl_details?.voyage_number ??
-          job.sea_lcl_details?.voyage_number ??
-          null,
-        vessel_name: job.vessel_name ?? vessel?.name ?? null,
+        voyage_number: voyageNumber,
+        vessel_name: vesselName,
         vehicle_number:
           job.land_details?.vehicle_number ??
           job.road_freight_details?.vehicle_number ??
@@ -959,14 +1097,7 @@ export class TrackTimelineService {
         tracking_number: job.courier_details?.tracking_number ?? null,
         courier_service_type: job.courier_details?.service_type ?? null,
       },
-      containers: job.containers_job.map((c) => ({
-        container_number: c.container_number,
-        status: c.status,
-        seal_number: c.seal_number,
-        kind: c.container_kind,
-        gate_in_at: c.gate_in_at,
-        returned_at: c.returned_at,
-      })),
+      containers: containerViews,
       linked_shipments: linked.map((s) => ({
         shipment_number: s.shipment_number,
         status: s.status,
@@ -980,7 +1111,6 @@ export class TrackTimelineService {
           milestone: m.milestone,
           planned_date: m.planned_date,
           actual_date: m.actual_date,
-          /** Precise date + time for customer UI. */
           completed_at: completedAt,
           is_completed: Boolean(m.actual_date ?? completedAt),
           description,
@@ -988,6 +1118,8 @@ export class TrackTimelineService {
         };
       }),
       history,
+      moves: history,
+      events: history,
       summary,
       tracking_token: token,
       public_url: token
