@@ -329,9 +329,9 @@ export class PortalDebitNotesController {
 
   @Post()
   @ApiOperation({
-    summary: "Create a debit note (customer → shows on account + job ledger)",
+    summary: "Create a debit note (job + amount)",
     description:
-      "Creates a debit note for a job owned by the portal party (shipper/consignee/billing). Optional credited_invoice_id must belong to the same party. Status is SENT so it appears in portal lists and staff job ledger.",
+      "Customer selects a job (job_id or job_number) and enters an amount. Backend builds a single line, sets status SENT, and shows it on the customer account and admin job ledger.",
   })
   @ApiBody({ type: PortalCreateDebitNoteDto })
   create(
