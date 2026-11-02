@@ -399,3 +399,37 @@ export function buildStaffInviteEmail(opts: {
     ],
   });
 }
+
+/** Staff create — email + temporary password (same idea as portal/vendor credentials). */
+export function buildStaffCredentialsEmail(opts: {
+  recipientName: string;
+  organizationName: string;
+  email: string;
+  temporaryPassword: string;
+  loginUrl?: string;
+}): { subject: string; html: string } {
+  return renderBrandedEmail({
+    subject: `Welcome to King Fisher Technologies — your staff workspace access`,
+    headline: "Your staff credentials are ready",
+    recipientName: opts.recipientName || "Colleague",
+    organizationName: opts.organizationName,
+    audience: "STAFF",
+    intro: [
+      `It is our pleasure to welcome you to ${BRAND.company}. Your ${BRAND.product} staff account for ${opts.organizationName} has been prepared.`,
+      "Below you will find your official sign-in details. Please change the temporary password immediately after your first successful login.",
+    ],
+    details: [
+      { label: "Workspace", value: audienceLabel("STAFF") },
+      { label: "Organization", value: opts.organizationName },
+      { label: "Login email", value: opts.email },
+      { label: "Temporary password", value: opts.temporaryPassword },
+    ],
+    cta: opts.loginUrl
+      ? { label: "Open staff login", url: opts.loginUrl }
+      : undefined,
+    closing: [
+      "Should you require any assistance activating your account, our support team remains at your service.",
+      `For help, write to ${BRAND.supportEmail}.`,
+    ],
+  });
+}

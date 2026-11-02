@@ -16,7 +16,18 @@ export class SendDeliveryAcknowledgementDto {
   @IsUUID()
   container_id?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: "Written acknowledgement message sent to the customer",
+    example: "Please confirm receipt of the consignment for this job.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  message?: string;
+
+  @ApiPropertyOptional({
+    description: "Alias for message (kept for existing clients)",
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2000)

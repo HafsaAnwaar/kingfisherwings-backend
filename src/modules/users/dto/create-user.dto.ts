@@ -309,4 +309,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsIn(["merge_with_preset", "replace"])
   permission_grants_mode?: "merge_with_preset" | "replace";
+
+  @ApiPropertyOptional({
+    default: true,
+    description:
+      "When true (default), email temporary credentials to the new user (same pattern as customer/vendor portal).",
+  })
+  @IsOptional()
+  @IsBoolean()
+  send_email?: boolean;
 }

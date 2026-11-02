@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
@@ -60,6 +61,7 @@ import {
   generateInviteToken,
   hashInviteToken,
 } from "../../common/utils/invite-token.util";
+import { StaffActivityService } from "../notifications/staff-activity/staff-activity.service";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 30;
@@ -74,6 +76,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly emailService: EmailService,
     private readonly sessionCache: SessionCacheService,
+    @Optional() private readonly staffActivity?: StaffActivityService,
   ) {}
 
   // =====================================================
@@ -628,6 +631,16 @@ export class AuthService {
         },
       });
       await this.sessionCache.invalidateStaffSession(principal.sessionId);
+      this.recordStaffAuthActivity({
+        tenantId: principal.tenantId,
+        actorUserId: principal.id,
+        action: "Logged Out",
+        route: "/auth/logout",
+        method: "POST",
+        entityId: principal.sessionId,
+        reference: principal.email ?? null,
+        detail: "reason → LOGOUT",
+      });
     }
 
     return { success: true, message: "Logged out successfully." };
@@ -936,6 +949,23 @@ export class AuthService {
       success: true,
     });
 
+    this.recordStaffAuthActivity({
+      tenantId: tenant.id,
+      actorUserId: user.id,
+      action: "Logged In",
+      route: "/auth/login",
+      method: "POST",
+      entityId: sessionId,
+      reference: user.email,
+      detail: [
+        meta.ip_address ? `ip → ${meta.ip_address}` : null,
+        meta.browser ? `browser → ${meta.browser}` : null,
+        dto.device_name ? `device → ${dto.device_name}` : null,
+      ]
+        .filter(Boolean)
+        .join("; ") || null,
+    });
+
     return {
       success: true,
       message: "Login successful.",
@@ -1199,11 +1229,28 @@ export class AuthService {
       },
     });
 
+    this.recordStaffAuthActivity({
+      tenantId: session.tenant_id,
+      actorUserId: userId,
+      action: "Revoked Session",
+      route: "/auth/sessions/:sessionId/revoke",
+      method: "POST",
+      entityId: session.jti,
+      reference: null,
+      detail: "reason → REVOKED_BY_USER",
+    });
+
     return { success: true, message: "Session revoked." };
   }
 
   /** Logs out every device — revokes all of the calling user's active sessions, including the one making this request. */
   async logoutAll(userId: string) {
+    const sample = await this.prisma.session.findFirst({
+      where: { user_id: userId },
+      select: { tenant_id: true },
+      orderBy: { created_at: "desc" },
+    });
+
     await this.prisma.session.updateMany({
       where: { user_id: userId, is_active: true },
       data: {
@@ -1213,7 +1260,52 @@ export class AuthService {
       },
     });
 
+    if (sample?.tenant_id) {
+      this.recordStaffAuthActivity({
+        tenantId: sample.tenant_id,
+        actorUserId: userId,
+        action: "Logged Out All",
+        route: "/auth/logout-all",
+        method: "POST",
+        entityId: null,
+        reference: null,
+        detail: "reason → LOGOUT_ALL",
+      });
+    }
+
     return { success: true, message: "Logged out of all devices." };
+  }
+
+  /** Fire-and-forget admin email for staff auth lifecycle (login/logout). */
+  private recordStaffAuthActivity(params: {
+    tenantId: string;
+    actorUserId: string;
+    action: string;
+    route: string;
+    method: string;
+    entityId: string | null;
+    reference: string | null;
+    detail?: string | null;
+  }) {
+    if (!this.staffActivity?.enabled()) return;
+    void this.staffActivity.record({
+      tenantId: params.tenantId,
+      actorUserId: params.actorUserId,
+      action: params.action,
+      entity: "Session",
+      entityId:
+        params.entityId && /^[0-9a-f-]{36}$/i.test(params.entityId)
+          ? params.entityId
+          : null,
+      reference: params.reference,
+      status: null,
+      amount: null,
+      method: params.method,
+      route: params.route,
+      linkPath: null,
+      detail: params.detail ?? null,
+      occurredAt: new Date().toISOString(),
+    });
   }
 
   private async recordLoginHistory(

@@ -81,6 +81,9 @@ export class EntityTimelineService {
       if (e.actor.id && nameMap.has(e.actor.id)) {
         e.actor.name = nameMap.get(e.actor.id)!;
       }
+      if (e.actor.name && !/\s—\sby\s/i.test(e.summary)) {
+        e.summary = `${e.summary} — by ${e.actor.name}`;
+      }
     }
 
     events.sort(
@@ -123,6 +126,12 @@ export class EntityTimelineService {
           : to
             ? `Status changed to ${to}`
             : "Status changed";
+      case "ACK_SENT_TO_CUSTOMER":
+        return "Acknowledgement sent to customer";
+      case "ACK_BY_CUSTOMER":
+        return "Customer marked acknowledgement received";
+      case "ACK_RECEIVED_BY_ADMIN":
+        return "Admin marked acknowledgement received";
       case "JOB_CLOSED":
         return "Job closed";
       case "JOB_CANCELLED":
@@ -431,19 +440,39 @@ export class EntityTimelineService {
     userIds: string[],
   ): Promise<Map<string, string>> {
     if (!userIds.length) return new Map();
-    const users = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.user.findMany({
-        where: { tenant_id: tenantId, id: { in: userIds } },
-        select: { id: true, first_name: true, last_name: true, email: true },
-      }),
+    const map = new Map<string, string>();
+    const [users, portalUsers] = await this.prisma.runWithTenant(
+      tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.user.findMany({
+            where: { tenant_id: tenantId, id: { in: userIds } },
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+            },
+          }),
+          tx.portalUser.findMany({
+            where: { tenant_id: tenantId, id: { in: userIds } },
+            select: { id: true, full_name: true, email: true },
+          }),
+        ]),
     );
-    return new Map(
-      users.map((u) => [
+    for (const u of users) {
+      map.set(
         u.id,
         [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
           u.email,
-      ]),
-    );
+      );
+    }
+    for (const p of portalUsers) {
+      if (!map.has(p.id)) {
+        map.set(p.id, p.full_name?.trim() || p.email);
+      }
+    }
+    return map;
   }
 
   private async assertExists(
