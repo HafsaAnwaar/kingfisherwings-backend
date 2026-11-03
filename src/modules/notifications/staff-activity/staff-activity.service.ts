@@ -10,7 +10,7 @@ import {
   adminEmailDedupeKey,
   claimAdminEmailDedupe,
 } from "../tenant-admin-notification-email.util";
-import { staffFrontendUrl } from "../../payments/utils/frontend-url.util";
+import { staffLoginUrl } from "../../payments/utils/frontend-url.util";
 
 export interface StaffActivityEvent {
   tenantId: string;
@@ -221,8 +221,8 @@ export class StaffActivityService {
     const role = actor ? roleLabel(actor.role) : "";
     const performedBy = role ? `${actorName} (${role})` : actorName;
     const when = new Date(meta.occurred_at ?? log.created_at);
-    const base = staffFrontendUrl();
-    const link = meta.link_path ? `${base}${meta.link_path}` : null;
+    // Emails always deep-link to staff login (not exact job/invoice URLs).
+    const link = staffLoginUrl();
     const app = process.env.APP_NAME?.replace(/"/g, "") || "Kingfisher";
     const reference = meta.reference ?? jobRef;
     const detail = meta.detail;
@@ -271,9 +271,7 @@ export class StaffActivityService {
         ...(detail ? [`Details: ${detail}.`] : []),
       ],
       details: detailRows,
-      ...(link
-        ? { cta: { label: `Open in ${app}`, url: link } }
-        : {}),
+      cta: { label: `Open ${app} login`, url: link },
       closing: [
         `You receive this because you are a Tenant Administrator of ${company}.`,
         "Staff create, update, status change, document upload, and related actions on jobs, quotations, shipments, invoices, and enquiries are emailed to Tenant Admins only.",
@@ -305,9 +303,7 @@ export class StaffActivityService {
       (meta.link_path
         ? `<p style="font-size:12px;color:#6b7280">${esc(meta.link_path)}</p>`
         : "") +
-      (link
-        ? `<p><a href="${esc(link)}">Open in ${esc(app)}</a></p>`
-        : "");
+      `<p><a href="${esc(link)}">Open ${esc(app)} login</a></p>`;
 
     const body = `${branded.html}${legacyTable}`;
 

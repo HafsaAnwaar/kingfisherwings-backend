@@ -1,24 +1,164 @@
-/** Pack-owned HTML shells for document-kind report PDFs. */
+/** Pack-owned HTML shells for document-kind report PDFs — Fresa form chrome (not KF theme). */
 import * as Handlebars from "handlebars";
 
+/** Shared body chrome — black borders, sample-form geometry. Branding slots only swap identity. */
 const DOC_BASE_STYLE = `
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #111; margin: 16px; }
-  h1 { font-size: 16px; margin: 0 0 4px; }
-  h2 { font-size: 13px; margin: 12px 0 6px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th, td { border: 1px solid #999; padding: 3px 5px; vertical-align: top; }
-  th { background: #eee; font-weight: 600; }
-  .header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-  .logo { max-height: 48px; max-width: 140px; }
-  .title-bar { background: #1a3a5c; color: #fff; text-align: center; padding: 6px; font-size: 14px; font-weight: 700; letter-spacing: 1px; margin: 8px 0; }
-  .muted { color: #555; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .box { border: 1px solid #999; padding: 6px; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #000; margin: 12px; }
+  h1 { font-size: 14px; margin: 0 0 2px; font-weight: 700; }
+  h2 { font-size: 11px; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  th, td { border: 1px solid #000; padding: 3px 5px; vertical-align: top; }
+  th { background: #e8e8e8; font-weight: 700; font-size: 9px; }
+  .header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; align-items: flex-start; }
+  .logo { max-height: 52px; max-width: 150px; }
+  .title-bar { background: #000; color: #fff; text-align: center; padding: 5px; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; margin: 6px 0; }
+  .muted { color: #444; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .box { border: 1px solid #000; padding: 5px; white-space: pre-line; min-height: 48px; }
+  .lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; color: #333; display: block; margin-bottom: 2px; }
   .right { text-align: right; }
-  .totals { margin-top: 8px; width: 45%; margin-left: auto; }
-  .footer { margin-top: 16px; font-size: 9px; color: #444; border-top: 1px solid #ccc; padding-top: 6px; }
+  .totals { margin-top: 8px; width: 42%; margin-left: auto; }
+  .footer { margin-top: 14px; font-size: 8px; color: #333; border-top: 1px solid #000; padding-top: 4px; }
   .terms li { margin-bottom: 2px; }
+  .wm { position: fixed; top: 38%; left: 12%; font-size: 72px; color: rgba(180,0,0,0.12); font-weight: 900;
+    letter-spacing: 8px; transform: rotate(-28deg); z-index: 0; pointer-events: none; }
+  .form { position: relative; z-index: 1; border: 2px solid #000; }
+  .form table { margin: 0; }
+  .form td { border: 1px solid #000; padding: 4px 6px; }
+  .cell-lbl { font-size: 7px; font-weight: 700; text-transform: uppercase; color: #222; }
+  .cell-val { white-space: pre-line; min-height: 36px; font-size: 10px; }
+  .inv-title { background: #1a1a1a; color: #fff; text-align: center; padding: 6px; font-size: 14px; font-weight: 700; letter-spacing: 2px; margin: 6px 0; }
 `;
+
+const HBL_FORM = (draft: boolean) => `
+<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
+<body>
+  ${draft ? '<div class="wm">DRAFT</div>' : ""}
+  <div class="form">
+    <table>
+      <tr>
+        <td colspan="2" style="width:55%">
+          <div class="header" style="margin:0">
+            <div>
+              {{#if company_logo}}<img class="logo" src="{{company_logo}}" alt=""/>{{/if}}
+              <h1>{{company_name}}</h1>
+              {{#if company_address}}<div class="muted">{{company_address}}</div>{{/if}}
+              {{#if company_phone}}<div>Tel: {{company_phone}}</div>{{/if}}
+              {{#if company_email}}<div>{{company_email}}</div>{{/if}}
+              {{#if company_vat}}<div>Tax/VAT: {{company_vat}}</div>{{/if}}
+            </div>
+          </div>
+        </td>
+        <td colspan="2" style="width:45%;text-align:center;vertical-align:middle;">
+          <div style="font-size:14px;font-weight:700;letter-spacing:1px;">
+            BILL OF LADING${draft ? " — DRAFT" : " — ORIGINAL"}
+          </div>
+          <div style="margin-top:6px;font-size:9px;">HOUSE BILL OF LADING</div>
+          <div style="margin-top:8px;"><span class="cell-lbl">B/L No.</span><div style="font-size:13px;font-weight:700;">{{hbl_number}}</div></div>
+          <div><span class="cell-lbl">Job</span> {{job_number}}</div>
+          <div><span class="cell-lbl">MBL</span> {{mbl_number}}</div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" rowspan="2"><div class="cell-lbl">Shipper</div><div class="cell-val">{{shipper}}</div></td>
+        <td colspan="2"><div class="cell-lbl">Export references</div><div class="cell-val">{{doc_ref}}</div></td>
+      </tr>
+      <tr>
+        <td colspan="2"><div class="cell-lbl">Forwarding agent references</div><div class="cell-val">{{job_number}}</div></td>
+      </tr>
+      <tr>
+        <td colspan="2" rowspan="2"><div class="cell-lbl">Consignee</div><div class="cell-val">{{consignee}}</div></td>
+        <td colspan="2"><div class="cell-lbl">Point and country of origin</div><div class="cell-val">{{place_of_receipt}}</div></td>
+      </tr>
+      <tr>
+        <td colspan="2"><div class="cell-lbl">Domestic routing / Export instructions</div><div class="cell-val"></div></td>
+      </tr>
+      <tr>
+        <td colspan="2"><div class="cell-lbl">Notify party</div><div class="cell-val">{{notify}}</div></td>
+        <td><div class="cell-lbl">Place of receipt</div><div class="cell-val">{{place_of_receipt}}</div></td>
+        <td><div class="cell-lbl">Vessel / Voyage</div><div class="cell-val">{{vessel_voyage}}</div></td>
+      </tr>
+      <tr>
+        <td><div class="cell-lbl">Port of loading</div><div class="cell-val">{{pol}}</div></td>
+        <td><div class="cell-lbl">Port of discharge</div><div class="cell-val">{{pod}}</div></td>
+        <td><div class="cell-lbl">Place of delivery</div><div class="cell-val">{{place_of_delivery}}</div></td>
+        <td><div class="cell-lbl">ETD / ETA</div><div class="cell-val">{{etd}} / {{eta}}</div></td>
+      </tr>
+      <tr>
+        <td colspan="4">
+          <div class="cell-lbl">Marks and numbers · No. of pkgs · Description of goods · Gross weight · Measurement</div>
+          <div class="cell-val">{{commodity}}
+{{#if container_rows.length}}
+{{#each container_rows}}{{container_no}} / {{seal}} / {{gross_weight}} KGS / {{cbm}} CBM
+{{/each}}
+{{else}}Containers: {{containers}}
+{{/if}}
+Pcs: {{pieces}} · G.Wt: {{gross_weight}} · CBM: {{volume_cbm}}</div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2"><div class="cell-lbl">Freight payable at</div><div class="cell-val"></div></td>
+        <td colspan="2"><div class="cell-lbl">Number of original B/L</div><div class="cell-val">${draft ? "DRAFT — NOT NEGOTIABLE" : "THREE (3)"}</div></td>
+      </tr>
+      <tr>
+        <td colspan="4" style="text-align:right;padding:16px 8px;">
+          <div class="cell-lbl">Signed for the Carrier</div>
+          <div style="margin-top:28px;border-top:1px solid #000;display:inline-block;min-width:220px;text-align:center;padding-top:2px;">Authorized Signature</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <div class="footer">${draft ? "DRAFT — not for negotiation · " : "ORIGINAL · "}{{generated_at}} · Computer generated</div>
+</body></html>`;
+
+const HAWB_FORM = (draft: boolean) => `
+<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
+<body>
+  ${draft ? '<div class="wm">DRAFT</div>' : ""}
+  <div class="form">
+    <table>
+      <tr>
+        <td colspan="2" style="width:55%">
+          {{#if company_logo}}<img class="logo" src="{{company_logo}}" alt=""/>{{/if}}
+          <h1>{{company_name}}</h1>
+          {{#if company_address}}<div class="muted">{{company_address}}</div>{{/if}}
+          {{#if company_phone}}<div>Tel: {{company_phone}}</div>{{/if}}
+        </td>
+        <td colspan="2" style="text-align:center;vertical-align:middle;">
+          <div style="font-size:13px;font-weight:700;letter-spacing:1px;">AIR WAYBILL${draft ? " — DRAFT" : ""}</div>
+          <div style="font-size:9px;margin-top:4px;">HOUSE AIR WAYBILL (HAWB)</div>
+          <div style="margin-top:8px;"><span class="cell-lbl">HAWB No.</span><div style="font-size:13px;font-weight:700;">{{hawb_number}}</div></div>
+          <div><span class="cell-lbl">MAWB</span> {{mawb_number}}</div>
+          <div><span class="cell-lbl">Job</span> {{job_number}}</div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2"><div class="cell-lbl">Shipper's name and address</div><div class="cell-val">{{shipper}}</div></td>
+        <td colspan="2"><div class="cell-lbl">Consignee's name and address</div><div class="cell-val">{{consignee}}</div></td>
+      </tr>
+      <tr>
+        <td><div class="cell-lbl">Airport of departure</div><div class="cell-val">{{origin}}</div></td>
+        <td><div class="cell-lbl">Airport of destination</div><div class="cell-val">{{dest}}</div></td>
+        <td><div class="cell-lbl">Flight / Date</div><div class="cell-val">{{flight}}</div></td>
+        <td><div class="cell-lbl">ETD / ETA</div><div class="cell-val">{{etd}} / {{eta}}</div></td>
+      </tr>
+      <tr>
+        <td colspan="4">
+          <div class="cell-lbl">Nature and quantity of goods · Gross weight · Chargeable weight</div>
+          <div class="cell-val">{{commodity}}
+Pcs: {{pieces}} · G.Wt: {{gross_weight}} · Ch.Wt: {{chargeable_weight}}</div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4" style="text-align:right;padding:14px 8px;">
+          <div class="cell-lbl">Signature of issuing carrier or agent</div>
+          <div style="margin-top:24px;border-top:1px solid #000;display:inline-block;min-width:200px;text-align:center;padding-top:2px;">Authorized</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <div class="footer">${draft ? "DRAFT — not for carriage · " : ""}{{generated_at}}</div>
+</body></html>`;
 
 export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
   "document.generic": `
@@ -35,11 +175,13 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
   "commercial.invoice_tax_india_1": `
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}
   .meta-table td { border: none; padding: 2px 4px; }
-  .shipment-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 6px; }
-  .shipment-grid .cell { border: 1px solid #999; padding: 4px; min-height: 28px; }
-  .shipment-grid .lbl { font-size: 8px; color: #555; text-transform: uppercase; }
+  .shipment-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; margin-top: 4px; border: 1px solid #000; }
+  .shipment-grid .cell { border: 1px solid #000; padding: 4px; min-height: 28px; }
+  .shipment-grid .lbl { font-size: 7px; color: #222; text-transform: uppercase; font-weight: 700; }
+  .outer { border: 2px solid #000; padding: 8px; }
 </style></head>
 <body>
+  <div class="outer">
   <div class="header">
     <div>
       {{#if company.logo_url}}<img class="logo" src="{{company.logo_url}}" alt="logo"/>{{/if}}
@@ -47,20 +189,22 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
       {{#each company.address_lines}}<div>{{this}}</div>{{/each}}
       {{#if company.website}}<div>{{company.website}}</div>{{/if}}
       {{#if company.gstin}}<div><strong>GSTIN:</strong> {{company.gstin}}</div>{{/if}}
+      {{#if company.phone}}<div>Phone: {{company.phone}}</div>{{/if}}
+      {{#if company.email}}<div>{{company.email}}</div>{{/if}}
     </div>
     <div class="right">
-      <table class="meta-table" style="width:auto;margin-left:auto;">
-        <tr><td><strong>Invoice No</strong></td><td>{{invoice.number}}</td></tr>
-        <tr><td><strong>Date</strong></td><td>{{invoice.invoice_date}}</td></tr>
-        {{#if invoice.due_date}}<tr><td><strong>Due Date</strong></td><td>{{invoice.due_date}}</td></tr>{{/if}}
-        {{#if invoice.status}}<tr><td><strong>Status</strong></td><td>{{invoice.status}}</td></tr>{{/if}}
-        <tr><td><strong>Currency</strong></td><td>{{invoice.currency_code}} @ {{invoice.exchange_rate}}</td></tr>
+      <table class="meta-table" style="width:auto;margin-left:auto;border:1px solid #000;">
+        <tr><td><strong>Invoice No</strong></td><td style="border-left:1px solid #000;">{{invoice.number}}</td></tr>
+        <tr><td><strong>Date</strong></td><td style="border-left:1px solid #000;">{{invoice.invoice_date}}</td></tr>
+        {{#if invoice.due_date}}<tr><td><strong>Due Date</strong></td><td style="border-left:1px solid #000;">{{invoice.due_date}}</td></tr>{{/if}}
+        {{#if invoice.status}}<tr><td><strong>Status</strong></td><td style="border-left:1px solid #000;">{{invoice.status}}</td></tr>{{/if}}
+        <tr><td><strong>Currency</strong></td><td style="border-left:1px solid #000;">{{invoice.currency_code}} @ {{invoice.exchange_rate}}</td></tr>
       </table>
     </div>
   </div>
-  <div class="title-bar">TAX INVOICE</div>
+  <div class="inv-title">TAX INVOICE</div>
   <div class="grid-2">
-    <div class="box">
+    <div class="box" style="border-right:none;">
       <strong>Bill To</strong>
       <div>{{bill_to.name}}</div>
       {{#each bill_to.address_lines}}<div>{{this}}</div>{{/each}}
@@ -158,9 +302,10 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
   {{/if}}
 
   <div class="footer">
-    This is a computer-generated tax invoice.
+    This is a computer-generated tax invoice. Catalog Format-1 — default POST /invoices/:id/pdf unchanged.
     {{#if footer.created_by}} Created by {{footer.created_by}}.{{/if}}
     Generated {{footer.generated_at}}{{#if footer.timezone}} ({{footer.timezone}}){{/if}}.
+  </div>
   </div>
 </body></html>`,
 
@@ -171,7 +316,7 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
   {{#each company.address_lines}}<div>{{this}}</div>{{/each}}
   {{#if company.gstin}}<div>GSTIN: {{company.gstin}}</div>{{/if}}</div>
   <div class="right"><div>No: {{invoice.number}}</div><div>{{invoice.invoice_date}}</div></div></div>
-  <div class="title-bar">TAX INVOICE (FORMAT 2)</div>
+  <div class="inv-title">TAX INVOICE (FORMAT 2)</div>
   <div class="box"><strong>Bill To:</strong> {{bill_to.name}} {{#if bill_to.gstin}}(GSTIN {{bill_to.gstin}}){{/if}}</div>
   <table>
     <thead><tr><th>Description</th><th>Qty</th><th>Amount</th><th>Tax</th><th>Total</th></tr></thead>
@@ -191,7 +336,7 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
   <h1>{{company.name}}</h1>
-  <div class="title-bar">TAX INVOICE SUMMARY</div>
+  <div class="inv-title">TAX INVOICE SUMMARY</div>
   <p>{{bill_to.name}} · Invoice {{invoice.number}} · {{invoice.invoice_date}}</p>
   <p><strong>Total:</strong> {{totals.grand_total}} ({{invoice.currency_code}})</p>
   <p>{{totals.amount_in_words}}</p>
@@ -203,7 +348,7 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <body>
   <div class="header"><div><h1>{{company.name}}</h1>{{#each company.address_lines}}<div>{{this}}</div>{{/each}}</div>
   <div class="right"><div>Invoice {{invoice.number}}</div><div>{{invoice.invoice_date}}</div></div></div>
-  <div class="title-bar">INVOICE</div>
+  <div class="inv-title">INVOICE</div>
   <div class="box"><strong>Bill To:</strong> {{bill_to.name}}</div>
   <table><thead><tr><th>Description</th><th>Qty</th><th>Amount</th><th>Tax</th><th>Total</th></tr></thead>
   <tbody>{{#each lines}}<tr><td>{{description}}</td><td class="right">{{qty}}</td>
@@ -218,7 +363,7 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <body>
   <h1>{{company.name}}</h1>
   {{#if company.gstin}}<div>GSTIN: {{company.gstin}}</div>{{/if}}
-  <div class="title-bar">SIMPLE INVOICE (INDIA)</div>
+  <div class="inv-title">SIMPLE INVOICE (INDIA)</div>
   <p>{{bill_to.name}} {{#if bill_to.gstin}}(GSTIN {{bill_to.gstin}}){{/if}}</p>
   <p>Invoice {{invoice.number}} · {{invoice.invoice_date}}</p>
   <table><thead><tr><th>Description</th><th>Amount</th></tr></thead>
@@ -234,7 +379,7 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <body>
   <div class="header"><div><h1>{{company.name}}</h1></div>
   <div class="right"><div>{{invoice.number}}</div><div>{{invoice.invoice_date}}</div></div></div>
-  <div class="title-bar">INVOICE / فاتورة</div>
+  <div class="inv-title">INVOICE / فاتورة</div>
   <div class="box"><strong>Bill To / العميل:</strong> {{bill_to.name}}</div>
   <table><thead><tr><th>Description / البيان</th><th>Amount / المبلغ</th></tr></thead>
   <tbody>{{#each lines}}<tr><td>{{description}}</td><td class="right">{{total_inr}}</td></tr>{{/each}}</tbody></table>
@@ -248,7 +393,7 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
   <div class="header"><div><h1>{{company.name}}</h1>{{#each company.address_lines}}<div>{{this}}</div>{{/each}}</div>
   <div class="right"><div>Invoice # {{invoice.number}}</div><div>Date {{invoice.invoice_date}}</div>
   {{#if invoice.due_date}}<div>Due {{invoice.due_date}}</div>{{/if}}</div></div>
-  <div class="title-bar">INVOICE</div>
+  <div class="inv-title">INVOICE</div>
   <div class="box"><strong>Bill To</strong><div>{{bill_to.name}}</div>{{#each bill_to.address_lines}}<div>{{this}}</div>{{/each}}</div>
   <table><thead><tr><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
   <tbody>{{#each lines}}<tr><td>{{description}}</td><td class="right">{{qty}}</td>
@@ -261,7 +406,7 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
   <h1>{{company.name}}</h1>
-  <div class="title-bar">WAREHOUSE INVOICE</div>
+  <div class="inv-title">WAREHOUSE INVOICE</div>
   <p>{{bill_to.name}} · Invoice {{invoice.number}} · {{invoice.invoice_date}}</p>
   {{#if shipment}}<p>Job {{shipment.job_no}} · Ref {{shipment.reference_no}}</p>{{/if}}
   <table><thead><tr><th>Description</th><th>Qty</th><th>Amount</th></tr></thead>
@@ -271,60 +416,28 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
   <div class="footer">{{generated_at}}</div>
 </body></html>`,
 
-  "sea.hbl_draft": `
-<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
-<body>
-  <div class="title-bar">HOUSE BILL OF LADING — DRAFT</div>
-  <div class="header"><div><h1>{{branding.company_name}}</h1></div>
-  <div class="right"><div>HBL: {{hbl_number}}</div><div>MBL: {{mbl_number}}</div><div>Job: {{job_number}}</div></div></div>
-  <div class="grid-2">
-    <div class="box"><strong>Shipper</strong><div>{{shipper}}</div></div>
-    <div class="box"><strong>Consignee</strong><div>{{consignee}}</div></div>
-  </div>
-  <div class="box" style="margin-top:8px;">
-    <div>POR: {{place_of_receipt}} · POL: {{pol}} · POD: {{pod}} · DEL: {{place_of_delivery}}</div>
-    <div>Vessel/Voyage: {{vessel_voyage}}</div>
-    <div>ETD: {{etd}} · ETA: {{eta}}</div>
-    <div>Containers: {{containers}}</div>
-    <div>Commodity: {{commodity}}</div>
-  </div>
-  <div class="footer">DRAFT — not for negotiation · {{generated_at}}</div>
-</body></html>`,
-
-  "sea.hbl_original": `
-<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
-<body>
-  <div class="title-bar">HOUSE BILL OF LADING — ORIGINAL</div>
-  <div class="header"><div><h1>{{branding.company_name}}</h1></div>
-  <div class="right"><div>HBL: {{hbl_number}}</div><div>MBL: {{mbl_number}}</div><div>Job: {{job_number}}</div></div></div>
-  <div class="grid-2">
-    <div class="box"><strong>Shipper</strong><div>{{shipper}}</div></div>
-    <div class="box"><strong>Consignee</strong><div>{{consignee}}</div></div>
-  </div>
-  <div class="box" style="margin-top:8px;">
-    <div>POR: {{place_of_receipt}} · POL: {{pol}} · POD: {{pod}}</div>
-    <div>Vessel/Voyage: {{vessel_voyage}}</div>
-    <div>Containers: {{containers}}</div>
-    <div>Commodity: {{commodity}}</div>
-  </div>
-  <div class="footer">ORIGINAL · {{generated_at}}</div>
-</body></html>`,
+  "sea.hbl_draft": HBL_FORM(true),
+  "sea.hbl_original": HBL_FORM(false),
 
   "sea.arrival_notice": `
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
+  <div class="form">
   <div class="title-bar">ARRIVAL NOTICE</div>
-  <h1>{{branding.company_name}}</h1>
+  <div class="header"><div>
+    {{#if company_logo}}<img class="logo" src="{{company_logo}}" alt=""/>{{/if}}
+    <h1>{{company_name}}</h1>
+  </div></div>
   <div class="grid-2">
-    <div class="box"><strong>Consignee</strong><div>{{consignee}}</div></div>
-    <div class="box"><strong>Shipper</strong><div>{{shipper}}</div></div>
+    <div class="box"><span class="lbl">Consignee</span>{{consignee}}</div>
+    <div class="box"><span class="lbl">Shipper</span>{{shipper}}</div>
   </div>
-  <div class="box" style="margin-top:8px;">
-    <div>Job {{job_number}} · HBL {{hbl_number}} · MBL {{mbl_number}}</div>
-    <div>Vessel/Voyage: {{vessel_voyage}} · ETA {{eta}}</div>
-    <div>POL {{pol}} → POD {{pod}}</div>
-    <div>Containers: {{containers}}</div>
-    <div>Commodity: {{commodity}}</div>
+  <table style="margin-top:0;">
+    <tr><td><span class="cell-lbl">Job</span> {{job_number}}</td><td><span class="cell-lbl">HBL</span> {{hbl_number}}</td><td><span class="cell-lbl">MBL</span> {{mbl_number}}</td></tr>
+    <tr><td colspan="2"><span class="cell-lbl">Vessel / Voyage</span> {{vessel_voyage}}</td><td><span class="cell-lbl">ETA</span> {{eta}}</td></tr>
+    <tr><td><span class="cell-lbl">POL</span> {{pol}}</td><td><span class="cell-lbl">POD</span> {{pod}}</td><td><span class="cell-lbl">Containers</span> {{containers}}</td></tr>
+    <tr><td colspan="3"><span class="cell-lbl">Commodity</span> {{commodity}}</td></tr>
+  </table>
   </div>
   <div class="footer">{{generated_at}}</div>
 </body></html>`,
@@ -332,12 +445,16 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
   "sea.delivery_order": `
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
+  <div class="form">
   <div class="title-bar">DELIVERY ORDER</div>
-  <h1>{{branding.company_name}}</h1>
-  <p>Job {{job_number}} · DO Ref {{doc_ref}}</p>
-  <p>Consignee: {{consignee}}</p>
-  <p>Containers: {{containers}}</p>
-  <p>Please release cargo against this delivery order.</p>
+  <h1>{{company_name}}</h1>
+  <table>
+    <tr><td><span class="cell-lbl">Job</span> {{job_number}}</td><td><span class="cell-lbl">DO Ref</span> {{doc_ref}}</td></tr>
+    <tr><td colspan="2"><span class="cell-lbl">Consignee</span><div class="cell-val">{{consignee}}</div></td></tr>
+    <tr><td colspan="2"><span class="cell-lbl">Containers</span> {{containers}}</td></tr>
+  </table>
+  <p style="padding:8px;">Please release cargo against this delivery order.</p>
+  </div>
   <div class="footer">{{generated_at}}</div>
 </body></html>`,
 
@@ -345,10 +462,10 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
   <div class="title-bar">CARGO MANIFEST</div>
-  <h1>{{branding.company_name}}</h1>
+  <h1>{{company_name}}</h1>
   <p>Job {{job_number}} · MBL {{mbl_number}} · HBL {{hbl_number}}</p>
   <p>Vessel/Voyage: {{vessel_voyage}} · POL {{pol}} → POD {{pod}}</p>
-  <p>Shipper: {{shipper}} · Consignee: {{consignee}}</p>
+  <p>Shipper: {{shipper_name}} · Consignee: {{consignee_name}}</p>
   <p>Commodity: {{commodity}}</p>
   {{#if container_rows.length}}
   <table><thead><tr><th>Container</th><th>Seal</th><th>G.Wt</th><th>CBM</th></tr></thead>
@@ -362,7 +479,7 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
   <div class="title-bar">STUFFING REPORT</div>
-  <h1>{{branding.company_name}}</h1>
+  <h1>{{company_name}}</h1>
   <p>Job {{job_number}} · HBL {{hbl_number}}</p>
   <p>Vessel/Voyage: {{vessel_voyage}} · ETD {{etd}}</p>
   <p>POL {{pol}} · Commodity {{commodity}}</p>
@@ -378,58 +495,28 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
   <div class="title-bar">{{letter_kind}}</div>
-  <h1>{{branding.company_name}}</h1>
+  <h1>{{company_name}}</h1>
   <p>Job {{job_number}} · HBL {{hbl_number}} · MBL {{mbl_number}}</p>
-  <p>Shipper: {{shipper}} · Consignee: {{consignee}}</p>
+  <p>Shipper: {{shipper_name}} · Consignee: {{consignee_name}}</p>
   <p>POL {{pol}} → POD {{pod}} · {{vessel_voyage}}</p>
   <div class="box" style="margin-top:12px;min-height:80px;">{{letter_body}}</div>
   <div class="footer">{{generated_at}}</div>
 </body></html>`,
 
-  "air.hawb_draft": `
-<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
-<body>
-  <div class="title-bar">HOUSE AIR WAYBILL — DRAFT</div>
-  <div class="header"><div><h1>{{branding.company_name}}</h1></div>
-  <div class="right"><div>HAWB: {{hawb_number}}</div><div>Job: {{job_number}}</div></div></div>
-  <div class="grid-2">
-    <div class="box"><strong>Shipper</strong><div>{{shipper}}</div></div>
-    <div class="box"><strong>Consignee</strong><div>{{consignee}}</div></div>
-  </div>
-  <div class="box" style="margin-top:8px;">
-    <div>MAWB: {{mawb_number}}</div>
-    <div>Origin {{origin}} → Dest {{dest}}</div>
-    <div>Flight: {{flight}} · ETA {{eta}}</div>
-  </div>
-  <div class="footer">DRAFT — not for carriage · {{generated_at}}</div>
-</body></html>`,
-
-  "air.hawb_final": `
-<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
-<body>
-  <div class="title-bar">HOUSE AIR WAYBILL — FINAL</div>
-  <div class="header"><div><h1>{{branding.company_name}}</h1></div>
-  <div class="right"><div>HAWB: {{hawb_number}}</div><div>Job: {{job_number}}</div></div></div>
-  <div class="grid-2">
-    <div class="box"><strong>Shipper</strong><div>{{shipper}}</div></div>
-    <div class="box"><strong>Consignee</strong><div>{{consignee}}</div></div>
-  </div>
-  <div class="box" style="margin-top:8px;">
-    <div>MAWB: {{mawb_number}}</div>
-    <div>Origin {{origin}} → Dest {{dest}}</div>
-    <div>Flight: {{flight}}</div>
-  </div>
-  <div class="footer">FINAL · {{generated_at}}</div>
-</body></html>`,
+  "air.hawb_draft": HAWB_FORM(true),
+  "air.hawb_final": HAWB_FORM(false),
 
   "air.mawb": `
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
+  <div class="form">
   <div class="title-bar">MASTER AIR WAYBILL</div>
-  <h1>{{branding.company_name}}</h1>
-  <p>MAWB {{mawb_number}} · Job {{job_number}}</p>
-  <p>Airline / Flight: {{flight}}</p>
-  <p>Origin {{origin}} → Dest {{dest}}</p>
+  <h1>{{company_name}}</h1>
+  <table>
+    <tr><td><span class="cell-lbl">MAWB</span> {{mawb_number}}</td><td><span class="cell-lbl">Job</span> {{job_number}}</td></tr>
+    <tr><td><span class="cell-lbl">Flight</span> {{flight}}</td><td><span class="cell-lbl">Route</span> {{origin}} → {{dest}}</td></tr>
+  </table>
+  </div>
   <div class="footer">{{generated_at}}</div>
 </body></html>`,
 
@@ -437,10 +524,10 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
   <div class="title-bar">AIR ARRIVAL NOTICE</div>
-  <h1>{{branding.company_name}}</h1>
+  <h1>{{company_name}}</h1>
   <p>Job {{job_number}} · HAWB {{hawb_number}} · MAWB {{mawb_number}}</p>
   <p>Flight {{flight}} · ETA {{eta}} · Dest {{dest}}</p>
-  <p>Consignee: {{consignee}}</p>
+  <div class="box"><span class="lbl">Consignee</span>{{consignee}}</div>
   <div class="footer">{{generated_at}}</div>
 </body></html>`,
 
@@ -448,9 +535,9 @@ export const DOCUMENT_HTML_TEMPLATES: Record<string, string> = {
 <!DOCTYPE html><html><head><meta charset="utf-8"/><style>${DOC_BASE_STYLE}</style></head>
 <body>
   <div class="title-bar">AIR DELIVERY ORDER</div>
-  <h1>{{branding.company_name}}</h1>
+  <h1>{{company_name}}</h1>
   <p>Job {{job_number}} · HAWB {{hawb_number}}</p>
-  <p>Consignee: {{consignee}}</p>
+  <div class="box"><span class="lbl">Consignee</span>{{consignee}}</div>
   <p>Please release cargo against this delivery order.</p>
   <div class="footer">{{generated_at}}</div>
 </body></html>`,

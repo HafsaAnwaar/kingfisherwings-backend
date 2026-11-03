@@ -11,12 +11,25 @@ export type ReportParamDef = {
 export type ReportListRow = Record<string, string | number | null | undefined>;
 
 export type ReportBranding = {
+  /** Display / legal name shown on documents */
   company_name: string;
+  legal_name: string;
+  trade_name: string;
   logo_url: string | null;
+  /** Puppeteer-safe embedded logo when remote URL unavailable */
+  logo_data_uri?: string | null;
   address: string | null;
   address_lines?: string[];
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  tax_id?: string | null;
   vat_number: string | null;
+  gstin?: string | null;
   cr_number: string | null;
+  iata_cargo_agent_code?: string | null;
+  customs_code?: string | null;
+  country_code?: string | null;
 };
 
 export type ReportListDataset = {

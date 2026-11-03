@@ -21,7 +21,7 @@ import {
   ensureEmitLinkPath,
   type NotificationAudience,
 } from "./notification-link.util";
-import { staffFrontendUrl } from "../payments/utils/frontend-url.util";
+import { staffLoginUrl } from "../payments/utils/frontend-url.util";
 
 export type EmitNotificationInput = {
   type: NotificationType;
@@ -324,8 +324,7 @@ export class NotificationEmitterService {
 
       const company = tenant?.display_name ?? tenant?.name ?? "Your company";
       const app = process.env.APP_NAME?.replace(/"/g, "") || "Kingfisher";
-      const base = staffFrontendUrl();
-      const link = input.link_path ? `${base}${input.link_path}` : null;
+      const link = staffLoginUrl();
 
       for (const admin of admins) {
         const recipientName =
@@ -344,7 +343,7 @@ export class NotificationEmitterService {
               ? [{ label: "Record", value: input.entity_type }]
               : []),
           ],
-          ...(link ? { cta: { label: `Open in ${app}`, url: link } } : {}),
+          cta: { label: `Open ${app} login`, url: link },
           closing: [
             `You receive this email copy because you are a Tenant Administrator of ${company}.`,
           ],

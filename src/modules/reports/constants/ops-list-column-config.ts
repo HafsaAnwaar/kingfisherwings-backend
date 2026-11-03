@@ -90,6 +90,14 @@ const EXACT: Record<string, { title: string; columns: ReportListColumn[] }> = {
     title: "Operations List",
     columns: JOB_COLUMNS,
   },
+  MY_REPORTS: {
+    title: "MY REPORTS",
+    columns: DSR_COLUMNS,
+  },
+  MY_REPORTS_LIST: {
+    title: "MY REPORTS",
+    columns: DSR_COLUMNS,
+  },
 };
 
 type Rule = {

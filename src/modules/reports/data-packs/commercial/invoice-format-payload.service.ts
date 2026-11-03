@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { amountInWords } from "../../../../common/utils/amount-in-words.util";
 import {
+  brandingLogoSrc,
   loadDefaultBank,
   loadReportBranding,
 } from "../../helpers/report-branding.helper";
@@ -355,8 +356,10 @@ export class InvoiceFormatPayloadService {
       company: {
         name: companyName,
         address_lines: companyAddress,
-        logo_url: branding.logo_url ?? undefined,
-        website: undefined,
+        logo_url: brandingLogoSrc(branding) ?? branding.logo_url ?? undefined,
+        phone: branding.phone ?? undefined,
+        email: branding.email ?? undefined,
+        website: branding.website ?? undefined,
         // FRESA: company GSTIN mapped from vat_number
         gstin:
           invoice.company?.vat_number || branding.vat_number || undefined,

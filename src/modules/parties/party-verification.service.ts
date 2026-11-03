@@ -20,7 +20,7 @@ import {
   VERIFICATION_DOC_MAX_BYTES,
   VERIFICATION_DOC_MIME,
 } from "./party-verification.constants";
-import { staffFrontendUrl } from "../payments/utils/frontend-url.util";
+import { staffLoginUrl } from "../payments/utils/frontend-url.util";
 
 export type VerificationUploaderSide = "portal" | "vendor";
 
@@ -430,7 +430,7 @@ export class PartyVerificationService {
           take: 20,
         }),
       );
-      const appUrl = staffFrontendUrl();
+      const loginUrl = staffLoginUrl();
       for (const a of admins) {
         if (!a.email) continue;
         const branded = renderBrandedEmail({
@@ -442,8 +442,8 @@ export class PartyVerificationService {
             `Party ${party?.name ?? partyId} (${party?.code ?? ""}) submitted verification documents for review.`,
           ],
           cta: {
-            label: "Review party",
-            url: `${appUrl}/parties/${partyId}`,
+            label: "Open staff login",
+            url: loginUrl,
           },
           audience: "STAFF",
         });

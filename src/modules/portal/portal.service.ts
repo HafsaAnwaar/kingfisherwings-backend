@@ -35,7 +35,10 @@ import {
   PortalJwtPayload,
 } from "./interfaces/portal-auth.interfaces";
 import { PortalPermissionsService } from "./portal-permissions.service";
-import { portalFrontendUrl } from "../payments/utils/frontend-url.util";
+import {
+  portalFrontendUrl,
+  portalLoginUrl,
+} from "../payments/utils/frontend-url.util";
 
 @Injectable()
 export class PortalService {
@@ -1094,7 +1097,7 @@ export class PortalService {
       isPasswordReset?: boolean;
     },
   ) {
-    const loginUrl = `${portalFrontendUrl()}/login`;
+    const loginUrl = portalLoginUrl();
     const branded = opts.isPasswordReset
       ? buildPasswordResetEmail({
           audience: "CUSTOMER",
