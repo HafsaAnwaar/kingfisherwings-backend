@@ -163,13 +163,14 @@ export class PublicApiController {
     }> = [];
 
     for (const m of job.milestones) {
+      if (!m.actual_date) continue;
       history.push({
         type: "MILESTONE",
         code: m.milestone,
         label: m.milestone.replace(/_/g, " "),
         planned_at: m.planned_date,
         actual_at: m.actual_date,
-        is_completed: Boolean(m.actual_date),
+        is_completed: true,
       });
     }
     for (const cp of job.courier_checkpoints) {
@@ -229,12 +230,14 @@ export class PublicApiController {
         gate_in_at: c.gate_in_at,
         returned_at: c.returned_at,
       })),
-      milestones: job.milestones.map((m) => ({
-        milestone: m.milestone,
-        planned_date: m.planned_date,
-        actual_date: m.actual_date,
-        is_completed: Boolean(m.actual_date),
-      })),
+      milestones: job.milestones
+        .filter((m) => Boolean(m.actual_date))
+        .map((m) => ({
+          milestone: m.milestone,
+          planned_date: m.planned_date,
+          actual_date: m.actual_date,
+          is_completed: true,
+        })),
       history,
     };
   }

@@ -286,6 +286,8 @@ export class TrackTimelineService {
     }
 
     for (const m of parts.milestones) {
+      // Tracking shows completed milestones only (no planned/pending rows).
+      if (!m.actual_date && !m.completed_at) continue;
       const description = m.description ?? m.notes ?? null;
       events.push({
         type: "MILESTONE",
@@ -294,7 +296,7 @@ export class TrackTimelineService {
         planned_at: m.planned_date,
         // Prefer precise completed_at (date + time) for customer timelines.
         actual_at: m.completed_at ?? m.actual_date,
-        is_completed: Boolean(m.actual_date ?? m.completed_at),
+        is_completed: true,
         description,
         // Always surface customer-facing description (not gated).
         notes: description,
@@ -368,17 +370,8 @@ export class TrackTimelineService {
           is_completed: true,
           container_number: c.container_number,
         });
-      } else if (!c.gate_in_at && !c.returned_at && !c.created_at) {
-        events.push({
-          type: "CONTAINER",
-          code: c.status,
-          label: `Container ${c.container_number} · ${humanLabel(c.status)}`,
-          planned_at: null,
-          actual_at: null,
-          is_completed: false,
-          container_number: c.container_number,
-        });
       }
+      // Skip pending container status rows (no timestamp) — tracking is completed-only.
     }
 
     for (const op of parts.ops_events ?? []) {
@@ -935,7 +928,7 @@ export class TrackTimelineService {
       origin_name: origin?.name ?? null,
       dest_name: destination?.name ?? null,
       location_terminal: job.location_terminal ?? null,
-    });
+    }).filter((e) => e.is_completed);
 
     const summary = this.buildSummary(
       history,
@@ -1112,19 +1105,21 @@ export class TrackTimelineService {
         hbl_number: s.hbl_number,
         mbl_number: s.mbl_number,
       })),
-      milestones: job.milestones.map((m) => {
-        const description = m.description ?? m.notes ?? null;
-        const completedAt = m.completed_at ?? null;
-        return {
-          milestone: m.milestone,
-          planned_date: m.planned_date,
-          actual_date: m.actual_date,
-          completed_at: completedAt,
-          is_completed: Boolean(m.actual_date ?? completedAt),
-          description,
-          notes: description,
-        };
-      }),
+      milestones: job.milestones
+        .filter((m) => Boolean(m.actual_date ?? m.completed_at))
+        .map((m) => {
+          const description = m.description ?? m.notes ?? null;
+          const completedAt = m.completed_at ?? null;
+          return {
+            milestone: m.milestone,
+            planned_date: m.planned_date,
+            actual_date: m.actual_date,
+            completed_at: completedAt,
+            is_completed: true,
+            description,
+            notes: description,
+          };
+        }),
       history,
       moves: history,
       events: history,

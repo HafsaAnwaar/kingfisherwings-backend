@@ -680,6 +680,7 @@ export class UsersService {
     const effective = await this.loadEffectivePermissionCodes(tenantId, id);
     const access = jobTypeAccessSummary([...effective]);
     response.visible_job_types = access.visible_job_types;
+    response.writable_job_types = access.writable_job_types;
     response.unrestricted_ops = access.unrestricted_ops;
     return response;
   }
@@ -1335,6 +1336,7 @@ export class UsersService {
         user_id: userId,
         tree,
         visible_job_types: access.visible_job_types,
+        writable_job_types: access.writable_job_types,
         unrestricted_ops: access.unrestricted_ops,
         note: "Saving this matrix updates direct matrix grants and bridged classic permissions. Staff must re-login to refresh the JWT (permissions are embedded).",
       },

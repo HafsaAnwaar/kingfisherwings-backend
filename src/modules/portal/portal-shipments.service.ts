@@ -1520,21 +1520,30 @@ export class PortalShipmentsService {
             })),
           }
         : null,
-      milestones: (row.milestones ?? []).map((m) => {
-        const description =
-          (m as { description?: string | null }).description ?? m.notes ?? null;
-        const completedAt =
-          (m as { completed_at?: Date | null }).completed_at ?? null;
-        return {
-          milestone: m.milestone,
-          planned_date: m.planned_date,
-          actual_date: m.actual_date,
-          completed_at: completedAt,
-          description,
-          notes: description,
-          is_completed: Boolean(m.actual_date ?? completedAt),
-        };
-      }),
+      milestones: (row.milestones ?? [])
+        .filter((m) =>
+          Boolean(
+            m.actual_date ??
+              (m as { completed_at?: Date | null }).completed_at,
+          ),
+        )
+        .map((m) => {
+          const description =
+            (m as { description?: string | null }).description ??
+            m.notes ??
+            null;
+          const completedAt =
+            (m as { completed_at?: Date | null }).completed_at ?? null;
+          return {
+            milestone: m.milestone,
+            planned_date: m.planned_date,
+            actual_date: m.actual_date,
+            completed_at: completedAt,
+            description,
+            notes: description,
+            is_completed: true,
+          };
+        }),
       path_hints: {
         documents: `/portal/shipments/${row.id}/documents`,
         document_download: `/portal/shipments/${row.id}/documents/{docId}/download`,

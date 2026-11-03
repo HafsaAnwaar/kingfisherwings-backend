@@ -105,6 +105,14 @@ export class UserResponse {
 
   @ApiPropertyOptional({
     description:
+      "Job types the user may create (operations_*.write). Use for create-job pickers. null = unrestricted.",
+    type: [String],
+    nullable: true,
+  })
+  writable_job_types?: string[] | null;
+
+  @ApiPropertyOptional({
+    description:
       "True when the user has no ops matrix codes (legacy role-only / unrestricted).",
   })
   unrestricted_ops?: boolean;
