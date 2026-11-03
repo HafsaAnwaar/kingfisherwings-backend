@@ -9628,6 +9628,8 @@ enum AirWorkflowStage {
 enum ExternalQuoteRequestProvider {
   KFPP_WP
   GENERIC_REST
+  /// KingFisher Wings Quote Aggregator (kfqa/v1) — product / general-trading quotes
+  KFQA_WP
 }
 
 model ExternalQuoteRequestConnection {
