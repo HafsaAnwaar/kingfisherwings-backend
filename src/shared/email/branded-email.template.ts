@@ -33,8 +33,8 @@ const BRAND = {
     "support@kingfisherwings.com",
   website:
     process.env.BRAND_WEBSITE?.trim() ||
-    process.env.APP_URL?.trim() ||
-    "https://kingfisherwings.com",
+    process.env.FRONTEND_URL?.trim() ||
+    "https://freightnest.kingfishertec.com",
   colors: {
     blue: "#0B5FFF",
     deepBlue: "#063A9E",

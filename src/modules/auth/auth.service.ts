@@ -62,6 +62,7 @@ import {
   hashInviteToken,
 } from "../../common/utils/invite-token.util";
 import { StaffActivityService } from "../notifications/staff-activity/staff-activity.service";
+import { staffFrontendUrl } from "../payments/utils/frontend-url.util";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 30;
@@ -1466,9 +1467,7 @@ export class AuthService {
       });
 
       const to = dto.email ?? user.email;
-      const appUrl =
-        this.configService.get<string>("APP_URL") ?? "http://localhost:3000";
-      const inviteUrl = `${appUrl.replace(/\/$/, "")}/accept-invite?token=${token}`;
+      const inviteUrl = `${staffFrontendUrl()}/accept-invite?token=${token}`;
       const recipientName =
         [user.first_name, user.last_name].filter(Boolean).join(" ") ||
         user.email;

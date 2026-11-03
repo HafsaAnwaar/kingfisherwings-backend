@@ -21,6 +21,7 @@ import {
   ensureEmitLinkPath,
   type NotificationAudience,
 } from "./notification-link.util";
+import { staffFrontendUrl } from "../payments/utils/frontend-url.util";
 
 export type EmitNotificationInput = {
   type: NotificationType;
@@ -323,9 +324,8 @@ export class NotificationEmitterService {
 
       const company = tenant?.display_name ?? tenant?.name ?? "Your company";
       const app = process.env.APP_NAME?.replace(/"/g, "") || "Kingfisher";
-      const base = (process.env.FRONTEND_URL ?? "").trim().replace(/\/$/, "");
-      const link =
-        base && input.link_path ? `${base}${input.link_path}` : null;
+      const base = staffFrontendUrl();
+      const link = input.link_path ? `${base}${input.link_path}` : null;
 
       for (const admin of admins) {
         const recipientName =

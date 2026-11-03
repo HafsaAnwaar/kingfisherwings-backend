@@ -36,6 +36,7 @@ import {
   VendorJwtPayload,
 } from "./interfaces/vendor-auth.interfaces";
 import { VendorPermissionsService } from "./vendor-permissions.service";
+import { vendorFrontendUrl } from "../payments/utils/frontend-url.util";
 
 @Injectable()
 export class VendorService {
@@ -783,12 +784,7 @@ export class VendorService {
       actorId?: string;
     },
   ) {
-    const appUrl =
-      this.config.get<string>("VENDOR_APP_URL") ??
-      this.config.get<string>("APP_URL") ??
-      this.config.get<string>("PUBLIC_API_URL") ??
-      "http://localhost:3000";
-    const link = `${appUrl.replace(/\/$/, "")}/vendor/accept-invite?token=${opts.token}`;
+    const link = `${vendorFrontendUrl()}/vendor/accept-invite?token=${opts.token}`;
 
     const branded = buildInviteEmail({
       audience: "VENDOR",
@@ -819,11 +815,7 @@ export class VendorService {
       isPasswordReset?: boolean;
     },
   ) {
-    const appUrl =
-      this.config.get<string>("VENDOR_APP_URL") ??
-      this.config.get<string>("APP_URL") ??
-      this.config.get<string>("PUBLIC_API_URL") ??
-      "";
+    const loginUrl = `${vendorFrontendUrl()}/vendor/login`;
     const branded = opts.isPasswordReset
       ? buildPasswordResetEmail({
           audience: "VENDOR",
@@ -838,7 +830,7 @@ export class VendorService {
           organizationName: opts.partyName,
           email: opts.to,
           temporaryPassword: opts.password,
-          loginUrl: appUrl || undefined,
+          loginUrl,
         });
     await this.email.send({
       tenantId,

@@ -35,6 +35,7 @@ import {
   PortalJwtPayload,
 } from "./interfaces/portal-auth.interfaces";
 import { PortalPermissionsService } from "./portal-permissions.service";
+import { portalFrontendUrl } from "../payments/utils/frontend-url.util";
 
 @Injectable()
 export class PortalService {
@@ -1062,12 +1063,7 @@ export class PortalService {
       actorId?: string;
     },
   ) {
-    const appUrl =
-      this.config.get<string>("PORTAL_APP_URL") ??
-      this.config.get<string>("APP_URL") ??
-      this.config.get<string>("PUBLIC_API_URL") ??
-      "http://localhost:3000";
-    const link = `${appUrl.replace(/\/$/, "")}/portal/accept-invite?token=${opts.token}`;
+    const link = `${portalFrontendUrl()}/portal/accept-invite?token=${opts.token}`;
 
     const branded = buildInviteEmail({
       audience: "CUSTOMER",
@@ -1098,11 +1094,7 @@ export class PortalService {
       isPasswordReset?: boolean;
     },
   ) {
-    const appUrl =
-      this.config.get<string>("PORTAL_APP_URL") ??
-      this.config.get<string>("APP_URL") ??
-      this.config.get<string>("PUBLIC_API_URL") ??
-      "";
+    const loginUrl = `${portalFrontendUrl()}/login`;
     const branded = opts.isPasswordReset
       ? buildPasswordResetEmail({
           audience: "CUSTOMER",
@@ -1117,7 +1109,7 @@ export class PortalService {
           organizationName: opts.partyName,
           email: opts.to,
           temporaryPassword: opts.password,
-          loginUrl: appUrl || undefined,
+          loginUrl,
         });
     await this.email.send({
       tenantId,

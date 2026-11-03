@@ -17,7 +17,10 @@ import { NotificationEmitterService } from "../notifications/notification-emitte
 import { PaymentAuditService } from "./payment-audit.service";
 import { PaymentGatewaySettingsService } from "./payment-gateway-settings.service";
 import { StripeGatewayService } from "./stripe-gateway.service";
-import { staffFrontendUrl } from "./utils/frontend-url.util";
+import {
+  portalFrontendUrl,
+  staffFrontendUrl,
+} from "./utils/frontend-url.util";
 import {
   gtMoney,
   isPositiveMoney,
@@ -945,7 +948,7 @@ export class VendorPayoutsService {
 
   defaultReturnUrl(kind: "staff" | "vendor", partyId?: string) {
     return kind === "vendor"
-      ? `${(process.env.PORTAL_FRONTEND_URL ?? staffFrontendUrl()).replace(/\/$/, "")}/vendor/payouts`
+      ? `${portalFrontendUrl()}/vendor/payouts`
       : `${staffFrontendUrl()}/parties/${partyId}`;
   }
 }

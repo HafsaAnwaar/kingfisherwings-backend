@@ -60,6 +60,8 @@ function isPlaceholderPublicUrl(url: string): boolean {
   return (
     lower.includes("your_new_service") ||
     lower.includes("your-service") ||
+    lower.includes("your_frontend") ||
+    lower.includes("your-frontend") ||
     lower.includes("placeholder")
   );
 }
