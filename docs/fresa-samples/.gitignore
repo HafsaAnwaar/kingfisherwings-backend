@@ -1,0 +1,8 @@
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.xlsx
+*.xls
+!README.md
+!QA.md

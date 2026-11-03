@@ -8,7 +8,7 @@ import {
 import { PrismaService } from "../../../prisma/prisma.service";
 import { REPORT_ROW_LIMIT } from "../constants/reports.constants";
 import { resolveOpsListColumnConfig } from "../constants/ops-list-column-config";
-import { loadReportBranding } from "../helpers/report-branding.helper";
+import { ReportContextLoaders } from "../helpers/report-context-loaders";
 import { ReportDataset, ReportListRow } from "../types/report.types";
 
 type Params = Record<string, unknown>;
@@ -50,14 +50,20 @@ type JobRow = {
 
 @Injectable()
 export class OpsListDataPackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly loaders: ReportContextLoaders,
+  ) {}
 
   async load(
     tenantId: string,
     rendererKey: string,
     parameters: Params,
   ): Promise<ReportDataset> {
-    const branding = await this.loadBranding(tenantId);
+    const { branding } = await this.loaders.runOpsListQueryMeta(
+      tenantId,
+      parameters,
+    );
     const generated_at = new Date().toISOString();
 
     switch (rendererKey) {
@@ -171,10 +177,6 @@ export class OpsListDataPackService {
           `Unsupported report renderer: ${rendererKey}`,
         );
     }
-  }
-
-  private async loadBranding(tenantId: string) {
-    return loadReportBranding(this.prisma, tenantId);
   }
 
   private async jobsListOptionalDates(tenantId: string, params: Params) {

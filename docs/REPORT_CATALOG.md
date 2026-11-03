@@ -114,9 +114,17 @@ On import (and activate when still `pending.*`), codes matching [`renderer-bind-
 | `commercial.invoice_usa` | Format-9 USA |
 | `commercial.invoice_warehouse` | Format-21 Warehouse |
 
+## Visual parity (Fresa form chrome)
+
+Document HTML shells in `document-templates.ts` use **Fresa sample geometry** (black nested BL/AWB grids, DRAFT watermark, TAX INVOICE outer border). List PDF/XLSX use MY REPORTS header `#1F4E79`. Tenant branding only fills logo/identity slots — no KF purple theme in form bodies. Sample references: [`docs/fresa-samples/`](./fresa-samples/README.md).
+
+Named context loaders (`ReportContextLoaders`): `loadInvoiceReportContext`, `loadQuotationReportContext`, `loadJobDocumentContext`, `loadShipmentReportContext`, `runOpsListQueryMeta`, `loadWmsDocumentContext`, `loadGlVoucherContext` — strict **4xx** when ids missing.
+
+Analytics-only codes (`isCoveredAnalyticsCode`) stay unbound (`pending.*`) — no fake document PDF.
+
 ## Registry + activation
 
-1. On boot: Phase-1 ops_list + Phase-2 sea list packs upserted as **active**; priority document packs upserted with real `renderer_key` but **inactive**.
+1. On boot: Phase-1 ops_list + Phase-2 sea list packs + priority document packs upserted with real `renderer_key`; Phase-1 smoke codes and rebuilt shells activate when `is_active: true` in seed.
 2. FRESA registry import from [`fresaReportRegistry.json`](../src/modules/reports/seed/fresaReportRegistry.json) — **852** FE taxonomy entries (`{ templates: [...] }`). Regenerate via `node scripts/generate-fresa-registry.js`.
 3. Pack-protected codes are never downgraded by registry import.
 

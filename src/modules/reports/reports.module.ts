@@ -32,6 +32,7 @@ import { ReportsTemplatesController } from "./reports-templates.controller";
 import { ReportsTemplatesService } from "./reports-templates.service";
 import { ReportsSeedService } from "./seed/reports.seed";
 import { OperationsFresaReportsService } from "./operations-fresa-reports.service";
+import { ReportContextLoaders } from "./helpers/report-context-loaders";
 
 const redisEnabled = isRedisEnabledEnv();
 
@@ -74,6 +75,7 @@ const queueProviders = redisEnabled
     ReportsTemplatesService,
     ReportsGenerateService,
     ReportsJobsService,
+    ReportContextLoaders,
     OpsListDataPackService,
     SeaDocsDataPackService,
     SeaDocumentDataPackService,

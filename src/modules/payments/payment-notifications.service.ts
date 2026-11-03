@@ -47,7 +47,7 @@ export class PaymentNotificationsService {
   payNowHtml(payUrl: string, viewUrl?: string | null) {
     return (
       `<p style="margin-top:16px">You can pay this invoice securely online:</p>` +
-      `<p>${button(payUrl, "Pay Now")}${viewUrl ? button(viewUrl, "View Invoice", false) : ""}</p>` +
+      `<p>${button(payUrl, "Pay Now")}${viewUrl ? button(viewUrl, "Open portal login", false) : ""}</p>` +
       `<p style="color:#6b7280;font-size:12px">Payments are processed by Stripe. This link expires; ask us for a new one if needed.</p>`
     );
   }

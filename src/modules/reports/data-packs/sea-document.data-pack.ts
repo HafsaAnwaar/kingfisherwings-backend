@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { PrismaService } from "../../../prisma/prisma.service";
-import { loadReportBranding } from "../helpers/report-branding.helper";
+import { ReportContextLoaders } from "../helpers/report-context-loaders";
+import { brandingLogoSrc } from "../helpers/report-branding.helper";
 import { ReportDataset } from "../types/report.types";
 
 type Params = Record<string, unknown>;
@@ -16,9 +16,22 @@ const DOC_KEYS = new Set([
   "sea.letter_shell",
 ]);
 
+function partyBlock(
+  p: {
+    name?: string | null;
+    address?: string | null;
+    city?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  } | null,
+): string {
+  if (!p) return "";
+  return [p.name, p.address, p.city, p.phone, p.email].filter(Boolean).join("\n");
+}
+
 @Injectable()
 export class SeaDocumentDataPackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly loaders: ReportContextLoaders) {}
 
   supports(rendererKey: string): boolean {
     return DOC_KEYS.has(rendererKey);
@@ -30,166 +43,88 @@ export class SeaDocumentDataPackService {
     parameters: Params,
     context?: Ctx,
   ): Promise<ReportDataset> {
-    const jobId = String(parameters.job_id ?? context?.job_id ?? "").trim();
-    if (!jobId) {
-      throw new BadRequestException(
-        "job_id is required (parameters.job_id or context.job_id)",
-      );
-    }
-
-    const branding = await loadReportBranding(this.prisma, tenantId);
-    const generated_at = new Date().toISOString();
-
-    const job = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.job.findFirst({
-        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
-        select: {
-          job_number: true,
-          shipper_id: true,
-          consignee_id: true,
-          commodity: true,
-          etd: true,
-          eta: true,
-          origin_port_id: true,
-          dest_port_id: true,
-          sea_fcl_details: {
-            select: {
-              hbl_number: true,
-              mbl_number: true,
-              voyage_number: true,
-              vessel_id: true,
-              port_of_loading_id: true,
-              port_of_discharge_id: true,
-              place_of_receipt: true,
-              place_of_delivery: true,
-              containers: {
-                where: { deleted_at: null },
-                select: {
-                  container_number: true,
-                  seal_number: true,
-                  gross_weight: true,
-                  cbm: true,
-                },
-              },
-            },
-          },
-          sea_lcl_details: {
-            select: {
-              hbl_number: true,
-              mbl_number: true,
-              voyage_number: true,
-              vessel_id: true,
-              port_of_loading_id: true,
-              port_of_discharge_id: true,
-              place_of_receipt: true,
-              place_of_delivery: true,
-            },
-          },
-          nvocc_details: {
-            select: { hbl_number: true, mbl_number: true },
-          },
-        },
-      }),
-    );
-    if (!job) {
-      throw new BadRequestException("job_id not found in tenant");
-    }
-
-    const partyIds = [job.shipper_id, job.consignee_id].filter(
-      Boolean,
-    ) as string[];
-    const sea = job.sea_fcl_details ?? job.sea_lcl_details;
-    const portIds = [
-      job.origin_port_id,
-      job.dest_port_id,
-      sea?.port_of_loading_id,
-      sea?.port_of_discharge_id,
-    ].filter(Boolean) as string[];
-    const vesselId = sea?.vessel_id;
-
-    const [parties, ports, vessel] = await this.prisma.runWithTenant(
+    const ctx = await this.loaders.loadJobDocumentContext(
       tenantId,
-      async (tx) =>
-        Promise.all([
-          partyIds.length
-            ? tx.party.findMany({
-                where: { id: { in: partyIds }, tenant_id: tenantId },
-                select: { id: true, name: true },
-              })
-            : [],
-          portIds.length
-            ? tx.port.findMany({
-                where: { id: { in: portIds }, tenant_id: tenantId },
-                select: { id: true, un_locode: true },
-              })
-            : [],
-          vesselId
-            ? tx.vessel.findFirst({
-                where: { id: vesselId, tenant_id: tenantId },
-                select: { name: true },
-              })
-            : null,
-        ]),
+      parameters,
+      context as Params,
     );
-    const partyMap = new Map(parties.map((p) => [p.id, p.name]));
-    const portMap = new Map(ports.map((p) => [p.id, p.un_locode]));
+    const { job, branding, bank } = ctx;
+    const generated_at = new Date().toISOString();
+    const logo = brandingLogoSrc(branding);
 
-    const hbl =
-      sea?.hbl_number || job.nvocc_details?.hbl_number || "";
-    const mbl =
-      sea?.mbl_number || job.nvocc_details?.mbl_number || "";
-    const containers = (job.sea_fcl_details?.containers ?? [])
+    const sea = job.sea_fcl_details ?? job.sea_lcl_details;
+    const containers = (ctx.containers ?? [])
       .map((c) => c.container_number)
       .filter(Boolean)
       .join(", ");
-    const containerRows = (job.sea_fcl_details?.containers ?? []).map((c) => ({
+    const containerRows = (ctx.containers ?? []).map((c) => ({
       container_no: c.container_number ?? "",
       seal: c.seal_number ?? "",
+      type: (c as { container_type?: string | null }).container_type ?? "",
       gross_weight: c.gross_weight != null ? String(c.gross_weight) : "",
       cbm: c.cbm != null ? String(c.cbm) : "",
     }));
 
     const pol =
-      (sea?.port_of_loading_id
-        ? portMap.get(sea.port_of_loading_id)
-        : undefined) ||
-      (job.origin_port_id ? portMap.get(job.origin_port_id) : "") ||
+      ctx.origin_port?.un_locode ||
+      ctx.origin_port?.name ||
+      sea?.place_of_receipt ||
       "";
     const pod =
-      (sea?.port_of_discharge_id
-        ? portMap.get(sea.port_of_discharge_id)
-        : undefined) ||
-      (job.dest_port_id ? portMap.get(job.dest_port_id) : "") ||
+      ctx.dest_port?.un_locode ||
+      ctx.dest_port?.name ||
+      sea?.place_of_delivery ||
       "";
 
-    const letterKind = String(parameters.letter_kind ?? parameters.template_code ?? "LETTER")
+    const letterKind = String(
+      parameters.letter_kind ?? parameters.template_code ?? "LETTER",
+    )
       .replace(/_/g, " ")
       .toUpperCase();
 
     const payload = {
       job_number: job.job_number,
-      hbl_number: hbl,
-      mbl_number: mbl,
-      doc_ref: hbl || job.job_number,
-      shipper: job.shipper_id ? partyMap.get(job.shipper_id) : "",
-      consignee: job.consignee_id ? partyMap.get(job.consignee_id) : "",
+      hbl_number: ctx.hbl_number ?? "",
+      mbl_number: ctx.mbl_number ?? "",
+      doc_ref: ctx.hbl_number || job.job_number,
+      shipper: partyBlock(ctx.shipper),
+      consignee: partyBlock(ctx.consignee),
+      notify: partyBlock(ctx.notify),
+      shipper_name: ctx.shipper?.name ?? "",
+      consignee_name: ctx.consignee?.name ?? "",
       pol,
       pod,
       place_of_receipt: sea?.place_of_receipt ?? pol,
       place_of_delivery: sea?.place_of_delivery ?? pod,
-      vessel_voyage: [vessel?.name, sea?.voyage_number]
+      vessel_voyage: [ctx.vessel_name, ctx.voyage_number]
         .filter(Boolean)
         .join(" / "),
+      vessel_name: ctx.vessel_name ?? "",
+      voyage_number: ctx.voyage_number ?? "",
       etd: job.etd?.toISOString().slice(0, 10) ?? "",
       eta: job.eta?.toISOString().slice(0, 10) ?? "",
       containers: containers || "—",
       container_rows: containerRows,
       commodity: job.commodity ?? "",
+      pieces: job.pieces != null ? String(job.pieces) : "",
+      gross_weight:
+        job.gross_weight != null ? String(job.gross_weight) : "",
+      volume_cbm: job.volume_cbm != null ? String(job.volume_cbm) : "",
       letter_kind: letterKind,
       letter_body: String(
         parameters.letter_body ??
           "Please find attached the referenced shipping document for your action.",
       ),
+      company_logo: logo,
+      company_name: branding.legal_name || branding.company_name,
+      company_address: branding.address ?? "",
+      company_phone: branding.phone ?? "",
+      company_email: branding.email ?? "",
+      company_vat: branding.vat_number ?? branding.gstin ?? "",
+      company_web: branding.website ?? "",
+      bank,
+      is_draft: rendererKey === "sea.hbl_draft",
+      is_original: rendererKey === "sea.hbl_original",
     };
 
     const titles: Record<string, string> = {

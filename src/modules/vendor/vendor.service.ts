@@ -36,7 +36,10 @@ import {
   VendorJwtPayload,
 } from "./interfaces/vendor-auth.interfaces";
 import { VendorPermissionsService } from "./vendor-permissions.service";
-import { vendorFrontendUrl } from "../payments/utils/frontend-url.util";
+import {
+  vendorFrontendUrl,
+  vendorLoginUrl,
+} from "../payments/utils/frontend-url.util";
 
 @Injectable()
 export class VendorService {
@@ -815,7 +818,7 @@ export class VendorService {
       isPasswordReset?: boolean;
     },
   ) {
-    const loginUrl = `${vendorFrontendUrl()}/vendor/login`;
+    const loginUrl = vendorLoginUrl();
     const branded = opts.isPasswordReset
       ? buildPasswordResetEmail({
           audience: "VENDOR",

@@ -5,6 +5,8 @@ export type InvoiceFormatPayload = {
     name: string;
     address_lines: string[];
     logo_url?: string;
+    phone?: string;
+    email?: string;
     website?: string;
     gstin?: string;
   };

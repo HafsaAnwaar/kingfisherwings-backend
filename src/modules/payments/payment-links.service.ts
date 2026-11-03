@@ -18,7 +18,7 @@ import {
 import { PaymentAuditService } from "./payment-audit.service";
 import { PaymentGatewaySettingsService } from "./payment-gateway-settings.service";
 import { PaymentNotificationsService } from "./payment-notifications.service";
-import { paymentLinkUrl, portalFrontendUrl } from "./utils/frontend-url.util";
+import { paymentLinkUrl, portalLoginUrl } from "./utils/frontend-url.util";
 import { isPositiveMoney, roundMoney } from "./utils/money.util";
 
 export const hashPaymentLinkToken = (token: string) =>
@@ -98,7 +98,7 @@ export class PaymentLinksService {
       currency: invoice.currency_code,
       dueDate: invoice.due_date,
       payUrl: created.url,
-      viewUrl: `${portalFrontendUrl()}/portal/invoices/${invoice.id}`,
+      viewUrl: portalLoginUrl(),
       message: opts.message,
       pdf,
       createdBy: opts.actorId,

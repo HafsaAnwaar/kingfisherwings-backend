@@ -24,7 +24,7 @@ import { WebhookDispatcherService } from "../public-api/webhook-dispatcher.servi
 import { PaymentLinksService } from "../payments/payment-links.service";
 import { PaymentNotificationsService } from "../payments/payment-notifications.service";
 import { PaymentGatewaySettingsService } from "../payments/payment-gateway-settings.service";
-import { portalFrontendUrl } from "../payments/utils/frontend-url.util";
+import { portalLoginUrl } from "../payments/utils/frontend-url.util";
 import {
   lineTotal,
   MasterLabelService,
@@ -1841,7 +1841,7 @@ export class InvoicesService {
         const link = await this.paymentLinks.createForInvoice(tenantId, id, { actorId });
         payNowHtml = this.paymentMailer.payNowHtml(
           link.url,
-          `${portalFrontendUrl()}/portal/invoices/${id}`,
+          portalLoginUrl(),
         );
       } catch (err) {
         this.logger.warn(

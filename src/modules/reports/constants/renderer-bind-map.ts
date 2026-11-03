@@ -30,6 +30,7 @@ const EXACT: Record<string, string> = {
   AIR_ARRIVAL_NOTICE: "air.arrival_notice",
   AIR_DELIVERY_ORDER: "air.delivery_order",
   QUOTATION_STANDARD: "quotation.standard",
+  QUOTATION_SHELL: "quotation.standard",
   FINANCE_AGING: "finance.aging",
   FINANCE_SOA: "finance.soa",
   FINANCE_TRIAL_BALANCE: "finance.trial_balance",
@@ -259,12 +260,35 @@ const RULES: Rule[] = [
 ];
 
 /**
+ * Analytics / MIS / dashboard codes — no document PDF pack.
+ * Import leaves them as pending.*; FE should treat as covered_analytics.
+ */
+const ANALYTICS_PATTERNS: RegExp[] = [
+  /DASHBOARD/i,
+  /_ANALYTICS_/i,
+  /^MIS_/i,
+  /CHART_REPORT/i,
+  /GRAPH_REPORT/i,
+  /KPI_DASHBOARD/i,
+  /ON_SCREEN_/i,
+  /LIVE_BOARD/i,
+];
+
+export function isCoveredAnalyticsCode(code: string): boolean {
+  const trimmed = String(code ?? "").trim();
+  if (!trimmed) return false;
+  return ANALYTICS_PATTERNS.some((p) => p.test(trimmed));
+}
+
+/**
  * Resolve a preferred renderer_key for a template code, or null if no rule.
  * Caller must still check the pack is implemented before binding.
+ * Returns null for covered_analytics codes (do not fake a document PDF).
  */
 export function resolveRendererKeyForCode(code: string): string | null {
   const trimmed = String(code ?? "").trim();
   if (!trimmed) return null;
+  if (isCoveredAnalyticsCode(trimmed)) return null;
   if (EXACT[trimmed]) return EXACT[trimmed];
   for (const rule of RULES) {
     if (rule.pattern.test(trimmed)) return rule.renderer_key;

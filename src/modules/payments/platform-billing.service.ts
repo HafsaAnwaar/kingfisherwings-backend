@@ -55,7 +55,11 @@ import {
   toDecimal,
   toMinorUnits,
 } from "./utils/money.util";
-import { staffFrontendUrl, withQuery } from "./utils/frontend-url.util";
+import {
+  staffFrontendUrl,
+  staffLoginUrl,
+  withQuery,
+} from "./utils/frontend-url.util";
 import type {
   GatewaySuccessInfo,
   PaymentInitiator,
@@ -406,7 +410,7 @@ export class PlatformBillingService {
         currency: sent.currency_code,
         dueDate: sent.due_date,
         payUrl,
-        viewUrl: `${staffFrontendUrl()}/billing/invoices/${sent.id}`,
+        viewUrl: staffLoginUrl(),
         message: dto.message,
         pdf,
         eventType: "PLATFORM_INVOICE_SENT",

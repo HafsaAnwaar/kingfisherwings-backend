@@ -45,7 +45,7 @@ export function staffFrontendUrl(): string {
   );
 }
 
-/** Staff login page (create-user / credentials emails). */
+/** Staff login page (create-user / credentials / activity emails). */
 export function staffLoginUrl(): string {
   return (
     trimBase(process.env.STAFF_LOGIN_URL) ?? `${staffFrontendUrl()}/login`
@@ -60,11 +60,26 @@ export function portalFrontendUrl(): string {
   );
 }
 
+/** Customer portal login — use in emails instead of deep record URLs. */
+export function portalLoginUrl(): string {
+  return (
+    trimBase(process.env.PORTAL_LOGIN_URL) ?? `${portalFrontendUrl()}/login`
+  );
+}
+
 export function vendorFrontendUrl(): string {
   return (
     trimBase(process.env.VENDOR_APP_URL) ??
     trimBase(process.env.VENDOR_FRONTEND_URL) ??
     staffFrontendUrl()
+  );
+}
+
+/** Vendor portal login — use in emails instead of deep record URLs. */
+export function vendorLoginUrl(): string {
+  return (
+    trimBase(process.env.VENDOR_LOGIN_URL) ??
+    `${vendorFrontendUrl()}/vendor/login`
   );
 }
 
