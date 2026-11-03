@@ -20,6 +20,7 @@ import {
   VERIFICATION_DOC_MAX_BYTES,
   VERIFICATION_DOC_MIME,
 } from "./party-verification.constants";
+import { staffFrontendUrl } from "../payments/utils/frontend-url.util";
 
 export type VerificationUploaderSide = "portal" | "vendor";
 
@@ -429,7 +430,7 @@ export class PartyVerificationService {
           take: 20,
         }),
       );
-      const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+      const appUrl = staffFrontendUrl();
       for (const a of admins) {
         if (!a.email) continue;
         const branded = renderBrandedEmail({
@@ -442,7 +443,7 @@ export class PartyVerificationService {
           ],
           cta: {
             label: "Review party",
-            url: `${appUrl.replace(/\/$/, "")}/parties/${partyId}`,
+            url: `${appUrl}/parties/${partyId}`,
           },
           audience: "STAFF",
         });

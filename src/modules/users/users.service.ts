@@ -14,6 +14,10 @@ import {
   buildPasswordResetEmail,
   buildStaffCredentialsEmail,
 } from "../../shared/email/branded-email.template";
+import {
+  staffFrontendUrl,
+  staffLoginUrl,
+} from "../payments/utils/frontend-url.util";
 
 import {
   Prisma,
@@ -559,18 +563,12 @@ export class UsersService {
         const fullName =
           [user.first_name, user.last_name].filter(Boolean).join(" ") ||
           user.email;
-        const loginUrl =
-          (
-            this.config?.get<string>("STAFF_LOGIN_URL") ||
-            process.env.STAFF_LOGIN_URL ||
-            "https://freightnest.kingfishertec.com/login"
-          ).trim() || "https://freightnest.kingfishertec.com/login";
         const branded = buildStaffCredentialsEmail({
           recipientName: fullName,
           organizationName: orgName,
           email: user.email,
           temporaryPassword,
-          loginUrl,
+          loginUrl: staffLoginUrl(),
         });
         try {
           await this.email.send({
@@ -1171,11 +1169,7 @@ export class UsersService {
     });
 
     if (issued && this.email) {
-      const appUrl =
-        this.config?.get<string>("APP_URL") ??
-        this.config?.get<string>("PUBLIC_API_URL") ??
-        "http://localhost:3000";
-      const resetUrl = `${appUrl.replace(/\/$/, "")}/reset-password?token=${issued.token}`;
+      const resetUrl = `${staffFrontendUrl()}/reset-password?token=${issued.token}`;
       const branded = buildPasswordResetEmail({
         audience: "STAFF",
         recipientName: issued.fullName,

@@ -10,6 +10,7 @@ import {
   adminEmailDedupeKey,
   claimAdminEmailDedupe,
 } from "../tenant-admin-notification-email.util";
+import { staffFrontendUrl } from "../../payments/utils/frontend-url.util";
 
 export interface StaffActivityEvent {
   tenantId: string;
@@ -220,8 +221,8 @@ export class StaffActivityService {
     const role = actor ? roleLabel(actor.role) : "";
     const performedBy = role ? `${actorName} (${role})` : actorName;
     const when = new Date(meta.occurred_at ?? log.created_at);
-    const base = (process.env.FRONTEND_URL ?? "").trim().replace(/\/$/, "");
-    const link = base && meta.link_path ? `${base}${meta.link_path}` : null;
+    const base = staffFrontendUrl();
+    const link = meta.link_path ? `${base}${meta.link_path}` : null;
     const app = process.env.APP_NAME?.replace(/"/g, "") || "Kingfisher";
     const reference = meta.reference ?? jobRef;
     const detail = meta.detail;

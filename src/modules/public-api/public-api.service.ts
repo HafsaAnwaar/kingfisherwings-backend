@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import * as argon2 from "argon2";
 import Stripe from "stripe";
 import { StripeSdk } from "../payments/stripe-gateway.service";
+import { staffFrontendUrl } from "../payments/utils/frontend-url.util";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -183,8 +184,8 @@ export class StripeBillingService {
             },
           }
         : {}),
-      success_url: `${process.env.APP_URL ?? "http://localhost:3000"}/billing/success`,
-      cancel_url: `${process.env.APP_URL ?? "http://localhost:3000"}/billing/cancel`,
+      success_url: `${staffFrontendUrl()}/billing/success`,
+      cancel_url: `${staffFrontendUrl()}/billing/cancel`,
     });
 
     return { checkout_url: session.url, session_id: session.id };
