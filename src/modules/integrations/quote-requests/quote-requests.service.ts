@@ -15,7 +15,11 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { CrmActivityService } from "../../crm/crm-activity.service";
 import { CurrentUser } from "../../users/interfaces/current-user.interface";
 import { KfppWpConnector } from "./connectors/kfpp-wp.connector";
-import { NormalizedQuoteRequest } from "./connectors/quote-request-connector.interface";
+import { KfqaWpConnector } from "./connectors/kfqa-wp.connector";
+import {
+  NormalizedQuoteRequest,
+  QuoteRequestConnector,
+} from "./connectors/quote-request-connector.interface";
 import {
   PatchQuoteRequestStatusDto,
   QuoteRequestListQueryDto,
@@ -73,8 +77,13 @@ export class QuoteRequestsService {
     await this.assertBridgeEnabled(tenantId);
     const ciphertext = encryptSecret(dto.api_key);
     const prefix = secretPrefix(dto.api_key);
+    const provider = dto.provider ?? ExternalQuoteRequestProvider.KFPP_WP;
+    const defaultAuth =
+      provider === ExternalQuoteRequestProvider.KFQA_WP
+        ? "X-API-Key"
+        : "X-KFPP-Api-Key";
     const data = {
-      provider: dto.provider ?? ExternalQuoteRequestProvider.KFPP_WP,
+      provider,
       base_url: dto.base_url
         .trim()
         .replace(/\/+$/, "")
@@ -83,7 +92,7 @@ export class QuoteRequestsService {
         .replace(/\/inquiries\/?$/i, ""),
       api_key_ciphertext: ciphertext,
       api_key_prefix: prefix,
-      auth_header_name: dto.auth_header_name?.trim() || "X-KFPP-Api-Key",
+      auth_header_name: dto.auth_header_name?.trim() || defaultAuth,
       status_map: dto.status_map ?? Prisma.JsonNull,
       is_active: dto.is_active ?? true,
       updated_by: actorId,
@@ -148,26 +157,71 @@ export class QuoteRequestsService {
         throw new BadRequestException("Quote-requests connection is inactive.");
       }
       const connector = await this.buildConnector(tenantId);
-      const list = await connector.list();
-      fetched = list.items.length;
-
       const tenant = await this.prisma.tenant.findFirst({
         where: { id: tenantId },
         select: { base_currency: true },
       });
       const currency = (tenant?.base_currency || "USD").slice(0, 3);
 
-      for (const item of list.items) {
-        try {
-          await this.upsertMirroredItem(tenantId, item, currency);
-          upserted += 1;
-        } catch (err) {
-          failed += 1;
-          this.logger.warn(
-            `Quote request sync item ${item.external_id} failed: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          );
+      if (conn.provider === ExternalQuoteRequestProvider.KFQA_WP) {
+        // Recommended KFQA sync: unsynced only, oldest first, ACK, then
+        // re-pull page 1 (ack removes rows so paging must not advance).
+        const perPage = 50;
+        for (let guard = 0; guard < 100; guard += 1) {
+          const list = await connector.list({
+            synced: false,
+            order: "asc",
+            page: 1,
+            per_page: perPage,
+          });
+          if (!list.items.length) break;
+          fetched += list.items.length;
+          const ackBatch: string[] = [];
+          for (const item of list.items) {
+            try {
+              await this.upsertMirroredItem(tenantId, item, currency);
+              upserted += 1;
+              ackBatch.push(item.external_id);
+            } catch (err) {
+              failed += 1;
+              this.logger.warn(
+                `KFQA quote sync ${item.external_id} failed: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              );
+            }
+          }
+          if (ackBatch.length && connector.acknowledge) {
+            try {
+              await connector.acknowledge(ackBatch);
+            } catch (err) {
+              this.logger.warn(
+                `KFQA ack failed: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              );
+              // Avoid infinite loop if ack keeps failing on the same page
+              break;
+            }
+          } else {
+            break;
+          }
+        }
+      } else {
+        const list = await connector.list();
+        fetched = list.items.length;
+        for (const item of list.items) {
+          try {
+            await this.upsertMirroredItem(tenantId, item, currency);
+            upserted += 1;
+          } catch (err) {
+            failed += 1;
+            this.logger.warn(
+              `Quote request sync item ${item.external_id} failed: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          }
         }
       }
 
@@ -260,7 +314,9 @@ export class QuoteRequestsService {
               { contact_email: { contains: query.search, mode: "insensitive" } },
               { contact_name: { contains: query.search, mode: "insensitive" } },
               { company_name: { contains: query.search, mode: "insensitive" } },
-              { external_id: { contains: query.search } },
+              { commodity: { contains: query.search, mode: "insensitive" } },
+              { external_id: { contains: query.search, mode: "insensitive" } },
+              { message: { contains: query.search, mode: "insensitive" } },
             ],
           }
         : {}),
@@ -280,7 +336,7 @@ export class QuoteRequestsService {
     );
     return {
       success: true,
-      data,
+      data: data.map((row) => this.presentQuoteRequest(row)),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
     };
   }
@@ -288,7 +344,7 @@ export class QuoteRequestsService {
   async getOne(tenantId: string, id: string) {
     await this.assertBridgeEnabled(tenantId);
     const row = await this.requireMirror(tenantId, id);
-    return { success: true, data: row };
+    return { success: true, data: this.presentQuoteRequest(row) };
   }
 
   async patchStatus(
@@ -313,7 +369,19 @@ export class QuoteRequestsService {
 
     try {
       const connector = await this.buildConnector(tenantId);
-      await connector.updateStatus(row.external_id, mapped);
+      await connector.updateStatus(row.external_id, mapped, {
+        software_ref: dto.software_ref,
+        synced: dto.synced ?? true,
+      });
+      // Keep software_ref / synced markers on raw_json for FE
+      const raw = {
+        ...((row.raw_json as Record<string, unknown>) ?? {}),
+        status: dto.status,
+        ...(dto.software_ref != null
+          ? { software_ref: dto.software_ref }
+          : {}),
+        synced: dto.synced ?? true,
+      };
       const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.externalQuoteRequest.update({
           where: { id: row.id },
@@ -321,13 +389,14 @@ export class QuoteRequestsService {
             pending_status_push: false,
             status_pushed_at: new Date(),
             sync_error: null,
+            raw_json: raw as Prisma.InputJsonValue,
           },
         }),
       );
       return {
         success: true,
         message: "Status updated locally and pushed remotely.",
-        data: updated,
+        data: this.presentQuoteRequest(updated),
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -343,7 +412,7 @@ export class QuoteRequestsService {
       return {
         success: false,
         message: "Local status saved; remote push failed and will retry.",
-        data: updated,
+        data: this.presentQuoteRequest(updated),
       };
     }
   }
@@ -375,7 +444,7 @@ export class QuoteRequestsService {
       actorId,
       true,
     );
-    return { success: true, data: updated };
+    return { success: true, data: this.presentQuoteRequest(updated) };
   }
 
   async convertToQuote(user: CurrentUser, id: string) {
@@ -498,22 +567,74 @@ export class QuoteRequestsService {
     return row;
   }
 
-  private async buildConnector(tenantId: string) {
+  private async buildConnector(
+    tenantId: string,
+  ): Promise<QuoteRequestConnector> {
     const row = await this.requireConnectionRow(tenantId);
     const apiKey = decryptSecret(row.api_key_ciphertext);
-    if (row.provider === ExternalQuoteRequestProvider.GENERIC_REST) {
-      // v1: same REST shape as KFPP
-      return new KfppWpConnector({
+    if (row.provider === ExternalQuoteRequestProvider.KFQA_WP) {
+      return new KfqaWpConnector({
         baseUrl: row.base_url,
         apiKey,
-        authHeaderName: row.auth_header_name,
+        authHeaderName: row.auth_header_name || "X-API-Key",
       });
     }
+    // KFPP_WP + GENERIC_REST (KFPP-shaped)
     return new KfppWpConnector({
       baseUrl: row.base_url,
       apiKey,
       authHeaderName: row.auth_header_name,
     });
+  }
+
+  /** Enrich mirror row with full remote document fields for the FE. */
+  private presentQuoteRequest(row: {
+    external_id: string;
+    contact_name: string | null;
+    contact_email: string | null;
+    contact_phone: string | null;
+    company_name: string | null;
+    raw_json: Prisma.JsonValue;
+    [key: string]: unknown;
+  }) {
+    const raw =
+      row.raw_json && typeof row.raw_json === "object" && !Array.isArray(row.raw_json)
+        ? (row.raw_json as Record<string, unknown>)
+        : {};
+    const customer =
+      raw.customer && typeof raw.customer === "object"
+        ? (raw.customer as Record<string, unknown>)
+        : null;
+    return {
+      ...row,
+      reference: typeof raw.reference === "string" ? raw.reference : null,
+      source: typeof raw.source === "string" ? raw.source : null,
+      source_label:
+        typeof raw.source_label === "string" ? raw.source_label : null,
+      software_ref:
+        typeof raw.software_ref === "string" ? raw.software_ref : null,
+      synced: typeof raw.synced === "boolean" ? raw.synced : null,
+      page_url: typeof raw.page_url === "string" ? raw.page_url : null,
+      admin_url: typeof raw.admin_url === "string" ? raw.admin_url : null,
+      customer: customer
+        ? {
+            type: customer.type ?? null,
+            name: customer.name ?? row.contact_name,
+            company: customer.company ?? row.company_name,
+            email: customer.email ?? row.contact_email,
+            phone: customer.phone ?? row.contact_phone,
+          }
+        : {
+            type: null,
+            name: row.contact_name,
+            company: row.company_name,
+            email: row.contact_email,
+            phone: row.contact_phone,
+          },
+      items: Array.isArray(raw.items) ? raw.items : [],
+      service: raw.service ?? null,
+      remote: raw,
+    };
   }
 
   private async requireMirror(tenantId: string, id: string) {
@@ -540,7 +661,7 @@ export class QuoteRequestsService {
 
   private async retryPendingStatusPushes(
     tenantId: string,
-    connector: KfppWpConnector,
+    connector: QuoteRequestConnector,
   ) {
     const pending = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.externalQuoteRequest.findMany({
@@ -557,7 +678,17 @@ export class QuoteRequestsService {
       if (!row.status) continue;
       try {
         const mapped = await this.mapStatusOutbound(tenantId, row.status);
-        await connector.updateStatus(row.external_id, mapped);
+        const raw =
+          row.raw_json &&
+          typeof row.raw_json === "object" &&
+          !Array.isArray(row.raw_json)
+            ? (row.raw_json as Record<string, unknown>)
+            : {};
+        await connector.updateStatus(row.external_id, mapped, {
+          software_ref:
+            typeof raw.software_ref === "string" ? raw.software_ref : undefined,
+          synced: true,
+        });
         await this.prisma.runWithTenant(tenantId, (tx) =>
           tx.externalQuoteRequest.update({
             where: { id: row.id },
@@ -652,6 +783,10 @@ export class QuoteRequestsService {
             source: LeadSource.WEBSITE,
             status: LeadStatus.NEW,
             notes: [
+              item.reference ? `Ref: ${item.reference}` : null,
+              item.source_label || item.source
+                ? `Source: ${item.source_label || item.source}`
+                : null,
               item.message,
               item.commodity ? `Commodity: ${item.commodity}` : null,
               `External quote request #${item.external_id}`,

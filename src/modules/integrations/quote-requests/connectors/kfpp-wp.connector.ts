@@ -5,6 +5,8 @@ import {
 import {
   NormalizedQuoteRequest,
   QuoteRequestConnector,
+  QuoteRequestListOpts,
+  UpdateStatusExtra,
 } from "./quote-request-connector.interface";
 import {
   normalizeQuoteRequestItem,
@@ -67,7 +69,9 @@ export class KfppWpConnector implements QuoteRequestConnector {
     }
   }
 
-  async list(): Promise<{ total: number; items: NormalizedQuoteRequest[] }> {
+  async list(
+    _opts?: QuoteRequestListOpts,
+  ): Promise<{ total: number; pages?: number; items: NormalizedQuoteRequest[] }> {
     // Prefer /quotes; fall back if the saved base_url already points at another collection.
     const candidates = ["quotes", "quote-requests", "inquiries"];
     let lastErr: unknown;
@@ -100,7 +104,11 @@ export class KfppWpConnector implements QuoteRequestConnector {
     return item;
   }
 
-  async updateStatus(externalId: string, status: string): Promise<void> {
+  async updateStatus(
+    externalId: string,
+    status: string,
+    _extra?: UpdateStatusExtra,
+  ): Promise<void> {
     this.assertNumericId(externalId);
     await this.request("PATCH", `quotes/${externalId}`, { status });
   }

@@ -58,7 +58,11 @@ export class QuoteRequestsController {
 
   @Post("sync")
   @RequirePermissions(QUOTE_REQUESTS_PERMISSIONS.SYNC)
-  @ApiOperation({ summary: "Manual pull/sync from remote Quote Requests API" })
+  @ApiOperation({
+    summary: "Manual pull/sync from remote Quote Requests API",
+    description:
+      "KFQA_WP: GET /quotes?synced=false then POST /quotes/ack. KFPP unchanged.",
+  })
   sync(@CurrentUser("tenantId") tenantId: string) {
     return this.service.sync(tenantId, "manual");
   }
@@ -100,7 +104,11 @@ export class QuoteRequestsController {
 
   @Patch(":id/status")
   @RequirePermissions(QUOTE_REQUESTS_PERMISSIONS.UPDATE_STATUS)
-  @ApiOperation({ summary: "Update status locally and push to remote API" })
+  @ApiOperation({
+    summary: "Update status locally and push to remote API",
+    description:
+      "KFQA also accepts optional software_ref / synced on the body (PATCH remote quote).",
+  })
   patchStatus(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,

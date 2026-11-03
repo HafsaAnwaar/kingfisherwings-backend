@@ -33,10 +33,26 @@ function pickDate(
   return null;
 }
 
+function commodityFromItems(items: unknown): string | null {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const parts: string[] = [];
+  for (const raw of items) {
+    const it = asRecord(raw);
+    if (!it) continue;
+    const name = pickString(it, ["name", "product_name", "title"]);
+    const qty = pickString(it, ["quantity", "qty"]);
+    const unit = pickString(it, ["unit"]);
+    const sku = pickString(it, ["sku"]);
+    if (!name && !sku) continue;
+    const bit = [qty, unit, name || sku].filter(Boolean).join(" ");
+    parts.push(bit);
+  }
+  return parts.length ? parts.join("; ").slice(0, 300) : null;
+}
+
 /**
- * Map KFPP / generic website inquiry payloads into a stable shape.
- * Unknown fields remain on `raw`. Sample WP items were empty at discovery;
- * common WordPress / form field aliases are covered.
+ * Map KFPP / KFQA / generic website inquiry payloads into a stable shape.
+ * Unknown fields remain on `raw` (full remote document for FE).
  */
 export function normalizeQuoteRequestItem(
   item: unknown,
@@ -53,33 +69,49 @@ export function normalizeQuoteRequestItem(
   ]);
   if (!externalId) return null;
 
-  const contactName = pickString(obj, [
-    "contact_name",
-    "name",
-    "full_name",
-    "customer_name",
-    "contactName",
-  ]);
-  const contactEmail = pickString(obj, [
-    "contact_email",
-    "email",
-    "customer_email",
-    "contactEmail",
-  ])?.toLowerCase() ?? null;
-  const contactPhone = pickString(obj, [
-    "contact_phone",
-    "phone",
-    "mobile",
-    "tel",
-    "contactPhone",
-  ]);
-  const companyName = pickString(obj, [
-    "company_name",
-    "company",
-    "organisation",
-    "organization",
-    "companyName",
-  ]);
+  const customer = asRecord(obj.customer);
+
+  const contactName =
+    pickString(obj, [
+      "contact_name",
+      "name",
+      "full_name",
+      "customer_name",
+      "contactName",
+    ]) ?? (customer ? pickString(customer, ["name", "full_name"]) : null);
+
+  const contactEmail =
+    (
+      pickString(obj, [
+        "contact_email",
+        "email",
+        "customer_email",
+        "contactEmail",
+      ]) ?? (customer ? pickString(customer, ["email"]) : null)
+    )?.toLowerCase() ?? null;
+
+  const contactPhone =
+    pickString(obj, [
+      "contact_phone",
+      "phone",
+      "mobile",
+      "tel",
+      "contactPhone",
+    ]) ?? (customer ? pickString(customer, ["phone", "mobile", "tel"]) : null);
+
+  const companyName =
+    pickString(obj, [
+      "company_name",
+      "company",
+      "organisation",
+      "organization",
+      "companyName",
+    ]) ?? (customer ? pickString(customer, ["company", "company_name"]) : null);
+
+  const customerType = customer
+    ? pickString(customer, ["type", "customer_type"])
+    : pickString(obj, ["customer_type"]);
+
   const message = pickString(obj, [
     "message",
     "notes",
@@ -88,13 +120,16 @@ export function normalizeQuoteRequestItem(
     "enquiry",
     "details",
   ]);
-  const commodity = pickString(obj, [
-    "commodity",
-    "cargo",
-    "product",
-    "goods",
-    "subject",
-  ]);
+
+  const commodity =
+    pickString(obj, [
+      "commodity",
+      "cargo",
+      "product",
+      "goods",
+      "subject",
+    ]) ?? commodityFromItems(obj.items);
+
   const status = pickString(obj, ["status", "state", "quote_status"]);
   const submittedAt = pickDate(obj, [
     "submitted_at",
@@ -114,12 +149,20 @@ export function normalizeQuoteRequestItem(
     message,
     commodity,
     submitted_at: submittedAt,
+    reference: pickString(obj, ["reference", "ref", "quote_number"]),
+    source: pickString(obj, ["source"]),
+    source_label: pickString(obj, ["source_label", "sourceLabel"]),
+    software_ref: pickString(obj, ["software_ref", "softwareRef"]),
+    customer_type: customerType,
+    page_url: pickString(obj, ["page_url", "pageUrl", "url"]),
+    admin_url: pickString(obj, ["admin_url", "adminUrl"]),
     raw: obj,
   };
 }
 
 export function normalizeQuoteRequestList(payload: unknown): {
   total: number;
+  pages?: number;
   items: NormalizedQuoteRequest[];
 } {
   const obj = asRecord(payload);
@@ -146,5 +189,11 @@ export function normalizeQuoteRequestList(payload: unknown): {
       : typeof obj?.count === "number"
         ? obj.count
         : items.length;
-  return { total, items };
+  const pages =
+    typeof obj?.pages === "number"
+      ? obj.pages
+      : typeof obj?.total_pages === "number"
+        ? obj.total_pages
+        : undefined;
+  return { total, pages, items };
 }

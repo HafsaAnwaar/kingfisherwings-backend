@@ -17,7 +17,9 @@ import { ExternalQuoteRequestProvider } from "@prisma/client";
 
 export class UpsertQuoteRequestConnectionDto {
   @ApiProperty({
-    example: "https://kingfisherwingsgroup.com/wp-json/kfpp/v1",
+    example: "https://kingfisherwingsgroup.com/wp-json/kfqa/v1",
+    description:
+      "KFPP: …/wp-json/kfpp/v1 · KFQA (General Trading): …/wp-json/kfqa/v1",
   })
   @IsUrl({ require_tld: false })
   @Length(8, 500)
@@ -28,12 +30,19 @@ export class UpsertQuoteRequestConnectionDto {
   @MinLength(8)
   api_key!: string;
 
-  @ApiPropertyOptional({ enum: ExternalQuoteRequestProvider })
+  @ApiPropertyOptional({
+    enum: ExternalQuoteRequestProvider,
+    description:
+      "KFPP_WP = classic inquiry API · KFQA_WP = product / general-trading quotes (kfqa/v1)",
+  })
   @IsOptional()
   @IsEnum(ExternalQuoteRequestProvider)
   provider?: ExternalQuoteRequestProvider;
 
-  @ApiPropertyOptional({ default: "X-KFPP-Api-Key" })
+  @ApiPropertyOptional({
+    default: "X-API-Key",
+    description: "KFQA uses X-API-Key; KFPP uses X-KFPP-Api-Key",
+  })
   @IsOptional()
   @IsString()
   @Length(3, 80)
@@ -80,10 +89,30 @@ export class QuoteRequestListQueryDto {
 }
 
 export class PatchQuoteRequestStatusDto {
-  @ApiProperty({ example: "pending" })
+  @ApiProperty({
+    example: "quoted",
+    description:
+      "Remote status. KFQA allows: new, received, contacted, quoted, won, lost, closed",
+  })
   @IsString()
   @Length(1, 80)
   status!: string;
+
+  @ApiPropertyOptional({
+    example: "SO-2291",
+    description: "KFQA: your software order / quote reference pushed remotely",
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  software_ref?: string;
+
+  @ApiPropertyOptional({
+    description: "KFQA: mark remote synced=true when pushing status",
+  })
+  @IsOptional()
+  @IsBoolean()
+  synced?: boolean;
 }
 
 export class UpdateTenantQuoteRequestsFeatureDto {
