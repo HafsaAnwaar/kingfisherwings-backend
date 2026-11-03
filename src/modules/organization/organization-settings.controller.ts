@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Patch,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { UserRole } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -9,6 +16,7 @@ import { UpdateJobDateSettingsDto } from "./dto/job-date-settings.dto";
 import { UpdateDimensionSettingsDto } from "./dto/dimension-settings.dto";
 import { UpdateJobCreateSettingsDto } from "./dto/job-create-settings.dto";
 import { DEFAULT_VOLUMETRIC_DIVISOR_CM } from "../jobs/utils/job-dimension-calc.util";
+import { websitePortalLinksForTenant } from "../payments/utils/frontend-url.util";
 
 @ApiTags("Organization — Settings")
 @ApiBearerAuth()
@@ -116,5 +124,40 @@ export class OrganizationSettingsController {
       select: { allow_create_party_from_job: true },
     });
     return { success: true, data: tenant };
+  }
+
+  @Get("website-links")
+  @ApiOperation({
+    summary:
+      "WordPress PORTALS copy-paste URLs (link mode: login/track with tenant_slug prefilled)",
+    description:
+      "Paste these into WordPress → Portals & API as Software login URL (Link mode). " +
+      "FE must read ?tenant_slug= and hide/lock the workspace field. " +
+      "API sign-in on WordPress is not implemented.",
+  })
+  async getWebsiteLinks(@CurrentUser("tenantId") tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { slug: true, display_name: true, name: true },
+    });
+    if (!tenant?.slug) {
+      throw new NotFoundException("Tenant slug not found");
+    }
+    const links = websitePortalLinksForTenant(tenant.slug);
+    return {
+      success: true,
+      data: {
+        tenant_name: tenant.display_name ?? tenant.name,
+        ...links,
+        wordpress: {
+          mode: "link_to_software_login",
+          note: "Leave API base URL / API key empty. Set How people sign in = Link to my software's login page.",
+          employee_software_login_url: links.employee_login_url,
+          customer_software_login_url: links.customer_login_url,
+          vendor_software_login_url: links.vendor_login_url,
+          tracking_url: links.tracking_url,
+        },
+      },
+    };
   }
 }

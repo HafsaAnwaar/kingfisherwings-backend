@@ -60,10 +60,14 @@ export function portalFrontendUrl(): string {
   );
 }
 
-/** Customer portal login — use in emails instead of deep record URLs. */
+/**
+ * Customer portal login page.
+ * Default path `/portal/login` (WordPress + FE contract). Override with PORTAL_LOGIN_URL.
+ */
 export function portalLoginUrl(): string {
   return (
-    trimBase(process.env.PORTAL_LOGIN_URL) ?? `${portalFrontendUrl()}/login`
+    trimBase(process.env.PORTAL_LOGIN_URL) ??
+    `${portalFrontendUrl()}/portal/login`
   );
 }
 
@@ -83,6 +87,13 @@ export function vendorLoginUrl(): string {
   );
 }
 
+/** Public shipment track page (FE). */
+export function publicTrackUrl(): string {
+  return (
+    trimBase(process.env.PUBLIC_TRACK_URL) ?? `${staffFrontendUrl()}/track`
+  );
+}
+
 /** Public payment-link landing page (customer may not have a portal login). */
 export function paymentLinkUrl(token: string): string {
   const base =
@@ -99,4 +110,50 @@ export function withQuery(url: string, params: Record<string, string>): string {
     )
     .join("&");
   return `${url}${url.includes("?") ? "&" : "?"}${qs}`;
+}
+
+/**
+ * Append `tenant_slug` for WordPress / branded website entry.
+ * FE login pages must prefill + lock the workspace field when this query is present.
+ */
+export function withTenantSlug(url: string, slug: string): string {
+  const cleaned = String(slug ?? "").trim().toLowerCase();
+  if (!cleaned) return url;
+  return withQuery(url, { tenant_slug: cleaned });
+}
+
+export function staffLoginUrlForTenant(slug: string): string {
+  return withTenantSlug(staffLoginUrl(), slug);
+}
+
+export function portalLoginUrlForTenant(slug: string): string {
+  return withTenantSlug(portalLoginUrl(), slug);
+}
+
+export function vendorLoginUrlForTenant(slug: string): string {
+  return withTenantSlug(vendorLoginUrl(), slug);
+}
+
+export function publicTrackUrlForTenant(slug?: string | null): string {
+  const base = publicTrackUrl();
+  const cleaned = String(slug ?? "").trim().toLowerCase();
+  return cleaned ? withTenantSlug(base, cleaned) : base;
+}
+
+/** Copy-paste URLs for WordPress PORTALS (link mode — no API sign-in). */
+export function websitePortalLinksForTenant(slug: string): {
+  tenant_slug: string;
+  employee_login_url: string;
+  customer_login_url: string;
+  vendor_login_url: string;
+  tracking_url: string;
+} {
+  const tenant_slug = String(slug ?? "").trim().toLowerCase();
+  return {
+    tenant_slug,
+    employee_login_url: staffLoginUrlForTenant(tenant_slug),
+    customer_login_url: portalLoginUrlForTenant(tenant_slug),
+    vendor_login_url: vendorLoginUrlForTenant(tenant_slug),
+    tracking_url: publicTrackUrlForTenant(tenant_slug),
+  };
 }

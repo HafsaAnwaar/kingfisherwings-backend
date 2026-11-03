@@ -4,6 +4,7 @@ import {
   canSeeJobType,
   canWriteJobType,
   visibleJobTypes,
+  writableJobTypes,
 } from "../constants/module-permission-tree";
 
 export type JobTypeAccessMode = "see" | "write";
@@ -76,11 +77,16 @@ export function assertJobTypeAccess(
 
 export function jobTypeAccessSummary(permissions: string[] | null | undefined): {
   visible_job_types: JobType[] | null;
+  /** Job types allowed on create-job pickers (`operations_*.write`). */
+  writable_job_types: JobType[] | null;
   unrestricted_ops: boolean;
 } {
-  const visible = visibleJobTypes(permissions ?? []);
+  const perms = permissions ?? [];
+  const visible = visibleJobTypes(perms);
+  const writable = writableJobTypes(perms);
   return {
     visible_job_types: visible,
+    writable_job_types: writable,
     unrestricted_ops: visible === null,
   };
 }

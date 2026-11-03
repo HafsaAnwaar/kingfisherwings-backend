@@ -30,9 +30,12 @@ export class DocumentationJobsController {
 
   @Post("create-wizard")
   @RequirePermissions(DOCUMENTATION_PERMISSIONS.READ)
-  @ApiOperation({ summary: "Create job wizard metadata (5 steps)" })
-  createWizard() {
-    return this.service.createWizardMetadata();
+  @ApiOperation({
+    summary:
+      "Create job wizard metadata (5 steps); services filtered to writable job types",
+  })
+  createWizard(@CurrentUser("permissions") permissions: string[]) {
+    return this.service.createWizardMetadata(permissions ?? []);
   }
 
   @Post("create")

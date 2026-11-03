@@ -8,7 +8,10 @@ import {
   DocumentationCreateJobDto,
 } from "./dto/documentation-jobs.dto";
 import { paginated } from "./dto/documentation-pagination.dto";
-import { allOperationsServices } from "../../common/constants/module-permission-tree";
+import {
+  allOperationsServices,
+  writableJobTypes,
+} from "../../common/constants/module-permission-tree";
 
 @Injectable()
 export class DocumentationJobsService {
@@ -17,7 +20,18 @@ export class DocumentationJobsService {
     private readonly jobs: JobsService,
   ) {}
 
-  createWizardMetadata() {
+  /**
+   * Create-job wizard metadata. `services` is filtered to job types the
+   * staffer can write (ops matrix). Unrestricted when no ops matrix.
+   */
+  createWizardMetadata(permissions: string[] = []) {
+    const all = allOperationsServices();
+    const allowed = writableJobTypes(permissions);
+    const services =
+      allowed === null
+        ? all
+        : all.filter((s) => allowed.includes(s.job_type));
+
     return {
       success: true,
       data: {
@@ -59,7 +73,8 @@ export class DocumentationJobsService {
           },
           { step: 5, title: "Summary", fields: ["review"] },
         ],
-        services: allOperationsServices(),
+        services: services.map((s) => ({ ...s, value: s.job_type })),
+        writable_job_types: allowed,
         salesperson_filter: { query: "GET /users?is_salesperson=true" },
       },
     };

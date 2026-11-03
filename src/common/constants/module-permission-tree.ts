@@ -274,6 +274,24 @@ export function canWriteJobType(
   return permissions.includes(operationsWriteCode(jobType));
 }
 
+/**
+ * Job types the user may create/write.
+ * `null` = unrestricted (no ops matrix). Empty = matrix present but no write.
+ */
+export function writableJobTypes(
+  permissions: string[],
+): JobType[] | null {
+  if (!hasAnyOperationsMatrix(permissions)) return null;
+  const allowed: JobType[] = [];
+  for (const sub of OPERATIONS_JOB_TYPES) {
+    const jobType = sub.jobType!;
+    if (permissions.includes(operationsWriteCode(jobType))) {
+      allowed.push(jobType);
+    }
+  }
+  return allowed;
+}
+
 export function isMatrixPermissionCode(code: string): boolean {
   return ALL_MATRIX_PERMISSION_CODES.includes(code);
 }
