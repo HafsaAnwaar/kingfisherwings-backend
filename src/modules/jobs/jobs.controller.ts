@@ -84,6 +84,13 @@ import {
 } from "./dto/job-storage-costing.dto";
 import { CreateJobChargeAttachmentDto } from "./dto/job-charge-attachment.dto";
 import { JobStatusCatalogService } from "./job-status-catalog.service";
+import { ContainerStatusCatalogService } from "./container-status-catalog.service";
+import { AirWaybillService } from "./air-waybill.service";
+import {
+  UpdateAirWaybillDto,
+  UpsertAirWaybillDto,
+} from "./dto/air-waybill.dto";
+import { UpdateAirMawbDto } from "./dto/air-mawb.dto";
 import {
   CreateStatusCatalogDto,
   UpdateStatusCatalogDto,
@@ -277,6 +284,8 @@ export class JobsController {
     private readonly dashboard: JobsDashboardService,
     private readonly detail: JobDetailService,
     private readonly statusCatalog: JobStatusCatalogService,
+    private readonly containerStatuses: ContainerStatusCatalogService,
+    private readonly airWaybills: AirWaybillService,
     private readonly gpum: JobGpumService,
     private readonly storageCosting: JobContainerStorageCostingService,
     private readonly chargeAttachments: JobChargeAttachmentService,
@@ -322,9 +331,9 @@ export class JobsController {
   @Get("dashboard-counts")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
-    summary: "Job KPI counters for staff dashboards",
+    summary: "Job counts for the jobs this user can see",
     description:
-      "Buckets: open, in_progress, on_hold, delayed, delivered, completed, cancelled. Supports period=7d|30d|mtd|custom.",
+      "total and by_job_type match the job list for this user (admin = every department, staff = allowed job types only). created_in_period is the only period-scoped number.",
   })
   dashboardCounts(
     @CurrentUser("tenantId") tenantId: string,
@@ -412,6 +421,44 @@ export class JobsController {
     @Body() dto: UpdateStatusCatalogDto,
   ) {
     return this.statusCatalog.updateCustom(tenantId, catalogId, dto);
+  }
+
+  @Get("container-statuses")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Container status catalog (system + custom)" })
+  containerStatusOptions(@CurrentUser("tenantId") tenantId: string) {
+    return this.containerStatuses.listOptions(tenantId);
+  }
+
+  @Post("container-statuses")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Add a custom container status" })
+  createContainerStatus(
+    @CurrentUser("tenantId") tenantId: string,
+    @Body() dto: CreateStatusCatalogDto,
+  ) {
+    return this.containerStatuses.createCustom(tenantId, dto);
+  }
+
+  @Patch("container-statuses/:catalogId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Rename a container status" })
+  updateContainerStatus(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("catalogId", ParseUUIDPipe) catalogId: string,
+    @Body() dto: UpdateStatusCatalogDto,
+  ) {
+    return this.containerStatuses.updateCustom(tenantId, catalogId, dto);
+  }
+
+  @Delete("container-statuses/:catalogId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Deactivate a custom container status" })
+  deactivateContainerStatus(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("catalogId", ParseUUIDPipe) catalogId: string,
+  ) {
+    return this.containerStatuses.deactivate(tenantId, catalogId);
   }
 
   @Delete("status-catalog/:catalogId")
@@ -526,6 +573,30 @@ export class JobsController {
     @Param("tab") tab: string,
   ) {
     return this.detail.getDetailTab(tenantId, id, tab, permissions, role);
+  }
+
+  @Put(":id/detail/mawb")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Update air MAWB fields (flight, status, MAWB/HAWB, pallet, dimensions, weight)",
+  })
+  updateAirMawb(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAirMawbDto,
+  ) {
+    return this.detail.updateAirMawb(
+      tenantId,
+      id,
+      dto,
+      actorId,
+      permissions,
+      role,
+    );
   }
 
   @Patch(":id/detail/show_all")
@@ -1528,10 +1599,15 @@ export class JobsController {
   update(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateJobDto,
   ) {
-    return this.service.update(tenantId, id, dto, actorId);
+    return this.service.update(tenantId, id, dto, actorId, {
+      permissions,
+      role,
+    });
   }
 
   @Get(":id/close-checklist")
@@ -1556,10 +1632,15 @@ export class JobsController {
   closeJob(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: CloseJobDto = {},
   ) {
-    return this.service.closeJob(tenantId, id, actorId, dto);
+    return this.service.closeJob(tenantId, id, actorId, dto, {
+      permissions,
+      role,
+    });
   }
 
   @Post(":id/copy")
@@ -1619,9 +1700,14 @@ export class JobsController {
   cancelJob(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.cancelJob(tenantId, id, actorId);
+    return this.service.cancelJob(tenantId, id, actorId, {
+      permissions,
+      role,
+    });
   }
 
   @Delete(":id")
@@ -1631,9 +1717,14 @@ export class JobsController {
   async remove(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    await this.service.softDelete(tenantId, id, actorId);
+    await this.service.softDelete(tenantId, id, actorId, {
+      permissions,
+      role,
+    });
   }
 
   @Patch(":id/air-details")
@@ -2138,6 +2229,8 @@ export class JobsController {
   completeMilestone(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("milestoneKey") milestoneKey: string,
     @Body() dto: UpdateJobMilestoneDto,
@@ -2148,6 +2241,7 @@ export class JobsController {
       decodeURIComponent(milestoneKey),
       dto,
       actorId,
+      { permissions, role },
     );
   }
 
@@ -2159,10 +2253,15 @@ export class JobsController {
   addCustomMilestone(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: CreateCustomMilestoneDto,
   ) {
-    return this.service.addCustomMilestone(tenantId, id, dto, actorId);
+    return this.service.addCustomMilestone(tenantId, id, dto, actorId, {
+      permissions,
+      role,
+    });
   }
 
   @Get(":id/charges")
@@ -3955,6 +4054,54 @@ export class JobsController {
     @Param("cargoId", ParseUUIDPipe) cargoId: string,
   ) {
     await this.service.removeCargo(tenantId, id, cargoId, actorId);
+  }
+
+  @Get(":id/air-waybills")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List AWB records on an air job" })
+  listAirWaybills(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.airWaybills.list(tenantId, id);
+  }
+
+  @Post(":id/air-waybills")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Create an AWB (MAWB or HAWB) on an air job" })
+  createAirWaybill(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertAirWaybillDto,
+  ) {
+    return this.airWaybills.create(tenantId, id, dto, actorId);
+  }
+
+  @Patch(":id/air-waybills/:awbId")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Update an AWB record" })
+  updateAirWaybill(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("awbId", ParseUUIDPipe) awbId: string,
+    @Body() dto: UpdateAirWaybillDto,
+  ) {
+    return this.airWaybills.update(tenantId, id, awbId, dto, actorId);
+  }
+
+  @Delete(":id/air-waybills/:awbId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Soft-delete an AWB record" })
+  async removeAirWaybill(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("awbId", ParseUUIDPipe) awbId: string,
+  ) {
+    await this.airWaybills.remove(tenantId, id, awbId, actorId);
   }
 
   @Post(":id/bills-of-lading")

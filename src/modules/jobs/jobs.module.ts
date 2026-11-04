@@ -22,6 +22,8 @@ import {
 import { JobsService } from "./jobs.service";
 import { JobDetailService } from "./job-detail.service";
 import { JobStatusCatalogService } from "./job-status-catalog.service";
+import { ContainerStatusCatalogService } from "./container-status-catalog.service";
+import { AirWaybillService } from "./air-waybill.service";
 import { JobGpumService } from "./job-gpum.service";
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobContainerStorageCostingService } from "./job-container-storage-costing.service";
@@ -102,6 +104,8 @@ import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.servi
     JobsService,
     JobDetailService,
     JobStatusCatalogService,
+    ContainerStatusCatalogService,
+    AirWaybillService,
     JobGpumService,
     JobLookupsService,
     OpsSectionAttachmentsService,

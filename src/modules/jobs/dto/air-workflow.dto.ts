@@ -166,6 +166,24 @@ export class UpsertAirBookingFormDto extends AirWorkflowOverrideDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  flight_status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  mawb_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  hawb_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsDateString()
   flight_date?: string;
 

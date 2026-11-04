@@ -159,7 +159,7 @@ export class PatchShowAllDto {
   })
   @IsOptional()
   @IsString()
-  @MaxLength(30)
+  @MaxLength(40)
   container_status?: string | null;
 
   @ApiPropertyOptional()

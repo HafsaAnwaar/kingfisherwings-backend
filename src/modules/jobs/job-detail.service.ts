@@ -16,6 +16,7 @@ import {
   UpdateHoldDto,
 } from "./dto/job-detail.dto";
 import { PatchJobClosedOverridesDto } from "./dto/job-closed-overrides.dto";
+import { UpdateAirMawbDto } from "./dto/air-mawb.dto";
 import {
   PatchJobDimensionsDto,
   UpsertJobPartyReferenceDto,
@@ -23,6 +24,7 @@ import {
 } from "./dto/job-organization.dto";
 import { JobPartyReferenceType } from "@prisma/client";
 import { JobStatusCatalogService } from "./job-status-catalog.service";
+import { ContainerStatusCatalogService } from "./container-status-catalog.service";
 import { JobChargeAttachmentService } from "./job-charge-attachment.service";
 import { JobOrganizationService } from "./job-organization.service";
 import { JobDimensionService } from "./job-dimension.service";
@@ -60,6 +62,7 @@ const DETAIL_TABS = [
   "customs",
   "history",
   "booking_form",
+  "mawb",
   "acknowledgement",
   "shipments",
 ] as const;
@@ -74,6 +77,7 @@ export class JobDetailService {
     private readonly prisma: PrismaService,
     private readonly shipments: ShipmentsService,
     private readonly statusCatalog: JobStatusCatalogService,
+    private readonly containerStatuses: ContainerStatusCatalogService,
     private readonly chargeAttachments: JobChargeAttachmentService,
     private readonly organizations: JobOrganizationService,
     private readonly dimensions: JobDimensionService,
@@ -139,11 +143,22 @@ export class JobDetailService {
       return this.tabPanels.getDepartmentTab(tenantId, id);
     }
     if (normalized === "planned_container") {
+      if (AIR_JOB_TYPES.includes(job.job_type)) {
+        return this.airMawbView(tenantId, job);
+      }
       return this.containerTab.getTab(
         tenantId,
         id,
         JobContainerKind.PLANNED,
       );
+    }
+    if (normalized === "mawb") {
+      if (!AIR_JOB_TYPES.includes(job.job_type)) {
+        throw new BadRequestException(
+          "MAWB tab is only available on Air Export and Air Import jobs.",
+        );
+      }
+      return this.airMawbView(tenantId, job);
     }
     if (normalized === "actual_container") {
       return this.containerTab.getTab(
@@ -288,19 +303,17 @@ export class JobDetailService {
               label: "agent",
             });
 
+      let containerStatusCode: string | null | undefined = undefined;
       let containerStatus: ContainerStatus | null | undefined = undefined;
       if (dto.container_status !== undefined) {
         const raw = String(dto.container_status ?? "").trim();
         if (!raw) {
+          containerStatusCode = null;
           containerStatus = null;
         } else {
-          const normalized = raw.toUpperCase() as ContainerStatus;
-          if (!Object.values(ContainerStatus).includes(normalized)) {
-            throw new BadRequestException(
-              `Invalid container_status "${dto.container_status}". Allowed: ${Object.values(ContainerStatus).join(", ")}`,
-            );
-          }
-          containerStatus = normalized;
+          const resolved = await this.containerStatuses.resolve(tenantId, raw);
+          containerStatusCode = resolved.code;
+          containerStatus = resolved.enumStatus;
         }
       }
 
@@ -331,6 +344,9 @@ export class JobDetailService {
           : {}),
         ...(containerStatus !== undefined
           ? { primary_container_status: containerStatus }
+          : {}),
+        ...(containerStatusCode !== undefined
+          ? { primary_container_status_code: containerStatusCode }
           : {}),
         ...(vesselName !== undefined ? { vessel_name: vesselName } : {}),
         ...(dto.voyage_number !== undefined
@@ -1064,6 +1080,123 @@ export class JobDetailService {
     return this.timeline.getTimeline(tenantId, "JOB", id);
   }
 
+  async updateAirMawb(
+    tenantId: string,
+    id: string,
+    dto: UpdateAirMawbDto,
+    actorId?: string,
+    permissions?: string[],
+    role?: string | null,
+  ) {
+    const job = await this.loadJob(tenantId, id, permissions, role);
+    if (!AIR_JOB_TYPES.includes(job.job_type) || !job.air_details) {
+      throw new BadRequestException(
+        "MAWB fields are only available on Air Export and Air Import jobs.",
+      );
+    }
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await tx.airJobDetail.update({
+        where: { id: job.air_details!.id },
+        data: {
+          ...(dto.flight_no !== undefined ? { flight_number: dto.flight_no } : {}),
+          ...(dto.flight_status !== undefined
+            ? { flight_status: dto.flight_status }
+            : {}),
+          ...(dto.mawb_no !== undefined ? { mawb_number: dto.mawb_no } : {}),
+          ...(dto.hawb_no !== undefined ? { hawb_number: dto.hawb_no } : {}),
+          updated_by: actorId,
+        },
+      });
+      const form = await tx.airBookingForm.findFirst({
+        where: { tenant_id: tenantId, job_id: id, deleted_at: null },
+      });
+      const formData = {
+        ...(dto.flight_no !== undefined ? { flight_number: dto.flight_no } : {}),
+        ...(dto.flight_status !== undefined
+          ? { flight_status: dto.flight_status }
+          : {}),
+        ...(dto.mawb_no !== undefined ? { mawb_number: dto.mawb_no } : {}),
+        ...(dto.hawb_no !== undefined ? { hawb_number: dto.hawb_no } : {}),
+        ...(dto.pallet_count !== undefined
+          ? { pallet_count: dto.pallet_count }
+          : {}),
+        ...(dto.air_pallet !== undefined
+          ? {
+              pallets_json: JSON.parse(
+                JSON.stringify(dto.air_pallet),
+              ) as Prisma.InputJsonValue,
+            }
+          : {}),
+        ...(dto.dimensions !== undefined ? { volume_cbm: dto.dimensions } : {}),
+        ...(dto.weight !== undefined ? { gross_weight_kg: dto.weight } : {}),
+        updated_by: actorId,
+      };
+      if (form) {
+        await tx.airBookingForm.update({
+          where: { id: form.id },
+          data: formData,
+        });
+      } else {
+        await tx.airBookingForm.create({
+          data: {
+            tenant_id: tenantId,
+            job_id: id,
+            air_job_detail_id: job.air_details!.id,
+            ...formData,
+            created_by: actorId,
+          },
+        });
+      }
+      if (dto.weight !== undefined || dto.dimensions !== undefined) {
+        await tx.job.update({
+          where: { id },
+          data: {
+            ...(dto.weight !== undefined ? { gross_weight: dto.weight } : {}),
+            ...(dto.dimensions !== undefined
+              ? { volume_cbm: dto.dimensions }
+              : {}),
+            updated_by: actorId,
+          },
+        });
+      }
+    });
+    return this.airMawbView(tenantId, await this.loadJob(tenantId, id, permissions, role));
+  }
+
+  private async airMawbView(
+    tenantId: string,
+    job: Awaited<ReturnType<typeof this.loadJob>>,
+  ) {
+    return { success: true, data: await this.airMawbFields(tenantId, job) };
+  }
+
+  private async airMawbFields(
+    tenantId: string,
+    job: Awaited<ReturnType<typeof this.loadJob>>,
+  ) {
+    const form = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.airBookingForm.findFirst({
+        where: { tenant_id: tenantId, job_id: job.id, deleted_at: null },
+      }),
+    );
+    const air = job.air_details;
+    return {
+      kind: "mawb" as const,
+      flight_no: form?.flight_number ?? air?.flight_number ?? null,
+      flight_status: form?.flight_status ?? air?.flight_status ?? null,
+      mawb_no: form?.mawb_number ?? air?.mawb_number ?? null,
+      hawb_no: form?.hawb_number ?? air?.hawb_number ?? null,
+      air_pallet: form?.pallets_json ?? null,
+      pallet_count: form?.pallet_count ?? null,
+      dimensions:
+        form?.volume_cbm != null ? Number(form.volume_cbm) : job.volume_cbm,
+      weight:
+        form?.gross_weight_kg != null
+          ? Number(form.gross_weight_kg)
+          : job.gross_weight,
+    };
+  }
+
   private async loadJob(
     tenantId: string,
     id: string,
@@ -1110,9 +1243,17 @@ export class JobDetailService {
       job.containers_job?.[0]?.container_number ??
       null;
     const primaryStatus =
+      job.primary_container_status_code ??
       job.primary_container_status ??
+      job.containers_job?.[0]?.status_code ??
       job.containers_job?.[0]?.status ??
       null;
+    const containerStatusOptions =
+      await this.containerStatuses.optionCodes(tenantId);
+    const air = job.air_details;
+    const mawb = AIR_JOB_TYPES.includes(job.job_type)
+      ? await this.airMawbFields(tenantId, job)
+      : null;
     return this.labels.enrichOne(tenantId, {
       id: job.id,
       job_number: job.job_number,
@@ -1142,7 +1283,12 @@ export class JobDetailService {
       rotation_number: job.rotation_number ?? null,
       container_number: primaryCtr,
       container_status: primaryStatus,
-      container_status_options: Object.values(ContainerStatus),
+      container_status_options: containerStatusOptions,
+      mawb_number: air?.mawb_number ?? null,
+      hawb_number: air?.hawb_number ?? null,
+      flight_number: air?.flight_number ?? null,
+      flight_status: air?.flight_status ?? null,
+      mawb,
       can_edit_container_status: !(
         job.status === "COMPLETED" || job.status === "CANCELLED"
       ),
@@ -1211,13 +1357,15 @@ export class JobDetailService {
         change_status: `/jobs/${job.id}/change-status`,
         status_options: `/jobs/status-options?job_id=${job.id}`,
         show_all_patch: `/jobs/${job.id}/detail/show_all`,
-        container_status_options: Object.values(ContainerStatus),
+        container_status_options: `/jobs/container-statuses`,
         gpum: `/jobs/${job.id}/gpum`,
         cancel: `/jobs/${job.id}/cancel`,
         copy: `/jobs/${job.id}/copy`,
         switch_bl: `/jobs/${job.id}/documents/switch-bl`,
         bills_of_lading: `/jobs/${job.id}/bills-of-lading`,
-        awb: isAir ? `/jobs/${job.id}/documents/e-awb` : null,
+        air_waybills: isAir ? `/jobs/${job.id}/air-waybills` : null,
+        mawb: isAir ? `/jobs/${job.id}/detail/mawb` : null,
+        awb: isAir ? `/jobs/${job.id}/air-waybills` : null,
         ...(isAir
           ? {
               awb_draft_preview: `/jobs/${job.id}/awb-draft/preview`,
