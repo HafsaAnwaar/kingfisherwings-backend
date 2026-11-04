@@ -1,6 +1,10 @@
 import { JobType } from "@prisma/client";
 import { visibleJobTypes } from "../../../common/constants/module-permission-tree";
 import { isOpsOnlyActor } from "../../../common/utils/conversion-visibility.util";
+import {
+  canSeeJobTypeForActor,
+  visibleJobTypesForActor,
+} from "../../../common/utils/job-type-access.util";
 
 /**
  * Regression: ops staff with write must list by job_type matrix only.
@@ -47,5 +51,30 @@ describe("jobs ops visibility policy", () => {
   it("sea-only write does not unlock air types", () => {
     const permissions = ["operations_sea_lcl_import.write"];
     expect(visibleJobTypes(permissions)).toEqual([JobType.SEA_LCL_IMPORT]);
+  });
+
+  it("tenant admin sees every department even with a partial matrix", () => {
+    const permissions = ["operations_air_export.write"];
+    expect(visibleJobTypesForActor(permissions, "TENANT_ADMIN")).toBeNull();
+    expect(
+      canSeeJobTypeForActor(permissions, JobType.WAREHOUSE, "TENANT_ADMIN"),
+    ).toBe(true);
+    expect(
+      canSeeJobTypeForActor(permissions, JobType.SEA_FCL_IMPORT, "BRANCH_MANAGER"),
+    ).toBe(true);
+  });
+
+  it("staff stay limited to granted job types", () => {
+    const permissions = ["operations_air_export.write"];
+    expect(
+      visibleJobTypesForActor(permissions, "OPERATIONS_EXECUTIVE"),
+    ).toEqual([JobType.AIR_EXPORT]);
+    expect(
+      canSeeJobTypeForActor(
+        permissions,
+        JobType.SEA_LCL_IMPORT,
+        "OPERATIONS_EXECUTIVE",
+      ),
+    ).toBe(false);
   });
 });

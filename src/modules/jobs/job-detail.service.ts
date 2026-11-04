@@ -88,8 +88,13 @@ export class JobDetailService {
     private readonly lookups: JobLookupsService,
   ) {}
 
-  async getDetail(tenantId: string, id: string, permissions?: string[]) {
-    const job = await this.loadJob(tenantId, id, permissions);
+  async getDetail(
+    tenantId: string,
+    id: string,
+    permissions?: string[],
+    role?: string | null,
+  ) {
+    const job = await this.loadJob(tenantId, id, permissions, role);
     const links = await this.resolveLinks(tenantId, job);
     return {
       success: true,
@@ -108,6 +113,7 @@ export class JobDetailService {
     id: string,
     tab: string,
     permissions?: string[],
+    role?: string | null,
   ) {
     const normalized = tab.toLowerCase();
     if (!DETAIL_TABS.includes(normalized as (typeof DETAIL_TABS)[number])) {
@@ -115,7 +121,7 @@ export class JobDetailService {
         `Unknown tab "${tab}". Allowed: ${DETAIL_TABS.join(", ")}`,
       );
     }
-    const job = await this.loadJob(tenantId, id, permissions);
+    const job = await this.loadJob(tenantId, id, permissions, role);
 
     if (normalized === "show_all" || normalized === "info") {
       return { success: true, data: await this.headerPayload(tenantId, job) };
@@ -1062,6 +1068,7 @@ export class JobDetailService {
     tenantId: string,
     id: string,
     permissions?: string[],
+    role?: string | null,
   ) {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
@@ -1084,7 +1091,7 @@ export class JobDetailService {
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
-    assertJobTypeAccess(permissions, job.job_type, "see");
+    assertJobTypeAccess(permissions, job.job_type, "see", role);
     return job;
   }
 

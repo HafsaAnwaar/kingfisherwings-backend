@@ -205,32 +205,11 @@ export class ShipmentDetailService {
       dto.carrier_id !== undefined ||
       dto.agent_name !== undefined ||
       dto.agent_code !== undefined ||
-      dto.agent_id !== undefined ||
-      dto.container_number !== undefined ||
-      dto.container_status !== undefined ||
-      dto.vessel_name !== undefined ||
-      dto.vessel_number !== undefined ||
-      dto.voyage_number !== undefined;
+      dto.agent_id !== undefined;
     if (!hasField) {
       throw new BadRequestException(
         "Provide at least one show_all field to update.",
       );
-    }
-
-    let containerStatus: ContainerStatus | null | undefined = undefined;
-    if (dto.container_status !== undefined) {
-      const raw = String(dto.container_status ?? "").trim();
-      if (!raw) {
-        containerStatus = null;
-      } else {
-        const normalized = raw.toUpperCase() as ContainerStatus;
-        if (!Object.values(ContainerStatus).includes(normalized)) {
-          throw new BadRequestException(
-            `Invalid container_status "${dto.container_status}". Allowed: ${Object.values(ContainerStatus).join(", ")}`,
-          );
-        }
-        containerStatus = normalized;
-      }
     }
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -319,12 +298,6 @@ export class ShipmentDetailService {
         ...(dto.hbl_number !== undefined
           ? { hbl_number: dto.hbl_number }
           : {}),
-        ...((dto.vessel_name ?? dto.vessel_number) !== undefined
-          ? { vessel_name: dto.vessel_name ?? dto.vessel_number ?? null }
-          : {}),
-        ...(dto.voyage_number !== undefined
-          ? { voyage_number: dto.voyage_number }
-          : {}),
         ...optionalFkPatch("origin_port_id", originPortId),
         ...optionalFkPatch("dest_port_id", destPortId),
         ...optionalFkPatch("shipper_id", shipperId),
@@ -338,72 +311,6 @@ export class ShipmentDetailService {
         where: { id },
         data,
       });
-
-      // Mirror job show_all: sync linked job primary container when present.
-      if (
-        shipment.job_id &&
-        (dto.container_number !== undefined || containerStatus !== undefined)
-      ) {
-        await tx.job.update({
-          where: { id: shipment.job_id },
-          data: {
-            updated_by: actorId,
-            ...(dto.container_number !== undefined
-              ? { primary_container_number: dto.container_number }
-              : {}),
-            ...(containerStatus !== undefined
-              ? { primary_container_status: containerStatus }
-              : {}),
-          },
-        });
-        const existing = await tx.jobContainer.findFirst({
-          where: {
-            job_id: shipment.job_id,
-            tenant_id: tenantId,
-            deleted_at: null,
-          },
-          orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
-        });
-        if (existing) {
-          await tx.jobContainer.update({
-            where: { id: existing.id },
-            data: {
-              ...(dto.container_number !== undefined
-                ? { container_number: dto.container_number }
-                : {}),
-              ...(containerStatus !== undefined
-                ? {
-                    status:
-                      containerStatus === null
-                        ? ContainerStatus.EMPTY
-                        : containerStatus,
-                  }
-                : {}),
-              updated_by: actorId,
-            },
-          });
-        } else if (dto.container_number) {
-          const defaultType = await tx.containerType.findFirst({
-            where: { tenant_id: tenantId, deleted_at: null },
-            select: { id: true },
-            orderBy: { created_at: "asc" },
-          });
-          if (defaultType) {
-            await tx.jobContainer.create({
-              data: {
-                tenant_id: tenantId,
-                job_id: shipment.job_id,
-                container_number: dto.container_number,
-                container_type_id: defaultType.id,
-                status: containerStatus ?? ContainerStatus.EMPTY,
-                line_no: 1,
-                created_by: actorId,
-                updated_by: actorId,
-              },
-            });
-          }
-        }
-      }
 
       await tx.auditLog.create({
         data: {
@@ -830,6 +737,99 @@ export class ShipmentDetailService {
     shipment: Awaited<ReturnType<typeof this.loadShipment>>,
     jobNumber?: string | null,
   ) {
+    return this.labels.enrichOne(tenantId, {
+      id: shipment.id,
+      shipment_number: shipment.shipment_number,
+      shipment_date: shipment.shipment_date,
+      job_date: shipment.shipment_date,
+      status: shipment.status,
+      job_type: shipment.job_type,
+      company_id: shipment.company_id,
+      branch_id: shipment.branch_id,
+      department_id: shipment.department_id,
+      salesperson_id: shipment.salesperson_id,
+      customer_id: shipment.customer_id,
+      shipper_id: shipment.shipper_id,
+      consignee_id: shipment.consignee_id,
+      carrier_id: shipment.carrier_id,
+      agent_id: shipment.delivery_agent_id,
+      delivery_agent_id: shipment.delivery_agent_id,
+      customer_address: shipment.customer_address,
+      freight_terms: shipment.freight_terms,
+      freight_payable_at: shipment.freight_payable_at,
+      freight_payment_type: shipment.freight_payment_type,
+      bl_status: shipment.bl_status,
+      por_port_id: shipment.por_port_id,
+      origin_port_id: shipment.origin_port_id,
+      dest_port_id: shipment.dest_port_id,
+      pof_port_id: shipment.pof_port_id,
+      place_of_delivery: shipment.place_of_delivery,
+      mbl_number: shipment.mbl_number,
+      mbl_date: shipment.mbl_date,
+      hbl_number: shipment.hbl_number,
+      hbl_date: shipment.hbl_date,
+      is_cross_trade: shipment.is_cross_trade,
+      marks_numbers: shipment.marks_numbers,
+      commodity: shipment.commodity,
+      pieces: shipment.pieces,
+      gross_weight: shipment.gross_weight,
+      volume_cbm: shipment.volume_cbm,
+      etd: shipment.etd,
+      eta: shipment.eta,
+      vessel_name: shipment.vessel_name,
+      voyage_number: shipment.voyage_number,
+      job_id: shipment.job_id,
+      job_number: jobNumber ?? null,
+      quotation: shipment.quotation
+        ? {
+            id: shipment.quotation.id,
+            quotation_number: shipment.quotation.quotation_number,
+          }
+        : null,
+      enquiry_id: shipment.enquiry_id,
+    });
+  }
+
+  private actionFlags(shipment: Awaited<ReturnType<typeof this.loadShipment>>) {
+    const hasJob = !!shipment.job_id;
+    const isAir = AIR_JOB_TYPES.includes(shipment.job_type);
+    // House flag needs linked job; without job treat as master for type list.
+    const ediTypes = eligibleEdiTypes(shipment.job_type, false);
+    return {
+      can_copy: true,
+      can_generate_job:
+        !hasJob &&
+        (shipment.status === "CONFIRMED" || shipment.status === "APPROVED"),
+      can_confirm_shipment: !hasJob && shipment.status === "BOOKED",
+      generate_job_requires_status: ["CONFIRMED", "APPROVED"] as const,
+      generate_job_modes: ["DIRECT", "HOUSE"] as const,
+      default_generate_mode: "DIRECT" as const,
+      can_change_status: shipment.status !== "CANCELLED",
+      can_change_bl_status: true,
+      can_change_department: true,
+      can_split: shipment.status !== "CANCELLED",
+      can_merge: shipment.status !== "CANCELLED",
+      can_switch_bl: hasJob,
+      can_edi: hasJob && ediTypes.length > 0,
+      edi_types: hasJob ? ediTypes : [],
+      can_create_submaster: true,
+      can_kpi: true,
+      can_bl_entry: hasJob,
+      can_awb: hasJob && isAir,
+      can_track: hasJob,
+      can_booking_form: true,
+      ...opsContinuumActions(),
+      path_hints: {
+        ops_continuum: opsContinuumPathHints("SHIPMENT", shipment.id),
+        favourite_toggle: `/favourites/toggle`,
+        edi_types: `/shipments/${shipment.id}/edi/types`,
+        edi_generate: `/shipments/${shipment.id}/edi/generate`,
+        edi_submissions: `/shipments/${shipment.id}/edi/submissions`,
+        edi_legacy_action: `/shipments/${shipment.id}/edi/:action`,
+        ...(isAir
+          ? {
+              awb_draft_preview: `/shipments/${shipment.id}/awb-draft/preview`,
+              hawb_draft_preview: `/shipments/${shipment.id}/hawb-draft/preview`,
     let containerNumber: string | null = null;
     let containerStatus: string | null = null;
     if (shipment.job_id) {
@@ -908,99 +908,6 @@ export class ShipmentDetailService {
       container_status: containerStatus,
       container_status_options: Object.values(ContainerStatus),
       can_edit_container_status: !closed && !!shipment.job_id,
-      job_id: shipment.job_id,
-      job_number: jobNumber ?? null,
-      quotation: shipment.quotation
-        ? {
-            id: shipment.quotation.id,
-            quotation_number: shipment.quotation.quotation_number,
-          }
-        : null,
-      enquiry_id: shipment.enquiry_id,
-    });
-  }
-
-  private actionFlags(shipment: Awaited<ReturnType<typeof this.loadShipment>>) {
-    const hasJob = !!shipment.job_id;
-    const isAir = AIR_JOB_TYPES.includes(shipment.job_type);
-    // House flag needs linked job; without job treat as master for type list.
-    const ediTypes = eligibleEdiTypes(shipment.job_type, false);
-    return {
-      can_copy: true,
-      can_generate_job:
-        !hasJob &&
-        (shipment.status === "CONFIRMED" || shipment.status === "APPROVED"),
-      can_confirm_shipment: !hasJob && shipment.status === "BOOKED",
-      generate_job_requires_status: ["CONFIRMED", "APPROVED"] as const,
-      generate_job_modes: ["DIRECT", "HOUSE"] as const,
-      default_generate_mode: "DIRECT" as const,
-      can_change_status: shipment.status !== "CANCELLED",
-      can_change_bl_status: true,
-      can_change_department: true,
-      can_split: shipment.status !== "CANCELLED",
-      can_merge: shipment.status !== "CANCELLED",
-      can_switch_bl: hasJob,
-      can_edi: hasJob && ediTypes.length > 0,
-      edi_types: hasJob ? ediTypes : [],
-      can_create_submaster: true,
-      can_kpi: true,
-      can_bl_entry: hasJob,
-      can_awb: hasJob && isAir,
-      can_track: hasJob,
-      can_booking_form: true,
-      ...opsContinuumActions(),
-      path_hints: {
-        ops_continuum: opsContinuumPathHints("SHIPMENT", shipment.id),
-        favourite_toggle: `/favourites/toggle`,
-        edi_types: `/shipments/${shipment.id}/edi/types`,
-        edi_generate: `/shipments/${shipment.id}/edi/generate`,
-        edi_submissions: `/shipments/${shipment.id}/edi/submissions`,
-        edi_legacy_action: `/shipments/${shipment.id}/edi/:action`,
-        ...(isAir
-          ? {
-              awb_draft_preview: `/shipments/${shipment.id}/awb-draft/preview`,
-              hawb_draft_preview: `/shipments/${shipment.id}/hawb-draft/preview`,
-              hawb_draft_generate: `/shipments/${shipment.id}/hawb-draft/generate`,
-              mawb_draft_generate: `/shipments/${shipment.id}/mawb-draft/generate`,
-            }
-          : {}),
-        ...(!hasJob &&
-        (shipment.status === "CONFIRMED" || shipment.status === "APPROVED")
-          ? { generate_job: `/shipments/${shipment.id}/generate-job` }
-          : {}),
-      },
-    };
-  }
-
-  private async sectionSummaries(
-    tenantId: string,
-    shipment: Awaited<ReturnType<typeof this.loadShipment>>,
-  ) {
-    const [plans, legs] = await Promise.all([
-      this.plannedContainers(tenantId, shipment),
-      this.routingLegs(tenantId, shipment),
-    ]);
-    return {
-      costing: { charge_count: shipment.charges.length },
-      planned_container: { count: Array.isArray(plans) ? plans.length : 0 },
-      routing: { leg_count: Array.isArray(legs) ? legs.length : 0 },
-    };
-  }
-
-  private async resolveLinks(
-    tenantId: string,
-    shipment: Awaited<ReturnType<typeof this.loadShipment>>,
-  ) {
-    let enquiry: { id: string; path_hint: string } | null = null;
-    const enquiryId =
-      shipment.enquiry_id ?? shipment.quotation?.source_enquiry_id ?? null;
-    if (enquiryId) {
-      enquiry = {
-        id: enquiryId,
-        path_hint: `/crm/enquiries/${enquiryId}/detail`,
-      };
-    }
-    const quotation = shipment.quotation
       ? {
           id: shipment.quotation.id,
           quotation_number: shipment.quotation.quotation_number,

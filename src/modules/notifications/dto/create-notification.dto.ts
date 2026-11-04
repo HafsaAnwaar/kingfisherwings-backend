@@ -10,6 +10,7 @@ import {
   IsUUID,
   Length,
   MaxLength,
+  ValidateIf,
 } from "class-validator";
 
 /** FE create targeting audiences (resolved to staff users at write time). */
@@ -97,8 +98,7 @@ export class CreateNotificationDto {
 
   @ApiPropertyOptional({
     type: [String],
-    description:
-      "Product/module keys; matches permission codes starting with `${module}.` or `operations_`",
+    description: "Product/module keys; matches permission codes with that prefix",
     example: ["operations", "sales"],
   })
   @IsOptional()
@@ -107,4 +107,12 @@ export class CreateNotificationDto {
   @ArrayMaxSize(30)
   @IsString({ each: true })
   modules?: string[];
+
+  @ValidateIf((o: CreateNotificationDto) => o.audience === "user")
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID("4", { each: true })
+  get _userAudienceRequiresRecipients(): string[] | undefined {
+    return this.recipient_user_ids;
+  }
 }

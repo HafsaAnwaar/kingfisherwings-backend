@@ -8,9 +8,12 @@ import {
  * Shared create-wizard payload for jobs / quotations / shipments / enquiries:
  * services filtered to operations_*.write (or all when no ops matrix).
  */
-export function writableJobTypeWizard(permissions: string[] = []) {
+export function writableJobTypeWizard(
+  permissions: string[] = [],
+  role?: string | null,
+) {
   const all = allOperationsServices();
-  const allowed = writableJobTypes(permissions);
+  const allowed = writableJobTypes(permissions, role);
   const services =
     allowed === null
       ? all
