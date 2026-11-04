@@ -34,6 +34,7 @@ import { JobLookupsService } from "./job-lookups.service";
 import { EntityTimelineService } from "../ops-activity/entity-timeline.service";
 import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
+import { assertJobTypeAccess } from "../../common/utils/job-type-access.util";
 import { JobContainerKind, JobPartyRole } from "@prisma/client";
 import { DocumentEmailService } from "../../shared/email/document-email.service";
 import {
@@ -88,7 +89,7 @@ export class JobDetailService {
   ) {}
 
   async getDetail(tenantId: string, id: string, permissions?: string[]) {
-    const job = await this.loadJob(tenantId, id);
+    const job = await this.loadJob(tenantId, id, permissions);
     const links = await this.resolveLinks(tenantId, job);
     return {
       success: true,
@@ -102,14 +103,19 @@ export class JobDetailService {
     };
   }
 
-  async getDetailTab(tenantId: string, id: string, tab: string) {
+  async getDetailTab(
+    tenantId: string,
+    id: string,
+    tab: string,
+    permissions?: string[],
+  ) {
     const normalized = tab.toLowerCase();
     if (!DETAIL_TABS.includes(normalized as (typeof DETAIL_TABS)[number])) {
       throw new BadRequestException(
         `Unknown tab "${tab}". Allowed: ${DETAIL_TABS.join(", ")}`,
       );
     }
-    const job = await this.loadJob(tenantId, id);
+    const job = await this.loadJob(tenantId, id, permissions);
 
     if (normalized === "show_all" || normalized === "info") {
       return { success: true, data: await this.headerPayload(tenantId, job) };
@@ -276,10 +282,21 @@ export class JobDetailService {
               label: "agent",
             });
 
-      const containerStatus =
-        dto.container_status != null && String(dto.container_status).trim()
-          ? (String(dto.container_status).trim().toUpperCase() as ContainerStatus)
-          : undefined;
+      let containerStatus: ContainerStatus | null | undefined = undefined;
+      if (dto.container_status !== undefined) {
+        const raw = String(dto.container_status ?? "").trim();
+        if (!raw) {
+          containerStatus = null;
+        } else {
+          const normalized = raw.toUpperCase() as ContainerStatus;
+          if (!Object.values(ContainerStatus).includes(normalized)) {
+            throw new BadRequestException(
+              `Invalid container_status "${dto.container_status}". Allowed: ${Object.values(ContainerStatus).join(", ")}`,
+            );
+          }
+          containerStatus = normalized;
+        }
+      }
 
       const data: Prisma.JobUncheckedUpdateInput = {
         updated_by: actorId,
@@ -402,7 +419,12 @@ export class JobDetailService {
                 ? { container_number: dto.container_number }
                 : {}),
               ...(containerStatus !== undefined
-                ? { status: containerStatus }
+                ? {
+                    status:
+                      containerStatus === null
+                        ? ContainerStatus.EMPTY
+                        : containerStatus,
+                  }
                 : {}),
               updated_by: actorId,
             },
@@ -1036,7 +1058,11 @@ export class JobDetailService {
     return this.timeline.getTimeline(tenantId, "JOB", id);
   }
 
-  private async loadJob(tenantId: string, id: string) {
+  private async loadJob(
+    tenantId: string,
+    id: string,
+    permissions?: string[],
+  ) {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -1058,6 +1084,7 @@ export class JobDetailService {
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+    assertJobTypeAccess(permissions, job.job_type, "see");
     return job;
   }
 
@@ -1108,6 +1135,10 @@ export class JobDetailService {
       rotation_number: job.rotation_number ?? null,
       container_number: primaryCtr,
       container_status: primaryStatus,
+      container_status_options: Object.values(ContainerStatus),
+      can_edit_container_status: !(
+        job.status === "COMPLETED" || job.status === "CANCELLED"
+      ),
       vessel_name: job.vessel_name ?? null,
       vessel_number: job.vessel_name ?? null,
       voyage_number: job.voyage_number ?? sea?.voyage_number ?? null,
@@ -1139,6 +1170,7 @@ export class JobDetailService {
     return {
       can_edit_header: !closed,
       can_edit: !closed,
+      can_edit_container_status: !closed,
       can_edit_closed_delivery: canEditClosedDelivery,
       can_delete: !closed,
       can_change_status: true,
@@ -1171,6 +1203,8 @@ export class JobDetailService {
         resume: `/jobs/${job.id}/resume`,
         change_status: `/jobs/${job.id}/change-status`,
         status_options: `/jobs/status-options?job_id=${job.id}`,
+        show_all_patch: `/jobs/${job.id}/detail/show_all`,
+        container_status_options: Object.values(ContainerStatus),
         gpum: `/jobs/${job.id}/gpum`,
         cancel: `/jobs/${job.id}/cancel`,
         copy: `/jobs/${job.id}/copy`,

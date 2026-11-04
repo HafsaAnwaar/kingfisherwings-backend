@@ -144,7 +144,18 @@ export class PatchShowAllDto {
   container_number?: string | null;
 
   @ApiPropertyOptional({
-    description: "Primary JobContainer status (EMPTY, PICKED, …)",
+    description:
+      "Primary JobContainer status — editable on show_all (EMPTY, PICKED, STUFFED, GATED_IN, LOADED, IN_TRANSIT, DISCHARGED, RETURNED). Send null/\"\" to clear.",
+    enum: [
+      "EMPTY",
+      "PICKED",
+      "STUFFED",
+      "GATED_IN",
+      "LOADED",
+      "IN_TRANSIT",
+      "DISCHARGED",
+      "RETURNED",
+    ],
   })
   @IsOptional()
   @IsString()

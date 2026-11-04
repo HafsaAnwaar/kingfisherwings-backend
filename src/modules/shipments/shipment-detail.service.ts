@@ -6,6 +6,7 @@ import {
   forwardRef,
 } from "@nestjs/common";
 import {
+  ContainerStatus,
   DocumentType,
   JobContainerKind,
   JobType,
@@ -204,11 +205,32 @@ export class ShipmentDetailService {
       dto.carrier_id !== undefined ||
       dto.agent_name !== undefined ||
       dto.agent_code !== undefined ||
-      dto.agent_id !== undefined;
+      dto.agent_id !== undefined ||
+      dto.container_number !== undefined ||
+      dto.container_status !== undefined ||
+      dto.vessel_name !== undefined ||
+      dto.vessel_number !== undefined ||
+      dto.voyage_number !== undefined;
     if (!hasField) {
       throw new BadRequestException(
         "Provide at least one show_all field to update.",
       );
+    }
+
+    let containerStatus: ContainerStatus | null | undefined = undefined;
+    if (dto.container_status !== undefined) {
+      const raw = String(dto.container_status ?? "").trim();
+      if (!raw) {
+        containerStatus = null;
+      } else {
+        const normalized = raw.toUpperCase() as ContainerStatus;
+        if (!Object.values(ContainerStatus).includes(normalized)) {
+          throw new BadRequestException(
+            `Invalid container_status "${dto.container_status}". Allowed: ${Object.values(ContainerStatus).join(", ")}`,
+          );
+        }
+        containerStatus = normalized;
+      }
     }
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -297,6 +319,12 @@ export class ShipmentDetailService {
         ...(dto.hbl_number !== undefined
           ? { hbl_number: dto.hbl_number }
           : {}),
+        ...((dto.vessel_name ?? dto.vessel_number) !== undefined
+          ? { vessel_name: dto.vessel_name ?? dto.vessel_number ?? null }
+          : {}),
+        ...(dto.voyage_number !== undefined
+          ? { voyage_number: dto.voyage_number }
+          : {}),
         ...optionalFkPatch("origin_port_id", originPortId),
         ...optionalFkPatch("dest_port_id", destPortId),
         ...optionalFkPatch("shipper_id", shipperId),
@@ -310,6 +338,72 @@ export class ShipmentDetailService {
         where: { id },
         data,
       });
+
+      // Mirror job show_all: sync linked job primary container when present.
+      if (
+        shipment.job_id &&
+        (dto.container_number !== undefined || containerStatus !== undefined)
+      ) {
+        await tx.job.update({
+          where: { id: shipment.job_id },
+          data: {
+            updated_by: actorId,
+            ...(dto.container_number !== undefined
+              ? { primary_container_number: dto.container_number }
+              : {}),
+            ...(containerStatus !== undefined
+              ? { primary_container_status: containerStatus }
+              : {}),
+          },
+        });
+        const existing = await tx.jobContainer.findFirst({
+          where: {
+            job_id: shipment.job_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+        });
+        if (existing) {
+          await tx.jobContainer.update({
+            where: { id: existing.id },
+            data: {
+              ...(dto.container_number !== undefined
+                ? { container_number: dto.container_number }
+                : {}),
+              ...(containerStatus !== undefined
+                ? {
+                    status:
+                      containerStatus === null
+                        ? ContainerStatus.EMPTY
+                        : containerStatus,
+                  }
+                : {}),
+              updated_by: actorId,
+            },
+          });
+        } else if (dto.container_number) {
+          const defaultType = await tx.containerType.findFirst({
+            where: { tenant_id: tenantId, deleted_at: null },
+            select: { id: true },
+            orderBy: { created_at: "asc" },
+          });
+          if (defaultType) {
+            await tx.jobContainer.create({
+              data: {
+                tenant_id: tenantId,
+                job_id: shipment.job_id,
+                container_number: dto.container_number,
+                container_type_id: defaultType.id,
+                status: containerStatus ?? ContainerStatus.EMPTY,
+                line_no: 1,
+                created_by: actorId,
+                updated_by: actorId,
+              },
+            });
+          }
+        }
+      }
 
       await tx.auditLog.create({
         data: {
@@ -736,6 +830,39 @@ export class ShipmentDetailService {
     shipment: Awaited<ReturnType<typeof this.loadShipment>>,
     jobNumber?: string | null,
   ) {
+    let containerNumber: string | null = null;
+    let containerStatus: string | null = null;
+    if (shipment.job_id) {
+      const job = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.findFirst({
+          where: {
+            id: shipment.job_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: {
+            primary_container_number: true,
+            primary_container_status: true,
+            containers_job: {
+              where: { deleted_at: null },
+              orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+              take: 1,
+              select: { container_number: true, status: true },
+            },
+          },
+        }),
+      );
+      containerNumber =
+        job?.primary_container_number ??
+        job?.containers_job?.[0]?.container_number ??
+        null;
+      containerStatus =
+        job?.primary_container_status ??
+        job?.containers_job?.[0]?.status ??
+        null;
+    }
+
+    const closed = shipment.status === "CANCELLED";
     return this.labels.enrichOne(tenantId, {
       id: shipment.id,
       shipment_number: shipment.shipment_number,
@@ -777,6 +904,10 @@ export class ShipmentDetailService {
       eta: shipment.eta,
       vessel_name: shipment.vessel_name,
       voyage_number: shipment.voyage_number,
+      container_number: containerNumber,
+      container_status: containerStatus,
+      container_status_options: Object.values(ContainerStatus),
+      can_edit_container_status: !closed && !!shipment.job_id,
       job_id: shipment.job_id,
       job_number: jobNumber ?? null,
       quotation: shipment.quotation

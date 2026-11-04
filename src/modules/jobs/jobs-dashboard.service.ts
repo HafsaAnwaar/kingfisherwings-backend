@@ -3,6 +3,7 @@ import { JobStatus, JobType, Prisma } from "@prisma/client";
 import {
   JobsDashboardQueryDto,
 } from "../../common/dto/dashboard-period-query.dto";
+import { visibleJobTypes } from "../../common/constants/module-permission-tree";
 import {
   DEFAULT_OPS_CAPACITY,
   isOpenJobDelayed,
@@ -14,15 +15,32 @@ import { PrismaService } from "../../prisma/prisma.service";
 export class JobsDashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async dashboardCounts(tenantId: string, query: JobsDashboardQueryDto) {
+  async dashboardCounts(
+    tenantId: string,
+    query: JobsDashboardQueryDto,
+    permissions: string[] = [],
+  ) {
     const { from, to, period } = query.resolve("30d");
+    const allowedTypes = visibleJobTypes(permissions);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      let jobTypeFilter: Prisma.JobWhereInput["job_type"] | undefined;
+      if (query.job_type) {
+        const requested = query.job_type as JobType;
+        if (allowedTypes && !allowedTypes.includes(requested)) {
+          jobTypeFilter = { in: [] };
+        } else {
+          jobTypeFilter = requested;
+        }
+      } else if (allowedTypes) {
+        jobTypeFilter = { in: allowedTypes };
+      }
+
       const base: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
-        ...(query.job_type ? { job_type: query.job_type as JobType } : {}),
+        ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
       };
 
       const [byStatus, byType, createdInPeriod, openWithEta] = await Promise.all([
@@ -108,17 +126,34 @@ export class JobsDashboardService {
     });
   }
 
-  async teamWorkload(tenantId: string, query: JobsDashboardQueryDto) {
+  async teamWorkload(
+    tenantId: string,
+    query: JobsDashboardQueryDto,
+    permissions: string[] = [],
+  ) {
     const { from, to, period } = query.resolve("30d");
     const capacity = DEFAULT_OPS_CAPACITY;
+    const allowedTypes = visibleJobTypes(permissions);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      let jobTypeFilter: Prisma.JobWhereInput["job_type"] | undefined;
+      if (query.job_type) {
+        const requested = query.job_type as JobType;
+        if (allowedTypes && !allowedTypes.includes(requested)) {
+          jobTypeFilter = { in: [] };
+        } else {
+          jobTypeFilter = requested;
+        }
+      } else if (allowedTypes) {
+        jobTypeFilter = { in: allowedTypes };
+      }
+
       const jobWhere: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
         status: { in: [...OPEN_JOB_STATUSES] as JobStatus[] },
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
-        ...(query.job_type ? { job_type: query.job_type as JobType } : {}),
+        ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
       };
 
       const openJobs = await tx.job.findMany({
@@ -288,13 +323,15 @@ export class JobsDashboardService {
     });
   }
 
-  async listOnHoldWithDocs(tenantId: string) {
+  async listOnHoldWithDocs(tenantId: string, permissions: string[] = []) {
+    const allowedTypes = visibleJobTypes(permissions);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const jobs = await tx.job.findMany({
         where: {
           tenant_id: tenantId,
           deleted_at: null,
           status: JobStatus.ON_HOLD,
+          ...(allowedTypes ? { job_type: { in: allowedTypes } } : {}),
         },
         orderBy: { held_at: "desc" },
         select: {

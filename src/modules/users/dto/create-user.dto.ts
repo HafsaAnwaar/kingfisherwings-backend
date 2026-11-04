@@ -18,7 +18,7 @@ import {
   ValidateNested,
   IsIn,
 } from "class-validator";
-import { UserRole, UserStatus } from "@prisma/client";
+import { JobType, UserRole, UserStatus } from "@prisma/client";
 import { USERS_CONSTANTS } from "../constants/users.constants";
 import { IsStrictEmail } from "../../../common/validators/input-format.validators";
 import {
@@ -309,6 +309,30 @@ export class CreateUserDto {
   @IsOptional()
   @IsIn(["merge_with_preset", "replace"])
   permission_grants_mode?: "merge_with_preset" | "replace";
+
+  @ApiPropertyOptional({
+    enum: JobType,
+    isArray: true,
+    description:
+      "Ops job types this user may list. Merged into operations grants on create.",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsEnum(JobType, { each: true })
+  visible_job_types?: JobType[];
+
+  @ApiPropertyOptional({
+    enum: JobType,
+    isArray: true,
+    description:
+      "Ops job types this user may create/write. Merged as write grants.",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsEnum(JobType, { each: true })
+  writable_job_types?: JobType[];
 
   @ApiPropertyOptional({
     default: true,

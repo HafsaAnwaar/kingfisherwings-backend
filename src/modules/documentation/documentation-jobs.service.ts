@@ -8,10 +8,8 @@ import {
   DocumentationCreateJobDto,
 } from "./dto/documentation-jobs.dto";
 import { paginated } from "./dto/documentation-pagination.dto";
-import {
-  allOperationsServices,
-  writableJobTypes,
-} from "../../common/constants/module-permission-tree";
+import { visibleJobTypes } from "../../common/constants/module-permission-tree";
+import { writableJobTypeWizard } from "../../common/utils/writable-job-type-wizard.util";
 
 @Injectable()
 export class DocumentationJobsService {
@@ -25,12 +23,7 @@ export class DocumentationJobsService {
    * staffer can write (ops matrix). Unrestricted when no ops matrix.
    */
   createWizardMetadata(permissions: string[] = []) {
-    const all = allOperationsServices();
-    const allowed = writableJobTypes(permissions);
-    const services =
-      allowed === null
-        ? all
-        : all.filter((s) => allowed.includes(s.job_type));
+    const { services, writable_job_types } = writableJobTypeWizard(permissions);
 
     return {
       success: true,
@@ -73,21 +66,27 @@ export class DocumentationJobsService {
           },
           { step: 5, title: "Summary", fields: ["review"] },
         ],
-        services: services.map((s) => ({ ...s, value: s.job_type })),
-        writable_job_types: allowed,
+        services,
+        writable_job_types,
         salesperson_filter: { query: "GET /users?is_salesperson=true" },
       },
     };
   }
 
-  async listJobs(tenantId: string, query: DocumentationJobsQueryDto) {
+  async listJobs(
+    tenantId: string,
+    query: DocumentationJobsQueryDto,
+    permissions: string[] = [],
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const allowedTypes = visibleJobTypes(permissions);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
+        ...(allowedTypes ? { job_type: { in: allowedTypes } } : {}),
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
         ...(query.department_id ? { department_id: query.department_id } : {}),
         ...(query.status ? { status: query.status as JobStatus } : {}),

@@ -328,9 +328,10 @@ export class JobsController {
   })
   dashboardCounts(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: JobsDashboardQueryDto,
   ) {
-    return this.dashboard.dashboardCounts(tenantId, query);
+    return this.dashboard.dashboardCounts(tenantId, query, permissions ?? []);
   }
 
   @Get("team-workload")
@@ -342,9 +343,10 @@ export class JobsController {
   })
   teamWorkload(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: JobsDashboardQueryDto,
   ) {
-    return this.dashboard.teamWorkload(tenantId, query);
+    return this.dashboard.teamWorkload(tenantId, query, permissions ?? []);
   }
 
   @Get("pending-quotations")
@@ -363,8 +365,11 @@ export class JobsController {
   @ApiOperation({
     summary: "Jobs currently on hold with customer-visible document summary",
   })
-  listOnHoldByCategory(@CurrentUser("tenantId") tenantId: string) {
-    return this.dashboard.listOnHoldWithDocs(tenantId);
+  listOnHoldByCategory(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
+  ) {
+    return this.dashboard.listOnHoldWithDocs(tenantId, permissions ?? []);
   }
 
   @Get("status-options")
@@ -506,10 +511,11 @@ export class JobsController {
   })
   getDetailTab(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Param("tab") tab: string,
   ) {
-    return this.detail.getDetailTab(tenantId, id, tab);
+    return this.detail.getDetailTab(tenantId, id, tab, permissions);
   }
 
   @Patch(":id/detail/show_all")

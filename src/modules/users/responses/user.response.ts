@@ -116,4 +116,10 @@ export class UserResponse {
       "True when the user has no ops matrix codes (legacy role-only / unrestricted).",
   })
   unrestricted_ops?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      "True when the user may set Party.portal_access (TENANT_ADMIN only).",
+  })
+  can_grant_portal_access?: boolean;
 }

@@ -30,8 +30,18 @@ import {
   productModuleForPermissionCode,
 } from "../../common/constants/tenant-enabled-modules";
 import { MODULE_PERMISSION_TREE } from "../../common/constants/module-permission-tree";
+import { StorageService } from "../../shared/storage/storage.service";
 
 const OWNER_ROLE_CODE = "TENANT_ADMIN";
+
+const LOGO_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/svg+xml",
+  "image/gif",
+]);
 
 @Injectable()
 export class TenantsService {
@@ -40,6 +50,7 @@ export class TenantsService {
     private readonly locale: CountryLocaleService,
     private readonly worldPorts: WorldPortsSeedService,
     private readonly freightSpecs: FreightSpecsSeedService,
+    private readonly storage: StorageService,
   ) {}
 
   // =====================================================
@@ -503,6 +514,46 @@ export class TenantsService {
       success: true,
       data: this.sanitizeTenant(tenant),
     };
+  }
+
+  async uploadLogo(
+    id: string,
+    file?: Express.Multer.File,
+  ): Promise<{ logo_url: string }> {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Upload a logo under the "file" field.');
+    }
+    const mime = (file.mimetype || "").toLowerCase();
+    if (!LOGO_MIME.has(mime)) {
+      throw new BadRequestException(
+        "Logo must be an image (png, jpeg, webp, gif, or svg).",
+      );
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      throw new BadRequestException("Logo file must be 2 MB or smaller.");
+    }
+
+    const existing = await this.prisma.tenant.findFirst({
+      where: { id, deleted_at: null },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Tenant with ID '${id}' was not found.`);
+    }
+
+    const stored = await this.storage.saveBuffer(
+      id,
+      file.buffer,
+      file.originalname || "logo.png",
+      mime || "image/png",
+    );
+
+    await this.prisma.tenant.update({
+      where: { id },
+      data: { logo_url: stored.fileUrl },
+    });
+
+    return { logo_url: stored.fileUrl };
   }
 
   // =====================================================

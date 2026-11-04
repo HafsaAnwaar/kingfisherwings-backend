@@ -126,6 +126,16 @@ export class ShipmentsController {
     return this.statusCatalog.deactivate(tenantId, catalogId);
   }
 
+  @Get("create-wizard")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary:
+      "Create shipment wizard metadata; services filtered to writable job types",
+  })
+  createWizard(@CurrentUser("permissions") permissions: string[]) {
+    return this.service.createWizardMetadata(permissions ?? []);
+  }
+
   @Get()
   @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "List shipments (Fresa booking / HBL layer)" })

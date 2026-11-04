@@ -50,9 +50,10 @@ export class MastersNotificationsController {
   list(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
     @Query() query: MastersNotificationQueryDto,
   ) {
-    return this.notifications.listForStaff(tenantId, userId, {
+    return this.notifications.listForStaff(tenantId, userId, role, {
       page: query.page,
       limit: query.limit,
       unread_only: query.unread_only === "true" || query.unread_only === "1",

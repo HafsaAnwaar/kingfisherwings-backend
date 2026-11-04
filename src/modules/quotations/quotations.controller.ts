@@ -120,6 +120,16 @@ export class QuotationsController {
     return this.statusCatalog.deactivate(tenantId, catalogId);
   }
 
+  @Get("create-wizard")
+  @RequirePermissions(QUOTATIONS_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary:
+      "Create quotation wizard metadata; services filtered to writable job types",
+  })
+  createWizard(@CurrentUser("permissions") permissions: string[]) {
+    return this.service.createWizardMetadata(permissions ?? []);
+  }
+
   @Get()
   @RequirePermissions(QUOTATIONS_PERMISSIONS.VIEW)
   @ApiOperation({ summary: "List quotations" })
@@ -721,9 +731,10 @@ export class QuotationsController {
   generateShipment(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.generateShipment(tenantId, id, actorId);
+    return this.service.generateShipment(tenantId, id, actorId, permissions);
   }
 
   @Post(":id/generate-job")
