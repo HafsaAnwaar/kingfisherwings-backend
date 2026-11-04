@@ -1,28 +1,101 @@
 import { ForbiddenException } from "@nestjs/common";
 import { JobType, Prisma, UserRole } from "@prisma/client";
 import {
-  canSeeJobType,
+  allOperationsServices,
   canWriteJobType,
   visibleJobTypes,
   writableJobTypes,
 } from "../constants/module-permission-tree";
+import { getRoleMatrixPreset } from "../constants/role-matrix-presets";
 import { departmentsForRole } from "../workflow/workflow-dept";
 
+const OPERATIONS_SCOPE_PREFIX = "operations_scope.";
+
 /**
- * Tenant admin and branch manager see every job department.
+ * Tenant admin, branch manager, and super admin see every job department.
+ * `admin_users.write` / `admin_roles.write` is the same signal when the
+ * JWT role claim is missing or is not one of those enums.
  * Staff stay scoped to operations grants (job type), not creator.
  */
-export function seesAllJobDepartments(role?: string | null): boolean {
-  if (!role) return false;
-  return departmentsForRole(role as UserRole).includes("ADMIN");
+export function seesAllJobDepartments(
+  role?: string | null,
+  permissions?: string[] | null,
+): boolean {
+  if (
+    role === UserRole.SUPER_ADMIN ||
+    role === UserRole.TENANT_ADMIN ||
+    role === UserRole.BRANCH_MANAGER
+  ) {
+    return true;
+  }
+  if (role && departmentsForRole(role as UserRole).includes("ADMIN")) {
+    return true;
+  }
+  const perms = permissions ?? [];
+  return (
+    perms.includes("admin_users.write") || perms.includes("admin_roles.write")
+  );
 }
 
+/** Job types the role preset already covers (see or write). */
+function presetVisibleJobTypes(role?: string | null): JobType[] {
+  if (!role || !Object.values(UserRole).includes(role as UserRole)) return [];
+  const byKey = new Map(
+    allOperationsServices().map((s) => [s.key, s.job_type]),
+  );
+  const types: JobType[] = [];
+  for (const grant of getRoleMatrixPreset(role as UserRole)) {
+    if (grant.module !== "operations" || grant.access === "none") continue;
+    const jobType = byKey.get(grant.submodule);
+    if (jobType && !types.includes(jobType)) types.push(jobType);
+  }
+  return types;
+}
+
+/**
+ * Job types this user may list.
+ * `null` = every department (admin, or no operations matrix at all).
+ *
+ * An `operations_scope` marker with no job-type rows used to resolve to
+ * `{ in: [] }` and show 0 jobs. For a role whose preset already covers
+ * departments, that falls back to the preset so the marker alone cannot
+ * zero the list. An explicit job-type grant still wins and is not widened.
+ */
 export function visibleJobTypesForActor(
   permissions: string[] | null | undefined,
   role?: string | null,
 ): JobType[] | null {
-  if (seesAllJobDepartments(role)) return null;
-  return visibleJobTypes(permissions ?? []);
+  const perms = permissions ?? [];
+  if (seesAllJobDepartments(role, perms)) return null;
+
+  const fromMatrix = visibleJobTypes(perms);
+  if (fromMatrix === null) return null;
+  if (fromMatrix.length > 0) return fromMatrix;
+
+  const explicitScope = perms.some((p) => p.startsWith(OPERATIONS_SCOPE_PREFIX));
+  if (!explicitScope) return fromMatrix;
+
+  const preset = presetVisibleJobTypes(role);
+  return preset.length > 0 ? preset : fromMatrix;
+}
+
+/**
+ * Prisma job_type filter shared by the job list and the job-count API.
+ * `undefined` = do not filter (admin / unrestricted). `{ in: [] }` = none.
+ */
+export function jobTypeFilterForActor(
+  permissions: string[] | null | undefined,
+  role?: string | null,
+  requested?: string | null,
+): JobType | { in: JobType[] } | undefined {
+  const allowed = visibleJobTypesForActor(permissions, role);
+  if (requested) {
+    const jobType = requested as JobType;
+    if (allowed && !allowed.includes(jobType)) return { in: [] };
+    return jobType;
+  }
+  if (allowed === null) return undefined;
+  return { in: allowed };
 }
 
 export function canSeeJobTypeForActor(
@@ -30,8 +103,9 @@ export function canSeeJobTypeForActor(
   jobType: JobType,
   role?: string | null,
 ): boolean {
-  if (seesAllJobDepartments(role)) return true;
-  return canSeeJobType(permissions ?? [], jobType);
+  const allowed = visibleJobTypesForActor(permissions, role);
+  if (allowed === null) return true;
+  return allowed.includes(jobType);
 }
 
 export function canWriteJobTypeForActor(
@@ -39,8 +113,9 @@ export function canWriteJobTypeForActor(
   jobType: JobType,
   role?: string | null,
 ): boolean {
-  if (seesAllJobDepartments(role)) return true;
-  return canWriteJobType(permissions ?? [], jobType);
+  const perms = permissions ?? [];
+  if (seesAllJobDepartments(role, perms)) return true;
+  return canWriteJobType(perms, jobType);
 }
 
 export type JobTypeAccessMode = "see" | "write";
@@ -52,8 +127,9 @@ export type JobTypeAccessMode = "see" | "write";
 export function jobTypeWhere(
   permissions: string[] | null | undefined,
   field: "job_type" = "job_type",
+  role?: string | null,
 ): Record<string, unknown> {
-  const allowed = visibleJobTypes(permissions ?? []);
+  const allowed = visibleJobTypesForActor(permissions, role);
   if (allowed === null) return {};
   if (allowed.length === 0) {
     // Matrix present but nothing granted — match nothing
@@ -65,8 +141,9 @@ export function jobTypeWhere(
 /** Same as jobTypeWhere but typed for Prisma Job/Quotation/Shipment filters. */
 export function jobTypeInFilter(
   permissions: string[] | null | undefined,
+  role?: string | null,
 ): { in: JobType[] } | undefined {
-  const allowed = visibleJobTypes(permissions ?? []);
+  const allowed = visibleJobTypesForActor(permissions, role);
   if (allowed === null) return undefined;
   return { in: allowed };
 }
@@ -77,8 +154,9 @@ export function jobTypeInFilter(
  */
 export function invoiceJobTypeScope(
   permissions: string[] | null | undefined,
+  role?: string | null,
 ): Prisma.InvoiceWhereInput | undefined {
-  const allowed = visibleJobTypes(permissions ?? []);
+  const allowed = visibleJobTypesForActor(permissions, role);
   if (allowed === null) return undefined;
   if (allowed.length === 0) {
     // Matrix present but no job types granted — still allow job-less (manual) invoices.
@@ -99,11 +177,13 @@ export function assertJobTypeAccess(
   role?: string | null,
 ): void {
   if (!jobType) return;
-  if (seesAllJobDepartments(role)) return;
-  const jt = jobType as JobType;
   const perms = permissions ?? [];
+  if (seesAllJobDepartments(role, perms)) return;
+  const jt = jobType as JobType;
   const ok =
-    mode === "write" ? canWriteJobType(perms, jt) : canSeeJobType(perms, jt);
+    mode === "write"
+      ? canWriteJobType(perms, jt)
+      : canSeeJobTypeForActor(perms, jt, role);
   if (!ok) {
     throw new ForbiddenException(
       mode === "write"

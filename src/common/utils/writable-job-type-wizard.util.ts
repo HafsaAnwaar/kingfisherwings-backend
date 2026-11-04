@@ -14,7 +14,7 @@ export function writableJobTypeWizard(
   role?: string | null,
 ) {
   const all = allOperationsServices();
-  const allowed = seesAllJobDepartments(role)
+  const allowed = seesAllJobDepartments(role, permissions)
     ? null
     : writableJobTypes(permissions);
   const services =

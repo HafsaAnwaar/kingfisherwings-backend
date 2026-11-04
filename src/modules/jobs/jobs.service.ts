@@ -38,7 +38,7 @@ import {
   assertJobTypeAccess,
   canSeeJobTypeForActor,
   canWriteJobTypeForActor,
-  visibleJobTypesForActor,
+  jobTypeFilterForActor,
 } from "../../common/utils/job-type-access.util";
 import {
   jobStatusesForCategory,
@@ -755,21 +755,14 @@ export class JobsService {
           });
         }
       }
-      if (query.job_type) where.job_type = query.job_type;
       // Admin: every department. Staff: allowed job types only, any creator.
-      const allowedTypes = visibleJobTypesForActor(
+      // Same filter the dashboard job_count uses.
+      const jobTypeFilter = jobTypeFilterForActor(
         permissions ?? [],
         _actor?.role,
+        query.job_type,
       );
-      if (allowedTypes) {
-        if (query.job_type) {
-          if (!allowedTypes.includes(query.job_type)) {
-            where.job_type = { in: [] };
-          }
-        } else {
-          where.job_type = { in: allowedTypes };
-        }
-      }
+      if (jobTypeFilter) where.job_type = jobTypeFilter;
       if (query.shipper_id) where.shipper_id = query.shipper_id;
       if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
       if (query.branch_id) where.branch_id = query.branch_id;

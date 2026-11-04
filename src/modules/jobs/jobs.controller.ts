@@ -333,7 +333,7 @@ export class JobsController {
   @ApiOperation({
     summary: "Job counts for the jobs this user can see",
     description:
-      "total and by_job_type match the job list for this user (admin = every department, staff = allowed job types only). created_in_period is the only period-scoped number.",
+      "job_count and total match the job list for this user (admin = every non-deleted job, staff = allowed job types only, any creator). open is only the open-status bucket and can be smaller than job_count. created_in_period is the only period-scoped number.",
   })
   dashboardCounts(
     @CurrentUser("tenantId") tenantId: string,

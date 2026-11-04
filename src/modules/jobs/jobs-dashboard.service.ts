@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { JobStatus, JobType, Prisma } from "@prisma/client";
+import { JobStatus, Prisma } from "@prisma/client";
 import {
   JobsDashboardQueryDto,
 } from "../../common/dto/dashboard-period-query.dto";
-import { visibleJobTypesForActor } from "../../common/utils/job-type-access.util";
+import { jobTypeFilterForActor } from "../../common/utils/job-type-access.util";
 import {
   DEFAULT_OPS_CAPACITY,
   isOpenJobDelayed,
@@ -22,21 +22,13 @@ export class JobsDashboardService {
     role?: string | null,
   ) {
     const { from, to, period } = query.resolve("30d");
-    const allowedTypes = visibleJobTypesForActor(permissions, role);
+    const jobTypeFilter = jobTypeFilterForActor(
+      permissions,
+      role,
+      query.job_type,
+    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      let jobTypeFilter: Prisma.JobWhereInput["job_type"] | undefined;
-      if (query.job_type) {
-        const requested = query.job_type as JobType;
-        if (allowedTypes && !allowedTypes.includes(requested)) {
-          jobTypeFilter = { in: [] };
-        } else {
-          jobTypeFilter = requested;
-        }
-      } else if (allowedTypes) {
-        jobTypeFilter = { in: allowedTypes };
-      }
-
       const base: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
@@ -44,7 +36,8 @@ export class JobsDashboardService {
         ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
       };
 
-      const [byStatus, byType, createdInPeriod, openWithEta] = await Promise.all([
+      const [byStatus, byType, jobCount, createdInPeriod, openWithEta] =
+        await Promise.all([
         tx.job.groupBy({
           by: ["status"],
           where: base,
@@ -55,6 +48,7 @@ export class JobsDashboardService {
           where: base,
           _count: { _all: true },
         }),
+        tx.job.count({ where: base }),
         tx.job.count({
           where: {
             ...base,
@@ -80,7 +74,7 @@ export class JobsDashboardService {
         statusMap[row.status] = row._count._all;
       }
 
-      const total = byStatus.reduce((sum, row) => sum + row._count._all, 0);
+      const total = jobCount;
       const open = OPEN_JOB_STATUSES.reduce(
         (sum, s) => sum + (statusMap[s] ?? 0),
         0,
@@ -108,6 +102,7 @@ export class JobsDashboardService {
           period,
           from: from.toISOString(),
           to: to.toISOString(),
+          job_count: jobCount,
           total,
           open,
           open_bucket,
@@ -137,21 +132,13 @@ export class JobsDashboardService {
   ) {
     const { from, to, period } = query.resolve("30d");
     const capacity = DEFAULT_OPS_CAPACITY;
-    const allowedTypes = visibleJobTypesForActor(permissions, role);
+    const jobTypeFilter = jobTypeFilterForActor(
+      permissions,
+      role,
+      query.job_type,
+    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      let jobTypeFilter: Prisma.JobWhereInput["job_type"] | undefined;
-      if (query.job_type) {
-        const requested = query.job_type as JobType;
-        if (allowedTypes && !allowedTypes.includes(requested)) {
-          jobTypeFilter = { in: [] };
-        } else {
-          jobTypeFilter = requested;
-        }
-      } else if (allowedTypes) {
-        jobTypeFilter = { in: allowedTypes };
-      }
-
       const jobWhere: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
@@ -183,7 +170,7 @@ export class JobsDashboardService {
           job: {
             deleted_at: null,
             ...(query.branch_id ? { branch_id: query.branch_id } : {}),
-            ...(query.job_type ? { job_type: query.job_type as JobType } : {}),
+            ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
           },
         },
         select: {
@@ -332,14 +319,14 @@ export class JobsDashboardService {
     permissions: string[] = [],
     role?: string | null,
   ) {
-    const allowedTypes = visibleJobTypesForActor(permissions, role);
+    const jobTypeFilter = jobTypeFilterForActor(permissions, role);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const jobs = await tx.job.findMany({
         where: {
           tenant_id: tenantId,
           deleted_at: null,
           status: JobStatus.ON_HOLD,
-          ...(allowedTypes ? { job_type: { in: allowedTypes } } : {}),
+          ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
         },
         orderBy: { held_at: "desc" },
         select: {

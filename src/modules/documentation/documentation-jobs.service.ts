@@ -8,7 +8,7 @@ import {
   DocumentationCreateJobDto,
 } from "./dto/documentation-jobs.dto";
 import { paginated } from "./dto/documentation-pagination.dto";
-import { visibleJobTypesForActor } from "../../common/utils/job-type-access.util";
+import { jobTypeFilterForActor } from "../../common/utils/job-type-access.util";
 import { writableJobTypeWizard } from "../../common/utils/writable-job-type-wizard.util";
 
 @Injectable()
@@ -81,13 +81,13 @@ export class DocumentationJobsService {
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const allowedTypes = visibleJobTypesForActor(permissions, role);
+    const jobTypeFilter = jobTypeFilterForActor(permissions, role);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        ...(allowedTypes ? { job_type: { in: allowedTypes } } : {}),
+        ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
         ...(query.department_id ? { department_id: query.department_id } : {}),
         ...(query.status ? { status: query.status as JobStatus } : {}),
