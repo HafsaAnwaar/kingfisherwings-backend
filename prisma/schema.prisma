@@ -2746,8 +2746,10 @@ model Job {
 
   /// Ops identity for show_all / portal / EDI / track (denormalized).
   rotation_number            String?          @db.VarChar(50)
-  primary_container_number   String?          @db.VarChar(20)
-  primary_container_status   ContainerStatus?
+  primary_container_number      String?          @db.VarChar(20)
+  primary_container_status      ContainerStatus?
+  /// Catalog code (system enum or tenant custom). Preferred over the enum when set.
+  primary_container_status_code String?          @db.VarChar(40)
   edi_company_code           String?          @db.VarChar(40)
   vessel_name                String?          @db.VarChar(200)
   voyage_number              String?          @db.VarChar(50)
@@ -2790,6 +2792,7 @@ model Job {
   vouchers         Voucher[]
   voucher_lines    VoucherLine[]
   bills_of_lading  BillOfLading[]
+  air_waybills     AirWaybill[]
   cargo_lines      JobCargo[]
   stuffing_records StuffingRecord[]
   container_free_days ContainerFreeDays[]
@@ -2943,6 +2946,7 @@ model AirJobDetail {
   hawb_number       String?   @db.VarChar(50)
   mawb_number       String?   @db.VarChar(50)
   flight_number     String?   @db.VarChar(20)
+  flight_status     String?   @db.VarChar(40)
   flight_date       DateTime? @db.Date
   screened          Boolean   @default(false)
   screening_ref     String?   @db.VarChar(50)
@@ -3769,6 +3773,8 @@ model JobContainer {
   chargeable_units  Decimal?          @db.Decimal(12, 3)
   shipment_id       String?           @db.Uuid
   status            ContainerStatus   @default(EMPTY)
+  /// Catalog code when the status is a tenant custom value.
+  status_code       String?           @db.VarChar(40)
   gate_in_at        DateTime?         @db.Timestamptz
   returned_at       DateTime?         @db.Timestamptz
   return_condition  String?           @db.Text
@@ -4028,6 +4034,35 @@ model BillOfLading {
   @@map("bills_of_lading")
 }
 
+model AirWaybill {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String    @db.Uuid
+  job_id          String    @db.Uuid
+  awb_type        String    @db.VarChar(10)
+  awb_number      String?   @db.VarChar(50)
+  flight_number   String?   @db.VarChar(20)
+  flight_status   String?   @db.VarChar(40)
+  shipper_id      String?   @db.Uuid
+  consignee_id    String?   @db.Uuid
+  pieces          Int?
+  gross_weight    Decimal?  @db.Decimal(12, 3)
+  dimensions      String?   @db.Text
+  is_draft        Boolean   @default(true)
+  is_original     Boolean   @default(false)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+  created_by      String?   @db.Uuid
+  updated_by      String?   @db.Uuid
+  deleted_at      DateTime? @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([tenant_id, job_id])
+  @@index([tenant_id, awb_number])
+  @@map("air_waybills")
+}
+
 model StuffingRecord {
   id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id        String    @db.Uuid
@@ -4177,6 +4212,24 @@ model JobStatusCatalog {
   @@unique([tenant_id, code])
   @@index([tenant_id, is_active])
   @@map("job_status_catalog")
+}
+
+model ContainerStatusCatalog {
+  id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id             String   @db.Uuid
+  code                  String   @db.VarChar(40)
+  label                 String   @db.VarChar(120)
+  sort_order            Int      @default(0)
+  is_active             Boolean  @default(true)
+  maps_to_system_status String   @db.VarChar(40)
+  is_system             Boolean  @default(false)
+  is_custom             Boolean  @default(false)
+  created_at            DateTime @default(now()) @db.Timestamptz
+  updated_at            DateTime @updatedAt @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id, is_active])
+  @@map("container_status_catalog")
 }
 
 model ShipmentStatusCatalog {
@@ -8866,6 +8919,9 @@ model AirBookingForm {
   notes              String?   @db.Text
   is_dg              Boolean   @default(false)
   flight_number      String?   @db.VarChar(20)
+  flight_status      String?   @db.VarChar(40)
+  mawb_number        String?   @db.VarChar(50)
+  hawb_number        String?   @db.VarChar(50)
   flight_date        DateTime? @db.Date
   origin_airport_code String?  @db.VarChar(10)
   dest_airport_code  String?   @db.VarChar(10)

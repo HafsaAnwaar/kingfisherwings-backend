@@ -35,6 +35,7 @@ import { markJobMilestoneIfPresent } from "./utils/mark-milestone.util";
 import { looksLikeUuid } from "../../common/utils/business-key.util";
 import { defaultVisibleToCustomer } from "./utils/job-document-visibility.util";
 import {
+  assertJobTypeAccess,
   canSeeJobTypeForActor,
   canWriteJobTypeForActor,
   visibleJobTypesForActor,
@@ -1351,6 +1352,7 @@ export class JobsService {
     id: string,
     dto: UpdateJobDto,
     actorId?: string,
+    access?: { permissions?: string[] | null; role?: string | null },
   ): Promise<Job> {
     await this.assertCompanyExists(tenantId, dto.company_id);
     await this.assertBranchExists(tenantId, dto.branch_id);
@@ -1375,6 +1377,7 @@ export class JobsService {
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await this.getOrThrow(tx, tenantId, id);
+      this.assertDepartmentAccess(existing, access, "write");
 
       if (existing.status === "COMPLETED" || existing.status === "CANCELLED") {
         throw new BadRequestException(`Cannot edit a ${existing.status} job.`);
@@ -1499,6 +1502,7 @@ export class JobsService {
     id: string,
     actorId?: string,
     dto?: CloseJobDto,
+    access?: { permissions?: string[] | null; role?: string | null },
   ): Promise<Job> {
     const force = dto?.force === true;
     if (!force) {
@@ -1513,6 +1517,7 @@ export class JobsService {
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.getOrThrow(tx, tenantId, id);
+      this.assertDepartmentAccess(job, access, "write");
 
       if (job.status === "COMPLETED") {
         throw new ConflictException("Job is already closed.");
@@ -1559,9 +1564,11 @@ export class JobsService {
     tenantId: string,
     id: string,
     actorId?: string,
+    access?: { permissions?: string[] | null; role?: string | null },
   ): Promise<Job> {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.getOrThrow(tx, tenantId, id);
+      this.assertDepartmentAccess(job, access, "write");
 
       if (job.status === "COMPLETED") {
         throw new BadRequestException("Cannot cancel a completed job.");
@@ -1596,9 +1603,11 @@ export class JobsService {
     tenantId: string,
     id: string,
     actorId?: string,
+    access?: { permissions?: string[] | null; role?: string | null },
   ): Promise<void> {
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await this.getOrThrow(tx, tenantId, id);
+      this.assertDepartmentAccess(job, access, "write");
 
       if (job.status !== "CANCELLED" && job.status !== "COMPLETED") {
         throw new BadRequestException(
@@ -3226,8 +3235,11 @@ export class JobsService {
     milestoneKey: string,
     dto: UpdateJobMilestoneDto,
     actorId?: string,
+    access?: { permissions?: string[] | null; role?: string | null },
   ) {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await this.getOrThrow(tx, tenantId, jobId);
+      this.assertDepartmentAccess(job, access, "see");
       const key = milestoneKey.trim();
       const byUuid = looksLikeUuid(key);
       const milestone = await tx.jobMilestone.findFirst({
@@ -3316,6 +3328,7 @@ export class JobsService {
     jobId: string,
     dto: CreateCustomMilestoneDto,
     actorId?: string,
+    access?: { permissions?: string[] | null; role?: string | null },
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
@@ -3325,6 +3338,7 @@ export class JobsService {
       if (!job) {
         throw new NotFoundException("Job not found.");
       }
+      this.assertDepartmentAccess(job, access, "see");
 
       const description = dto.description ?? dto.notes ?? null;
       const completedAt = dto.actual_date
@@ -5764,6 +5778,16 @@ export class JobsService {
     if (!exists) {
       throw new NotFoundException("Department not found.");
     }
+  }
+
+  /** Admin: any job. Staff: visible types for read, writable types for edit/cancel/delete. */
+  private assertDepartmentAccess(
+    job: { job_type: JobType },
+    access?: { permissions?: string[] | null; role?: string | null } | null,
+    mode: "see" | "write" = "write",
+  ) {
+    if (!access) return;
+    assertJobTypeAccess(access.permissions, job.job_type, mode, access.role);
   }
 
   private async resolveOriginPortId(

@@ -68,6 +68,9 @@ export class AirBookingFormService {
         notes: dto.notes,
         is_dg: dto.is_dg ?? false,
         flight_number: dto.flight_number,
+        flight_status: dto.flight_status,
+        mawb_number: dto.mawb_number,
+        hawb_number: dto.hawb_number,
         flight_date: dto.flight_date ? new Date(dto.flight_date) : null,
         origin_airport_code: dto.origin_airport_code,
         dest_airport_code: dto.dest_airport_code,
@@ -101,6 +104,25 @@ export class AirBookingFormService {
           include: { parties: true },
         });
       }
+
+      await tx.airJobDetail.update({
+        where: { id: job.air_details.id },
+        data: {
+          ...(dto.flight_number !== undefined
+            ? { flight_number: dto.flight_number }
+            : {}),
+          ...(dto.flight_status !== undefined
+            ? { flight_status: dto.flight_status }
+            : {}),
+          ...(dto.mawb_number !== undefined
+            ? { mawb_number: dto.mawb_number }
+            : {}),
+          ...(dto.hawb_number !== undefined
+            ? { hawb_number: dto.hawb_number }
+            : {}),
+          updated_by: actor.id,
+        },
+      });
 
       if (dto.parties?.length) {
         for (const p of dto.parties) {

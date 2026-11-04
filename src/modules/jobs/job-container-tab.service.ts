@@ -14,6 +14,7 @@ import * as ExcelJS from "exceljs";
 import { looksLikeUuid } from "../../common/utils/business-key.util";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
+import { ContainerStatusCatalogService } from "./container-status-catalog.service";
 import {
   BulkJobContainersDto,
   ConfirmContainerUploadDto,
@@ -48,6 +49,7 @@ export class JobContainerTabService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberGenerator: NumberGeneratorService,
+    private readonly containerStatuses: ContainerStatusCatalogService,
   ) {}
 
   async getTab(
@@ -151,6 +153,9 @@ export class JobContainerTabService {
     const lineNo =
       dto.line_no ??
       (await this.nextLineNo(tenantId, jobId, dto.container_kind));
+    const resolvedStatus = dto.status
+      ? await this.containerStatuses.resolve(tenantId, dto.status)
+      : null;
 
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const created = await tx.jobContainer.create({
@@ -180,7 +185,8 @@ export class JobContainerTabService {
           cbm: dto.cbm,
           chargeable_units: dto.chargeable_units,
           shipment_id: dto.shipment_id,
-          status: (dto.status as ContainerStatus) ?? ContainerStatus.EMPTY,
+          status: resolvedStatus?.enumStatus ?? ContainerStatus.EMPTY,
+          status_code: resolvedStatus?.code ?? ContainerStatus.EMPTY,
           gate_in_at: dto.gate_in_at ? new Date(dto.gate_in_at) : undefined,
           is_soc: dto.is_soc ?? false,
           created_by: actorId,
@@ -380,8 +386,11 @@ export class JobContainerTabService {
       }
     }
 
+    const resolvedStatus = dto.status
+      ? await this.containerStatuses.resolve(tenantId, dto.status)
+      : null;
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const { gate_in_at, status, container_type_code, iso_size, ...rest } =
+      const { gate_in_at, status: _status, container_type_code, iso_size, ...rest } =
         dto as UpdateJobContainerDto & {
           container_type_code?: string;
           iso_size?: string;
@@ -391,7 +400,14 @@ export class JobContainerTabService {
         data: {
           ...rest,
           ...(resolvedTypeId ? { container_type_id: resolvedTypeId } : {}),
-          ...(status ? { status: status as ContainerStatus } : {}),
+          ...(resolvedStatus
+            ? {
+                status_code: resolvedStatus.code,
+                ...(resolvedStatus.enumStatus
+                  ? { status: resolvedStatus.enumStatus }
+                  : {}),
+              }
+            : {}),
           ...(gate_in_at ? { gate_in_at: new Date(gate_in_at) } : {}),
           ...(dto.seal_number && !dto.actual_seal
             ? { actual_seal: dto.seal_number }
@@ -1085,6 +1101,8 @@ export class JobContainerTabService {
     );
     return {
       ...row,
+      status:
+        (row as { status_code?: string | null }).status_code ?? row.status,
       actual_seal: row.actual_seal ?? row.seal_number ?? null,
       container_type_code: type?.code ?? null,
       container_type_name: type?.name ?? null,

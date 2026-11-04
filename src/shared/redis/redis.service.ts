@@ -10,6 +10,7 @@ export class RedisService implements OnModuleDestroy {
   private readonly keyPrefix: string;
   private readonly enabled: boolean;
   private unavailableLogged = false;
+  private connecting: Promise<void> | null = null;
 
   constructor(private readonly config: ConfigService) {
     this.keyPrefix = this.config.get<string>("redis.keyPrefix") ?? "fresa:";
@@ -56,17 +57,79 @@ export class RedisService implements OnModuleDestroy {
     return `${this.keyPrefix}${key}`;
   }
 
+  /**
+   * lazyConnect + enableOfflineQueue:false rejects commands until status is
+   * "ready". Wait for that handshake instead of failing the first write.
+   */
+  private async ensureReady(): Promise<boolean> {
+    const client = this.client;
+    if (!client) return false;
+    if (client.status === "ready") return true;
+    if (client.status === "end") return false;
+
+    if (!this.connecting) {
+      this.connecting = new Promise<void>((resolve, reject) => {
+        const onReady = () => {
+          cleanup();
+          resolve();
+        };
+        const onEnd = () => {
+          cleanup();
+          reject(new Error("Redis connection closed"));
+        };
+        const cleanup = () => {
+          client.off("ready", onReady);
+          client.off("end", onEnd);
+        };
+        client.once("ready", onReady);
+        client.once("end", onEnd);
+        if (client.status === "wait") {
+          client.connect().catch((err) => {
+            const message = err instanceof Error ? err.message : String(err);
+            if (/already connecting|already connected/i.test(message)) return;
+            cleanup();
+            reject(err instanceof Error ? err : new Error(message));
+          });
+        }
+      }).finally(() => {
+        this.connecting = null;
+      });
+    }
+
+    try {
+      await this.connecting;
+      return true;
+    } catch (err) {
+      this.logUnavailable(err);
+      return false;
+    }
+  }
+
+  private logUnavailable(err: unknown) {
+    if (this.unavailableLogged) return;
+    this.unavailableLogged = true;
+    const host = this.config.get<string>("redis.host") ?? "localhost";
+    const port = this.config.get<number>("redis.port") ?? 6379;
+    const message = err instanceof Error ? err.message : String(err);
+    this.logger.warn(
+      `Redis unavailable (${message}). Cache/throttle fall back gracefully. Start Redis on ${host}:${port}, or set REDIS_ENABLED=false for local dev.`,
+    );
+  }
+
   async get(key: string): Promise<string | null> {
     if (!this.client) return null;
+    if (!(await this.ensureReady())) return null;
     try {
       return await this.client.get(this.prefixKey(key));
-    } catch {
+    } catch (err) {
+      this.logUnavailable(err);
       return null;
     }
   }
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
     if (!this.client) return;
+    if (!(await this.ensureReady())) return;
     try {
       const fullKey = this.prefixKey(key);
       if (ttlSeconds && ttlSeconds > 0) {
@@ -75,27 +138,24 @@ export class RedisService implements OnModuleDestroy {
         await this.client.set(fullKey, value);
       }
     } catch (err) {
-      if (!this.unavailableLogged) {
-        this.unavailableLogged = true;
-        this.logger.warn(
-          `Redis set failed: ${err instanceof Error ? err.message : err}`,
-        );
-      }
+      this.logUnavailable(err);
     }
   }
 
   async del(key: string): Promise<void> {
     if (!this.client) return;
+    if (!(await this.ensureReady())) return;
     try {
       await this.client.del(this.prefixKey(key));
-    } catch {
-      // ignore — cache miss is safe
+    } catch (err) {
+      this.logUnavailable(err);
     }
   }
 
   /** Delete all keys matching a pattern (SCAN). Pattern is unprefixed; keyPrefix is applied. */
   async delByPattern(pattern: string): Promise<number> {
     if (!this.client) return 0;
+    if (!(await this.ensureReady())) return 0;
     try {
       const fullPattern = this.prefixKey(pattern);
       let cursor = "0";
@@ -114,7 +174,8 @@ export class RedisService implements OnModuleDestroy {
         }
       } while (cursor !== "0");
       return removed;
-    } catch {
+    } catch (err) {
+      this.logUnavailable(err);
       return 0;
     }
   }
@@ -123,7 +184,7 @@ export class RedisService implements OnModuleDestroy {
     key: string,
     ttlMs: number,
   ): Promise<{ totalHits: number; timeToExpire: number }> {
-    if (!this.client) {
+    if (!this.client || !(await this.ensureReady())) {
       return { totalHits: 1, timeToExpire: ttlMs };
     }
     try {
@@ -134,7 +195,8 @@ export class RedisService implements OnModuleDestroy {
       }
       const ttl = await this.client.pttl(fullKey);
       return { totalHits, timeToExpire: ttl > 0 ? ttl : ttlMs };
-    } catch {
+    } catch (err) {
+      this.logUnavailable(err);
       return { totalHits: 1, timeToExpire: ttlMs };
     }
   }
