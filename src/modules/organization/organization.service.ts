@@ -74,4 +74,44 @@ export class OrganizationService {
     const { password_hash, ...safe } = updated;
     return safe;
   }
+
+  async uploadLogo(
+    tenantId: string,
+    file?: Express.Multer.File,
+  ): Promise<{ logo_url: string }> {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Upload a logo under the "file" field.');
+    }
+    const mime = (file.mimetype || "").toLowerCase();
+    if (!LOGO_MIME.has(mime)) {
+      throw new BadRequestException(
+        "Logo must be an image (png, jpeg, webp, gif, or svg).",
+      );
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      throw new BadRequestException("Logo file must be 2 MB or smaller.");
+    }
+
+    const existing = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deleted_at: null },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException("Tenant not found.");
+    }
+
+    const stored = await this.storage.saveBuffer(
+      tenantId,
+      file.buffer,
+      file.originalname || "logo.png",
+      mime || "image/png",
+    );
+
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { logo_url: stored.fileUrl },
+    });
+
+    return { logo_url: stored.fileUrl };
+  }
 }

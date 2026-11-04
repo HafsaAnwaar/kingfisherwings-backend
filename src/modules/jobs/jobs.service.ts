@@ -1085,25 +1085,6 @@ export class JobsService {
     tenantId: string,
     id: string,
     permissions?: string[],
-    _actor?: { role?: string | null; permissions?: string[] | null },
-      ]);
-
-      return {
-        data: await this.masterLabels.enrichRows(tenantId, data, tx),
-        meta: {
-          page: query.page,
-          limit: query.limit,
-          total,
-          totalPages: Math.ceil(total / query.limit) || 1,
-        },
-      };
-    });
-  }
-
-  async findOne(
-    tenantId: string,
-    id: string,
-    permissions?: string[],
     actor?: { role?: string | null; permissions?: string[] | null },
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {

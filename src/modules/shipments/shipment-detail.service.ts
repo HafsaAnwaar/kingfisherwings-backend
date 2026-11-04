@@ -737,6 +737,38 @@ export class ShipmentDetailService {
     shipment: Awaited<ReturnType<typeof this.loadShipment>>,
     jobNumber?: string | null,
   ) {
+    let containerNumber: string | null = null;
+    let containerStatus: string | null = null;
+    if (shipment.job_id) {
+      const job = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.job.findFirst({
+          where: {
+            id: shipment.job_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: {
+            primary_container_number: true,
+            primary_container_status: true,
+            containers_job: {
+              where: { deleted_at: null },
+              orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+              take: 1,
+              select: { container_number: true, status: true },
+            },
+          },
+        }),
+      );
+      containerNumber =
+        job?.primary_container_number ??
+        job?.containers_job?.[0]?.container_number ??
+        null;
+      containerStatus =
+        job?.primary_container_status ??
+        job?.containers_job?.[0]?.status ??
+        null;
+    }
+    const closed = shipment.status === "CANCELLED";
     return this.labels.enrichOne(tenantId, {
       id: shipment.id,
       shipment_number: shipment.shipment_number,
@@ -787,6 +819,10 @@ export class ShipmentDetailService {
           }
         : null,
       enquiry_id: shipment.enquiry_id,
+      container_number: containerNumber,
+      container_status: containerStatus,
+      container_status_options: Object.values(ContainerStatus),
+      can_edit_container_status: !closed && !!shipment.job_id,
     });
   }
 
@@ -830,84 +866,53 @@ export class ShipmentDetailService {
           ? {
               awb_draft_preview: `/shipments/${shipment.id}/awb-draft/preview`,
               hawb_draft_preview: `/shipments/${shipment.id}/hawb-draft/preview`,
-    let containerNumber: string | null = null;
-    let containerStatus: string | null = null;
-    if (shipment.job_id) {
-      const job = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.job.findFirst({
+            }
+          : {}),
+      },
+    };
+  }
+
+  private async sectionSummaries(
+    tenantId: string,
+    shipment: Awaited<ReturnType<typeof this.loadShipment>>,
+  ) {
+    const [planned, actual] = await Promise.all([
+      this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.shipmentContainerPlan.count({
           where: {
-            id: shipment.job_id!,
             tenant_id: tenantId,
+            shipment_id: shipment.id,
             deleted_at: null,
           },
-          select: {
-            primary_container_number: true,
-            primary_container_status: true,
-            containers_job: {
-              where: { deleted_at: null },
-              orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
-              take: 1,
-              select: { container_number: true, status: true },
-            },
+        }),
+      ),
+      this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.shipmentContainerActual.count({
+          where: {
+            tenant_id: tenantId,
+            shipment_id: shipment.id,
+            deleted_at: null,
           },
         }),
-      );
-      containerNumber =
-        job?.primary_container_number ??
-        job?.containers_job?.[0]?.container_number ??
-        null;
-      containerStatus =
-        job?.primary_container_status ??
-        job?.containers_job?.[0]?.status ??
-        null;
-    }
+      ),
+    ]);
+    return {
+      costing: { charge_count: shipment.charges.length },
+      planned_container: { count: planned },
+      actual_container: { count: actual },
+    };
+  }
 
-    const closed = shipment.status === "CANCELLED";
-    return this.labels.enrichOne(tenantId, {
-      id: shipment.id,
-      shipment_number: shipment.shipment_number,
-      shipment_date: shipment.shipment_date,
-      job_date: shipment.shipment_date,
-      status: shipment.status,
-      job_type: shipment.job_type,
-      company_id: shipment.company_id,
-      branch_id: shipment.branch_id,
-      department_id: shipment.department_id,
-      salesperson_id: shipment.salesperson_id,
-      customer_id: shipment.customer_id,
-      shipper_id: shipment.shipper_id,
-      consignee_id: shipment.consignee_id,
-      carrier_id: shipment.carrier_id,
-      agent_id: shipment.delivery_agent_id,
-      delivery_agent_id: shipment.delivery_agent_id,
-      customer_address: shipment.customer_address,
-      freight_terms: shipment.freight_terms,
-      freight_payable_at: shipment.freight_payable_at,
-      freight_payment_type: shipment.freight_payment_type,
-      bl_status: shipment.bl_status,
-      por_port_id: shipment.por_port_id,
-      origin_port_id: shipment.origin_port_id,
-      dest_port_id: shipment.dest_port_id,
-      pof_port_id: shipment.pof_port_id,
-      place_of_delivery: shipment.place_of_delivery,
-      mbl_number: shipment.mbl_number,
-      mbl_date: shipment.mbl_date,
-      hbl_number: shipment.hbl_number,
-      hbl_date: shipment.hbl_date,
-      is_cross_trade: shipment.is_cross_trade,
-      marks_numbers: shipment.marks_numbers,
-      commodity: shipment.commodity,
-      pieces: shipment.pieces,
-      gross_weight: shipment.gross_weight,
-      volume_cbm: shipment.volume_cbm,
-      etd: shipment.etd,
-      eta: shipment.eta,
-      vessel_name: shipment.vessel_name,
-      voyage_number: shipment.voyage_number,
-      container_number: containerNumber,
-      container_status: containerStatus,
-      container_status_options: Object.values(ContainerStatus),
-      can_edit_container_status: !closed && !!shipment.job_id,
+  private async resolveLinks(
+    tenantId: string,
+    shipment: Awaited<ReturnType<typeof this.loadShipment>>,
+  ) {
+    const enquiryId =
+      shipment.enquiry_id ?? shipment.quotation?.source_enquiry_id ?? null;
+    const enquiry = enquiryId
+      ? { id: enquiryId, path_hint: `/crm/enquiries/${enquiryId}/detail` }
+      : null;
+    const quotation = shipment.quotation
       ? {
           id: shipment.quotation.id,
           quotation_number: shipment.quotation.quotation_number,
