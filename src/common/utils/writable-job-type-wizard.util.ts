@@ -3,6 +3,7 @@ import {
   allOperationsServices,
   writableJobTypes,
 } from "../constants/module-permission-tree";
+import { seesAllJobDepartments } from "./job-type-access.util";
 
 /**
  * Shared create-wizard payload for jobs / quotations / shipments / enquiries:
@@ -13,7 +14,9 @@ export function writableJobTypeWizard(
   role?: string | null,
 ) {
   const all = allOperationsServices();
-  const allowed = writableJobTypes(permissions, role);
+  const allowed = seesAllJobDepartments(role)
+    ? null
+    : writableJobTypes(permissions);
   const services =
     allowed === null
       ? all

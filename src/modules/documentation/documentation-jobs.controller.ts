@@ -24,9 +24,10 @@ export class DocumentationJobsController {
   list(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Query() query: DocumentationJobsQueryDto,
   ) {
-    return this.service.listJobs(tenantId, query, permissions ?? []);
+    return this.service.listJobs(tenantId, query, permissions ?? [], role);
   }
 
   @Post("create-wizard")
