@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,11 +11,17 @@ import {
   Post,
   Query,
   ParseUUIDPipe,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
 
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -141,6 +148,35 @@ export class TenantsController {
   // =====================================================
   // UPDATE TENANT
   // =====================================================
+
+  @Post(":id/logo")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: { file: { type: "string", format: "binary" } },
+      required: ["file"],
+    },
+  })
+  @ApiOperation({
+    summary: "Upload tenant logo (multipart field: file)",
+    description: "Persists Tenant.logo_url for branding across the ERP.",
+  })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 2 * 1024 * 1024 },
+    }),
+  )
+  uploadLogo(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded — use field name "file".');
+    }
+    return this.tenantsService.uploadLogo(id, file);
+  }
 
   @Patch(":id")
   @ApiOperation({

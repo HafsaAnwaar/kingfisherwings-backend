@@ -1,4 +1,6 @@
 import { JobType } from "@prisma/client";
+import type { MatrixAccess } from "./matrix-access";
+import { normalizeMatrixGrantFlags } from "./matrix-access";
 
 export const MODULE_ACCESS_LEVELS = ["see", "read", "write"] as const;
 export type ModuleAccessLevel = (typeof MODULE_ACCESS_LEVELS)[number];
@@ -7,6 +9,8 @@ export interface PermissionSubmodule {
   key: string;
   label: string;
   jobType?: JobType;
+  /** Hidden from admin matrix UI; still synced as a permission code. */
+  hidden?: boolean;
 }
 
 export interface PermissionModuleNode {
@@ -15,12 +19,24 @@ export interface PermissionModuleNode {
   submodules: PermissionSubmodule[];
 }
 
+/**
+ * Marker submodule: when granted (`operations_scope.see`), ops job-type
+ * scoping is considered configured even if every job type is `none`.
+ * Without it, zero ops codes ⇒ unrestricted (legacy soft fallback).
+ */
+export const OPERATIONS_SCOPE_SUBMODULE_KEY = "scope";
+
 /** Admin-panel tree: module → submodule → see / read / write. */
 export const MODULE_PERMISSION_TREE: PermissionModuleNode[] = [
   {
     key: "operations",
     label: "Operations",
     submodules: [
+      {
+        key: OPERATIONS_SCOPE_SUBMODULE_KEY,
+        label: "Job-type scope",
+        hidden: true,
+      },
       { key: "air_export", label: "Air Export", jobType: "AIR_EXPORT" },
       { key: "air_import", label: "Air Import", jobType: "AIR_IMPORT" },
       {
@@ -294,4 +310,95 @@ export function writableJobTypes(
 
 export function isMatrixPermissionCode(code: string): boolean {
   return ALL_MATRIX_PERMISSION_CODES.includes(code);
+}
+
+export type MatrixGrantInput = {
+  module: string;
+  submodule: string;
+  access?: MatrixAccess;
+  see?: boolean;
+  read?: boolean;
+  write?: boolean;
+};
+
+export type JobTypeScopeInput = {
+  visible_job_types?: JobType[] | null;
+  writable_job_types?: JobType[] | null;
+};
+
+function grantAccessRank(g: MatrixGrantInput): number {
+  const n = normalizeMatrixGrantFlags(g);
+  if (n.write) return 2;
+  if (n.read || n.see) return 1;
+  return 0;
+}
+
+/**
+ * Overlay FE `visible_job_types` / `writable_job_types` onto operations
+ * submodule grants so scope persists in the permission matrix.
+ *
+ * - Writable ⇒ write; visible (not writable) ⇒ at least read.
+ * - When `visible_job_types` is provided, job types outside the set are set to
+ *   `none`, and `operations_scope.see` is granted so empty lists stay restricted
+ *   (not the legacy unrestricted soft fallback).
+ */
+export function mergeJobTypeScopeIntoGrants(
+  grants: MatrixGrantInput[],
+  scope?: JobTypeScopeInput | null,
+): MatrixGrantInput[] {
+  if (!scope) return grants;
+
+  const hasVisible =
+    scope.visible_job_types !== undefined && scope.visible_job_types !== null;
+  const hasWritable =
+    scope.writable_job_types !== undefined && scope.writable_job_types !== null;
+  if (!hasVisible && !hasWritable) return grants;
+
+  const visible = new Set<JobType>(scope.visible_job_types ?? []);
+  const writable = new Set<JobType>(scope.writable_job_types ?? []);
+  for (const jt of writable) visible.add(jt);
+
+  const keyOf = (module: string, submodule: string) => `${module}:${submodule}`;
+  const map = new Map<string, MatrixGrantInput>();
+  for (const g of grants) {
+    map.set(keyOf(g.module, g.submodule), { ...g });
+  }
+
+  const upsertOps = (jobType: JobType, access: MatrixAccess) => {
+    const sub = OPERATIONS_JOB_TYPES.find((s) => s.jobType === jobType);
+    if (!sub) return;
+    const k = keyOf("operations", sub.key);
+    const existing = map.get(k);
+    const desired = access === "write" ? 2 : access === "read" ? 1 : 0;
+    if (existing && grantAccessRank(existing) >= desired) return;
+    map.set(k, { module: "operations", submodule: sub.key, access });
+  };
+
+  if (hasVisible) {
+    for (const sub of OPERATIONS_JOB_TYPES) {
+      const jt = sub.jobType!;
+      if (!visible.has(jt)) {
+        map.set(keyOf("operations", sub.key), {
+          module: "operations",
+          submodule: sub.key,
+          access: "none",
+        });
+      }
+    }
+    for (const jt of visible) {
+      upsertOps(jt, writable.has(jt) ? "write" : "read");
+    }
+    // Marker so empty visible arrays remain scoped (not unrestricted).
+    map.set(keyOf("operations", OPERATIONS_SCOPE_SUBMODULE_KEY), {
+      module: "operations",
+      submodule: OPERATIONS_SCOPE_SUBMODULE_KEY,
+      access: "read",
+    });
+  } else if (hasWritable) {
+    for (const jt of writable) {
+      upsertOps(jt, "write");
+    }
+  }
+
+  return Array.from(map.values());
 }

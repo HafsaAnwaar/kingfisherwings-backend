@@ -1,16 +1,18 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
-import { Party, Prisma } from "@prisma/client";
+import { Party, Prisma, UserRole } from "@prisma/client";
 import { parse } from "csv-parse/sync";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
+import { canGrantPortalAccess } from "../../common/utils/portal-access.util";
 
 import { CreatePartyDto, UpdatePartyDto } from "./dto/party.dto";
 import { PartyQueryDto } from "./dto/party-query.dto";
@@ -45,9 +47,13 @@ export class PartiesService {
     tenantId: string,
     dto: CreatePartyDto,
     actorId?: string,
+    actorRole?: UserRole | string | null,
   ): Promise<Party> {
     await this.assertSalespersonValid(tenantId, dto.salesperson_id);
     await this.assertCompanyExists(tenantId, dto.company_id);
+    const portalAccess = canGrantPortalAccess(actorRole)
+      ? (dto.portal_access ?? false)
+      : false;
 
     const tenant = await this.prisma.tenant.findFirst({
       where: { id: tenantId, deleted_at: null },
@@ -82,7 +88,7 @@ export class PartiesService {
             credit_days: dto.credit_days,
             currency_code: currency,
             salesperson_id: dto.salesperson_id,
-            portal_access: dto.portal_access ?? false,
+            portal_access: portalAccess,
             marketing_subscription: dto.marketing_subscription ?? true,
             iata_code: dto.iata_code,
             scac_code: dto.scac_code,
@@ -298,9 +304,19 @@ export class PartiesService {
     id: string,
     dto: UpdatePartyDto,
     actorId?: string,
+    actorRole?: UserRole | string | null,
   ): Promise<Party> {
     await this.assertSalespersonValid(tenantId, dto.salesperson_id);
     await this.assertCompanyExists(tenantId, dto.company_id);
+
+    if (
+      dto.portal_access !== undefined &&
+      !canGrantPortalAccess(actorRole)
+    ) {
+      throw new ForbiddenException(
+        "Only tenant admin can change portal access.",
+      );
+    }
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.party.findFirst({

@@ -7,6 +7,7 @@ import {
   assertJobTypeAccess,
   jobTypeInFilter,
 } from "../../common/utils/job-type-access.util";
+import { writableJobTypeWizard } from "../../common/utils/writable-job-type-wizard.util";
 import {
   DocumentType,
   JobContainerKind,
@@ -68,6 +69,14 @@ export class ShipmentsService {
     private readonly labels: MasterLabelService,
     private readonly statusCatalog: ShipmentStatusCatalogService,
   ) {}
+
+  createWizardMetadata(permissions: string[] = []) {
+    const { services, writable_job_types } = writableJobTypeWizard(permissions);
+    return {
+      success: true,
+      data: { services, writable_job_types },
+    };
+  }
 
   async create(
     tenantId: string,
@@ -1114,6 +1123,7 @@ export class ShipmentsService {
     tenantId: string,
     quotationId: string,
     actorId?: string,
+    permissions?: string[],
   ) {
     const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.shipment.findFirst({
@@ -1199,6 +1209,7 @@ export class ShipmentsService {
           })),
       },
       actorId,
+      permissions,
     );
 
     await this.prisma.runWithTenant(tenantId, (tx) =>

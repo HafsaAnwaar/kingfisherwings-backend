@@ -36,7 +36,14 @@ import { PasswordUtil } from "../../common/utils/password.util";
 import { PasswordHelper } from "./helpers/password.helper";
 import { AuditHelper } from "./helpers/audit.helper";
 
-import { MODULE_ACCESS_LEVELS, MODULE_PERMISSION_TREE, matrixPermissionCode, matrixPermissionModule } from "../../common/constants/module-permission-tree";
+import {
+  MODULE_ACCESS_LEVELS,
+  MODULE_PERMISSION_TREE,
+  OPERATIONS_SCOPE_SUBMODULE_KEY,
+  matrixPermissionCode,
+  matrixPermissionModule,
+  mergeJobTypeScopeIntoGrants,
+} from "../../common/constants/module-permission-tree";
 import {
   filterPermissionTree,
   normalizeEnabledModules,
@@ -44,6 +51,7 @@ import {
 import {
   accessFromFlags,
   normalizeMatrixGrantFlags,
+  type MatrixAccess,
 } from "../../common/constants/matrix-access";
 import {
   ALL_BRIDGED_CLASSIC_CODES,
@@ -57,6 +65,7 @@ import {
 } from "../../common/constants/role-matrix-presets";
 import { collectEffectivePermissionCodes } from "../../common/constants/effective-permissions";
 import { jobTypeAccessSummary } from "../../common/utils/job-type-access.util";
+import { canGrantPortalAccess } from "../../common/utils/portal-access.util";
 import { USERS_CONSTANTS } from "./constants/users.constants";
 import { PASSWORD_CONSTANTS } from "./constants/password.constants";
 
@@ -535,10 +544,16 @@ export class UsersService {
           );
         }
 
-        const grants = mergePermissionGrants(
-          getRoleMatrixPreset(dto.role),
-          dto.permission_grants,
-          dto.permission_grants_mode ?? "merge_with_preset",
+        const grants = mergeJobTypeScopeIntoGrants(
+          mergePermissionGrants(
+            getRoleMatrixPreset(dto.role),
+            dto.permission_grants,
+            dto.permission_grants_mode ?? "merge_with_preset",
+          ),
+          {
+            visible_job_types: dto.visible_job_types,
+            writable_job_types: dto.writable_job_types,
+          },
         );
         await this.applyPermissionMatrixGrants(
           tx,
@@ -682,6 +697,7 @@ export class UsersService {
     response.visible_job_types = access.visible_job_types;
     response.writable_job_types = access.writable_job_types;
     response.unrestricted_ops = access.unrestricted_ops;
+    response.can_grant_portal_access = canGrantPortalAccess(response.role);
     return response;
   }
 
@@ -703,6 +719,29 @@ export class UsersService {
       this.assertAssignableStaffRole(dto.role);
     }
 
+    const hasJobTypeScope =
+      dto.visible_job_types !== undefined ||
+      dto.writable_job_types !== undefined;
+    const jobTypeOnlyPatch =
+      hasJobTypeScope &&
+      dto.permission_grants === undefined &&
+      dto.permission_grants_mode === undefined;
+
+    // Preload outside the write txn so we don't nest runWithTenant.
+    let currentMatrixGrants:
+      | Array<{ module: string; submodule: string; access: MatrixAccess }>
+      | undefined;
+    if (jobTypeOnlyPatch) {
+      const tree = await this.buildPermissionMatrixSummary(tenantId, id);
+      currentMatrixGrants = tree.flatMap((mod) =>
+        mod.submodules.map((sub) => ({
+          module: mod.key,
+          submodule: sub.key,
+          access: sub.access,
+        })),
+      );
+    }
+
     try {
       const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
         await this.getExistingOrThrow(tx, tenantId, id);
@@ -720,6 +759,8 @@ export class UsersService {
           permission_ids,
           permission_grants,
           permission_grants_mode,
+          visible_job_types,
+          writable_job_types,
           email,
           ...rest
         } = dto;
@@ -769,14 +810,23 @@ export class UsersService {
 
         if (
           permission_grants !== undefined ||
-          permission_grants_mode !== undefined
+          permission_grants_mode !== undefined ||
+          hasJobTypeScope
         ) {
-          const roleForPreset = dto.role ?? user.role;
-          const grants = mergePermissionGrants(
-            getRoleMatrixPreset(roleForPreset),
-            permission_grants,
-            permission_grants_mode ?? "merge_with_preset",
-          );
+          const baseGrants =
+            permission_grants !== undefined ||
+            permission_grants_mode !== undefined
+              ? mergePermissionGrants(
+                  getRoleMatrixPreset(dto.role ?? user.role),
+                  permission_grants,
+                  permission_grants_mode ?? "merge_with_preset",
+                )
+              : (currentMatrixGrants ?? []);
+
+          const grants = mergeJobTypeScopeIntoGrants(baseGrants, {
+            visible_job_types,
+            writable_job_types,
+          });
           await this.applyPermissionMatrixGrants(
             tx,
             tenantId,
@@ -1351,13 +1401,18 @@ export class UsersService {
   ) {
     await this.validateTenant(tenantId);
 
+    const grants = mergeJobTypeScopeIntoGrants(dto.grants, {
+      visible_job_types: dto.visible_job_types,
+      writable_job_types: dto.writable_job_types,
+    });
+
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.getExistingOrThrow(tx, tenantId, userId);
       await this.applyPermissionMatrixGrants(
         tx,
         tenantId,
         userId,
-        dto.grants,
+        grants,
         actorId,
       );
     });
@@ -1385,6 +1440,30 @@ export class UsersService {
     >,
     actorId?: string,
   ): Promise<void> {
+    // Auto-create ops scope marker perms if the tenant catalog is stale.
+    const scopeModule = matrixPermissionModule(
+      "operations",
+      OPERATIONS_SCOPE_SUBMODULE_KEY,
+    );
+    for (const level of MODULE_ACCESS_LEVELS) {
+      await tx.permission.upsert({
+        where: {
+          tenant_id_module_action: {
+            tenant_id: tenantId,
+            module: scopeModule,
+            action: level,
+          },
+        },
+        create: {
+          tenant_id: tenantId,
+          module: scopeModule,
+          action: level,
+          description: `Operations / Job-type scope — ${level}`,
+        },
+        update: {},
+      });
+    }
+
     const matrixPerms = await tx.permission.findMany({
       where: {
         tenant_id: tenantId,

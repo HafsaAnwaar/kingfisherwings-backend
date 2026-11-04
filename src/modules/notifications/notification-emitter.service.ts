@@ -235,26 +235,85 @@ export class NotificationEmitterService {
   ) {
     const payload = this.withLink("STAFF", input);
     try {
+      const roleCodes = roles.map((r) => String(r));
       const users = await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.user.findMany({
           where: {
             tenant_id: tenantId,
             deleted_at: null,
             status: "ACTIVE",
-            role: { in: roles },
+            OR: [
+              { role: { in: roles } },
+              {
+                roles: {
+                  some: {
+                    tenant_id: tenantId,
+                    role: {
+                      deleted_at: null,
+                      is_active: true,
+                      OR: [
+                        { code: { in: roleCodes } },
+                        { name: { in: roleCodes } },
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
           },
           select: { id: true, role: true },
-          take: 100,
+          take: 200,
         }),
       );
 
       if (!users.length) return;
 
+      await this.createStaffRows(tenantId, users.map((u) => u.id), payload);
+
+      const adminIds = users
+        .filter((u) => u.role === "TENANT_ADMIN")
+        .map((u) => u.id);
+      void this.emailTenantAdminsAmong(tenantId, adminIds, payload);
+    } catch (err) {
+      this.logger.warn(`Failed staff role fan-out: ${String(err)}`);
+    }
+  }
+
+  /**
+   * Create one notification row per staff user (never a shared tenant-wide row).
+   * Dedupes ids. Returns how many rows were written.
+   */
+  async notifyStaffUsers(
+    tenantId: string,
+    userIds: string[],
+    input: EmitNotificationInput,
+  ): Promise<number> {
+    const payload = this.withLink("STAFF", input);
+    const unique = [...new Set(userIds.map((id) => String(id).trim()).filter(Boolean))];
+    if (!unique.length) return 0;
+    try {
+      await this.createStaffRows(tenantId, unique, payload);
+      void this.emailTenantAdminsAmong(tenantId, unique, payload);
+      return unique.length;
+    } catch (err) {
+      this.logger.warn(`Failed staff user fan-out: ${String(err)}`);
+      return 0;
+    }
+  }
+
+  private async createStaffRows(
+    tenantId: string,
+    userIds: string[],
+    payload: EmitNotificationInput,
+  ) {
+    const chunk = 100;
+    for (let i = 0; i < userIds.length; i += chunk) {
+      const slice = userIds.slice(i, i + chunk);
       await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.notification.createMany({
-          data: users.map((u) => ({
+          data: slice.map((userId) => ({
             tenant_id: tenantId,
-            user_id: u.id,
+            user_id: userId,
             type: payload.type,
             title: payload.title,
             message: payload.message,
@@ -264,13 +323,6 @@ export class NotificationEmitterService {
           })),
         }),
       );
-
-      const adminIds = users
-        .filter((u) => u.role === "TENANT_ADMIN")
-        .map((u) => u.id);
-      void this.emailTenantAdminsAmong(tenantId, adminIds, payload);
-    } catch (err) {
-      this.logger.warn(`Failed staff role fan-out: ${String(err)}`);
     }
   }
 

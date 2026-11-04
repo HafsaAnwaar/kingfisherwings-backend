@@ -55,6 +55,7 @@ import {
   assertJobTypeAccess,
   jobTypeInFilter,
 } from "../../common/utils/job-type-access.util";
+import { writableJobTypeWizard } from "../../common/utils/writable-job-type-wizard.util";
 import { DocumentGenerationService } from "../../shared/queue/document-generation.service";
 import { PortalService } from "../portal/portal.service";
 import { PortsService } from "../masters/ports/ports.service";
@@ -143,6 +144,14 @@ export class QuotationsService {
   // ============================================================
   // CREATE
   // ============================================================
+
+  createWizardMetadata(permissions: string[] = []) {
+    const { services, writable_job_types } = writableJobTypeWizard(permissions);
+    return {
+      success: true,
+      data: { services, writable_job_types },
+    };
+  }
 
   async create(
     tenantId: string,
@@ -3192,7 +3201,12 @@ export class QuotationsService {
     });
   }
 
-  async generateShipment(tenantId: string, id: string, actorId?: string) {
+  async generateShipment(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    permissions?: string[],
+  ) {
     const quotation = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.quotation.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -3208,6 +3222,7 @@ export class QuotationsService {
       tenantId,
       id,
       actorId,
+      permissions,
     );
     return {
       success: true,

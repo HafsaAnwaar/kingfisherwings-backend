@@ -139,9 +139,10 @@ export class PartiesController {
   create(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
     @Body() dto: CreatePartyDto,
   ) {
-    return this.service.create(tenantId, { ...dto }, actorId);
+    return this.service.create(tenantId, { ...dto }, actorId, role);
   }
 
   @Post("import")
@@ -189,10 +190,11 @@ export class PartiesController {
   update(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdatePartyDto,
   ) {
-    return this.service.update(tenantId, id, { ...dto }, actorId);
+    return this.service.update(tenantId, id, { ...dto }, actorId, role);
   }
 
   @Delete(":id")

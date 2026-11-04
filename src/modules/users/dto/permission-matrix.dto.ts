@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
+  ArrayUnique,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -9,6 +10,7 @@ import {
   IsString,
   ValidateNested,
 } from "class-validator";
+import { JobType } from "@prisma/client";
 import {
   MATRIX_ACCESS_VALUES,
   type MatrixAccess,
@@ -62,6 +64,30 @@ export class UpdatePermissionMatrixDto {
   @ValidateNested({ each: true })
   @Type(() => PermissionMatrixGrantDto)
   grants!: PermissionMatrixGrantDto[];
+
+  @ApiPropertyOptional({
+    enum: JobType,
+    isArray: true,
+    description:
+      "Ops job types this user may list. Merged into operations submodule grants on save. Empty array = no job types (scoped).",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsEnum(JobType, { each: true })
+  visible_job_types?: JobType[];
+
+  @ApiPropertyOptional({
+    enum: JobType,
+    isArray: true,
+    description:
+      "Ops job types this user may create/write. Merged as write grants; implied visible.",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsEnum(JobType, { each: true })
+  writable_job_types?: JobType[];
 }
 
 /** Compact grant used on create/update user. */

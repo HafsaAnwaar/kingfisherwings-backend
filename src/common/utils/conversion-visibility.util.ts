@@ -2,8 +2,9 @@ import { UserRole } from "@prisma/client";
 import { departmentsForRole } from "../workflow/workflow-dept";
 
 /**
- * Visibility for quotations/jobs before a customer has any CONVERTED quote:
- * Sales (and admin/finance) see them; pure Operations does not.
+ * Visibility for quotations (and party history) before a customer has any
+ * CONVERTED quote: Sales (and admin/finance) see them; pure Operations does not.
+ * Jobs use ops-matrix job_type scoping only — not this converted-customer gate.
  */
 export function isSalesSideActor(opts: {
   role?: UserRole | string | null;

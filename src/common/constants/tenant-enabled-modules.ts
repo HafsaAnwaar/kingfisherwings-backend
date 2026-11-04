@@ -38,7 +38,10 @@ export function filterPermissionTree(
   enabledModules: string[] | null | undefined,
 ): PermissionModuleNode[] {
   const enabled = new Set(normalizeEnabledModules(enabledModules));
-  return MODULE_PERMISSION_TREE.filter((m) => enabled.has(m.key));
+  return MODULE_PERMISSION_TREE.filter((m) => enabled.has(m.key)).map((m) => ({
+    ...m,
+    submodules: m.submodules.filter((s) => !s.hidden),
+  }));
 }
 
 /**

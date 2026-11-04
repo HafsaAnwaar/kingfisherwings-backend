@@ -24,13 +24,10 @@ import {
   UpdateEnquiryDto,
 } from "./dto/crm.dto";
 import {
-  allOperationsServices,
-  visibleJobTypes,
-} from "../../common/constants/module-permission-tree";
-import {
   assertJobTypeAccess,
   jobTypeInFilter,
 } from "../../common/utils/job-type-access.util";
+import { writableJobTypeWizard } from "../../common/utils/writable-job-type-wizard.util";
 import {
   opsContinuumActions,
   opsContinuumPathHints,
@@ -302,30 +299,25 @@ export class CrmActivityService {
   }
 
   /**
-   * Create-enquiry wizard metadata. Step 1 lists every operational service
+   * Create-enquiry wizard metadata. Step 1 lists writable operational services
    * (JobType); steps 2–5 field maps stay the same as the Fresa sheet.
    */
   getEnquiryCreateWizard(user: CurrentUser) {
-    const all = allOperationsServices();
-    const allowed = visibleJobTypes(user.permissions ?? []);
-    const services = (allowed === null
-      ? all
-      : all.filter((s) => allowed.includes(s.job_type))
-    ).map((s) => ({
-      ...s,
-      value: s.job_type,
-    }));
+    const { services, writable_job_types } = writableJobTypeWizard(
+      user.permissions ?? [],
+    );
 
     return {
       success: true,
       data: {
+        writable_job_types,
         steps: [
           {
             step: 1,
             key: "create_enquiry",
             title: "Create enquiry",
             description:
-              "Select service type (all services listed) and currency; optional lead.",
+              "Select service type (writable job types from ops matrix) and currency; optional lead.",
             fields: ["service_type", "currency_code", "lead_id"],
             services,
           },
@@ -1015,6 +1007,7 @@ export class CrmActivityService {
         remarks: `Generated from CRM enquiry ${enquiry.id}`,
       },
       user.id,
+      user.permissions,
     );
 
     const chargeLines = (enquiry.charges ?? []).filter((c) => c.charge_code_id);
