@@ -3,7 +3,7 @@ import { JobStatus, JobType, Prisma } from "@prisma/client";
 import {
   JobsDashboardQueryDto,
 } from "../../common/dto/dashboard-period-query.dto";
-import { visibleJobTypes } from "../../common/constants/module-permission-tree";
+import { visibleJobTypesForActor } from "../../common/utils/job-type-access.util";
 import {
   DEFAULT_OPS_CAPACITY,
   isOpenJobDelayed,
@@ -19,9 +19,10 @@ export class JobsDashboardService {
     tenantId: string,
     query: JobsDashboardQueryDto,
     permissions: string[] = [],
+    role?: string | null,
   ) {
     const { from, to, period } = query.resolve("30d");
-    const allowedTypes = visibleJobTypes(permissions);
+    const allowedTypes = visibleJobTypesForActor(permissions, role);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       let jobTypeFilter: Prisma.JobWhereInput["job_type"] | undefined;
@@ -79,6 +80,7 @@ export class JobsDashboardService {
         statusMap[row.status] = row._count._all;
       }
 
+      const total = byStatus.reduce((sum, row) => sum + row._count._all, 0);
       const open = OPEN_JOB_STATUSES.reduce(
         (sum, s) => sum + (statusMap[s] ?? 0),
         0,
@@ -106,6 +108,7 @@ export class JobsDashboardService {
           period,
           from: from.toISOString(),
           to: to.toISOString(),
+          total,
           open,
           open_bucket,
           pending,
@@ -130,10 +133,11 @@ export class JobsDashboardService {
     tenantId: string,
     query: JobsDashboardQueryDto,
     permissions: string[] = [],
+    role?: string | null,
   ) {
     const { from, to, period } = query.resolve("30d");
     const capacity = DEFAULT_OPS_CAPACITY;
-    const allowedTypes = visibleJobTypes(permissions);
+    const allowedTypes = visibleJobTypesForActor(permissions, role);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       let jobTypeFilter: Prisma.JobWhereInput["job_type"] | undefined;
@@ -323,8 +327,12 @@ export class JobsDashboardService {
     });
   }
 
-  async listOnHoldWithDocs(tenantId: string, permissions: string[] = []) {
-    const allowedTypes = visibleJobTypes(permissions);
+  async listOnHoldWithDocs(
+    tenantId: string,
+    permissions: string[] = [],
+    role?: string | null,
+  ) {
+    const allowedTypes = visibleJobTypesForActor(permissions, role);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const jobs = await tx.job.findMany({
         where: {

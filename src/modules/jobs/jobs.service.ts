@@ -35,10 +35,10 @@ import { markJobMilestoneIfPresent } from "./utils/mark-milestone.util";
 import { looksLikeUuid } from "../../common/utils/business-key.util";
 import { defaultVisibleToCustomer } from "./utils/job-document-visibility.util";
 import {
-  canSeeJobType,
-  canWriteJobType,
-  visibleJobTypes,
-} from "../../common/constants/module-permission-tree";
+  canSeeJobTypeForActor,
+  canWriteJobTypeForActor,
+  visibleJobTypesForActor,
+} from "../../common/utils/job-type-access.util";
 import {
   jobStatusesForCategory,
   OPEN_JOB_STATUSES,
@@ -169,8 +169,9 @@ export class JobsService {
     dto: CreateJobDto,
     actorId?: string,
     permissions?: string[],
+    role?: string | null,
   ): Promise<Job> {
-    if (permissions && !canWriteJobType(permissions, dto.job_type)) {
+    if (permissions && !canWriteJobTypeForActor(permissions, dto.job_type, role)) {
       throw new ForbiddenException(
         `You do not have write access for ${dto.job_type} jobs.`,
       );
@@ -332,7 +333,12 @@ export class JobsService {
    * Staff/tenant-only barcode resolve. Printed CODE128 is an opaque id —
    * full job details are returned only after JWT + tenant + jobs.view.
    */
-  async findByBarcode(tenantId: string, code: string, permissions?: string[]) {
+  async findByBarcode(
+    tenantId: string,
+    code: string,
+    permissions?: string[],
+    role?: string | null,
+  ) {
     const barcode = code.trim();
     if (!barcode) throw new NotFoundException("Job not found for barcode.");
 
@@ -364,7 +370,10 @@ export class JobsService {
         },
       });
       if (!job) throw new NotFoundException("Job not found for barcode.");
-      if (permissions && !canSeeJobType(permissions, job.job_type)) {
+      if (
+        permissions &&
+        !canSeeJobTypeForActor(permissions, job.job_type, role)
+      ) {
         throw new ForbiddenException(
           `You do not have access to ${job.job_type} jobs.`,
         );
@@ -746,7 +755,11 @@ export class JobsService {
         }
       }
       if (query.job_type) where.job_type = query.job_type;
-      const allowedTypes = visibleJobTypes(permissions ?? []);
+      // Admin: every department. Staff: allowed job types only, any creator.
+      const allowedTypes = visibleJobTypesForActor(
+        permissions ?? [],
+        _actor?.role,
+      );
       if (allowedTypes) {
         if (query.job_type) {
           if (!allowedTypes.includes(query.job_type)) {
@@ -767,8 +780,7 @@ export class JobsService {
       if (query.dest_port_id) where.dest_port_id = query.dest_port_id;
       if (query.parent_job_id) where.parent_job_id = query.parent_job_id;
       if (query.masters_only) where.parent_job_id = null;
-      // Job list visibility is ops matrix only (visibleJobTypes above).
-      // Converted-customer gating remains on quotations / party history.
+      // List is job_type scope only — not created_by, not quote-conversion.
 
       if (query.from_date || query.to_date) {
         const range = {
@@ -1074,6 +1086,25 @@ export class JobsService {
     id: string,
     permissions?: string[],
     _actor?: { role?: string | null; permissions?: string[] | null },
+      ]);
+
+      return {
+        data: await this.masterLabels.enrichRows(tenantId, data, tx),
+        meta: {
+          page: query.page,
+          limit: query.limit,
+          total,
+          totalPages: Math.ceil(total / query.limit) || 1,
+        },
+      };
+    });
+  }
+
+  async findOne(
+    tenantId: string,
+    id: string,
+    permissions?: string[],
+    actor?: { role?: string | null; permissions?: string[] | null },
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
@@ -1165,7 +1196,10 @@ export class JobsService {
         throw new NotFoundException("Job not found.");
       }
 
-      if (permissions && !canSeeJobType(permissions, job.job_type)) {
+      if (
+        permissions &&
+        !canSeeJobTypeForActor(permissions, job.job_type, actor?.role)
+      ) {
         throw new ForbiddenException(
           `You do not have access to ${job.job_type} jobs.`,
         );

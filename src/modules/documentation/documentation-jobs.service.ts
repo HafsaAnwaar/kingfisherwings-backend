@@ -73,20 +73,14 @@ export class DocumentationJobsService {
     };
   }
 
-  async listJobs(
-    tenantId: string,
-    query: DocumentationJobsQueryDto,
-    permissions: string[] = [],
-  ) {
+  async listJobs(tenantId: string, query: DocumentationJobsQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const allowedTypes = visibleJobTypes(permissions);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        ...(allowedTypes ? { job_type: { in: allowedTypes } } : {}),
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
         ...(query.department_id ? { department_id: query.department_id } : {}),
         ...(query.status ? { status: query.status as JobStatus } : {}),

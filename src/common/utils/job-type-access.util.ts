@@ -1,11 +1,47 @@
 import { ForbiddenException } from "@nestjs/common";
-import { JobType, Prisma } from "@prisma/client";
+import { JobType, Prisma, UserRole } from "@prisma/client";
 import {
   canSeeJobType,
   canWriteJobType,
   visibleJobTypes,
   writableJobTypes,
 } from "../constants/module-permission-tree";
+import { departmentsForRole } from "../workflow/workflow-dept";
+
+/**
+ * Tenant admin and branch manager see every job department.
+ * Staff stay scoped to operations grants (job type), not creator.
+ */
+export function seesAllJobDepartments(role?: string | null): boolean {
+  if (!role) return false;
+  return departmentsForRole(role as UserRole).includes("ADMIN");
+}
+
+export function visibleJobTypesForActor(
+  permissions: string[] | null | undefined,
+  role?: string | null,
+): JobType[] | null {
+  if (seesAllJobDepartments(role)) return null;
+  return visibleJobTypes(permissions ?? []);
+}
+
+export function canSeeJobTypeForActor(
+  permissions: string[] | null | undefined,
+  jobType: JobType,
+  role?: string | null,
+): boolean {
+  if (seesAllJobDepartments(role)) return true;
+  return canSeeJobType(permissions ?? [], jobType);
+}
+
+export function canWriteJobTypeForActor(
+  permissions: string[] | null | undefined,
+  jobType: JobType,
+  role?: string | null,
+): boolean {
+  if (seesAllJobDepartments(role)) return true;
+  return canWriteJobType(permissions ?? [], jobType);
+}
 
 export type JobTypeAccessMode = "see" | "write";
 
@@ -60,8 +96,10 @@ export function assertJobTypeAccess(
   permissions: string[] | null | undefined,
   jobType: JobType | string | null | undefined,
   mode: JobTypeAccessMode = "see",
+  role?: string | null,
 ): void {
   if (!jobType) return;
+  if (seesAllJobDepartments(role)) return;
   const jt = jobType as JobType;
   const perms = permissions ?? [];
   const ok =

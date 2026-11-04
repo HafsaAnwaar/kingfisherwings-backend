@@ -329,9 +329,15 @@ export class JobsController {
   dashboardCounts(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Query() query: JobsDashboardQueryDto,
   ) {
-    return this.dashboard.dashboardCounts(tenantId, query, permissions ?? []);
+    return this.dashboard.dashboardCounts(
+      tenantId,
+      query,
+      permissions ?? [],
+      role,
+    );
   }
 
   @Get("team-workload")
@@ -344,9 +350,10 @@ export class JobsController {
   teamWorkload(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Query() query: JobsDashboardQueryDto,
   ) {
-    return this.dashboard.teamWorkload(tenantId, query, permissions ?? []);
+    return this.dashboard.teamWorkload(tenantId, query, permissions ?? [], role);
   }
 
   @Get("pending-quotations")
@@ -368,8 +375,9 @@ export class JobsController {
   listOnHoldByCategory(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
   ) {
-    return this.dashboard.listOnHoldWithDocs(tenantId, permissions ?? []);
+    return this.dashboard.listOnHoldWithDocs(tenantId, permissions ?? [], role);
   }
 
   @Get("status-options")
@@ -456,9 +464,10 @@ export class JobsController {
   findByBarcode(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("code") code: string,
   ) {
-    return this.service.findByBarcode(tenantId, code, permissions);
+    return this.service.findByBarcode(tenantId, code, permissions, role);
   }
 
   @Post("scan")
@@ -512,10 +521,11 @@ export class JobsController {
   getDetailTab(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("tab") tab: string,
   ) {
-    return this.detail.getDetailTab(tenantId, id, tab, permissions);
+    return this.detail.getDetailTab(tenantId, id, tab, permissions, role);
   }
 
   @Patch(":id/detail/show_all")
@@ -542,9 +552,10 @@ export class JobsController {
   getDetail(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.detail.getDetail(tenantId, id, permissions);
+    return this.detail.getDetail(tenantId, id, permissions, role);
   }
 
   @Patch(":id/closed-overrides")
@@ -1481,9 +1492,10 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Body() dto: CreateJobDto,
   ) {
-    return this.service.create(tenantId, dto, actorId, permissions);
+    return this.service.create(tenantId, dto, actorId, permissions, role);
   }
 
   @Post(["vendor-quotes/:quoteId/approve", "job-offers/:quoteId/approve"])
