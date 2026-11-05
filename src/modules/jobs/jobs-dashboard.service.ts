@@ -3,7 +3,11 @@ import { JobStatus, Prisma } from "@prisma/client";
 import {
   JobsDashboardQueryDto,
 } from "../../common/dto/dashboard-period-query.dto";
-import { jobTypeFilterForActor } from "../../common/utils/job-type-access.util";
+import {
+  jobTypeFilterFromVisible,
+  resolveVisibleJobTypes,
+  visibleJobTypesForActor,
+} from "../../common/utils/job-type-access.util";
 import {
   DEFAULT_OPS_CAPACITY,
   isOpenJobDelayed,
@@ -20,15 +24,15 @@ export class JobsDashboardService {
     query: JobsDashboardQueryDto,
     permissions: string[] = [],
     role?: string | null,
+    userId?: string | null,
   ) {
     const { from, to, period } = query.resolve("30d");
-    const jobTypeFilter = jobTypeFilterForActor(
-      permissions,
-      role,
-      query.job_type,
-    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const visible = userId
+        ? await resolveVisibleJobTypes(tx, tenantId, userId, role)
+        : visibleJobTypesForActor(permissions, role);
+      const jobTypeFilter = jobTypeFilterFromVisible(visible, query.job_type);
       const base: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
@@ -129,16 +133,16 @@ export class JobsDashboardService {
     query: JobsDashboardQueryDto,
     permissions: string[] = [],
     role?: string | null,
+    userId?: string | null,
   ) {
     const { from, to, period } = query.resolve("30d");
     const capacity = DEFAULT_OPS_CAPACITY;
-    const jobTypeFilter = jobTypeFilterForActor(
-      permissions,
-      role,
-      query.job_type,
-    );
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const visible = userId
+        ? await resolveVisibleJobTypes(tx, tenantId, userId, role)
+        : visibleJobTypesForActor(permissions, role);
+      const jobTypeFilter = jobTypeFilterFromVisible(visible, query.job_type);
       const jobWhere: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
@@ -318,9 +322,13 @@ export class JobsDashboardService {
     tenantId: string,
     permissions: string[] = [],
     role?: string | null,
+    userId?: string | null,
   ) {
-    const jobTypeFilter = jobTypeFilterForActor(permissions, role);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const visible = userId
+        ? await resolveVisibleJobTypes(tx, tenantId, userId, role)
+        : visibleJobTypesForActor(permissions, role);
+      const jobTypeFilter = jobTypeFilterFromVisible(visible);
       const jobs = await tx.job.findMany({
         where: {
           tenant_id: tenantId,

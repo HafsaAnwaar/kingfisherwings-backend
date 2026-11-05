@@ -5,7 +5,8 @@ import {
 } from "@nestjs/common";
 import {
   assertJobTypeAccess,
-  jobTypeInFilter,
+  jobTypeInFilterFromVisible,
+  resolveVisibleJobTypes,
 } from "../../common/utils/job-type-access.util";
 import { writableJobTypeWizard } from "../../common/utils/writable-job-type-wizard.util";
 import {
@@ -210,22 +211,27 @@ export class ShipmentsService {
   async findAll(
     tenantId: string,
     query: ShipmentQueryDto,
-    permissions?: string[],
+    _permissions?: string[],
+    role?: string | null,
+    userId?: string | null,
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const scoped = jobTypeInFilter(permissions);
-    let jobTypeFilter: Prisma.ShipmentWhereInput["job_type"] | undefined;
-    if (query.job_type) {
-      if (scoped && !scoped.in.includes(query.job_type)) {
-        jobTypeFilter = { in: [] };
-      } else {
-        jobTypeFilter = query.job_type;
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const visible = await resolveVisibleJobTypes(tx, tenantId, userId, role);
+      const scoped = jobTypeInFilterFromVisible(visible);
+      let jobTypeFilter: Prisma.ShipmentWhereInput["job_type"] | undefined;
+      if (query.job_type) {
+        if (scoped && !scoped.in.includes(query.job_type)) {
+          jobTypeFilter = { in: [] };
+        } else {
+          jobTypeFilter = query.job_type;
+        }
+      } else if (scoped) {
+        jobTypeFilter = scoped;
       }
-    } else if (scoped) {
-      jobTypeFilter = scoped;
-    }
-    const where: Prisma.ShipmentWhereInput = {
+      const where: Prisma.ShipmentWhereInput = {
       tenant_id: tenantId,
       deleted_at: null,
       ...(query.status ? { status: query.status } : {}),
@@ -263,9 +269,8 @@ export class ShipmentsService {
             ],
           }
         : {}),
-    };
+      };
 
-    return this.prisma.runWithTenant(tenantId, async (tx) => {
       const [data, total] = await Promise.all([
         tx.shipment.findMany({
           where,

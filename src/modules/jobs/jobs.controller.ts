@@ -320,11 +320,13 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
     @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
     @Query() query: JobQueryDto,
   ) {
     return this.service.findAll(tenantId, query, permissions, {
       role,
       permissions,
+      userId,
     });
   }
 
@@ -339,6 +341,7 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
     @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
     @Query() query: JobsDashboardQueryDto,
   ) {
     return this.dashboard.dashboardCounts(
@@ -346,6 +349,7 @@ export class JobsController {
       query,
       permissions ?? [],
       role,
+      userId,
     );
   }
 
@@ -360,9 +364,16 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
     @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
     @Query() query: JobsDashboardQueryDto,
   ) {
-    return this.dashboard.teamWorkload(tenantId, query, permissions ?? [], role);
+    return this.dashboard.teamWorkload(
+      tenantId,
+      query,
+      permissions ?? [],
+      role,
+      userId,
+    );
   }
 
   @Get("pending-quotations")
@@ -385,8 +396,14 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
     @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
   ) {
-    return this.dashboard.listOnHoldWithDocs(tenantId, permissions ?? [], role);
+    return this.dashboard.listOnHoldWithDocs(
+      tenantId,
+      permissions ?? [],
+      role,
+      userId,
+    );
   }
 
   @Get("status-options")
@@ -512,9 +529,10 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
     @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
     @Param("code") code: string,
   ) {
-    return this.service.findByBarcode(tenantId, code, permissions, role);
+    return this.service.findByBarcode(tenantId, code, permissions, role, userId);
   }
 
   @Post("scan")
@@ -1278,11 +1296,13 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
     @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.findOne(tenantId, id, permissions, {
       role,
       permissions,
+      userId,
     });
   }
 

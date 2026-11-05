@@ -80,6 +80,92 @@ export function visibleJobTypesForActor(
 }
 
 /**
+ * Decide the job types a user may list from their saved direct grants.
+ * `null` = every department.
+ *
+ * A saved `operations_scope` grant means the direct job-type rows are the
+ * department list. The role pack is not added on top. If that grant exists
+ * but no job type was stored, the role preset is used so the list is not
+ * empty for an operations or sales role.
+ * With no scope marker and no direct job-type rows, the role preset is the
+ * department. A known role whose preset has no job types sees none.
+ */
+export function visibleJobTypesFromStoredGrants(
+  directCodes: string[] | null | undefined,
+  role?: string | null,
+): JobType[] | null {
+  const codes = directCodes ?? [];
+  if (seesAllJobDepartments(role, codes)) return null;
+
+  const hasScope = codes.some((p) => p.startsWith(OPERATIONS_SCOPE_PREFIX));
+  const directTypes = visibleJobTypes(codes);
+
+  if (hasScope) {
+    if (directTypes && directTypes.length > 0) return directTypes;
+    const preset = presetVisibleJobTypes(role);
+    return preset.length > 0 ? preset : [];
+  }
+
+  if (directTypes && directTypes.length > 0) return directTypes;
+
+  const preset = presetVisibleJobTypes(role);
+  if (preset.length > 0) return preset;
+  if (role && Object.values(UserRole).includes(role as UserRole)) return [];
+  return directTypes;
+}
+
+/**
+ * Job types this user may list, read from direct grants inside the caller's
+ * tenant transaction. Does not open another transaction.
+ */
+export async function resolveVisibleJobTypes(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  userId: string | null | undefined,
+  roleHint?: string | null,
+): Promise<JobType[] | null> {
+  if (!userId) return visibleJobTypesForActor([], roleHint);
+
+  const [user, direct] = await Promise.all([
+    tx.user.findFirst({
+      where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      select: { role: true },
+    }),
+    tx.userPermission.findMany({
+      where: { tenant_id: tenantId, user_id: userId, granted: true },
+      select: { permission: { select: { module: true, action: true } } },
+    }),
+  ]);
+
+  const role = user?.role ?? roleHint ?? null;
+  const codes = direct.map(
+    (row) => `${row.permission.module}.${row.permission.action}`,
+  );
+  return visibleJobTypesFromStoredGrants(codes, role);
+}
+
+/** `undefined` = do not filter. `{ in: [] }` = none. */
+export function jobTypeFilterFromVisible(
+  allowed: JobType[] | null,
+  requested?: string | null,
+): JobType | { in: JobType[] } | undefined {
+  if (requested) {
+    const jobType = requested as JobType;
+    if (allowed && !allowed.includes(jobType)) return { in: [] };
+    return jobType;
+  }
+  if (allowed === null) return undefined;
+  return { in: allowed };
+}
+
+export function jobTypeInFilterFromVisible(
+  allowed: JobType[] | null,
+): { in: JobType[] } | undefined {
+  if (allowed === null) return undefined;
+  return { in: allowed };
+}
+
+/**
  * Prisma job_type filter shared by the job list and the job-count API.
  * `undefined` = do not filter (admin / unrestricted). `{ in: [] }` = none.
  */

@@ -142,9 +142,11 @@ export class ShipmentsController {
   findAll(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
     @Query() query: ShipmentQueryDto,
   ) {
-    return this.service.findAll(tenantId, query, permissions);
+    return this.service.findAll(tenantId, query, permissions, role, userId);
   }
 
   @Post()
