@@ -26,8 +26,9 @@ export class SearchController {
   search(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Query() query: SearchQueryDto,
   ) {
-    return this.service.search(tenantId, query, permissions);
+    return this.service.search(tenantId, query, permissions, role);
   }
 }
