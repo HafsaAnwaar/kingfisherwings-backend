@@ -2,6 +2,7 @@ import { JobType, UserRole } from "@prisma/client";
 import { visibleJobTypes } from "../../../common/constants/module-permission-tree";
 import { isOpsOnlyActor } from "../../../common/utils/conversion-visibility.util";
 import {
+  buildVisibleJobsBaseWhere,
   canSeeJobTypeForActor,
   jobTypeFilterForActor,
   jobTypeFilterFromVisible,
@@ -341,5 +342,43 @@ describe("saved department grants, not the role pack", () => {
     expect(jobTypeFilterFromVisible(allowed, JobType.AIR_EXPORT)).toBe(
       JobType.AIR_EXPORT,
     );
+  });
+
+  it("untyped list where equals dashboard job_count where for the same branch", () => {
+    const reported = [
+      "operations_scope.read",
+      "operations_sea_fcl_export.write",
+      "operations_sea_fcl_import.write",
+      "operations_sea_lcl_export.write",
+      "operations_sea_lcl_import.write",
+      "operations_land.write",
+      "operations_road_freight.write",
+      "operations_courier.write",
+      "operations_customs_clearance.write",
+      "operations_nvocc_export.write",
+      "operations_nvocc_import.write",
+    ];
+    const allowed = visibleJobTypesFromStoredGrants(
+      reported,
+      UserRole.OPERATIONS_MANAGER,
+    );
+    const branchId = "d7870b81-b59e-4fbf-8b73-47f653169cc3";
+    const listWhere = buildVisibleJobsBaseWhere("tenant-1", allowed, {
+      branch_id: branchId,
+    });
+    const countWhere = buildVisibleJobsBaseWhere("tenant-1", allowed, {
+      branch_id: branchId,
+    });
+    expect(listWhere).toEqual(countWhere);
+    expect(listWhere).toEqual({
+      tenant_id: "tenant-1",
+      deleted_at: null,
+      branch_id: branchId,
+      job_type: { in: allowed },
+    });
+    expect(listWhere).not.toHaveProperty("department_id");
+    expect(listWhere).not.toHaveProperty("created_by");
+    expect(listWhere).not.toHaveProperty("ops_user_id");
+    expect(listWhere).not.toHaveProperty("salesperson_id");
   });
 });

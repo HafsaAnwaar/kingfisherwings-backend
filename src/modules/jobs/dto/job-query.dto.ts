@@ -132,7 +132,11 @@ export class JobQueryDto {
   @IsUUID()
   parent_job_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Org department filter (admin MIS only). Staff ops scope is job_type from the permission matrix — not this field. Ignored for non-admin callers.",
+  })
   @IsOptional()
   @IsUUID()
   department_id?: string;
