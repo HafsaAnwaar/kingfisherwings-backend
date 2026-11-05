@@ -149,6 +149,30 @@ describe("job count matches the jobs shown (9 live jobs)", () => {
     expect(jobsShown(scopeOnly, UserRole.CUSTOMER)).toHaveLength(0);
   });
 
+  it("staff see every job of a granted type, including ones created by admin", () => {
+    const permissions = [
+      "operations_scope.read",
+      "operations_sea_fcl_export.write",
+    ];
+    const jobs = [
+      { job_type: JobType.SEA_FCL_EXPORT, created_by: "staff", ops_user_id: "staff" },
+      { job_type: JobType.SEA_FCL_EXPORT, created_by: "staff", ops_user_id: "staff" },
+      { job_type: JobType.SEA_FCL_EXPORT, created_by: "staff", ops_user_id: "staff" },
+      { job_type: JobType.SEA_FCL_EXPORT, created_by: "admin", ops_user_id: null },
+      { job_type: JobType.SEA_FCL_EXPORT, created_by: "admin", ops_user_id: null },
+      { job_type: JobType.SEA_FCL_EXPORT, created_by: "admin", ops_user_id: null },
+    ];
+    const filter = jobTypeFilterForActor(
+      permissions,
+      UserRole.OPERATIONS_MANAGER,
+      JobType.SEA_FCL_EXPORT,
+    );
+    expect(filter).toBe(JobType.SEA_FCL_EXPORT);
+    const shown = jobs.filter((job) => job.job_type === filter);
+    expect(shown).toHaveLength(6);
+    expect(shown.filter((job) => job.created_by === "admin")).toHaveLength(3);
+  });
+
   it("list filter and count filter are the same set", () => {
     const permissions = ["operations_scope.read", "operations_courier.write"];
     const filter = jobTypeFilterForActor(

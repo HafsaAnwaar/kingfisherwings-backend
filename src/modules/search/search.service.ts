@@ -28,12 +28,15 @@ export class SearchService {
     tenantId: string,
     query: SearchQueryDto,
     permissions?: string[],
+    role?: string | null,
   ) {
     const term = query.q.trim();
     const limit = query.limit ?? 20;
     const types = parseSearchTypes(query.types);
     const perTypeLimit = Math.ceil(limit / Math.max(types.length, 1));
-    const jobTypeScope = jobTypeInFilter(permissions);
+    // Same scope as GET /jobs: visible job types only. Not created_by,
+    // ops_user_id, or salesperson unless the client sends salesperson_id.
+    const jobTypeScope = jobTypeInFilter(permissions, role);
 
     const results: SearchResultItem[] = [];
 
