@@ -260,6 +260,77 @@ describe("saved department grants, not the role pack", () => {
     expect(listAll).toEqual({ in: [JobType.SEA_FCL_EXPORT] });
   });
 
+  it("sea plus customs staff scope is the list and the count", () => {
+    const reported = [
+      "operations_scope.read",
+      "operations_sea_fcl_export.write",
+      "operations_sea_fcl_import.write",
+      "operations_sea_lcl_export.write",
+      "operations_sea_lcl_import.write",
+      "operations_land.write",
+      "operations_road_freight.write",
+      "operations_courier.write",
+      "operations_customs_clearance.write",
+      "operations_nvocc_export.write",
+      "operations_nvocc_import.write",
+    ];
+    const rolePackWouldGrantAir = [
+      ...reported,
+      "operations_air_export.write",
+      "operations_air_import.write",
+    ];
+    const allowed = visibleJobTypesFromStoredGrants(
+      reported,
+      UserRole.OPERATIONS_MANAGER,
+    );
+    expect(visibleJobTypes(rolePackWouldGrantAir)).toEqual(
+      expect.arrayContaining([JobType.AIR_EXPORT, JobType.SEA_FCL_EXPORT]),
+    );
+    expect(allowed).toEqual(
+      expect.arrayContaining([
+        JobType.SEA_FCL_EXPORT,
+        JobType.SEA_FCL_IMPORT,
+        JobType.SEA_LCL_EXPORT,
+        JobType.SEA_LCL_IMPORT,
+        JobType.LAND,
+        JobType.ROAD_FREIGHT,
+        JobType.COURIER,
+        JobType.CUSTOMS_CLEARANCE,
+        JobType.NVOCC_EXPORT,
+        JobType.NVOCC_IMPORT,
+      ]),
+    );
+    expect(allowed).not.toContain(JobType.AIR_EXPORT);
+    expect(allowed).not.toContain(JobType.AIR_IMPORT);
+
+    const listAll = jobTypeFilterFromVisible(allowed);
+    const countAll = jobTypeFilterFromVisible(allowed);
+    expect(listAll).toEqual(countAll);
+    expect(listAll).toEqual({ in: allowed });
+    expect(listAll).toEqual(
+      expect.objectContaining({
+        in: expect.arrayContaining([
+          JobType.SEA_FCL_EXPORT,
+          JobType.SEA_FCL_IMPORT,
+        ]),
+      }),
+    );
+
+    const seaExport = jobTypeFilterFromVisible(
+      allowed,
+      JobType.SEA_FCL_EXPORT,
+    );
+    expect(seaExport).toBe(JobType.SEA_FCL_EXPORT);
+    expect(seaExport).not.toEqual({ in: [] });
+
+    const admin = visibleJobTypesFromStoredGrants(
+      reported,
+      UserRole.TENANT_ADMIN,
+    );
+    expect(admin).toBeNull();
+    expect(jobTypeFilterFromVisible(admin)).toBeUndefined();
+  });
+
   it("admin with a narrow direct matrix still has no job-type filter", () => {
     const allowed = visibleJobTypesFromStoredGrants(
       seaOnly,
