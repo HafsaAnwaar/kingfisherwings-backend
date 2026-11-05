@@ -4,7 +4,9 @@ import { isOpsOnlyActor } from "../../../common/utils/conversion-visibility.util
 import {
   canSeeJobTypeForActor,
   jobTypeFilterForActor,
+  jobTypeFilterFromVisible,
   visibleJobTypesForActor,
+  visibleJobTypesFromStoredGrants,
 } from "../../../common/utils/job-type-access.util";
 
 /** Nine live jobs. One courier job is the type a partial matrix can miss. */
@@ -183,5 +185,90 @@ describe("job count matches the jobs shown (9 live jobs)", () => {
     expect(filter).toEqual({ in: [JobType.COURIER] });
     expect(listed).toHaveLength(1);
     expect(listed.every((jobType) => jobType === JobType.COURIER)).toBe(true);
+  });
+});
+
+describe("saved department grants, not the role pack", () => {
+  const seaOnly = ["operations_scope.read", "operations_sea_fcl_export.write"];
+  const rolePackWouldGrantAir = [
+    ...seaOnly,
+    "operations_air_export.write",
+    "operations_air_import.write",
+  ];
+
+  const sixSeaJobs = [
+    { job_type: JobType.SEA_FCL_EXPORT, created_by: "staff" },
+    { job_type: JobType.SEA_FCL_EXPORT, created_by: "staff" },
+    { job_type: JobType.SEA_FCL_EXPORT, created_by: "staff" },
+    { job_type: JobType.SEA_FCL_EXPORT, created_by: "admin" },
+    { job_type: JobType.SEA_FCL_EXPORT, created_by: "admin" },
+    { job_type: JobType.SEA_FCL_EXPORT, created_by: "admin" },
+    { job_type: JobType.AIR_EXPORT, created_by: "admin" },
+  ];
+
+  it("scope plus one job type ignores air even when the role pack grants it", () => {
+    expect(visibleJobTypes(rolePackWouldGrantAir)).toEqual(
+      expect.arrayContaining([JobType.AIR_EXPORT, JobType.SEA_FCL_EXPORT]),
+    );
+    const allowed = visibleJobTypesFromStoredGrants(
+      seaOnly,
+      UserRole.OPERATIONS_MANAGER,
+    );
+    expect(allowed).toEqual([JobType.SEA_FCL_EXPORT]);
+
+    const filter = jobTypeFilterFromVisible(allowed, JobType.SEA_FCL_EXPORT);
+    expect(filter).toBe(JobType.SEA_FCL_EXPORT);
+    const shown = sixSeaJobs.filter((job) => job.job_type === filter);
+    expect(shown).toHaveLength(6);
+    expect(shown.filter((job) => job.created_by === "admin")).toHaveLength(3);
+    expect(shown.some((job) => job.job_type === JobType.AIR_EXPORT)).toBe(false);
+  });
+
+  it("a scope marker with no job-type grants uses the operations preset", () => {
+    const allowed = visibleJobTypesFromStoredGrants(
+      ["operations_scope.read"],
+      UserRole.OPERATIONS_MANAGER,
+    );
+    expect(allowed).not.toEqual([]);
+    expect(allowed).toEqual(
+      expect.arrayContaining([
+        JobType.SEA_FCL_EXPORT,
+        JobType.AIR_EXPORT,
+      ]),
+    );
+  });
+
+  it("list filter and job_count filter are equal for the same job type and branch inputs", () => {
+    const allowed = visibleJobTypesFromStoredGrants(
+      seaOnly,
+      UserRole.OPERATIONS_MANAGER,
+    );
+    const listFilter = jobTypeFilterFromVisible(
+      allowed,
+      JobType.SEA_FCL_EXPORT,
+    );
+    const countFilter = jobTypeFilterFromVisible(
+      allowed,
+      JobType.SEA_FCL_EXPORT,
+    );
+    expect(listFilter).toEqual(countFilter);
+    expect(listFilter).toBe(JobType.SEA_FCL_EXPORT);
+
+    const listAll = jobTypeFilterFromVisible(allowed);
+    const countAll = jobTypeFilterFromVisible(allowed);
+    expect(listAll).toEqual(countAll);
+    expect(listAll).toEqual({ in: [JobType.SEA_FCL_EXPORT] });
+  });
+
+  it("admin with a narrow direct matrix still has no job-type filter", () => {
+    const allowed = visibleJobTypesFromStoredGrants(
+      seaOnly,
+      UserRole.TENANT_ADMIN,
+    );
+    expect(allowed).toBeNull();
+    expect(jobTypeFilterFromVisible(allowed)).toBeUndefined();
+    expect(jobTypeFilterFromVisible(allowed, JobType.AIR_EXPORT)).toBe(
+      JobType.AIR_EXPORT,
+    );
   });
 });

@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { jobTypeInFilter } from "../../common/utils/job-type-access.util";
+import {
+  jobTypeInFilterFromVisible,
+  resolveVisibleJobTypes,
+} from "../../common/utils/job-type-access.util";
 import { parseSearchTypes, SearchQueryDto } from "./dto/search-query.dto";
 
 export interface SearchResultItem {
@@ -27,16 +30,20 @@ export class SearchService {
   async search(
     tenantId: string,
     query: SearchQueryDto,
-    permissions?: string[],
+    _permissions?: string[],
     role?: string | null,
+    userId?: string | null,
   ) {
     const term = query.q.trim();
     const limit = query.limit ?? 20;
     const types = parseSearchTypes(query.types);
     const perTypeLimit = Math.ceil(limit / Math.max(types.length, 1));
-    // Same scope as GET /jobs: visible job types only. Not created_by,
-    // ops_user_id, or salesperson unless the client sends salesperson_id.
-    const jobTypeScope = jobTypeInFilter(permissions, role);
+    // Same scope as GET /jobs: saved job types, read in this request.
+    // Not created_by, ops_user_id, or salesperson unless the client sends salesperson_id.
+    const visible = await this.prisma.runWithTenant(tenantId, (tx) =>
+      resolveVisibleJobTypes(tx, tenantId, userId, role),
+    );
+    const jobTypeScope = jobTypeInFilterFromVisible(visible);
 
     const results: SearchResultItem[] = [];
 

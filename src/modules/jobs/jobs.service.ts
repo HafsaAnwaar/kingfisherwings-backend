@@ -38,7 +38,8 @@ import {
   assertJobTypeAccess,
   canSeeJobTypeForActor,
   canWriteJobTypeForActor,
-  jobTypeFilterForActor,
+  jobTypeFilterFromVisible,
+  resolveVisibleJobTypes,
 } from "../../common/utils/job-type-access.util";
 import {
   jobStatusesForCategory,
@@ -339,6 +340,7 @@ export class JobsService {
     code: string,
     permissions?: string[],
     role?: string | null,
+    userId?: string | null,
   ) {
     const barcode = code.trim();
     if (!barcode) throw new NotFoundException("Job not found for barcode.");
@@ -371,10 +373,13 @@ export class JobsService {
         },
       });
       if (!job) throw new NotFoundException("Job not found for barcode.");
-      if (
-        permissions &&
-        !canSeeJobTypeForActor(permissions, job.job_type, role)
-      ) {
+      const visible = userId
+        ? await resolveVisibleJobTypes(tx, tenantId, userId, role)
+        : null;
+      const allowed = userId
+        ? visible === null || visible.includes(job.job_type)
+        : !permissions || canSeeJobTypeForActor(permissions, job.job_type, role);
+      if (!allowed) {
         throw new ForbiddenException(
           `You do not have access to ${job.job_type} jobs.`,
         );
@@ -723,8 +728,12 @@ export class JobsService {
   async findAll(
     tenantId: string,
     query: JobQueryDto,
-    permissions?: string[],
-    _actor?: { role?: string | null; permissions?: string[] | null },
+    _permissions?: string[],
+    _actor?: {
+      role?: string | null;
+      permissions?: string[] | null;
+      userId?: string | null;
+    },
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const where: Prisma.JobWhereInput = {
@@ -755,11 +764,16 @@ export class JobsService {
           });
         }
       }
-      // Admin: every department. Staff: allowed job types only, any creator.
-      // Same filter the dashboard job_count uses.
-      const jobTypeFilter = jobTypeFilterForActor(
-        permissions ?? [],
+      // Admin: every department. Staff: saved job types only, any creator.
+      // Same filter the dashboard job_count uses. Not created_by or ops_user_id.
+      const visibleJobTypes = await resolveVisibleJobTypes(
+        tx,
+        tenantId,
+        _actor?.userId,
         _actor?.role,
+      );
+      const jobTypeFilter = jobTypeFilterFromVisible(
+        visibleJobTypes,
         query.job_type,
       );
       if (jobTypeFilter) where.job_type = jobTypeFilter;
@@ -1070,6 +1084,7 @@ export class JobsService {
           limit: query.limit,
           total,
           totalPages: Math.ceil(total / query.limit) || 1,
+          visible_job_types: visibleJobTypes,
         },
       };
     });
@@ -1079,7 +1094,11 @@ export class JobsService {
     tenantId: string,
     id: string,
     permissions?: string[],
-    actor?: { role?: string | null; permissions?: string[] | null },
+    actor?: {
+      role?: string | null;
+      permissions?: string[] | null;
+      userId?: string | null;
+    },
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
@@ -1171,10 +1190,14 @@ export class JobsService {
         throw new NotFoundException("Job not found.");
       }
 
-      if (
-        permissions &&
-        !canSeeJobTypeForActor(permissions, job.job_type, actor?.role)
-      ) {
+      const visible = actor?.userId
+        ? await resolveVisibleJobTypes(tx, tenantId, actor.userId, actor.role)
+        : null;
+      const allowed = actor?.userId
+        ? visible === null || visible.includes(job.job_type)
+        : !permissions ||
+          canSeeJobTypeForActor(permissions, job.job_type, actor?.role);
+      if (!allowed) {
         throw new ForbiddenException(
           `You do not have access to ${job.job_type} jobs.`,
         );

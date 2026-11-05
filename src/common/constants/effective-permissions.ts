@@ -37,6 +37,11 @@ export async function collectEffectivePermissionCodes(
       matrixLevelSet.has(g.permission.action) &&
       g.permission.module.includes("_"),
   );
+  // A saved operations_scope grant is the department list. Role packs must
+  // not add the other operations job types back into the next login token.
+  const hasExplicitScope = direct.some(
+    (g) => g.permission.module === "operations_scope",
+  );
   const bridgedSet = new Set(ALL_BRIDGED_CLASSIC_CODES);
 
   const codes = new Set<string>();
@@ -45,6 +50,9 @@ export async function collectEffectivePermissionCodes(
     for (const rp of assignment.role.role_permissions) {
       const code = `${rp.permission.module}.${rp.permission.action}`;
       if (hasMatrixDirect && bridgedSet.has(code)) continue;
+      if (hasExplicitScope && rp.permission.module.startsWith("operations_")) {
+        continue;
+      }
       codes.add(code);
     }
   }
