@@ -4,9 +4,8 @@ import {
   JobsDashboardQueryDto,
 } from "../../common/dto/dashboard-period-query.dto";
 import {
-  jobTypeFilterFromVisible,
+  buildVisibleJobsBaseWhere,
   resolveVisibleJobTypes,
-  visibleJobTypesForActor,
 } from "../../common/utils/job-type-access.util";
 import {
   DEFAULT_OPS_CAPACITY,
@@ -29,16 +28,13 @@ export class JobsDashboardService {
     const { from, to, period } = query.resolve("30d");
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const visible = userId
-        ? await resolveVisibleJobTypes(tx, tenantId, userId, role)
-        : visibleJobTypesForActor(permissions, role);
-      const jobTypeFilter = jobTypeFilterFromVisible(visible, query.job_type);
-      const base: Prisma.JobWhereInput = {
-        tenant_id: tenantId,
-        deleted_at: null,
-        ...(query.branch_id ? { branch_id: query.branch_id } : {}),
-        ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
-      };
+      void permissions;
+      // Same DB resolver + base where as GET /jobs. Never JWT-only.
+      const visible = await resolveVisibleJobTypes(tx, tenantId, userId, role);
+      const base = buildVisibleJobsBaseWhere(tenantId, visible, {
+        branch_id: query.branch_id,
+        job_type: query.job_type,
+      });
 
       const [byStatus, byType, jobCount, createdInPeriod, openWithEta] =
         await Promise.all([
@@ -123,6 +119,7 @@ export class JobsDashboardService {
             byType.map((r) => [r.job_type, r._count._all]),
           ),
           created_in_period: createdInPeriod,
+          visible_job_types: visible,
         },
       };
     });
@@ -139,16 +136,14 @@ export class JobsDashboardService {
     const capacity = DEFAULT_OPS_CAPACITY;
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const visible = userId
-        ? await resolveVisibleJobTypes(tx, tenantId, userId, role)
-        : visibleJobTypesForActor(permissions, role);
-      const jobTypeFilter = jobTypeFilterFromVisible(visible, query.job_type);
+      void permissions;
+      const visible = await resolveVisibleJobTypes(tx, tenantId, userId, role);
       const jobWhere: Prisma.JobWhereInput = {
-        tenant_id: tenantId,
-        deleted_at: null,
+        ...buildVisibleJobsBaseWhere(tenantId, visible, {
+          branch_id: query.branch_id,
+          job_type: query.job_type,
+        }),
         status: { in: [...OPEN_JOB_STATUSES] as JobStatus[] },
-        ...(query.branch_id ? { branch_id: query.branch_id } : {}),
-        ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
       };
 
       const openJobs = await tx.job.findMany({
@@ -171,11 +166,10 @@ export class JobsDashboardService {
           tenant_id: tenantId,
           deleted_at: null,
           planned_date: { gte: from, lte: to },
-          job: {
-            deleted_at: null,
-            ...(query.branch_id ? { branch_id: query.branch_id } : {}),
-            ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
-          },
+          job: buildVisibleJobsBaseWhere(tenantId, visible, {
+            branch_id: query.branch_id,
+            job_type: query.job_type,
+          }),
         },
         select: {
           planned_date: true,
@@ -325,16 +319,12 @@ export class JobsDashboardService {
     userId?: string | null,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const visible = userId
-        ? await resolveVisibleJobTypes(tx, tenantId, userId, role)
-        : visibleJobTypesForActor(permissions, role);
-      const jobTypeFilter = jobTypeFilterFromVisible(visible);
+      void permissions;
+      const visible = await resolveVisibleJobTypes(tx, tenantId, userId, role);
       const jobs = await tx.job.findMany({
         where: {
-          tenant_id: tenantId,
-          deleted_at: null,
+          ...buildVisibleJobsBaseWhere(tenantId, visible),
           status: JobStatus.ON_HOLD,
-          ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
         },
         orderBy: { held_at: "desc" },
         select: {

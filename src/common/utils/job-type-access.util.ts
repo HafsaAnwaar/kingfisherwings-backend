@@ -158,6 +158,25 @@ export function jobTypeFilterFromVisible(
   return { in: allowed };
 }
 
+/**
+ * Shared Prisma `where` for GET /jobs and GET /jobs/dashboard-counts.
+ * Only tenant, not-deleted, optional branch, and the resolved job-type scope.
+ * Never adds created_by, ops_user_id, salesperson_id, or org department_id.
+ */
+export function buildVisibleJobsBaseWhere(
+  tenantId: string,
+  visible: JobType[] | null,
+  opts?: { branch_id?: string | null; job_type?: string | null },
+): Prisma.JobWhereInput {
+  const jobTypeFilter = jobTypeFilterFromVisible(visible, opts?.job_type);
+  return {
+    tenant_id: tenantId,
+    deleted_at: null,
+    ...(opts?.branch_id ? { branch_id: opts.branch_id } : {}),
+    ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
+  };
+}
+
 export function jobTypeInFilterFromVisible(
   allowed: JobType[] | null,
 ): { in: JobType[] } | undefined {

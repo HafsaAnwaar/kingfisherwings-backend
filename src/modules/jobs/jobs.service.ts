@@ -36,10 +36,11 @@ import { looksLikeUuid } from "../../common/utils/business-key.util";
 import { defaultVisibleToCustomer } from "./utils/job-document-visibility.util";
 import {
   assertJobTypeAccess,
+  buildVisibleJobsBaseWhere,
   canSeeJobTypeForActor,
   canWriteJobTypeForActor,
-  jobTypeFilterFromVisible,
   resolveVisibleJobTypes,
+  seesAllJobDepartments,
 } from "../../common/utils/job-type-access.util";
 import {
   jobStatusesForCategory,
@@ -736,10 +737,20 @@ export class JobsService {
     },
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const where: Prisma.JobWhereInput = {
-        tenant_id: tenantId,
-        deleted_at: null,
-      };
+      // Same visibility base as GET /jobs/dashboard-counts.job_count.
+      // Ops "department" is job_type from saved grants — not org department_id,
+      // not created_by / ops_user_id / salesperson unless the query sends them.
+      const visibleJobTypes = await resolveVisibleJobTypes(
+        tx,
+        tenantId,
+        _actor?.userId,
+        _actor?.role,
+      );
+      const where: Prisma.JobWhereInput = buildVisibleJobsBaseWhere(
+        tenantId,
+        visibleJobTypes,
+        { branch_id: query.branch_id, job_type: query.job_type },
+      );
 
       const andFilters: Prisma.JobWhereInput[] = [];
 
@@ -764,24 +775,19 @@ export class JobsService {
           });
         }
       }
-      // Admin: every department. Staff: saved job types only, any creator.
-      // Same filter the dashboard job_count uses. Not created_by or ops_user_id.
-      const visibleJobTypes = await resolveVisibleJobTypes(
-        tx,
-        tenantId,
-        _actor?.userId,
-        _actor?.role,
-      );
-      const jobTypeFilter = jobTypeFilterFromVisible(
-        visibleJobTypes,
-        query.job_type,
-      );
-      if (jobTypeFilter) where.job_type = jobTypeFilter;
       if (query.shipper_id) where.shipper_id = query.shipper_id;
       if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
-      if (query.branch_id) where.branch_id = query.branch_id;
       if (query.company_id) where.company_id = query.company_id;
-      if (query.department_id) where.department_id = query.department_id;
+      // Org department_id is not ops ACL. Staff "My department jobs" is job_type
+      // scope; most jobs have department_id null, so filtering by the user's org
+      // department wrongly leaves one row while job_count stays at the full set.
+      // Admins may still narrow by org department for MIS.
+      if (
+        query.department_id &&
+        seesAllJobDepartments(_actor?.role, _actor?.permissions)
+      ) {
+        where.department_id = query.department_id;
+      }
       if (query.created_by) where.created_by = query.created_by;
       if (query.consignee_id) where.consignee_id = query.consignee_id;
       if (query.origin_port_id) where.origin_port_id = query.origin_port_id;

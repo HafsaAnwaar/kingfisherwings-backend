@@ -315,7 +315,11 @@ export class JobsController {
 
   @Get()
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List jobs" })
+  @ApiOperation({
+    summary: "List jobs",
+    description:
+      "Staff see every non-deleted job whose job_type is in their saved ops grants (any creator). meta.total matches GET /jobs/dashboard-counts job_count when branch_id and job_type match and no status/search/date filters are sent. meta.visible_job_types is the scope used (null for admin).",
+  })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
