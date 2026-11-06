@@ -501,7 +501,11 @@ export class TrackTimelineService {
               hawb_number: true,
               mawb_number: true,
               flight_number: true,
+              flight_status: true,
+              flight_date: true,
+              shipment_date: true,
               arrival_flight_number: true,
+              actual_eta: true,
               origin_airport_id: true,
               dest_airport_id: true,
             },
@@ -890,12 +894,21 @@ export class TrackTimelineService {
               }
             : null;
 
-    const vesselName = job.vessel_name ?? vessel?.name ?? null;
-    const voyageNumber =
-      job.voyage_number ??
-      job.sea_fcl_details?.voyage_number ??
-      job.sea_lcl_details?.voyage_number ??
+    const isAir =
+      job.job_type === "AIR_EXPORT" || job.job_type === "AIR_IMPORT";
+    const flightNumber =
+      job.air_details?.flight_number ??
+      job.air_details?.arrival_flight_number ??
       null;
+    const vesselName = isAir
+      ? null
+      : (job.vessel_name ?? vessel?.name ?? null);
+    const voyageNumber = isAir
+      ? null
+      : (job.voyage_number ??
+        job.sea_fcl_details?.voyage_number ??
+        job.sea_lcl_details?.voyage_number ??
+        null);
 
     // Milestone + container/courier/ops only — omit STATUS / hold-resume notification noise.
     const rawHistory = this.buildHistory({
@@ -1001,24 +1014,33 @@ export class TrackTimelineService {
       progress_legs: legs,
       route_legs: legs,
       ports: legs,
-      etd:
-        job.etd ??
-        job.sea_fcl_details?.etd ??
-        job.sea_lcl_details?.etd ??
-        job.land_details?.etd ??
-        null,
-      eta:
-        job.eta ??
-        job.sea_fcl_details?.eta ??
-        job.sea_lcl_details?.eta ??
-        job.land_details?.eta ??
-        null,
-      expected_delivery:
-        job.eta ??
-        job.sea_fcl_details?.eta ??
-        job.sea_lcl_details?.eta ??
-        job.land_details?.eta ??
-        null,
+      etd: isAir
+        ? (job.air_details?.flight_date ??
+          job.etd ??
+          null)
+        : (job.etd ??
+          job.sea_fcl_details?.etd ??
+          job.sea_lcl_details?.etd ??
+          job.land_details?.etd ??
+          null),
+      eta: isAir
+        ? (job.air_details?.actual_eta ??
+          job.eta ??
+          null)
+        : (job.eta ??
+          job.sea_fcl_details?.eta ??
+          job.sea_lcl_details?.eta ??
+          job.land_details?.eta ??
+          null),
+      expected_delivery: isAir
+        ? (job.air_details?.actual_eta ??
+          job.eta ??
+          null)
+        : (job.eta ??
+          job.sea_fcl_details?.eta ??
+          job.sea_lcl_details?.eta ??
+          job.land_details?.eta ??
+          null),
       hold: {
         is_on_hold: job.status === "ON_HOLD",
         hold_reason: holdInfo.hold_reason,
@@ -1068,10 +1090,12 @@ export class TrackTimelineService {
         container_type: focusType?.code ?? focusType?.name ?? null,
         iso_size: isoSizeFromContainerSize(focusType?.size ?? null),
         rotation_number: job.rotation_number ?? null,
-        flight_number:
-          job.air_details?.flight_number ??
-          job.air_details?.arrival_flight_number ??
-          null,
+        flight_number: flightNumber,
+        flight_date: job.air_details?.flight_date ?? null,
+        shipment_date: job.air_details?.shipment_date ?? null,
+        flight_status: job.air_details?.flight_status ?? null,
+        arrival_flight_number:
+          job.air_details?.arrival_flight_number ?? null,
         voyage_number: voyageNumber,
         vessel_name: vesselName,
         vehicle_number:
@@ -1113,48 +1137,69 @@ export class TrackTimelineService {
           profile?.origin_label?.trim() || origin?.name || null;
         const destPort =
           profile?.dest_label?.trim() || destination?.name || null;
-        const blNumber =
-          profile?.bl_number?.trim() ||
-          job.sea_fcl_details?.hbl_number ||
-          job.sea_lcl_details?.hbl_number ||
-          job.nvocc_details?.hbl_number ||
-          job.sea_fcl_details?.mbl_number ||
-          job.sea_lcl_details?.mbl_number ||
-          job.nvocc_details?.mbl_number ||
-          job.air_details?.hawb_number ||
-          job.air_details?.mawb_number ||
-          null;
-        const rawLegs = Array.isArray(profile?.legs) ? [...profile!.legs] : [];
+        const blNumber = isAir
+          ? profile?.bl_number?.trim() ||
+            job.air_details?.mawb_number ||
+            job.air_details?.hawb_number ||
+            null
+          : profile?.bl_number?.trim() ||
+            job.sea_fcl_details?.hbl_number ||
+            job.sea_lcl_details?.hbl_number ||
+            job.nvocc_details?.hbl_number ||
+            job.sea_fcl_details?.mbl_number ||
+            job.sea_lcl_details?.mbl_number ||
+            job.nvocc_details?.mbl_number ||
+            null;
+        const rawLegs = Array.isArray(profile?.legs)
+          ? ([...profile!.legs] as unknown[])
+          : [];
         const sortedLegs = rawLegs.sort(
           (a, b) =>
             Number((a as { leg_no?: number }).leg_no ?? 0) -
             Number((b as { leg_no?: number }).leg_no ?? 0),
         );
-        if (!sortedLegs.length && (vesselName || voyageNumber)) {
-          sortedLegs.push({
-            leg_no: 1,
-            vessel_name: vesselName,
-            voyage_number: voyageNumber,
-            imo: null,
-            pol: originPort,
-            pod: destPort,
-            label: "1st leg",
-          });
+        if (!sortedLegs.length) {
+          if (isAir && flightNumber) {
+            sortedLegs.push({
+              leg_no: 1,
+              flight_number: flightNumber,
+              flight_date: job.air_details?.flight_date
+                ? job.air_details.flight_date.toISOString().slice(0, 10)
+                : null,
+              vessel_name: null,
+              voyage_number: null,
+              pol: originPort,
+              pod: destPort,
+              label: "1st flight",
+            });
+          } else if (vesselName || voyageNumber) {
+            sortedLegs.push({
+              leg_no: 1,
+              vessel_name: vesselName,
+              voyage_number: voyageNumber,
+              imo: null,
+              pol: originPort,
+              pod: destPort,
+              label: "1st leg",
+            });
+          }
         }
         let portOfCall: unknown[] = Array.isArray(profile?.port_of_call)
           ? (profile!.port_of_call as unknown[])
           : [];
         if (!portOfCall.length) {
-          const etdFallback =
-            job.etd ??
-            job.sea_fcl_details?.etd ??
-            job.sea_lcl_details?.etd ??
-            null;
-          const etaFallback =
-            job.eta ??
-            job.sea_fcl_details?.eta ??
-            job.sea_lcl_details?.eta ??
-            null;
+          const etdFallback = isAir
+            ? job.air_details?.flight_date ?? job.etd ?? null
+            : job.etd ??
+              job.sea_fcl_details?.etd ??
+              job.sea_lcl_details?.etd ??
+              null;
+          const etaFallback = isAir
+            ? job.air_details?.actual_eta ?? job.eta ?? null
+            : job.eta ??
+              job.sea_fcl_details?.eta ??
+              job.sea_lcl_details?.eta ??
+              null;
           portOfCall = [
             {
               role: "ORIGIN",
@@ -1162,21 +1207,37 @@ export class TrackTimelineService {
               un_locode: origin?.code ?? null,
               eta: null,
               ata: null,
-              etd: etdFallback ? etdFallback.toISOString() : null,
+              etd: etdFallback ? new Date(etdFallback).toISOString() : null,
               atd: null,
-              vessel_name: vesselName,
-              voyage_number: voyageNumber,
+              ...(isAir
+                ? {
+                    flight_number: flightNumber,
+                    vessel_name: null,
+                    voyage_number: null,
+                  }
+                : {
+                    vessel_name: vesselName,
+                    voyage_number: voyageNumber,
+                  }),
             },
             {
               role: "DEST",
               port_name: destPort,
               un_locode: destination?.code ?? null,
-              eta: etaFallback ? etaFallback.toISOString() : null,
+              eta: etaFallback ? new Date(etaFallback).toISOString() : null,
               ata: null,
               etd: null,
               atd: null,
-              vessel_name: vesselName,
-              voyage_number: voyageNumber,
+              ...(isAir
+                ? {
+                    flight_number: flightNumber,
+                    vessel_name: null,
+                    voyage_number: null,
+                  }
+                : {
+                    vessel_name: vesselName,
+                    voyage_number: voyageNumber,
+                  }),
             },
           ];
         }
@@ -1203,6 +1264,18 @@ export class TrackTimelineService {
           at_before: profile?.at_before ?? null,
           terminal_cutoff_at: profile?.terminal_cutoff_at ?? null,
           progress_legs: legs,
+          ...(isAir
+            ? {
+                mawb_number: job.air_details?.mawb_number ?? null,
+                hawb_number: job.air_details?.hawb_number ?? null,
+                flight_number: flightNumber,
+                flight_date: job.air_details?.flight_date ?? null,
+                shipment_date: job.air_details?.shipment_date ?? null,
+                flight_status: job.air_details?.flight_status ?? null,
+                arrival_flight_number:
+                  job.air_details?.arrival_flight_number ?? null,
+              }
+            : {}),
         };
       })(),
       cargo_info: (() => {

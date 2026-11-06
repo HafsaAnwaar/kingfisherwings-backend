@@ -197,12 +197,12 @@ export class PortalInvoicesController {
   @ApiConsumes("multipart/form-data")
   @ApiOperation({
     summary:
-      "Record a customer payment (posts RECEIPT immediately; optional proof file). Staff may reject later to reverse.",
+      "Record a customer payment (posts RECEIPT; proof file required). Without proof use POST …/payment-proofs (unpaid until staff marks paid).",
   })
   @ApiBody({
     schema: {
       type: "object",
-      required: ["amount", "payment_date"],
+      required: ["file", "amount", "payment_date"],
       properties: {
         file: { type: "string", format: "binary" },
         amount: { type: "string", example: "100.00" },

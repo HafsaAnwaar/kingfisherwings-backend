@@ -49,3 +49,16 @@ Backend-only delivery in FreightSaas. Use this checklist in the staff SPA / publ
 - **Sales button** → sale amounts only (`…/invoices/sale` or form `?source=job`). Never fall back to quotation when the user chose job costing.
 - **Purchase button** → cost amounts only (`…/invoices/purchase` / bulk). Requires `cost_party_id` (vendor) on cost lines; surface clear validation errors.
 - After create, linked charges are marked invoiced (existing BE behaviour).
+- Uninvoiced sale charges appear on that party’s AR statement as `pending_job_charges` (with `needs_invoice: true`) until a posted invoice exists.
+
+## 7. AR / mark paid / party payments
+
+- Statement: `payment_status` on invoices = `UNPAID` | `PROOF_UPLOADED` | `PAID`; totals = `invoiced`, `pending_costing`, `paid`, `balance`.
+- Staff mark paid: **`POST /invoices/:id/mark-paid`** multipart with **required `file`**.
+- Portal: **`POST /portal/invoices/:id/payments`** requires proof file; proof-only upload stays unpaid until staff marks paid / approves.
+- Party Payments tab: **`GET /parties/:id/payments`**.
+
+## 8. Air MAWB + air tracking
+
+- MAWB tab: `flight_date`, `shipment_date` on GET/PUT `/jobs/:id/detail/mawb`.
+- Air track: `route` / `references` expose MAWB, HAWB, flight (not vessel/voyage).

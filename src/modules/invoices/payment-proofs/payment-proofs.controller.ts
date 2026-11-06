@@ -34,6 +34,7 @@ import { INVOICES_PERMISSIONS } from "../constants/invoices-permission.constants
 import { PaymentProofsService } from "./payment-proofs.service";
 import {
   ApprovePaymentProofDto,
+  MarkPaidInvoiceDto,
   ReviewPaymentProofDto,
   StaffUploadPaymentProofDto,
 } from "./payment-proofs.dto";
@@ -136,6 +137,61 @@ export class PaymentProofsController {
 @Controller("invoices")
 export class InvoicePaymentProofsController {
   constructor(private readonly proofs: PaymentProofsService) {}
+
+  @Post(":id/mark-paid")
+  @HttpCode(HttpStatus.CREATED)
+  @RequirePermissions(INVOICES_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        amount_claimed: { type: "string", example: "100.00" },
+        payment_date: { type: "string", example: "2026-09-30" },
+        reference_number: { type: "string" },
+        notes: { type: "string" },
+        payment_method: { type: "string" },
+        bank_account_id: { type: "string", format: "uuid" },
+      },
+    },
+  })
+  @UseInterceptors(paymentProofUploadInterceptor())
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      transformOptions: { enableImplicitConversion: false },
+    }),
+  )
+  @ApiOperation({
+    summary:
+      "Mark invoice paid (requires proof file) — creates proof and posts RECEIPT; without proof remains unpaid",
+  })
+  markPaid(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) invoiceId: string,
+    @Body() dto: MarkPaidInvoiceDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.proofs.markPaidWithProof(
+      tenantId,
+      invoiceId,
+      {
+        amount_claimed: dto.amount_claimed,
+        payment_date: dto.payment_date,
+        reference_number: dto.reference_number,
+        notes: dto.notes,
+        payment_method: dto.payment_method,
+        bank_account_id: dto.bank_account_id,
+      },
+      file,
+      actorId,
+    );
+  }
 
   @Get(":id/payment-proofs")
   @RequirePermissions(INVOICES_PERMISSIONS.VIEW)
