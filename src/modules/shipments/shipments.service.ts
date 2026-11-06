@@ -232,61 +232,169 @@ export class ShipmentsService {
         jobTypeFilter = scoped;
       }
       const where: Prisma.ShipmentWhereInput = {
-      tenant_id: tenantId,
-      deleted_at: null,
-      ...(query.status ? { status: query.status } : {}),
-      ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
-      ...(query.customer_id ? { customer_id: query.customer_id } : {}),
-      ...(query.job_id ? { job_id: query.job_id } : {}),
-      ...(query.quotation_id ? { quotation_id: query.quotation_id } : {}),
-      ...(query.voyage_number
-        ? {
-            voyage_number: {
-              contains: query.voyage_number.trim(),
-              mode: "insensitive",
-            },
-          }
-        : {}),
-      ...(query.vessel_name
-        ? {
-            vessel_name: {
-              contains: query.vessel_name.trim(),
-              mode: "insensitive",
-            },
-          }
-        : {}),
-      ...(query.search
-        ? {
-            OR: [
-              {
-                shipment_number: {
-                  contains: query.search,
-                  mode: "insensitive",
-                },
+        tenant_id: tenantId,
+        deleted_at: null,
+        ...(query.status ? { status: query.status } : {}),
+        ...(jobTypeFilter ? { job_type: jobTypeFilter } : {}),
+        ...(query.customer_id ? { customer_id: query.customer_id } : {}),
+        ...(query.job_id ? { job_id: query.job_id } : {}),
+        ...(query.quotation_id ? { quotation_id: query.quotation_id } : {}),
+        ...(query.voyage_number
+          ? {
+              voyage_number: {
+                contains: query.voyage_number.trim(),
+                mode: "insensitive",
               },
-              { hbl_number: { contains: query.search, mode: "insensitive" } },
-              { commodity: { contains: query.search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+            }
+          : {}),
+        ...(query.vessel_name
+          ? {
+              vessel_name: {
+                contains: query.vessel_name.trim(),
+                mode: "insensitive",
+              },
+            }
+          : {}),
+        ...(query.search
+          ? {
+              OR: [
+                {
+                  shipment_number: {
+                    contains: query.search,
+                    mode: "insensitive",
+                  },
+                },
+                { hbl_number: { contains: query.search, mode: "insensitive" } },
+                { commodity: { contains: query.search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
       };
 
-      const [data, total] = await Promise.all([
-        tx.shipment.findMany({
+      const shipmentTotal = await tx.shipment.count({ where });
+
+      // Ops creates jobs first. Until a shipment row exists, Active shipments
+      // used to show 0 while GET /jobs/dashboard-counts still showed job_count.
+      // Dual-read the same visible jobs with no shipment, like the portal list.
+      const orphanJobTypeFilter: Prisma.JobWhereInput["job_type"] | undefined =
+        query.job_type
+          ? scoped && !scoped.in.includes(query.job_type)
+            ? { in: [] }
+            : query.job_type
+          : scoped;
+      const orphanJobWhere: Prisma.JobWhereInput = {
+        tenant_id: tenantId,
+        deleted_at: null,
+        ...(orphanJobTypeFilter ? { job_type: orphanJobTypeFilter } : {}),
+        shipments: { none: { deleted_at: null } },
+        ...(query.search
+          ? {
+              OR: [
+                {
+                  job_number: {
+                    contains: query.search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  commodity: {
+                    contains: query.search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            }
+          : {}),
+      };
+      const orphanTotal =
+        query.job_id || query.quotation_id || query.customer_id
+          ? 0
+          : await tx.job.count({ where: orphanJobWhere });
+      const total = shipmentTotal + orphanTotal;
+      const skip = (page - 1) * limit;
+
+      let shipmentRows: Awaited<ReturnType<typeof tx.shipment.findMany>> = [];
+      let orphanJobs: Awaited<ReturnType<typeof tx.job.findMany>> = [];
+
+      if (skip < shipmentTotal) {
+        shipmentRows = await tx.shipment.findMany({
           where,
-          skip: (page - 1) * limit,
+          skip,
           take: limit,
           orderBy: { created_at: "desc" },
           include: {
-            charges: { where: { deleted_at: null }, orderBy: { sort_order: "asc" } },
+            charges: {
+              where: { deleted_at: null },
+              orderBy: { sort_order: "asc" },
+            },
           },
-        }),
-        tx.shipment.count({ where }),
-      ]);
+        });
+        const remaining = limit - shipmentRows.length;
+        if (remaining > 0 && orphanTotal > 0) {
+          orphanJobs = await tx.job.findMany({
+            where: orphanJobWhere,
+            skip: 0,
+            take: remaining,
+            orderBy: { created_at: "desc" },
+          });
+        }
+      } else if (orphanTotal > 0) {
+        orphanJobs = await tx.job.findMany({
+          where: orphanJobWhere,
+          skip: skip - shipmentTotal,
+          take: limit,
+          orderBy: { created_at: "desc" },
+        });
+      }
+
+      const fromJobs = orphanJobs.map((job) => ({
+        id: job.id,
+        tenant_id: job.tenant_id,
+        shipment_number: job.job_number,
+        job_type: job.job_type,
+        status: "BOOKED" as const,
+        status_code: job.status_code,
+        company_id: job.company_id,
+        branch_id: job.branch_id,
+        department_id: job.department_id,
+        quotation_id: job.created_from_quote_id,
+        enquiry_id: null,
+        job_id: job.id,
+        customer_id: job.billing_party_id ?? job.shipper_id ?? job.consignee_id,
+        shipper_id: job.shipper_id,
+        consignee_id: job.consignee_id,
+        notify_party_id: null,
+        delivery_agent_id: null,
+        carrier_agent_id: null,
+        salesperson_id: job.salesperson_id,
+        carrier_id: null,
+        origin_port_id: job.origin_port_id,
+        dest_port_id: job.dest_port_id,
+        commodity: job.commodity,
+        created_at: job.created_at,
+        updated_at: job.updated_at,
+        deleted_at: null,
+        charges: [],
+        from_job: true,
+      }));
+
+      const data = [
+        ...(await this.labels.enrichRows(tenantId, shipmentRows, tx)),
+        ...(await this.labels.enrichRows(tenantId, fromJobs as never, tx)),
+      ];
+
       return {
         success: true,
-        data: await this.labels.enrichRows(tenantId, data, tx),
-        meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+        data,
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit) || 1,
+          visible_job_types: visible,
+          shipment_total: shipmentTotal,
+          job_only_total: orphanTotal,
+        },
       };
     });
   }

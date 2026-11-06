@@ -94,7 +94,11 @@ export class JobQueryDto {
   @IsUUID()
   shipper_id?: string;
 
-  @ApiPropertyOptional({ format: "uuid" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Admin MIS only. Ignored for staff — ops list is job_type scope, any creator.",
+  })
   @IsOptional()
   @IsUUID()
   salesperson_id?: string;
@@ -143,7 +147,8 @@ export class JobQueryDto {
 
   @ApiPropertyOptional({
     format: "uuid",
-    description: "Filter by job creator (created_by).",
+    description:
+      "Admin MIS only. Ignored for staff — ops list is job_type scope, any creator.",
   })
   @IsOptional()
   @IsUUID()

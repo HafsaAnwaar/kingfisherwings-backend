@@ -131,12 +131,15 @@ export function jobStatusesForCategory(
     case "completed":
       return ["COMPLETED"];
     case "in_progress":
-      return ["IN_PROGRESS", "DOCS_PENDING", "CUSTOMS_CLEARANCE"];
+      // Staff UIs treat "in progress" as every non-terminal ops job. Live jobs
+      // are usually BOOKING_CONFIRMED; the old narrow set made lists empty
+      // while dashboard job_count still counted them.
+      return [...OPEN_JOB_STATUSES];
     case "pending":
     case "draft":
       return ["ENQUIRY", "QUOTATION", "APPROVED", "BOOKING_CONFIRMED"];
     case "open":
-      return ["OPEN", "ENQUIRY", "QUOTATION", "APPROVED", "BOOKING_CONFIRMED"];
+      return [...OPEN_JOB_STATUSES];
     case "delayed":
       return null; // computed via isOpenJobDelayed / ETA filter
     default:
