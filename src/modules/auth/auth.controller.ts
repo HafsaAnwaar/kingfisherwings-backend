@@ -192,6 +192,19 @@ export class AuthController {
 
   @ApiBearerAuth()
   @AllowSuperAdmin()
+  @Post("session/touch")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Reset idle logout clock (staff activity heartbeat)",
+    description:
+      "Call while the user is active in the UI (e.g. every few minutes on key/mouse activity). Idle logout uses SESSION_IDLE_TIMEOUT_MINUTES (default 20). Response code IDLE_TIMEOUT on 401 means inactivity logout.",
+  })
+  touchSession(@Req() req: RequestWithUser) {
+    return this.authService.touchSession(req.user);
+  }
+
+  @ApiBearerAuth()
+  @AllowSuperAdmin()
   @Patch("me")
   @ApiOperation({
     summary:

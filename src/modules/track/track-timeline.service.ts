@@ -97,10 +97,29 @@ export type TrackTimelinePayload = {
     description?: string | null;
     notes?: string | null;
   }>;
-  /** Aliases for FE: history / moves / events. */
+  /** Aliases for FE: history / moves / events / timeline (milestone + container/ops only). */
   history: TrackHistoryEvent[];
   moves: TrackHistoryEvent[];
   events: TrackHistoryEvent[];
+  timeline: TrackHistoryEvent[];
+  /** YQN-style route header (from tracking profile + job ports). */
+  route: {
+    from: string | null;
+    to: string | null;
+    legs: unknown[];
+    port_of_call: unknown[];
+    at_before: Date | null;
+    terminal_cutoff_at: Date | null;
+    progress_legs: TrackRouteLeg[];
+  };
+  cargo_info: {
+    arrival_report: unknown[];
+    customs_status: unknown[];
+    detailed_data: unknown;
+  };
+  pre_manifest: unknown[];
+  qty_gw_vol: unknown;
+  tracking_profile_updated_at: Date | null;
   summary: TrackSummary;
   tracking_token: string | null;
   public_url: string | null;
@@ -112,23 +131,6 @@ function humanLabel(code: string): string {
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
-/** Lifecycle / status audit actions that belong on track history. */
-const LIFECYCLE_ACTIONS = new Set([
-  "JOB_CREATED",
-  "JOB_STATUS_CHANGE",
-  "JOB_CLOSED",
-  "JOB_CANCELLED",
-  "JOB_REOPENED",
-  "JOB_ON_HOLD",
-  "JOB_RESUMED",
-  "SHIPMENT_CREATED",
-  "SHIPMENT_STATUS_CHANGE",
-  "SHIPMENT_BL_STATUS_CHANGE",
-  "SHIPMENT_GENERATE_JOB",
-  "QUOTATION_STATUS_CHANGE",
-  "CREATE",
-]);
 
 @Injectable()
 export class TrackTimelineService {
@@ -461,7 +463,8 @@ export class TrackTimelineService {
 
   /**
    * Full track timeline for a job (staff / portal / public builder).
-   * Includes milestones, courier scans, containers, and lifecycle history.
+   * Milestone + container/ops events only — status-notification noise omitted.
+   * Same payload shape for public `/track` and staff `GET /jobs/:id/tracking`.
    */
   async getTimelineForJob(
     tenantId: string,
@@ -594,6 +597,7 @@ export class TrackTimelineService {
               created_at: true,
             },
           },
+          tracking_profile: true,
         },
       }),
     );
@@ -604,69 +608,6 @@ export class TrackTimelineService {
       tenantId,
       jobId,
     );
-
-    const linkedIds = job.shipments.map((s) => s.id);
-    const entityIds = [jobId, ...linkedIds];
-
-    const statusLogs = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.auditLog.findMany({
-        where: {
-          tenant_id: tenantId,
-          entity_id: { in: entityIds },
-        },
-        orderBy: { created_at: "asc" },
-        take: 300,
-        select: {
-          created_at: true,
-          metadata: true,
-          new_values: true,
-          old_values: true,
-          action: true,
-          entity: true,
-          entity_id: true,
-        },
-      }),
-    );
-
-    const status_changes = statusLogs
-      .filter((row) => this.isLifecycleAudit(row.action, row.entity))
-      .map((row) => {
-        const meta = (row.metadata ?? {}) as Record<string, unknown>;
-        const nv = (row.new_values ?? {}) as Record<string, unknown>;
-        const ov = (row.old_values ?? {}) as Record<string, unknown>;
-        const to =
-          (typeof meta.to === "string" && meta.to) ||
-          (typeof meta.to_status === "string" && meta.to_status) ||
-          (typeof meta.to_code === "string" && meta.to_code) ||
-          (typeof meta.new_status === "string" && meta.new_status) ||
-          (typeof nv.status === "string" && nv.status) ||
-          (typeof nv.status_code === "string" && nv.status_code) ||
-          row.action.replace(/^JOB_|^SHIPMENT_/, "") ||
-          "UPDATED";
-        const from =
-          (typeof meta.from === "string" && meta.from) ||
-          (typeof meta.from_status === "string" && meta.from_status) ||
-          (typeof meta.old_status === "string" && meta.old_status) ||
-          (typeof ov.status === "string" && ov.status) ||
-          null;
-        const reason =
-          (typeof meta.reason === "string" && meta.reason) ||
-          (typeof meta.notes === "string" && meta.notes) ||
-          null;
-        return {
-          from,
-          to,
-          to_code:
-            typeof meta.to_code === "string"
-              ? meta.to_code
-              : typeof nv.status_code === "string"
-                ? nv.status_code
-                : null,
-          at: row.created_at,
-          reason,
-          action: row.action,
-        };
-      });
 
     const [ports, airports, vessel, tenant] = await this.prisma.runWithTenant(
       tenantId,
@@ -817,6 +758,40 @@ export class TrackTimelineService {
       });
     }
 
+    const profile = job.tracking_profile;
+    const profileContainerEvents = Array.isArray(profile?.container_events)
+      ? (profile!.container_events as Array<Record<string, unknown>>)
+      : [];
+    for (const ev of profileContainerEvents) {
+      const atRaw = ev.occurred_at ?? ev.at ?? ev.actual_at;
+      if (!atRaw) continue;
+      const at = new Date(String(atRaw));
+      if (Number.isNaN(at.getTime())) continue;
+      const code = String(ev.event_code ?? ev.code ?? "CONTAINER_EVENT");
+      const label =
+        typeof ev.label === "string" && ev.label.trim()
+          ? ev.label.trim()
+          : humanLabel(code);
+      const place =
+        typeof ev.place === "string"
+          ? ev.place
+          : typeof ev.location === "string"
+            ? ev.location
+            : null;
+      ops_events.push({
+        code,
+        label,
+        at,
+        notes: place,
+        container_number:
+          typeof ev.container_no === "string"
+            ? ev.container_no
+            : typeof ev.container_number === "string"
+              ? ev.container_number
+              : null,
+      });
+    }
+
     const typeIds = [
       ...new Set(
         job.containers_job
@@ -911,16 +886,14 @@ export class TrackTimelineService {
       job.sea_lcl_details?.voyage_number ??
       null;
 
+    // Milestone + container/courier/ops only — omit STATUS / hold-resume notification noise.
     const rawHistory = this.buildHistory({
-      created_at: job.created_at,
       milestones: job.milestones,
       courier_checkpoints,
       containers: containersSorted,
-      status_changes,
-      hold: holdInfo,
       ops_events,
       includeNotes,
-    });
+    }).filter((e) => e.type !== "STATUS");
 
     const history = enrichHistoryEvents(rawHistory, {
       vessel_name: vesselName,
@@ -1123,41 +1096,55 @@ export class TrackTimelineService {
       history,
       moves: history,
       events: history,
+      timeline: history,
+      route: {
+        from:
+          profile?.origin_label?.trim() ||
+          origin?.name ||
+          null,
+        to:
+          profile?.dest_label?.trim() ||
+          destination?.name ||
+          null,
+        legs: Array.isArray(profile?.legs) ? profile!.legs : [],
+        port_of_call: Array.isArray(profile?.port_of_call)
+          ? profile!.port_of_call
+          : [],
+        at_before: profile?.at_before ?? null,
+        terminal_cutoff_at: profile?.terminal_cutoff_at ?? null,
+        progress_legs: legs,
+      },
+      cargo_info: {
+        arrival_report: Array.isArray(profile?.arrival_report)
+          ? profile!.arrival_report
+          : [],
+        customs_status: Array.isArray(profile?.customs_status)
+          ? profile!.customs_status
+          : [],
+        detailed_data:
+          profile?.detailed_data &&
+          typeof profile.detailed_data === "object"
+            ? profile.detailed_data
+            : {},
+      },
+      pre_manifest: Array.isArray(profile?.pre_manifest)
+        ? profile!.pre_manifest
+        : [],
+      qty_gw_vol:
+        profile?.qty_gw_vol && typeof profile.qty_gw_vol === "object"
+          ? profile.qty_gw_vol
+          : {
+              qty: job.pieces ?? null,
+              gross_weight: job.gross_weight ?? null,
+              volume: null,
+            },
+      tracking_profile_updated_at: profile?.updated_at ?? null,
       summary,
       tracking_token: token,
       public_url: token
         ? publicTrackUrl(token, slug)
         : publicTrackUrl(job.job_number, slug),
     };
-  }
-
-  private isLifecycleAudit(action: string, entity: string): boolean {
-    const a = action.toUpperCase();
-    const e = entity.toUpperCase();
-    if (!/(JOB|SHIPMENT|QUOTATION)/.test(e) && e !== "JOB" && e !== "SHIPMENT") {
-      // Human-readable actions like "Updated Job (Stop)" / "Deleted Job"
-      if (/JOB|SHIPMENT|STATUS|APPROV|VERIF|CREATE|CLOS|CANCEL|REOPEN/i.test(action)) {
-        return true;
-      }
-      return false;
-    }
-    if (LIFECYCLE_ACTIONS.has(a)) return true;
-    if (
-      /STATUS|CREATED|APPROV|VERIF|CLOSED|CANCEL|REOPEN|GENERATE|HOLD|RESUMED/.test(
-        a,
-      )
-    ) {
-      return true;
-    }
-    // Free-text audit actions from older writers
-    if (
-      /changed status|approved|verified|created|closed|cancelled|reopened|on hold|resumed/i.test(
-        action,
-      )
-    ) {
-      return true;
-    }
-    return false;
   }
 
   private async safeCourierCheckpoints(

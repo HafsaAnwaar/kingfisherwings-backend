@@ -850,6 +850,15 @@ export class JobInvoiceFormSaveDto {
   @IsUUID("4", { each: true })
   charge_ids?: string[];
 
+  @ApiPropertyOptional({
+    enum: ["job", "JOB_COSTING", "quotation", "QUOTATION", "manual", "MANUAL"],
+    description:
+      "job/JOB_COSTING = create from job sale charges only (no quotation fallback). quotation = not used on POST (use form lines). Omit for legacy auto.",
+  })
+  @IsOptional()
+  @IsString()
+  source?: string;
+
   @ApiPropertyOptional({ format: "uuid", description: "Organization / party" })
   @IsOptional()
   @IsUUID()
@@ -955,6 +964,15 @@ export class JobInvoiceFormQueryDto {
   @IsOptional()
   @IsString()
   charge_ids?: string;
+
+  @ApiPropertyOptional({
+    enum: ["job", "quotation", "auto"],
+    description:
+      "job = costing sale amounts only (needs_costing if empty); quotation = quote lines only; auto = job then quotation then empty (default)",
+  })
+  @IsOptional()
+  @IsString()
+  source?: string;
 }
 
 export type CostingVisibilityAudience = "STAFF" | "CUSTOMER" | "VENDOR";

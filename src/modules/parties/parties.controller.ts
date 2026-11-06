@@ -31,8 +31,8 @@ import {
   UpsertPartyEdiCodeDto,
 } from "./party-extensions.service";
 
-import { PartyType } from "@prisma/client";
 import { CreatePartyDto, UpdatePartyDto } from "./dto/party.dto";
+import { CreatePartyTypeDto } from "./dto/party-type.dto";
 import { PartyQueryDto } from "./dto/party-query.dto";
 import { UpdateCreditStatusDto } from "./dto/update-credit-status.dto";
 import {
@@ -93,19 +93,34 @@ export class PartiesController {
   @Get("types")
   @RequirePermissions(PARTIES_PERMISSIONS.VIEW)
   @ApiOperation({
-    summary: "Party types for create/select dropdowns (includes Vendor)",
+    summary:
+      "Party types for create/select dropdowns (system + tenant custom)",
   })
-  listTypes() {
-    return {
-      success: true,
-      data: Object.values(PartyType).map((code) => ({
-        code,
-        label: code
-          .split("_")
-          .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
-          .join(" "),
-      })),
-    };
+  listTypes(@CurrentUser("tenantId") tenantId: string) {
+    return this.service.listPartyTypes(tenantId);
+  }
+
+  @Post("types")
+  @RequirePermissions(PARTIES_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary: "Add a custom party type for this tenant (saved for future use)",
+  })
+  createType(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Body() dto: CreatePartyTypeDto,
+  ) {
+    return this.service.createPartyType(tenantId, dto, actorId);
+  }
+
+  @Delete("types/:id")
+  @RequirePermissions(PARTIES_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Deactivate a custom party type (system types blocked)" })
+  deactivateType(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.deactivatePartyType(tenantId, id);
   }
 
   @Get(":id/history")

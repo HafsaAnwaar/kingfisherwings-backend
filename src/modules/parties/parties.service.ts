@@ -6,7 +6,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
-import { Party, Prisma, UserRole } from "@prisma/client";
+import { Party, PartyType, Prisma, UserRole } from "@prisma/client";
 import { parse } from "csv-parse/sync";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
@@ -15,6 +15,7 @@ import { isOpsOnlyActor } from "../../common/utils/conversion-visibility.util";
 import { canGrantPortalAccess } from "../../common/utils/portal-access.util";
 
 import { CreatePartyDto, UpdatePartyDto } from "./dto/party.dto";
+import { CreatePartyTypeDto } from "./dto/party-type.dto";
 import { PartyQueryDto } from "./dto/party-query.dto";
 import { UpdateCreditStatusDto } from "./dto/update-credit-status.dto";
 import {
@@ -67,13 +68,16 @@ export class PartiesService {
       this.locale.getDefaultCurrency(country) ??
       undefined;
 
+    const resolved = await this.resolvePartyType(tenantId, dto);
+
     try {
       return await this.prisma.runWithTenant(tenantId, (tx) =>
         tx.party.create({
           data: {
             tenant_id: tenantId,
             company_id: dto.company_id,
-            party_type: dto.party_type,
+            party_type: resolved.party_type,
+            party_type_code: resolved.party_type_code,
             code: dto.code,
             name: dto.name,
             short_name: dto.short_name,
@@ -795,6 +799,151 @@ export class PartiesService {
       csv: lines.join("\n"),
       count: rows.length,
     };
+  }
+
+  // ============================================================
+  // PARTY TYPE CATALOG
+  // ============================================================
+
+  private systemTypeLabel(code: string): string {
+    return code
+      .split("_")
+      .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
+      .join(" ");
+  }
+
+  async ensureSystemPartyTypes(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+  ): Promise<void> {
+    for (const code of Object.values(PartyType)) {
+      await tx.partyTypeCatalog.upsert({
+        where: { tenant_id_code: { tenant_id: tenantId, code } },
+        create: {
+          tenant_id: tenantId,
+          code,
+          label: this.systemTypeLabel(code),
+          is_system: true,
+          is_active: true,
+        },
+        update: {
+          is_system: true,
+          deleted_at: null,
+          is_active: true,
+        },
+      });
+    }
+  }
+
+  async listPartyTypes(tenantId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.ensureSystemPartyTypes(tx, tenantId);
+      const rows = await tx.partyTypeCatalog.findMany({
+        where: { tenant_id: tenantId, deleted_at: null, is_active: true },
+        orderBy: [{ is_system: "desc" }, { label: "asc" }],
+      });
+      return {
+        success: true,
+        data: rows.map((r) => ({
+          id: r.id,
+          code: r.code,
+          label: r.label,
+          is_system: r.is_system,
+        })),
+      };
+    });
+  }
+
+  async createPartyType(
+    tenantId: string,
+    dto: CreatePartyTypeDto,
+    actorId?: string,
+  ) {
+    const code = dto.code.trim().toUpperCase();
+    if ((Object.values(PartyType) as string[]).includes(code)) {
+      throw new ConflictException(
+        "That code is reserved for a system party type.",
+      );
+    }
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.ensureSystemPartyTypes(tx, tenantId);
+      try {
+        const row = await tx.partyTypeCatalog.create({
+          data: {
+            tenant_id: tenantId,
+            code,
+            label: dto.label.trim(),
+            is_system: false,
+            is_active: true,
+            created_by: actorId,
+          },
+        });
+        return {
+          success: true,
+          data: {
+            id: row.id,
+            code: row.code,
+            label: row.label,
+            is_system: false,
+          },
+        };
+      } catch (error: any) {
+        if (error?.code === "P2002") {
+          throw new ConflictException("A party type with this code already exists.");
+        }
+        throw error;
+      }
+    });
+  }
+
+  async deactivatePartyType(tenantId: string, typeId: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const row = await tx.partyTypeCatalog.findFirst({
+        where: { id: typeId, tenant_id: tenantId, deleted_at: null },
+      });
+      if (!row) throw new NotFoundException("Party type not found.");
+      if (row.is_system) {
+        throw new BadRequestException("System party types cannot be removed.");
+      }
+      await tx.partyTypeCatalog.update({
+        where: { id: row.id },
+        data: { is_active: false, deleted_at: new Date() },
+      });
+      return { success: true, data: { id: row.id, deleted: true } };
+    });
+  }
+
+  private async resolvePartyType(
+    tenantId: string,
+    dto: Pick<CreatePartyDto, "party_type" | "party_type_code">,
+  ): Promise<{ party_type: PartyType; party_type_code: string }> {
+    const codeRaw = (dto.party_type_code ?? dto.party_type ?? "").trim();
+    if (!codeRaw) {
+      throw new BadRequestException(
+        "party_type or party_type_code is required.",
+      );
+    }
+    const code = codeRaw.toUpperCase();
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      await this.ensureSystemPartyTypes(tx, tenantId);
+      const catalog = await tx.partyTypeCatalog.findFirst({
+        where: {
+          tenant_id: tenantId,
+          code,
+          deleted_at: null,
+          is_active: true,
+        },
+      });
+      if (!catalog) {
+        throw new BadRequestException(
+          `Unknown party type "${code}". Create it via POST /parties/types or pick a system type.`,
+        );
+      }
+      if (catalog.is_system && (Object.values(PartyType) as string[]).includes(code)) {
+        return { party_type: code as PartyType, party_type_code: code };
+      }
+      return { party_type: PartyType.OTHER, party_type_code: code };
+    });
   }
 
   // ============================================================
