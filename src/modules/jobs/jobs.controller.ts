@@ -1399,7 +1399,7 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "YQN-style tracking sections staff edit (legs, POC, cargo/pre-manifest/qty)",
+      "Staff tracking form — BL, ports, 1st/2nd leg, port of call, cut-off, cargo/customs/manifest/qty tables (seeded from job)",
   })
   getTrackingProfile(
     @CurrentUser("tenantId") tenantId: string,
@@ -1410,7 +1410,10 @@ export class JobsController {
 
   @Put(":id/tracking/profile")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Upsert YQN-style tracking profile sections on a job" })
+  @ApiOperation({
+    summary:
+      "Save tracking sections (BL, origin/dest, legs, POC eta/ata/etd/atd, terminal cut-off, cargo/pre-manifest/qty)",
+  })
   putTrackingProfile(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,

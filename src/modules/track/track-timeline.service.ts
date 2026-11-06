@@ -104,21 +104,32 @@ export type TrackTimelinePayload = {
   timeline: TrackHistoryEvent[];
   /** YQN-style route header (from tracking profile + job ports). */
   route: {
+    bl_number: string | null;
+    origin_port: string | null;
+    dest_port: string | null;
+    /** @deprecated prefer origin_port / dest_port */
     from: string | null;
     to: string | null;
+    first_leg: unknown | null;
+    second_leg: unknown | null;
     legs: unknown[];
     port_of_call: unknown[];
     at_before: Date | null;
     terminal_cutoff_at: Date | null;
     progress_legs: TrackRouteLeg[];
   };
+  /** Section 1 — Cargo Info */
   cargo_info: {
-    arrival_report: unknown[];
+    arrival_report_status: unknown[];
     customs_status: unknown[];
-    detailed_data: unknown;
+    detailed_data: Record<string, unknown>;
   };
-  pre_manifest: unknown[];
-  qty_gw_vol: unknown;
+  /** Section 2 — Pre-manifest */
+  pre_manifest: {
+    manifest_status: unknown[];
+  };
+  /** Section 3 — QTY / G.W. / VOL */
+  qty_gw_vol: Record<string, unknown>;
   tracking_profile_updated_at: Date | null;
   summary: TrackSummary;
   tracking_token: string | null;
@@ -1097,46 +1108,196 @@ export class TrackTimelineService {
       moves: history,
       events: history,
       timeline: history,
-      route: {
-        from:
-          profile?.origin_label?.trim() ||
-          origin?.name ||
-          null,
-        to:
-          profile?.dest_label?.trim() ||
-          destination?.name ||
-          null,
-        legs: Array.isArray(profile?.legs) ? profile!.legs : [],
-        port_of_call: Array.isArray(profile?.port_of_call)
-          ? profile!.port_of_call
-          : [],
-        at_before: profile?.at_before ?? null,
-        terminal_cutoff_at: profile?.terminal_cutoff_at ?? null,
-        progress_legs: legs,
-      },
-      cargo_info: {
-        arrival_report: Array.isArray(profile?.arrival_report)
-          ? profile!.arrival_report
-          : [],
-        customs_status: Array.isArray(profile?.customs_status)
-          ? profile!.customs_status
-          : [],
-        detailed_data:
+      route: (() => {
+        const originPort =
+          profile?.origin_label?.trim() || origin?.name || null;
+        const destPort =
+          profile?.dest_label?.trim() || destination?.name || null;
+        const blNumber =
+          profile?.bl_number?.trim() ||
+          job.sea_fcl_details?.hbl_number ||
+          job.sea_lcl_details?.hbl_number ||
+          job.nvocc_details?.hbl_number ||
+          job.sea_fcl_details?.mbl_number ||
+          job.sea_lcl_details?.mbl_number ||
+          job.nvocc_details?.mbl_number ||
+          job.air_details?.hawb_number ||
+          job.air_details?.mawb_number ||
+          null;
+        const rawLegs = Array.isArray(profile?.legs) ? [...profile!.legs] : [];
+        const sortedLegs = rawLegs.sort(
+          (a, b) =>
+            Number((a as { leg_no?: number }).leg_no ?? 0) -
+            Number((b as { leg_no?: number }).leg_no ?? 0),
+        );
+        if (!sortedLegs.length && (vesselName || voyageNumber)) {
+          sortedLegs.push({
+            leg_no: 1,
+            vessel_name: vesselName,
+            voyage_number: voyageNumber,
+            imo: null,
+            pol: originPort,
+            pod: destPort,
+            label: "1st leg",
+          });
+        }
+        let portOfCall: unknown[] = Array.isArray(profile?.port_of_call)
+          ? (profile!.port_of_call as unknown[])
+          : [];
+        if (!portOfCall.length) {
+          const etdFallback =
+            job.etd ??
+            job.sea_fcl_details?.etd ??
+            job.sea_lcl_details?.etd ??
+            null;
+          const etaFallback =
+            job.eta ??
+            job.sea_fcl_details?.eta ??
+            job.sea_lcl_details?.eta ??
+            null;
+          portOfCall = [
+            {
+              role: "ORIGIN",
+              port_name: originPort,
+              un_locode: origin?.code ?? null,
+              eta: null,
+              ata: null,
+              etd: etdFallback ? etdFallback.toISOString() : null,
+              atd: null,
+              vessel_name: vesselName,
+              voyage_number: voyageNumber,
+            },
+            {
+              role: "DEST",
+              port_name: destPort,
+              un_locode: destination?.code ?? null,
+              eta: etaFallback ? etaFallback.toISOString() : null,
+              ata: null,
+              etd: null,
+              atd: null,
+              vessel_name: vesselName,
+              voyage_number: voyageNumber,
+            },
+          ];
+        }
+        return {
+          bl_number: blNumber,
+          origin_port: originPort,
+          dest_port: destPort,
+          from: originPort,
+          to: destPort,
+          first_leg:
+            sortedLegs.find(
+              (l) => Number((l as { leg_no?: number }).leg_no) === 1,
+            ) ??
+            sortedLegs[0] ??
+            null,
+          second_leg:
+            sortedLegs.find(
+              (l) => Number((l as { leg_no?: number }).leg_no) === 2,
+            ) ??
+            sortedLegs[1] ??
+            null,
+          legs: sortedLegs,
+          port_of_call: portOfCall,
+          at_before: profile?.at_before ?? null,
+          terminal_cutoff_at: profile?.terminal_cutoff_at ?? null,
+          progress_legs: legs,
+        };
+      })(),
+      cargo_info: (() => {
+        const staffDetailed =
           profile?.detailed_data &&
-          typeof profile.detailed_data === "object"
-            ? profile.detailed_data
-            : {},
+          typeof profile.detailed_data === "object" &&
+          !Array.isArray(profile.detailed_data)
+            ? (profile.detailed_data as Record<string, unknown>)
+            : {};
+        const jobDetailed: Record<string, unknown> = {
+          job_number: job.job_number,
+          job_type: job.job_type,
+          status: job.status,
+          commodity: job.commodity,
+          pieces: job.pieces,
+          gross_weight: job.gross_weight,
+          volume_cbm: (job as { volume_cbm?: unknown }).volume_cbm ?? null,
+          chargeable_weight:
+            (job as { chargeable_weight?: unknown }).chargeable_weight ?? null,
+          vessel_name: vesselName,
+          voyage_number: voyageNumber,
+          etd:
+            job.etd ??
+            job.sea_fcl_details?.etd ??
+            job.sea_lcl_details?.etd ??
+            null,
+          eta:
+            job.eta ??
+            job.sea_fcl_details?.eta ??
+            job.sea_lcl_details?.eta ??
+            null,
+          origin_port: origin?.name ?? null,
+          dest_port: destination?.name ?? null,
+          hbl_number:
+            job.sea_fcl_details?.hbl_number ??
+            job.sea_lcl_details?.hbl_number ??
+            job.nvocc_details?.hbl_number ??
+            null,
+          mbl_number:
+            job.sea_fcl_details?.mbl_number ??
+            job.sea_lcl_details?.mbl_number ??
+            job.nvocc_details?.mbl_number ??
+            null,
+          hawb_number: job.air_details?.hawb_number ?? null,
+          mawb_number: job.air_details?.mawb_number ?? null,
+          booking_number:
+            job.sea_fcl_details?.booking_number ??
+            job.sea_lcl_details?.booking_number ??
+            null,
+          primary_container_number: job.primary_container_number ?? null,
+          location_terminal: job.location_terminal ?? null,
+          rotation_number: job.rotation_number ?? null,
+        };
+        return {
+          arrival_report_status: Array.isArray(profile?.arrival_report)
+            ? profile!.arrival_report
+            : [],
+          customs_status: Array.isArray(profile?.customs_status)
+            ? profile!.customs_status
+            : [],
+          detailed_data: { ...jobDetailed, ...staffDetailed },
+        };
+      })(),
+      pre_manifest: {
+        manifest_status: Array.isArray(profile?.pre_manifest)
+          ? profile!.pre_manifest
+          : [],
       },
-      pre_manifest: Array.isArray(profile?.pre_manifest)
-        ? profile!.pre_manifest
-        : [],
       qty_gw_vol:
-        profile?.qty_gw_vol && typeof profile.qty_gw_vol === "object"
-          ? profile.qty_gw_vol
+        profile?.qty_gw_vol &&
+        typeof profile.qty_gw_vol === "object" &&
+        !Array.isArray(profile.qty_gw_vol) &&
+        Object.keys(profile.qty_gw_vol as object).length
+          ? (profile.qty_gw_vol as Record<string, unknown>)
           : {
-              qty: job.pieces ?? null,
-              gross_weight: job.gross_weight ?? null,
-              volume: null,
+              quantity: job.pieces ?? null,
+              gross_weight:
+                job.gross_weight != null ? Number(job.gross_weight) : null,
+              net_weight: null,
+              volume:
+                (job as { volume_cbm?: unknown }).volume_cbm != null
+                  ? Number((job as { volume_cbm?: unknown }).volume_cbm)
+                  : null,
+              chargeable_weight:
+                (job as { chargeable_weight?: unknown }).chargeable_weight !=
+                null
+                  ? Number(
+                      (job as { chargeable_weight?: unknown })
+                        .chargeable_weight,
+                    )
+                  : null,
+              qty_unit: "PKG",
+              weight_unit: "KG",
+              volume_unit: "CBM",
+              lines: [],
             },
       tracking_profile_updated_at: profile?.updated_at ?? null,
       summary,

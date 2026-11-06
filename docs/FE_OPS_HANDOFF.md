@@ -25,13 +25,17 @@ Backend-only delivery in FreightSaas. Use this checklist in the staff SPA / publ
 
 ## 4. Tracking (public `/track` + staff `GET /jobs/:id/tracking`)
 
-- Same enriched payload for both. Render new sections:
-  - `route` — from/to, legs, `port_of_call`, `at_before`, `terminal_cutoff_at`, `progress_legs`
-  - `timeline` / `history` / `moves` / `events` — **milestones + container/ops only** (no STATUS / hold-resume spam)
-  - `cargo_info` — `arrival_report`, `customs_status`, `detailed_data`
-  - `pre_manifest`, `qty_gw_vol`, `containers`
-- Staff edit sections: **`GET|PUT /jobs/:id/tracking/profile`**. Seed empty on first open.
-- Status banners are optional; timeline is milestone-driven.
+- Same enriched payload for both. Render:
+  - **Header / route:** `route.bl_number`, `origin_port`, `dest_port`, `first_leg`, `second_leg`, `port_of_call[]` (role, port_name, eta/ata, etd/atd, vessel_name), `terminal_cutoff_at`
+  - **Timeline:** `timeline` / `history` — milestones + container/ops only (no STATUS spam)
+  - **Section 1 Cargo Info:** `cargo_info.arrival_report_status`, `customs_status`, `detailed_data`
+  - **Section 2 Pre-manifest:** `pre_manifest.manifest_status`
+  - **Section 3 QTY/G.W./VOL:** `qty_gw_vol` (`quantity`, `gross_weight`, `net_weight`, `volume`, `chargeable_weight`, units, `lines`)
+  - `containers`
+- Staff enter/edit: **`GET|PUT /jobs/:id/tracking/profile`** (seeds from job on first open; response includes `field_schemas`).
+- Arrival report row fields: status, sending_time, receipt_time, container_no, sub_container_no, vessel_name, voyage_no, imo
+- Customs row fields: carrier_operator, customs_released, sub_customs_no, quantity, weight, volume, customs_declaration_no, customs_inspection_status, customs_inspection_time
+- Manifest row fields: sub_customs_no, status, sending_time, receipt_receiving_time, container_no, vessel_name, voyage_no, imo
 
 ## 5. Invoices — generate from quotation vs from job
 
