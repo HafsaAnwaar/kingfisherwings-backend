@@ -746,49 +746,69 @@ export class JobsService {
         _actor?.userId,
         _actor?.role,
       );
-      const where: Prisma.JobWhereInput = buildVisibleJobsBaseWhere(
+      const visibilityWhere = buildVisibleJobsBaseWhere(
         tenantId,
         visibleJobTypes,
         { branch_id: query.branch_id, job_type: query.job_type },
       );
+      // Same number dashboard job_count uses for this branch/job_type.
+      const visibilityTotal = await tx.job.count({ where: visibilityWhere });
+      const where: Prisma.JobWhereInput = { ...visibilityWhere };
 
       const andFilters: Prisma.JobWhereInput[] = [];
+      const isAdmin = seesAllJobDepartments(
+        _actor?.role,
+        _actor?.permissions,
+      );
 
-      if (query.status) where.status = query.status;
+      if (query.status) {
+        // Literal OPEN is rarely used; staff UIs mean the open bucket.
+        if (query.status === "OPEN") {
+          where.status = { in: [...OPEN_JOB_STATUSES] as never };
+        } else {
+          where.status = query.status;
+        }
+      }
       if (query.category && !query.status) {
-        const statuses = jobStatusesForCategory(query.category);
-        if (statuses) {
-          where.status = { in: statuses as never };
-        } else if (query.category === "delayed") {
-          // Align with isOpenJobDelayed: open statuses, ETA in the past,
-          // no air actual_eta yet (proxy for "not delivered").
-          where.status = {
-            in: [...OPEN_JOB_STATUSES] as never,
-          };
-          where.eta = { lt: new Date() };
-          andFilters.push({
-            OR: [
-              { air_details: null },
-              { air_details: { actual_eta: null } },
-              { air_details: { deleted_at: { not: null } } },
-            ],
-          });
+        // in_progress must include BOOKING_CONFIRMED — that is the live status
+        // of most ops jobs. The old narrow bucket made staff lists empty while
+        // job_count (all statuses) stayed correct.
+        if (query.category === "in_progress" || query.category === "open") {
+          where.status = { in: [...OPEN_JOB_STATUSES] as never };
+        } else {
+          const statuses = jobStatusesForCategory(query.category);
+          if (statuses) {
+            where.status = { in: statuses as never };
+          } else if (query.category === "delayed") {
+            where.status = {
+              in: [...OPEN_JOB_STATUSES] as never,
+            };
+            where.eta = { lt: new Date() };
+            andFilters.push({
+              OR: [
+                { air_details: null },
+                { air_details: { actual_eta: null } },
+                { air_details: { deleted_at: { not: null } } },
+              ],
+            });
+          }
         }
       }
       if (query.shipper_id) where.shipper_id = query.shipper_id;
-      if (query.salesperson_id) where.salesperson_id = query.salesperson_id;
       if (query.company_id) where.company_id = query.company_id;
-      // Org department_id is not ops ACL. Staff "My department jobs" is job_type
-      // scope; most jobs have department_id null, so filtering by the user's org
-      // department wrongly leaves one row while job_count stays at the full set.
-      // Admins may still narrow by org department for MIS.
-      if (
-        query.department_id &&
-        seesAllJobDepartments(_actor?.role, _actor?.permissions)
-      ) {
+      // Staff ACL is job_type only. FE "My department jobs" often sends the
+      // user's org department_id / created_by / salesperson_id and zeroes the
+      // list while dashboard-counts (which ignores those) still shows job_count.
+      // Admins may still use these for MIS.
+      if (isAdmin && query.salesperson_id) {
+        where.salesperson_id = query.salesperson_id;
+      }
+      if (isAdmin && query.department_id) {
         where.department_id = query.department_id;
       }
-      if (query.created_by) where.created_by = query.created_by;
+      if (isAdmin && query.created_by) {
+        where.created_by = query.created_by;
+      }
       if (query.consignee_id) where.consignee_id = query.consignee_id;
       if (query.origin_port_id) where.origin_port_id = query.origin_port_id;
       if (query.dest_port_id) where.dest_port_id = query.dest_port_id;
@@ -1084,12 +1104,15 @@ export class JobsService {
       ]);
 
       return {
+        success: true,
         data: await this.masterLabels.enrichRows(tenantId, data, tx),
         meta: {
           page: query.page,
           limit: query.limit,
           total,
           totalPages: Math.ceil(total / query.limit) || 1,
+          // Matches GET /jobs/dashboard-counts job_count for same branch/job_type.
+          visibility_total: visibilityTotal,
           visible_job_types: visibleJobTypes,
         },
       };
