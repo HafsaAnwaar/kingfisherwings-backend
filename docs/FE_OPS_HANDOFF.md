@@ -53,9 +53,14 @@ Backend-only delivery in FreightSaas. Use this checklist in the staff SPA / publ
 
 ## 7. AR / mark paid / party payments
 
-- Statement: `payment_status` on invoices = `UNPAID` | `PROOF_UPLOADED` | `PAID`; totals = `invoiced`, `pending_costing`, `paid`, `balance`.
-- Staff mark paid: **`POST /invoices/:id/mark-paid`** multipart with **required `file`**.
-- Portal: **`POST /portal/invoices/:id/payments`** requires proof file; proof-only upload stays unpaid until staff marks paid / approves.
+- Statement (`GET /gl/ar/statement/:partyId` and AP twin): invoices + `pending_job_charges` from job costing.
+  - Customer sale lines (`side: SALE`, amount = stored `sale_amount`) when party is `sale_party_id` / job bill-to.
+  - Vendor cost lines (`side: COST`, amount = stored `cost_amount`) when party is `cost_party_id`.
+- Totals are plain sums only: `invoice_balance` (sum of `balance_due`), `pending_costing` (sum of charge amounts), `paid`, `opening_balance`, `open_balance` = those open items added together — no extra FX/GP math.
+- Invoice `payment_status`: `UNPAID` | `PROOF_UPLOADED` | `PAID`.
+- Mark costing line paid: **`POST /jobs/:jobId/charges/:chargeId/mark-paid`** (multipart **required `file`**; optional `side=SALE|COST`) — creates/posts invoice then receipt.
+- Staff invoice mark paid: **`POST /invoices/:id/mark-paid`** with proof file.
+- Portal: **`POST /portal/invoices/:id/payments`** requires proof file.
 - Party Payments tab: **`GET /parties/:id/payments`**.
 
 ## 8. Air MAWB + air tracking

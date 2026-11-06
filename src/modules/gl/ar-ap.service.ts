@@ -57,9 +57,11 @@ export class ArApService {
           party: null,
           as_of: asOf,
           invoices: [],
+          pending_job_charges: [],
           payments: [],
           opening_balance_vouchers: [],
           summary: null,
+          totals: null,
         };
 
       const invoices = await tx.invoice.findMany({
@@ -134,18 +136,17 @@ export class ArApService {
       });
 
       const invoiceIds = invoices.map((i) => i.id);
-      const openProofs =
-        side === "AR" && invoiceIds.length
-          ? await tx.paymentProof.findMany({
-              where: {
-                tenant_id: tenantId,
-                deleted_at: null,
-                invoice_id: { in: invoiceIds },
-                status: "SUBMITTED",
-              },
-              select: { invoice_id: true },
-            })
-          : [];
+      const openProofs = invoiceIds.length
+        ? await tx.paymentProof.findMany({
+            where: {
+              tenant_id: tenantId,
+              deleted_at: null,
+              invoice_id: { in: invoiceIds },
+              status: "SUBMITTED",
+            },
+            select: { invoice_id: true },
+          })
+        : [];
       const proofInvoiceIds = new Set(openProofs.map((p) => p.invoice_id));
 
       const invoicesWithPayStatus = invoices.map((inv) => {
@@ -156,87 +157,149 @@ export class ArApService {
         return { ...inv, payment_status };
       });
 
-      let pendingJobCharges: Array<{
+      /**
+       * Job costing lines linked to this party — exact stored amounts only.
+       * SALE → customer (sale_party_id / job bill-to); COST → vendor (cost_party_id).
+       * Shown on both AR and AP party statements so whichever party is on the job appears.
+       */
+      const pendingJobCharges: Array<{
         charge_id: string;
         job_id: string;
         job_number: string;
         description: string | null;
-        sale_amount: number;
+        side: "SALE" | "COST";
+        amount: number;
         currency_code: string;
         payment_status: "UNPAID";
         needs_invoice: true;
+        mark_paid: string;
       }> = [];
 
-      if (side === "AR") {
-        const charges = await tx.jobCharge.findMany({
-          where: {
-            tenant_id: tenantId,
-            deleted_at: null,
-            is_billable: true,
-            is_cost: false,
-            is_invoiced: false,
-            OR: [
-              { sale_party_id: partyId },
-              {
-                sale_party_id: null,
-                job: {
-                  deleted_at: null,
-                  OR: [
-                    { billing_party_id: partyId },
-                    { shipper_id: partyId },
-                    { consignee_id: partyId },
-                  ],
-                },
+      // Customer / sale side amounts for this party
+      const saleCharges = await tx.jobCharge.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          is_invoiced: false,
+          sale_amount: { not: null },
+          OR: [
+            { sale_party_id: partyId },
+            {
+              sale_party_id: null,
+              job: {
+                deleted_at: null,
+                OR: [
+                  { billing_party_id: partyId },
+                  { shipper_id: partyId },
+                  { consignee_id: partyId },
+                ],
               },
-            ],
-          },
-          take: STATEMENT_ROW_CAP,
-          orderBy: { created_at: "asc" },
-          select: {
-            id: true,
-            job_id: true,
-            description: true,
-            sale_amount: true,
-            amount: true,
-            sale_currency: true,
-            currency_code: true,
-            job: { select: { job_number: true } },
-          },
-        });
-        pendingJobCharges = charges.map((c) => ({
+            },
+          ],
+        },
+        take: STATEMENT_ROW_CAP,
+        orderBy: { created_at: "asc" },
+        select: {
+          id: true,
+          job_id: true,
+          description: true,
+          sale_amount: true,
+          sale_currency: true,
+          currency_code: true,
+          job: { select: { job_number: true } },
+        },
+      });
+      for (const c of saleCharges) {
+        pendingJobCharges.push({
           charge_id: c.id,
           job_id: c.job_id,
           job_number: c.job.job_number,
           description: c.description,
-          sale_amount: Number(c.sale_amount ?? c.amount ?? 0),
+          side: "SALE",
+          amount: Number(c.sale_amount),
           currency_code: c.sale_currency ?? c.currency_code,
-          payment_status: "UNPAID" as const,
-          needs_invoice: true as const,
-        }));
+          payment_status: "UNPAID",
+          needs_invoice: true,
+          mark_paid: `/jobs/${c.job_id}/charges/${c.id}/mark-paid`,
+        });
       }
 
-      const invoicedTotal = invoicesWithPayStatus.reduce((s, i) => {
-        const amt = Number(i.total_amount);
-        return s + (i.invoice_type === "CREDIT_NOTE" ? -amt : amt);
+      // Vendor / cost side amounts for this party (exclude charges already on a live PI)
+      const costCharges = await tx.jobCharge.findMany({
+        where: {
+          tenant_id: tenantId,
+          deleted_at: null,
+          cost_amount: { not: null },
+          OR: [
+            { cost_party_id: partyId },
+            { cost_party_id: null, party_id: partyId, is_cost: true },
+          ],
+        },
+        take: STATEMENT_ROW_CAP,
+        orderBy: { created_at: "asc" },
+        select: {
+          id: true,
+          job_id: true,
+          description: true,
+          cost_amount: true,
+          cost_currency: true,
+          currency_code: true,
+          job: { select: { job_number: true } },
+        },
+      });
+      const costIds = costCharges.map((c) => c.id);
+      const costLinked =
+        costIds.length > 0
+          ? await tx.invoiceLine.findMany({
+              where: {
+                tenant_id: tenantId,
+                job_charge_id: { in: costIds },
+                deleted_at: null,
+                invoice: {
+                  tenant_id: tenantId,
+                  deleted_at: null,
+                  status: { notIn: ["CANCELLED", "VOID"] },
+                },
+              },
+              select: { job_charge_id: true },
+            })
+          : [];
+      const costTaken = new Set(
+        costLinked
+          .map((l) => l.job_charge_id)
+          .filter((id): id is string => Boolean(id)),
+      );
+      for (const c of costCharges) {
+        if (costTaken.has(c.id)) continue;
+        pendingJobCharges.push({
+          charge_id: c.id,
+          job_id: c.job_id,
+          job_number: c.job.job_number,
+          description: c.description,
+          side: "COST",
+          amount: Number(c.cost_amount),
+          currency_code: c.cost_currency ?? c.currency_code,
+          payment_status: "UNPAID",
+          needs_invoice: true,
+          mark_paid: `/jobs/${c.job_id}/charges/${c.id}/mark-paid`,
+        });
+      }
+
+      // Totals = plain sums of amounts shown (no FX/GP/derived extras).
+      const invoiceBalance = invoicesWithPayStatus.reduce((s, i) => {
+        const bal = Number(i.balance_due);
+        return s + (i.invoice_type === "CREDIT_NOTE" ? -bal : bal);
       }, 0);
-      const paidTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
       const pendingCosting = pendingJobCharges.reduce(
-        (s, c) => s + c.sale_amount,
+        (s, c) => s + c.amount,
         0,
       );
-      const invoiceOpen = invoicesWithPayStatus
-        .filter((i) => Number(i.balance_due) > 0.0001)
-        .reduce(
-          (s, i) =>
-            s +
-            Number(i.balance_due) * (i.invoice_type === "CREDIT_NOTE" ? -1 : 1),
-          0,
-        );
-      const voucherOpen = openingBalanceVouchers.reduce(
+      const paidTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
+      const openingBalance = openingBalanceVouchers.reduce(
         (s, v) => s + Number(v.total_debit),
         0,
       );
-      const openBalance = invoiceOpen + voucherOpen + pendingCosting;
+      const openBalance = invoiceBalance + pendingCosting + openingBalance;
 
       return {
         party,
@@ -249,10 +312,10 @@ export class ArApService {
         summary: {
           invoice_count: invoicesWithPayStatus.length,
           pending_costing_count: pendingJobCharges.length,
-          invoiced: invoicedTotal,
+          invoice_balance: invoiceBalance,
           pending_costing: pendingCosting,
           paid: paidTotal,
-          balance: openBalance,
+          opening_balance: openingBalance,
           open_balance: openBalance,
           advances_unallocated: payments.reduce(
             (s, p) => s + Number(p.unallocated_amount),
@@ -265,10 +328,11 @@ export class ArApService {
             pendingJobCharges.length >= STATEMENT_ROW_CAP,
         },
         totals: {
-          invoiced: invoicedTotal,
+          invoice_balance: invoiceBalance,
           pending_costing: pendingCosting,
           paid: paidTotal,
-          balance: openBalance,
+          opening_balance: openingBalance,
+          open_balance: openBalance,
         },
       };
     });

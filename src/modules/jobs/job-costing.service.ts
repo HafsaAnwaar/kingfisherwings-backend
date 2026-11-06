@@ -13,6 +13,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { InvoicesService } from "../invoices/invoices.service";
+import { PaymentProofsService } from "../invoices/payment-proofs/payment-proofs.service";
 import { VouchersService } from "../gl/vouchers.service";
 import {
   CompositeJobChargeDto,
@@ -36,7 +37,157 @@ export class JobCostingService {
     private readonly invoices: InvoicesService,
     private readonly vouchers: VouchersService,
     private readonly invoiceAttachments: InvoiceAttachmentService,
+    private readonly paymentProofs: PaymentProofsService,
   ) {}
+
+  /**
+   * Mark a job costing line paid with proof.
+   * Creates + posts a sale/purchase invoice for the charge if needed, then posts RECEIPT/PAYMENT with proof.
+   * Without a proof file the line stays unpaid.
+   */
+  async markChargePaidWithProof(
+    tenantId: string,
+    jobId: string,
+    chargeId: string,
+    body: {
+      side?: "SALE" | "COST";
+      amount_claimed?: number;
+      payment_date?: string;
+      reference_number?: string;
+      notes?: string;
+    },
+    file: Express.Multer.File | undefined,
+    actorId: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: [
+          "Proof file is required to mark paid (multipart field name: file). Without proof the amount remains unpaid.",
+        ],
+        error: "Bad Request",
+        code: "PROOF_REQUIRED",
+      });
+    }
+
+    const charge = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobCharge.findFirst({
+        where: {
+          id: chargeId,
+          job_id: jobId,
+          tenant_id: tenantId,
+          deleted_at: null,
+        },
+      }),
+    );
+    if (!charge) throw new NotFoundException("Job charge not found.");
+
+    const preferCost =
+      body.side === "COST" ||
+      (body.side !== "SALE" &&
+        charge.cost_amount != null &&
+        (charge.sale_amount == null || charge.is_cost));
+
+    let invoiceId: string;
+
+    if (preferCost) {
+      if (charge.cost_amount == null) {
+        throw new BadRequestException(
+          "Charge has no cost_amount for vendor mark-paid.",
+        );
+      }
+      if (!charge.cost_party_id && !charge.party_id) {
+        throw new BadRequestException(
+          "Cost line needs cost_party_id (vendor) before mark paid.",
+        );
+      }
+      const existingPi = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.invoiceLine.findFirst({
+          where: {
+            tenant_id: tenantId,
+            job_charge_id: chargeId,
+            deleted_at: null,
+            invoice: {
+              tenant_id: tenantId,
+              deleted_at: null,
+              invoice_type: "PURCHASE_INVOICE",
+              status: { notIn: ["CANCELLED", "VOID"] },
+            },
+          },
+          select: { invoice_id: true, invoice: { select: { status: true } } },
+        }),
+      );
+      if (existingPi) {
+        invoiceId = existingPi.invoice_id;
+        if (existingPi.invoice.status === "DRAFT") {
+          await this.invoices.post(tenantId, invoiceId, actorId);
+        }
+      } else {
+        const created = await this.invoices.createPurchaseFromJob(
+          tenantId,
+          jobId,
+          [chargeId],
+          actorId,
+        );
+        invoiceId = (created as { id: string }).id;
+        await this.invoices.post(tenantId, invoiceId, actorId);
+      }
+    } else {
+      if (charge.sale_amount == null && charge.is_cost) {
+        throw new BadRequestException(
+          "Charge has no sale_amount for customer mark-paid.",
+        );
+      }
+      const existingSi = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.invoiceLine.findFirst({
+          where: {
+            tenant_id: tenantId,
+            job_charge_id: chargeId,
+            deleted_at: null,
+            invoice: {
+              tenant_id: tenantId,
+              deleted_at: null,
+              invoice_type: {
+                in: ["CUSTOMER_INVOICE", "DEBIT_NOTE"],
+              },
+              status: { notIn: ["CANCELLED", "VOID"] },
+            },
+          },
+          select: { invoice_id: true, invoice: { select: { status: true } } },
+        }),
+      );
+      if (existingSi) {
+        invoiceId = existingSi.invoice_id;
+        if (existingSi.invoice.status === "DRAFT") {
+          await this.invoices.post(tenantId, invoiceId, actorId);
+        }
+      } else {
+        const created = await this.invoices.createFromJobSelected(
+          tenantId,
+          jobId,
+          [chargeId],
+          actorId,
+        );
+        invoiceId = (created as { id: string }).id;
+        if ((created as { status?: string }).status === "DRAFT") {
+          await this.invoices.post(tenantId, invoiceId, actorId);
+        }
+      }
+    }
+
+    return this.paymentProofs.markPaidWithProof(
+      tenantId,
+      invoiceId,
+      {
+        amount_claimed: body.amount_claimed,
+        payment_date: body.payment_date,
+        reference_number: body.reference_number,
+        notes: body.notes,
+      },
+      file,
+      actorId,
+    );
+  }
 
   async getTab(
     tenantId: string,
