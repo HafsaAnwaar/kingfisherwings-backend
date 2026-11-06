@@ -86,3 +86,49 @@ export class StaffUploadPaymentProofDto {
   @MaxLength(2000)
   notes?: string;
 }
+
+/** Mark paid — proof file required; amount/date default to balance / today. */
+export class MarkPaidInvoiceDto {
+  @ApiPropertyOptional({ example: "100.00" })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value == null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : value;
+  })
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0.0001)
+  amount_claimed?: number;
+
+  @ApiPropertyOptional({ example: "2026-09-30" })
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.trim() : value,
+  )
+  @IsDateString()
+  payment_date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => (value === "" ? undefined : value))
+  @IsString()
+  @MaxLength(100)
+  reference_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => (value === "" ? undefined : value))
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+
+  @ApiPropertyOptional({ enum: PaymentMethod })
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  payment_method?: PaymentMethod;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  bank_account_id?: string;
+}

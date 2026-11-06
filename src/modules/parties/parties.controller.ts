@@ -52,6 +52,7 @@ import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { PARTIES_PERMISSIONS } from "./constants/parties-permission.constants";
 import { DocumentShareEmailDto } from "../../shared/email/dto/document-share-email.dto";
 import { GlDocumentShareService } from "../gl/gl-document-share.service";
+import { ArApService } from "../gl/ar-ap.service";
 
 @ApiTags("Parties")
 @ApiBearerAuth()
@@ -62,6 +63,7 @@ export class PartiesController {
     private readonly service: PartiesService,
     private readonly extensions: PartyExtensionsService,
     private readonly glShare: GlDocumentShareService,
+    private readonly arAp: ArApService,
   ) {}
 
   // ============================================================
@@ -136,6 +138,19 @@ export class PartiesController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.getHistory(tenantId, id, { role, permissions });
+  }
+
+  @Get(":id/payments")
+  @RequirePermissions(PARTIES_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Payments tab — all posted receipts and payments for this party (with invoice allocations and proof links)",
+  })
+  listPayments(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.arAp.listPartyPayments(tenantId, id);
   }
 
   @Get(":id")

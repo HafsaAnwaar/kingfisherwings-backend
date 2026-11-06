@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsDateString,
   IsInt,
   IsNumber,
   IsOptional,
@@ -24,6 +25,22 @@ export class UpdateAirMawbDto {
   @IsString()
   @MaxLength(40)
   flight_status?: string;
+
+  @ApiPropertyOptional({
+    description: "Flight departure date (YYYY-MM-DD)",
+    example: "2026-11-10",
+  })
+  @IsOptional()
+  @IsDateString()
+  flight_date?: string | null;
+
+  @ApiPropertyOptional({
+    description: "Shipment / cargo date (YYYY-MM-DD)",
+    example: "2026-11-09",
+  })
+  @IsOptional()
+  @IsDateString()
+  shipment_date?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

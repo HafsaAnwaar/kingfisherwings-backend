@@ -3028,6 +3028,8 @@ model AirJobDetail {
   flight_number     String?   @db.VarChar(20)
   flight_status     String?   @db.VarChar(40)
   flight_date       DateTime? @db.Date
+  /// Cargo / shipment date (MAWB tab) — distinct from flight departure date.
+  shipment_date     DateTime? @db.Date
   screened          Boolean   @default(false)
   screening_ref     String?   @db.VarChar(50)
 

@@ -464,6 +464,101 @@ export class PaymentProofsService {
     });
   }
 
+  /**
+   * Mark invoice paid in one step: requires proof file → create SUBMITTED proof → approve (posts RECEIPT).
+   * Without a file, stays unpaid (caller must reject).
+   */
+  async markPaidWithProof(
+    tenantId: string,
+    invoiceId: string,
+    body: {
+      amount_claimed?: number;
+      payment_date?: string;
+      reference_number?: string;
+      notes?: string;
+      payment_method?: PaymentMethod;
+      bank_account_id?: string;
+    },
+    file: Express.Multer.File | undefined,
+    actorId: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: [
+          "Proof file is required to mark paid (multipart field name: file). Without proof the invoice remains unpaid.",
+        ],
+        error: "Bad Request",
+        code: "PROOF_REQUIRED",
+      });
+    }
+
+    const invoice = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.invoice.findFirst({
+        where: { id: invoiceId, tenant_id: tenantId, deleted_at: null },
+        select: {
+          id: true,
+          invoice_type: true,
+          status: true,
+          balance_due: true,
+          invoice_number: true,
+        },
+      }),
+    );
+    if (!invoice) throw new NotFoundException("Invoice not found.");
+    if (["DRAFT", "CANCELLED", "VOID"].includes(invoice.status)) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: [
+          "Invoice must be posted/sent before mark paid. Generate and post a sale invoice first.",
+        ],
+        error: "Bad Request",
+        code: "NEEDS_INVOICE",
+        needs_invoice: true,
+      });
+    }
+    const balance = Number(invoice.balance_due);
+    if (balance <= 0.0001) {
+      throw new BadRequestException("Invoice is already paid.");
+    }
+
+    const amount =
+      body.amount_claimed != null && Number(body.amount_claimed) > 0
+        ? Number(body.amount_claimed)
+        : balance;
+    const paymentDate =
+      body.payment_date?.trim() || new Date().toISOString().slice(0, 10);
+
+    const created = await this.createByStaff(
+      tenantId,
+      invoiceId,
+      {
+        amount_claimed: amount,
+        payment_date: paymentDate,
+        reference_number: body.reference_number,
+        notes: body.notes,
+      },
+      file,
+      actorId,
+    );
+    const proofId = (created as { data: { id: string } }).data.id;
+    const approved = await this.approve(
+      tenantId,
+      proofId,
+      {
+        payment_method: body.payment_method,
+        bank_account_id: body.bank_account_id,
+        review_notes: body.notes ?? "Marked paid with proof",
+      },
+      actorId,
+    );
+    return {
+      success: true,
+      message: "Invoice marked paid; receipt posted with proof.",
+      data: approved.data,
+    };
+  }
+
   async readFile(tenantId: string, id: string, scope?: { partyId?: string }) {
     const proof = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.paymentProof.findFirst({

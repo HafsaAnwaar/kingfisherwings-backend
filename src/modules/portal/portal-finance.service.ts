@@ -795,6 +795,16 @@ export class PortalFinanceService {
         "Portal self-payment is disabled. Upload a payment proof instead.",
       );
     }
+    if (!file?.buffer?.length) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: [
+          "Proof file is required to record payment (multipart field name: file). Without proof the invoice remains unpaid — use POST …/payment-proofs to upload only.",
+        ],
+        error: "Bad Request",
+        code: "PROOF_REQUIRED",
+      });
+    }
 
     const invoiceWrap = await this.getInvoice(user, invoiceId);
     const inv = invoiceWrap.data as {
@@ -831,7 +841,7 @@ export class PortalFinanceService {
       submittedByPartyId: user.partyId,
       submittedByUserId: user.id,
       file,
-      fileOptional: true,
+      fileOptional: false,
       linkedPaymentId: paymentId,
       status: "ACKNOWLEDGED",
       actorId: user.id,

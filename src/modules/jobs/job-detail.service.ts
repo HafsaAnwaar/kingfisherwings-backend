@@ -1102,6 +1102,20 @@ export class JobDetailService {
           ...(dto.flight_status !== undefined
             ? { flight_status: dto.flight_status }
             : {}),
+          ...(dto.flight_date !== undefined
+            ? {
+                flight_date: dto.flight_date
+                  ? new Date(dto.flight_date)
+                  : null,
+              }
+            : {}),
+          ...(dto.shipment_date !== undefined
+            ? {
+                shipment_date: dto.shipment_date
+                  ? new Date(dto.shipment_date)
+                  : null,
+              }
+            : {}),
           ...(dto.mawb_no !== undefined ? { mawb_number: dto.mawb_no } : {}),
           ...(dto.hawb_no !== undefined ? { hawb_number: dto.hawb_no } : {}),
           updated_by: actorId,
@@ -1184,6 +1198,8 @@ export class JobDetailService {
       kind: "mawb" as const,
       flight_no: form?.flight_number ?? air?.flight_number ?? null,
       flight_status: form?.flight_status ?? air?.flight_status ?? null,
+      flight_date: air?.flight_date ?? null,
+      shipment_date: air?.shipment_date ?? null,
       mawb_no: form?.mawb_number ?? air?.mawb_number ?? null,
       hawb_no: form?.hawb_number ?? air?.hawb_number ?? null,
       air_pallet: form?.pallets_json ?? null,
