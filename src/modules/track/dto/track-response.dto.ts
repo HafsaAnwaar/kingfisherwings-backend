@@ -158,19 +158,25 @@ export class TrackShipmentBodyDto {
 
   @ApiPropertyOptional({
     description:
-      "YQN route header: from/to, vessel legs, port_of_call, cutoffs, progress_legs",
+      "YQN route header: bl_number, origin_port, dest_port, first_leg, second_leg, port_of_call (eta/ata/etd/atd/vessel), terminal_cutoff_at",
   })
   route?: Record<string, unknown>;
 
   @ApiPropertyOptional({
-    description: "Cargo Info tabs: arrival_report, customs_status, detailed_data",
+    description:
+      "Cargo Info: arrival_report_status, customs_status, detailed_data (job snapshot + staff)",
   })
   cargo_info?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: "Pre-manifest / Manifest Status rows" })
-  pre_manifest?: unknown[];
+  @ApiPropertyOptional({
+    description: "Pre-manifest: { manifest_status: [...] }",
+  })
+  pre_manifest?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: "QTY / G.W. / VOL summary" })
+  @ApiPropertyOptional({
+    description:
+      "QTY/G.W./VOL: quantity, gross_weight, net_weight, volume, chargeable_weight, units, lines",
+  })
   qty_gw_vol?: Record<string, unknown>;
 
   @ApiPropertyOptional({ type: [TrackContainerDto] })

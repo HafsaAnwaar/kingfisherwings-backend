@@ -2879,25 +2879,29 @@ model JobTrackingProfile {
   id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id          String    @db.Uuid
   job_id             String    @unique @db.Uuid
+  /// B/L number for track header (staff override; else job HBL/MBL).
+  bl_number          String?   @db.VarChar(80)
+  /// Origin / destination port display labels (staff enter or seeded from job ports).
   origin_label       String?   @db.VarChar(200)
   dest_label         String?   @db.VarChar(200)
   at_before          DateTime? @db.Timestamptz
+  /// Terminal cut-off time
   terminal_cutoff_at DateTime? @db.Timestamptz
-  /// [{ leg_no, vessel_name, voyage_number, label? }]
+  /// [{ leg_no, vessel_name, voyage_number, imo?, pol?, pod?, label? }] — leg_no 1/2 = 1st/2nd leg
   legs               Json      @default("[]")
-  /// [{ name, eta?, ata?, etd?, atd?, note? }]
+  /// [{ role, port_name, un_locode?, eta?, ata?, etd?, atd?, vessel_name?, voyage_number? }]
   port_of_call       Json      @default("[]")
-  /// [{ event_code, label, occurred_at, place, container_no?, meta? }]
+  /// [{ event_code, label, occurred_at, place, container_no? }]
   container_events   Json      @default("[]")
-  /// Arrival Report Status table rows
+  /// Arrival Report Status: status, sending_time, receipt_time, container_no, sub_container_no, vessel_name, voyage_no, imo
   arrival_report     Json      @default("[]")
-  /// Customs Status table rows
+  /// Customs Status: carrier_operator, customs_released, sub_customs_no, quantity, weight, volume, customs_declaration_no, customs_inspection_status, customs_inspection_time
   customs_status     Json      @default("[]")
-  /// Detailed Data key-values / blocks
+  /// Detailed Data — staff key/values; track merges with job snapshot
   detailed_data      Json      @default("{}")
-  /// Pre-manifest / Manifest Status rows
+  /// Manifest Status: sub_customs_no, status, sending_time, receipt_receiving_time, container_no, vessel_name, voyage_no, imo
   pre_manifest       Json      @default("[]")
-  /// { qty?, gross_weight?, volume?, unit?, lines?: [] }
+  /// { quantity, gross_weight, net_weight, volume, chargeable_weight, qty_unit, weight_unit, volume_unit, lines? }
   qty_gw_vol         Json      @default("{}")
   created_at         DateTime  @default(now()) @db.Timestamptz
   updated_at         DateTime  @updatedAt @db.Timestamptz
