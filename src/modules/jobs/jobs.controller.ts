@@ -2794,6 +2794,66 @@ export class JobsController {
     return this.service.updateCharge(tenantId, id, chargeId, dto, actorId);
   }
 
+  @Post(":id/charges/:chargeId/mark-paid")
+  @HttpCode(HttpStatus.CREATED)
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        side: { type: "string", enum: ["SALE", "COST"] },
+        amount_claimed: { type: "string" },
+        payment_date: { type: "string", example: "2026-11-06" },
+        reference_number: { type: "string" },
+        notes: { type: "string" },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  @ApiOperation({
+    summary:
+      "Mark job costing line paid (proof required) — creates/posts invoice for that party amount then RECEIPT/PAYMENT",
+  })
+  markChargePaid(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("chargeId", ParseUUIDPipe) chargeId: string,
+    @Body()
+    body: {
+      side?: "SALE" | "COST";
+      amount_claimed?: string | number;
+      payment_date?: string;
+      reference_number?: string;
+      notes?: string;
+    },
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const amount =
+      body.amount_claimed != null && body.amount_claimed !== ""
+        ? Number(body.amount_claimed)
+        : undefined;
+    return this.costing.markChargePaidWithProof(
+      tenantId,
+      id,
+      chargeId,
+      {
+        side: body.side,
+        amount_claimed: Number.isFinite(amount) ? amount : undefined,
+        payment_date: body.payment_date,
+        reference_number: body.reference_number,
+        notes: body.notes,
+      },
+      file,
+      actorId,
+    );
+  }
+
   @Delete(":id/charges/:chargeId")
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)

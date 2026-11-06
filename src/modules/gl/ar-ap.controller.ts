@@ -54,7 +54,10 @@ export class ArApController {
 
   @Get("ar/statement/:partyId")
   @RequirePermissions(GL_PERMISSIONS.VIEW_AGING)
-  @ApiOperation({ summary: "Customer AR statement (invoices + receipts)" })
+  @ApiOperation({
+    summary:
+      "Party AR statement — invoices, receipts, plus job costing sale/cost amounts linked to this party (exact amounts; mark-paid via pending_job_charges[].mark_paid)",
+  })
   arStatement(
     @CurrentUser("tenantId") tenantId: string,
     @Param("partyId", ParseUUIDPipe) partyId: string,
@@ -81,7 +84,8 @@ export class ArApController {
   @Get("ap/statement/:partyId")
   @RequirePermissions(GL_PERMISSIONS.VIEW_AGING)
   @ApiOperation({
-    summary: "Vendor AP statement (purchase invoices + payments)",
+    summary:
+      "Party AP statement — purchase invoices, payments, plus job costing sale/cost amounts linked to this party (exact amounts)",
   })
   apStatement(
     @CurrentUser("tenantId") tenantId: string,
