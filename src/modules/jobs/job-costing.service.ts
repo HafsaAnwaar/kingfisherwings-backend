@@ -600,6 +600,13 @@ export class JobCostingService {
     file?: Express.Multer.File,
   ) {
     const form = dto as JobInvoiceFormSaveDto;
+    const sourceNorm = String(form.source ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, "");
+    const fromJobCosting =
+      sourceNorm === "job" || sourceNorm === "jobcosting";
+
     if (form.lines?.length || form.organization_id || form.party_id) {
       return this.saveInvoiceForm(tenantId, jobId, "SALE", form, actorId, file);
     }
@@ -613,6 +620,7 @@ export class JobCostingService {
       return this.withDisplayStatus(inv);
     }
     // Prefer form UX — if no charges, open-form path should be used; legacy still tries.
+    // When source=job|JOB_COSTING: never fall back to quotation — sale amounts only.
     try {
       const inv = await this.invoices.createFromJob(tenantId, jobId, actorId);
       return this.withDisplayStatus(inv);
@@ -622,7 +630,9 @@ export class JobCostingService {
         String(err.message).includes("No uninvoiced billable revenue")
       ) {
         throw new BadRequestException(
-          "No uninvoiced billable revenue charges. Open GET …/invoices/sale/form, fill organization and lines, then POST to save.",
+          fromJobCosting
+            ? "No uninvoiced job sale charges. Add costing sale amounts first (GET …/invoices/sale/form?source=job), then generate."
+            : "No uninvoiced billable revenue charges. Open GET …/invoices/sale/form, fill organization and lines, then POST to save.",
         );
       }
       throw err;
@@ -647,6 +657,7 @@ export class JobCostingService {
         file,
       );
     }
+    // Purchase button → cost amounts only (createPurchaseFromJob); requires cost_party_id.
     try {
       const inv = await this.invoices.createPurchaseFromJob(
         tenantId,
@@ -659,10 +670,12 @@ export class JobCostingService {
       if (
         err instanceof BadRequestException &&
         (String(err.message).includes("cost_party_id") ||
-          String(err.message).includes("No uninvoiced cost"))
+          String(err.message).includes("No uninvoiced cost") ||
+          String(err.message).includes("No uninvoiced cost charges") ||
+          String(err.message).includes("missing vendor"))
       ) {
         throw new BadRequestException(
-          "Cost charges need a vendor or there are no pending cost lines. Open GET …/invoices/purchase/form (prefill from vendor offer when available), fill organization and lines, then POST to save.",
+          "Generate purchase invoice uses cost amounts only. Each cost line needs a vendor (cost_party_id). Open GET …/invoices/purchase/form, assign vendors, then POST.",
         );
       }
       throw err;
@@ -877,190 +890,50 @@ export class JobCostingService {
     tenantId: string,
     jobId: string,
     chargeIds?: string[],
+    source?: string,
   ) {
     const job = await this.assertJob(tenantId, jobId);
     const lookups = await this.loadInvoiceFormLookups(tenantId, jobId);
     const shipmentNo = lookups.primary_shipment_no;
+    const sourceNorm = String(source ?? "auto")
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, "");
+    const wantJob =
+      sourceNorm === "job" ||
+      sourceNorm === "jobcosting" ||
+      sourceNorm === "auto" ||
+      !sourceNorm;
+    const wantQuote =
+      sourceNorm === "quotation" || sourceNorm === "auto" || !sourceNorm;
+    const jobOnly =
+      sourceNorm === "job" || sourceNorm === "jobcosting";
+    const quoteOnly = sourceNorm === "quotation";
 
-    const charges = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.jobCharge.findMany({
-        where: {
-          tenant_id: tenantId,
-          job_id: jobId,
-          deleted_at: null,
-          is_billable: true,
-          is_cost: false,
-          is_invoiced: false,
-          ...(chargeIds?.length ? { id: { in: chargeIds } } : {}),
-          OR: [{ sale_amount: { not: null } }, { is_cost: false }],
-        },
-        orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
-      }),
-    );
-
-    const pending = charges.filter(
-      (c) => !c.is_cost || c.sale_amount != null,
-    );
-
-    if (pending.length) {
-      const customerId =
-        pending[0].sale_party_id ??
-        job.billing_party_id ??
-        job.shipper_id ??
-        job.consignee_id;
-      const party = customerId
-        ? lookups.parties.find((p) => p.id === customerId)
-        : null;
-      const address = customerId
-        ? await this.partyAddress(tenantId, customerId)
-        : null;
-      const chargeCodes = await this.chargeCodeMap(
-        tenantId,
-        pending.map((c) => c.charge_code_id),
-      );
-      const currency =
-        pending[0].sale_currency ?? pending[0].currency_code;
-      const exRate = Number(
-        pending[0].sale_ex_rate ?? pending[0].exchange_rate ?? 1,
-      );
-      const lines = pending.map((c, idx) => {
-        const amount = Number(c.sale_amount ?? c.amount);
-        const qty = Number(c.sale_qty ?? c.quantity ?? 1);
-        const code = chargeCodes.get(c.charge_code_id);
-        return {
-          job_charge_id: c.id,
-          charge_code_id: c.charge_code_id,
-          charge_label: code
-            ? `${code.code} — ${code.name}`
-            : c.description,
-          description: c.description,
-          shipment_no: shipmentNo,
-          unit: c.unit ?? "SHPT",
-          quantity: qty,
-          currency_code: c.sale_currency ?? c.currency_code,
-          exchange_rate: Number(c.sale_ex_rate ?? c.exchange_rate ?? 1),
-          dr_cr: (c.sale_dr_cr ?? "CR") as string,
-          amount,
-          fcy_amount: Number(c.sale_fcy_amount ?? amount),
-          tax_rate_id: c.sale_tax_rate_id ?? c.tax_rate_id,
-          pp_cc: c.pp_cc,
-          sort_order: c.line_no ?? idx,
-          editable: true,
-        };
-      });
-      const billAmount = lines.reduce((s, l) => s + l.amount, 0);
-      return {
-        success: true,
-        data: {
-          source: "JOB_COSTING" as const,
-          header: this.buildInvoiceHeader({
-            voucher_type: "SALES_INVOICE",
-            job,
-            branch_id: job.branch_id,
-            company_id: job.company_id,
-            organization_id: customerId,
-            organization_name: party?.name ?? null,
-            organization_code: party?.code ?? null,
-            address,
-            currency_code: currency,
-            exchange_rate: exRate,
-            bill_amount: billAmount,
-            remarks: null,
-            narration: null,
-            ref_no: null,
-          }),
-          pricing_lines: lines,
-          lookups,
-          actions: { save: `/jobs/${jobId}/invoices/sale` },
-        },
-      };
-    }
-
-    // Fallback: quotation revenue lines linked to this job
-    const quoteLines = await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const or: Prisma.QuotationWhereInput[] = [
-        { converted_job_id: jobId },
-      ];
-      if (job.created_from_quote_id) {
-        or.push({ id: job.created_from_quote_id });
-      }
-      return tx.quotation.findFirst({
-        where: {
-          tenant_id: tenantId,
-          deleted_at: null,
-          OR: or,
-        },
-        include: {
-          lines: {
-            where: { is_cost: false },
-            orderBy: { sort_order: "asc" },
-          },
-        },
-      });
-    });
-
-    if (quoteLines?.lines?.length) {
-      const customerId =
-        quoteLines.customer_id ??
-        job.billing_party_id ??
-        job.shipper_id ??
-        job.consignee_id;
-      const party = customerId
-        ? lookups.parties.find((p) => p.id === customerId)
-        : null;
-      const address = customerId
-        ? await this.partyAddress(tenantId, customerId)
-        : null;
-      const lines = quoteLines.lines.map((line, idx) => ({
-        job_charge_id: null as string | null,
-        charge_code_id: line.charge_code_id,
-        charge_label: line.description,
-        description: line.description,
-        shipment_no: shipmentNo,
-        unit: "SHPT",
-        quantity: Number(line.quantity),
-        currency_code: line.currency_code,
-        exchange_rate: Number(line.exchange_rate ?? 1),
-        dr_cr: "CR" as const,
-        amount: Number(line.amount),
-        fcy_amount: Number(line.amount),
-        tax_rate_id: line.tax_rate_id,
-        pp_cc: null as string | null,
-        sort_order: line.sort_order ?? idx,
-        editable: true,
-      }));
-      const billAmount = lines.reduce((s, l) => s + l.amount, 0);
-      return {
-        success: true,
-        data: {
-          source: "QUOTATION" as const,
-          header: this.buildInvoiceHeader({
-            voucher_type: "SALES_INVOICE",
-            job,
-            branch_id: job.branch_id ?? quoteLines.branch_id,
-            company_id: job.company_id ?? quoteLines.company_id,
-            organization_id: customerId,
-            organization_name: party?.name ?? null,
-            organization_code: party?.code ?? null,
-            address,
-            currency_code: quoteLines.currency_code,
-            exchange_rate: 1,
-            bill_amount: billAmount,
-            remarks: null,
-            narration: `From quotation ${quoteLines.quotation_number}`,
-            ref_no: quoteLines.quotation_number,
-          }),
-          pricing_lines: lines,
-          lookups,
-          actions: { save: `/jobs/${jobId}/invoices/sale` },
-        },
-      };
-    }
-
-    return {
-      success: true,
+    const emptySaleForm = (opts?: {
+      needs_costing?: boolean;
+      source?: "EMPTY" | "MANUAL";
+    }) => ({
+      success: true as const,
       data: {
-        source: "EMPTY" as const,
+        source: (opts?.source ?? "EMPTY") as "EMPTY" | "MANUAL",
+        needs_costing: opts?.needs_costing === true,
+        costing_entry: opts?.needs_costing
+          ? {
+              hint: "Add sale amounts on job costing before generating a sales invoice from the job.",
+              fields: [
+                { key: "charge_code_id", label: "Charge code", required: true },
+                { key: "description", label: "Description", required: true },
+                { key: "sale_amount", label: "Sale amount", required: true },
+                { key: "sale_currency", label: "Currency", required: false },
+                { key: "sale_qty", label: "Qty", required: false },
+              ],
+              actions: {
+                costing: `/jobs/${jobId}/costing`,
+                charges: `/jobs/${jobId}/charges`,
+              },
+            }
+          : undefined,
         header: this.buildInvoiceHeader({
           voucher_type: "SALES_INVOICE",
           job,
@@ -1078,11 +951,217 @@ export class JobCostingService {
           narration: null,
           ref_no: null,
         }),
-        pricing_lines: [],
+        pricing_lines: [] as unknown[],
         lookups,
-        actions: { save: `/jobs/${jobId}/invoices/sale` },
+        actions: {
+          save: `/jobs/${jobId}/invoices/sale`,
+          from_job: `/jobs/${jobId}/invoices/sale/form?source=job`,
+          from_quotation: `/jobs/${jobId}/invoices/sale/form?source=quotation`,
+        },
       },
-    };
+    });
+
+    if (wantJob) {
+      const charges = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.jobCharge.findMany({
+          where: {
+            tenant_id: tenantId,
+            job_id: jobId,
+            deleted_at: null,
+            is_billable: true,
+            is_cost: false,
+            is_invoiced: false,
+            ...(chargeIds?.length ? { id: { in: chargeIds } } : {}),
+            OR: [{ sale_amount: { not: null } }, { is_cost: false }],
+          },
+          orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+        }),
+      );
+
+      const pending = charges.filter(
+        (c) => !c.is_cost || c.sale_amount != null,
+      );
+
+      if (pending.length) {
+        const customerId =
+          pending[0].sale_party_id ??
+          job.billing_party_id ??
+          job.shipper_id ??
+          job.consignee_id;
+        const party = customerId
+          ? lookups.parties.find((p) => p.id === customerId)
+          : null;
+        const address = customerId
+          ? await this.partyAddress(tenantId, customerId)
+          : null;
+        const chargeCodes = await this.chargeCodeMap(
+          tenantId,
+          pending.map((c) => c.charge_code_id),
+        );
+        const currency =
+          pending[0].sale_currency ?? pending[0].currency_code;
+        const exRate = Number(
+          pending[0].sale_ex_rate ?? pending[0].exchange_rate ?? 1,
+        );
+        const lines = pending.map((c, idx) => {
+          const amount = Number(c.sale_amount ?? c.amount);
+          const qty = Number(c.sale_qty ?? c.quantity ?? 1);
+          const code = chargeCodes.get(c.charge_code_id);
+          return {
+            job_charge_id: c.id,
+            charge_code_id: c.charge_code_id,
+            charge_label: code
+              ? `${code.code} — ${code.name}`
+              : c.description,
+            description: c.description,
+            shipment_no: shipmentNo,
+            unit: c.unit ?? "SHPT",
+            quantity: qty,
+            currency_code: c.sale_currency ?? c.currency_code,
+            exchange_rate: Number(c.sale_ex_rate ?? c.exchange_rate ?? 1),
+            dr_cr: (c.sale_dr_cr ?? "CR") as string,
+            amount,
+            fcy_amount: Number(c.sale_fcy_amount ?? amount),
+            tax_rate_id: c.sale_tax_rate_id ?? c.tax_rate_id,
+            pp_cc: c.pp_cc,
+            sort_order: c.line_no ?? idx,
+            editable: true,
+          };
+        });
+        const billAmount = lines.reduce((s, l) => s + l.amount, 0);
+        return {
+          success: true,
+          data: {
+            source: "JOB_COSTING" as const,
+            needs_costing: false,
+            header: this.buildInvoiceHeader({
+              voucher_type: "SALES_INVOICE",
+              job,
+              branch_id: job.branch_id,
+              company_id: job.company_id,
+              organization_id: customerId,
+              organization_name: party?.name ?? null,
+              organization_code: party?.code ?? null,
+              address,
+              currency_code: currency,
+              exchange_rate: exRate,
+              bill_amount: billAmount,
+              remarks: null,
+              narration: null,
+              ref_no: null,
+            }),
+            pricing_lines: lines,
+            lookups,
+            actions: {
+              save: `/jobs/${jobId}/invoices/sale`,
+              from_job: `/jobs/${jobId}/invoices/sale/form?source=job`,
+              from_quotation: `/jobs/${jobId}/invoices/sale/form?source=quotation`,
+            },
+          },
+        };
+      }
+
+      if (jobOnly) {
+        return emptySaleForm({ needs_costing: true, source: "EMPTY" });
+      }
+    }
+
+    // Quotation revenue lines linked to this job (explicit source=quotation or auto fallback)
+    if (wantQuote) {
+      const quoteLines = await this.prisma.runWithTenant(tenantId, async (tx) => {
+        const or: Prisma.QuotationWhereInput[] = [
+          { converted_job_id: jobId },
+        ];
+        if (job.created_from_quote_id) {
+          or.push({ id: job.created_from_quote_id });
+        }
+        return tx.quotation.findFirst({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            OR: or,
+          },
+          include: {
+            lines: {
+              where: { is_cost: false },
+              orderBy: { sort_order: "asc" },
+            },
+          },
+        });
+      });
+
+      if (quoteLines?.lines?.length) {
+        const customerId =
+          quoteLines.customer_id ??
+          job.billing_party_id ??
+          job.shipper_id ??
+          job.consignee_id;
+        const party = customerId
+          ? lookups.parties.find((p) => p.id === customerId)
+          : null;
+        const address = customerId
+          ? await this.partyAddress(tenantId, customerId)
+          : null;
+        const lines = quoteLines.lines.map((line, idx) => ({
+          job_charge_id: null as string | null,
+          charge_code_id: line.charge_code_id,
+          charge_label: line.description,
+          description: line.description,
+          shipment_no: shipmentNo,
+          unit: "SHPT",
+          quantity: Number(line.quantity),
+          currency_code: line.currency_code,
+          exchange_rate: Number(line.exchange_rate ?? 1),
+          dr_cr: "CR" as const,
+          amount: Number(line.amount),
+          fcy_amount: Number(line.amount),
+          tax_rate_id: line.tax_rate_id,
+          pp_cc: null as string | null,
+          sort_order: line.sort_order ?? idx,
+          editable: true,
+        }));
+        const billAmount = lines.reduce((s, l) => s + l.amount, 0);
+        return {
+          success: true,
+          data: {
+            source: "QUOTATION" as const,
+            needs_costing: false,
+            header: this.buildInvoiceHeader({
+              voucher_type: "SALES_INVOICE",
+              job,
+              branch_id: job.branch_id ?? quoteLines.branch_id,
+              company_id: job.company_id ?? quoteLines.company_id,
+              organization_id: customerId,
+              organization_name: party?.name ?? null,
+              organization_code: party?.code ?? null,
+              address,
+              currency_code: quoteLines.currency_code,
+              exchange_rate: 1,
+              bill_amount: billAmount,
+              remarks: null,
+              narration: `From quotation ${quoteLines.quotation_number}`,
+              ref_no: quoteLines.quotation_number,
+            }),
+            pricing_lines: lines,
+            lookups,
+            actions: {
+              save: `/jobs/${jobId}/invoices/sale`,
+              from_job: `/jobs/${jobId}/invoices/sale/form?source=job`,
+              from_quotation: `/jobs/${jobId}/invoices/sale/form?source=quotation`,
+            },
+          },
+        };
+      }
+
+      if (quoteOnly) {
+        return emptySaleForm({ needs_costing: false, source: "EMPTY" });
+      }
+    }
+
+    return emptySaleForm({
+      needs_costing: jobOnly || sourceNorm === "auto",
+      source: "EMPTY",
+    });
   }
 
   async saveInvoiceForm(

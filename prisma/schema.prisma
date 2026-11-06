@@ -2483,9 +2483,11 @@ model Party {
   id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id      String    @db.Uuid
   company_id     String?   @db.Uuid
-  party_type     PartyType
-  code           String    @db.VarChar(30)
-  name           String    @db.VarChar(300)
+  party_type      PartyType
+  /// Effective type code (system enum value or tenant custom catalog code).
+  party_type_code String?   @db.VarChar(60)
+  code            String    @db.VarChar(30)
+  name            String    @db.VarChar(300)
   short_name     String?   @db.VarChar(100)
   vat_number     String?   @db.VarChar(50)
   cr_number      String?   @db.VarChar(50)
@@ -2548,9 +2550,29 @@ model Party {
   @@unique([tenant_id, code])
   @@index([tenant_id])
   @@index([tenant_id, party_type])
+  @@index([tenant_id, party_type_code])
   @@index([tenant_id, credit_status])
   @@index([tenant_id, company_id])
   @@map("parties")
+}
+
+/// Tenant-defined party types plus seeded system enum codes.
+model PartyTypeCatalog {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  code       String    @db.VarChar(60)
+  label      String    @db.VarChar(120)
+  is_system  Boolean   @default(false)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  created_by String?   @db.Uuid
+  deleted_at DateTime? @db.Timestamptz
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id])
+  @@index([tenant_id, is_active])
+  @@map("party_type_catalog")
 }
 
 /// Party-scoped KYC for portal customers and vendor portal users.
@@ -2819,6 +2841,7 @@ model Job {
   routing_legs         JobRoutingLeg[]
   exchange_rates       JobExchangeRate[]
   customs_refs         JobCustomsRef[]
+  tracking_profile     JobTrackingProfile?
 
   @@unique([tenant_id, job_number])
   @@unique([tenant_id, barcode_value])
@@ -2831,6 +2854,59 @@ model Job {
   @@index([tenant_id, company_id])
   @@index([tenant_id, billing_party_id])
   @@map("jobs")
+}
+
+/// In-progress job create wizard state (server draft; FE may also keep localStorage).
+model JobCreateDraft {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id  String    @db.Uuid
+  user_id    String    @db.Uuid
+  branch_id  String?   @db.Uuid
+  job_type   JobType?
+  step       String?   @db.VarChar(80)
+  payload    Json      @default("{}")
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
+
+  @@index([tenant_id, user_id])
+  @@index([tenant_id, user_id, updated_at(sort: Desc)])
+  @@map("job_create_drafts")
+}
+
+/// YQN-style tracking sections staff enter on a job (shared public + staff track payload).
+model JobTrackingProfile {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id          String    @db.Uuid
+  job_id             String    @unique @db.Uuid
+  origin_label       String?   @db.VarChar(200)
+  dest_label         String?   @db.VarChar(200)
+  at_before          DateTime? @db.Timestamptz
+  terminal_cutoff_at DateTime? @db.Timestamptz
+  /// [{ leg_no, vessel_name, voyage_number, label? }]
+  legs               Json      @default("[]")
+  /// [{ name, eta?, ata?, etd?, atd?, note? }]
+  port_of_call       Json      @default("[]")
+  /// [{ event_code, label, occurred_at, place, container_no?, meta? }]
+  container_events   Json      @default("[]")
+  /// Arrival Report Status table rows
+  arrival_report     Json      @default("[]")
+  /// Customs Status table rows
+  customs_status     Json      @default("[]")
+  /// Detailed Data key-values / blocks
+  detailed_data      Json      @default("{}")
+  /// Pre-manifest / Manifest Status rows
+  pre_manifest       Json      @default("[]")
+  /// { qty?, gross_weight?, volume?, unit?, lines?: [] }
+  qty_gw_vol         Json      @default("{}")
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @updatedAt @db.Timestamptz
+  updated_by         String?   @db.Uuid
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@map("job_tracking_profiles")
 }
 
 enum VendorQuoteStatus {

@@ -149,6 +149,30 @@ export class TrackShipmentBodyDto {
   })
   events?: TrackHistoryEventDto[];
 
+  @ApiPropertyOptional({
+    type: [TrackHistoryEventDto],
+    description:
+      "Milestone + container/ops timeline only (no STATUS notification noise)",
+  })
+  timeline?: TrackHistoryEventDto[];
+
+  @ApiPropertyOptional({
+    description:
+      "YQN route header: from/to, vessel legs, port_of_call, cutoffs, progress_legs",
+  })
+  route?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description: "Cargo Info tabs: arrival_report, customs_status, detailed_data",
+  })
+  cargo_info?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: "Pre-manifest / Manifest Status rows" })
+  pre_manifest?: unknown[];
+
+  @ApiPropertyOptional({ description: "QTY / G.W. / VOL summary" })
+  qty_gw_vol?: Record<string, unknown>;
+
   @ApiPropertyOptional({ type: [TrackContainerDto] })
   containers?: TrackContainerDto[];
 

@@ -176,6 +176,10 @@ import {
   SendDeliveryAcknowledgementDto,
 } from "./dto/delivery-acknowledgement.dto";
 import { TrackService } from "../track/track.service";
+import { JobCreateDraftService } from "./job-create-draft.service";
+import { JobTrackingProfileService } from "./job-tracking-profile.service";
+import { UpsertJobCreateDraftDto } from "./dto/job-create-draft.dto";
+import { UpsertJobTrackingProfileDto } from "./dto/job-tracking-profile.dto";
 import {
   BulkJobContainersDto,
   ConfirmContainerUploadDto,
@@ -311,7 +315,76 @@ export class JobsController {
     private readonly sectionFiles: OpsSectionAttachmentsService,
     private readonly acknowledgement: DeliveryAcknowledgementService,
     private readonly track: TrackService,
+    private readonly createDrafts: JobCreateDraftService,
+    private readonly trackingProfile: JobTrackingProfileService,
   ) {}
+
+  @Get("create-drafts")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "List job-create wizard drafts for the current user" })
+  listCreateDrafts(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+  ) {
+    return this.createDrafts.list(tenantId, userId);
+  }
+
+  @Get("create-drafts/current")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Get the latest job-create wizard draft" })
+  getCurrentCreateDraft(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+  ) {
+    return this.createDrafts.getCurrent(tenantId, userId);
+  }
+
+  @Put("create-drafts/current")
+  @RequirePermissions(JOBS_PERMISSIONS.CREATE)
+  @ApiOperation({
+    summary: "Upsert the current user's job-create wizard draft (progress save)",
+  })
+  upsertCurrentCreateDraft(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Body() dto: UpsertJobCreateDraftDto,
+  ) {
+    return this.createDrafts.upsertCurrent(tenantId, userId, dto);
+  }
+
+  @Get("create-drafts/:id")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({ summary: "Get one job-create draft by id" })
+  getCreateDraft(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.createDrafts.getOne(tenantId, userId, id);
+  }
+
+  @Put("create-drafts/:id")
+  @RequirePermissions(JOBS_PERMISSIONS.CREATE)
+  @ApiOperation({ summary: "Update a job-create draft" })
+  updateCreateDraft(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobCreateDraftDto,
+  ) {
+    return this.createDrafts.update(tenantId, userId, id, dto);
+  }
+
+  @Delete("create-drafts/:id")
+  @RequirePermissions(JOBS_PERMISSIONS.CREATE)
+  @ApiOperation({ summary: "Soft-delete a job-create draft" })
+  deleteCreateDraft(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.createDrafts.remove(tenantId, userId, id);
+  }
 
   @Get()
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
@@ -1322,11 +1395,36 @@ export class JobsController {
     return this.service.getHouseJobs(tenantId, id);
   }
 
+  @Get(":id/tracking/profile")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "YQN-style tracking sections staff edit (legs, POC, cargo/pre-manifest/qty)",
+  })
+  getTrackingProfile(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.trackingProfile.getOrCreate(tenantId, id);
+  }
+
+  @Put(":id/tracking/profile")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Upsert YQN-style tracking profile sections on a job" })
+  putTrackingProfile(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpsertJobTrackingProfileDto,
+  ) {
+    return this.trackingProfile.upsert(tenantId, id, dto, actorId);
+  }
+
   @Get(":id/tracking")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Track & trace for a job — current_status, container type/iso, progress_legs, enriched history",
+      "Track & trace (same payload as public /track) — route, timeline (milestones/containers only), cargo_info, pre_manifest, qty_gw_vol",
   })
   getJobTracking(
     @CurrentUser("tenantId") tenantId: string,
@@ -2555,24 +2653,27 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Sales invoice form preview (autofill from costing/quotation; empty form if none)",
+      "Sales invoice form preview — source=job (costing sale amounts) | quotation | auto",
+    description:
+      "Generate from job: ?source=job (needs_costing when empty). Generate from quotation: ?source=quotation. Default auto tries job then quotation.",
   })
   saleInvoiceForm(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Query("charge_ids") chargeIds?: string,
+    @Query("source") source?: string,
   ) {
     const ids = chargeIds
       ? chargeIds.split(",").map((s) => s.trim()).filter(Boolean)
       : undefined;
-    return this.costing.getSaleInvoiceForm(tenantId, id, ids);
+    return this.costing.getSaleInvoiceForm(tenantId, id, ids, source);
   }
 
   @Post(":id/invoices/sale")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Save sales invoice form (DRAFT/CREATE) or legacy generate from charge_ids",
+      "Save sales invoice or generate from job sale charges (source=job|JOB_COSTING; no quotation fallback)",
   })
   generateSaleInvoice(
     @CurrentUser("tenantId") tenantId: string,
@@ -2620,7 +2721,7 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Purchase / vendor invoice form preview (vendor offer → costing → empty)",
+      "Purchase invoice form — cost amounts only (vendor offer → costing cost lines → empty)",
   })
   purchaseInvoiceForm(
     @CurrentUser("tenantId") tenantId: string,

@@ -51,10 +51,18 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
 
   private idleTimeoutMs(): number {
     const mins = Number(
-      this.configService.get<string>("SESSION_IDLE_TIMEOUT_MINUTES") ?? "30",
+      this.configService.get<string>("SESSION_IDLE_TIMEOUT_MINUTES") ?? "20",
     );
     if (!Number.isFinite(mins) || mins <= 0) return 0; // 0 = disabled
     return mins * 60_000;
+  }
+
+  private idleTimeoutException() {
+    return new UnauthorizedException({
+      statusCode: 401,
+      message: "Session timed out due to inactivity. Please sign in again.",
+      code: "IDLE_TIMEOUT",
+    });
   }
 
   private async revokeIdleSession(jti: string, reason: string) {
@@ -89,9 +97,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         const last = new Date(cached.lastUsedAt).getTime();
         if (now - last > idleMs) {
           await this.revokeIdleSession(payload.sessionId, "IDLE_TIMEOUT");
-          throw new UnauthorizedException(
-            "Session timed out due to inactivity. Please sign in again.",
-          );
+          throw this.idleTimeoutException();
         }
       }
 
@@ -156,9 +162,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
       const last = session.last_used_at?.getTime() ?? session.created_at.getTime();
       if (now - last > idleMs) {
         await this.revokeIdleSession(payload.sessionId, "IDLE_TIMEOUT");
-        throw new UnauthorizedException(
-          "Session timed out due to inactivity. Please sign in again.",
-        );
+        throw this.idleTimeoutException();
       }
     }
 

@@ -29,9 +29,23 @@ export class CreatePartyDto {
   @IsUUID()
   company_id?: string;
 
-  @ApiProperty({ enum: PartyType })
+  @ApiPropertyOptional({
+    enum: PartyType,
+    description: "System enum type. Prefer party_type_code when using custom types.",
+  })
+  @IsOptional()
   @IsEnum(PartyType)
-  party_type!: PartyType;
+  party_type?: PartyType;
+
+  @ApiPropertyOptional({
+    example: "CUSTOMER",
+    description:
+      "Type code from GET /parties/types (system or tenant-custom). Required if party_type omitted.",
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, 60)
+  party_type_code?: string;
 
   @ApiProperty({ example: "CUST-001" })
   @IsString()

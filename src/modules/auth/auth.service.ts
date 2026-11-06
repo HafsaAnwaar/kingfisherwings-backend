@@ -653,7 +653,7 @@ export class AuthService {
 
   async me(principal: RequestPrincipal) {
     const idleMinutes = Number(
-      this.configService.get<string>("SESSION_IDLE_TIMEOUT_MINUTES") ?? "30",
+      this.configService.get<string>("SESSION_IDLE_TIMEOUT_MINUTES") ?? "20",
     );
 
     if (isSuperAdmin(principal)) {
@@ -695,6 +695,73 @@ export class AuthService {
         ...response,
         session_expires_at: session?.expires_at ?? null,
         last_activity_at: session?.last_used_at ?? null,
+        idle_timeout_minutes: idleMinutes,
+        auto_logout_on_idle: idleMinutes > 0,
+      },
+    };
+  }
+
+  /**
+   * Heartbeat for staff idle logout. Updates last_used_at so typing in the UI
+   * without other API traffic does not expire the session.
+   */
+  async touchSession(principal: RequestPrincipal) {
+    if (isSuperAdmin(principal)) {
+      return {
+        success: true,
+        data: {
+          touched: false,
+          last_activity_at: null,
+          idle_timeout_minutes: Number(
+            this.configService.get<string>("SESSION_IDLE_TIMEOUT_MINUTES") ??
+              "20",
+          ),
+        },
+      };
+    }
+
+    if (!principal.sessionId) {
+      throw new UnauthorizedException("No active session.");
+    }
+
+    const now = new Date();
+    const updated = await this.prisma.session.updateMany({
+      where: {
+        jti: principal.sessionId,
+        user_id: principal.id,
+        is_active: true,
+      },
+      data: { last_used_at: now },
+    });
+    if (updated.count === 0) {
+      throw new UnauthorizedException("Session is no longer valid.");
+    }
+
+    const cached = await this.sessionCache.getStaffSession(principal.sessionId);
+    if (cached) {
+      await this.sessionCache.setStaffSession(principal.sessionId, {
+        ...cached,
+        lastUsedAt: now.toISOString(),
+      });
+    } else {
+      await this.sessionCache.setStaffSession(principal.sessionId, {
+        userId: principal.id,
+        tenantId: principal.tenantId,
+        role: String(principal.role ?? ""),
+        twoFactorEnabled: false,
+        lastUsedAt: now.toISOString(),
+      });
+    }
+
+    const idleMinutes = Number(
+      this.configService.get<string>("SESSION_IDLE_TIMEOUT_MINUTES") ?? "20",
+    );
+
+    return {
+      success: true,
+      data: {
+        touched: true,
+        last_activity_at: now.toISOString(),
         idle_timeout_minutes: idleMinutes,
         auto_logout_on_idle: idleMinutes > 0,
       },

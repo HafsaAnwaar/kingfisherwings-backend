@@ -67,6 +67,8 @@ import { CustomsClearanceService } from "./customs-clearance/customs-clearance.s
 import { CustomsClearanceController } from "./customs-clearance/customs-clearance.controller";
 import { CustomsClearanceQueueController } from "./customs-clearance/customs-clearance-queue.controller";
 import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
+import { JobCreateDraftService } from "./job-create-draft.service";
+import { JobTrackingProfileService } from "./job-tracking-profile.service";
 
 @Module({
   imports: [
@@ -141,6 +143,8 @@ import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.servi
     CourierService,
     CustomsClearanceService,
     DeliveryAcknowledgementService,
+    JobCreateDraftService,
+    JobTrackingProfileService,
   ],
   exports: [
     JobsService,
@@ -171,6 +175,8 @@ import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.servi
     CourierService,
     CustomsClearanceService,
     DeliveryAcknowledgementService,
+    JobCreateDraftService,
+    JobTrackingProfileService,
   ],
 })
 export class JobsModule {}
