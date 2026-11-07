@@ -67,3 +67,13 @@ Backend-only delivery in FreightSaas. Use this checklist in the staff SPA / publ
 
 - MAWB tab: `flight_date`, `shipment_date` on GET/PUT `/jobs/:id/detail/mawb`.
 - Air track: `route` / `references` expose MAWB, HAWB, flight (not vessel/voyage).
+
+## 9. Costing attachments + JOB_COSTING docs
+
+- `JOB_COSTING` document type is allowed on sea FCL/LCL, land, road, NVOCC, CC, warehouse, service, courier, air import/export (allowlist fixed).
+- Costing line attachments: `POST /jobs/:id/charges/:chargeId/attachments` (multipart preferred).
+  - `side`: `SALE` (customer) | `COST` (vendor) | `CHARGE`
+  - `purpose` dropdown: `GENERAL` | `PAYMENT_PROOF`
+  - Visibility: `visible_to_customer`, `visible_to_vendor`, `downloadable_by_customer`, `downloadable_by_vendor` (defaults: SALE→customer, COST→vendor)
+  - When `purpose=PAYMENT_PROOF` and tenant `costing_payment_proof_auto_mark_paid` is true (default), BE auto-marks that party’s charge amount paid (invoice + receipt) using the uploaded file. Response includes `marked_paid` / `mark_paid_warning`.
+- Config: `GET|PATCH /organization/settings/costing` `{ costing_payment_proof_auto_mark_paid: boolean }` (tenant admin).

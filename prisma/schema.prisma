@@ -243,6 +243,11 @@ enum JobChargeAttachmentSide {
   COST
 }
 
+enum JobChargeAttachmentPurpose {
+  GENERAL
+  PAYMENT_PROOF
+}
+
 enum JobChargeProrateStatus {
   NONE
   PARTIAL
@@ -859,6 +864,8 @@ model Tenant {
   volumetric_divisor_cm Int @default(6000)
   /// When false, POST /jobs/:id/organizations with create_party requires parties.create.
   allow_create_party_from_job Boolean @default(true)
+  /// When true, uploading a costing attachment with purpose=PAYMENT_PROOF auto-marks that charge paid.
+  costing_payment_proof_auto_mark_paid Boolean @default(true)
 
   // Business Registration
   vat_number String? @db.VarChar(50)
@@ -4541,19 +4548,24 @@ model JobGpumAllocation {
 }
 
 model JobChargeAttachment {
-  id            String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id     String                   @db.Uuid
-  job_id        String                   @db.Uuid
-  job_charge_id String                   @db.Uuid
-  side          JobChargeAttachmentSide  @default(CHARGE)
-  file_name     String                   @db.VarChar(300)
-  file_url      String                   @db.Text
-  s3_key        String?                  @db.Text
+  id            String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id     String                       @db.Uuid
+  job_id        String                       @db.Uuid
+  job_charge_id String                       @db.Uuid
+  side          JobChargeAttachmentSide      @default(CHARGE)
+  purpose       JobChargeAttachmentPurpose   @default(GENERAL)
+  file_name     String                       @db.VarChar(300)
+  file_url      String                       @db.Text
+  s3_key        String?                      @db.Text
   file_size     Int?
-  mime_type     String?                  @db.VarChar(100)
-  uploaded_by   String?                  @db.Uuid
-  created_at    DateTime                 @default(now()) @db.Timestamptz
-  deleted_at    DateTime?                @db.Timestamptz
+  mime_type     String?                      @db.VarChar(100)
+  visible_to_customer       Boolean          @default(false)
+  visible_to_vendor         Boolean          @default(false)
+  downloadable_by_customer  Boolean          @default(false)
+  downloadable_by_vendor    Boolean          @default(false)
+  uploaded_by   String?                      @db.Uuid
+  created_at    DateTime                     @default(now()) @db.Timestamptz
+  deleted_at    DateTime?                    @db.Timestamptz
 
   job        Job       @relation(fields: [job_id], references: [id], onDelete: Cascade)
   job_charge JobCharge @relation(fields: [job_charge_id], references: [id], onDelete: Cascade)

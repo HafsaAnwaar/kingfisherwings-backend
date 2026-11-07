@@ -1311,15 +1311,50 @@ export class JobsController {
 
   @Post(":id/charges/:chargeId/attachments")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Attach file metadata to costing line" })
+  @ApiConsumes("multipart/form-data", "application/json")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+        side: { type: "string", enum: ["SALE", "COST", "CHARGE"] },
+        purpose: { type: "string", enum: ["GENERAL", "PAYMENT_PROOF"] },
+        visible_to_customer: { type: "boolean" },
+        visible_to_vendor: { type: "boolean" },
+        downloadable_by_customer: { type: "boolean" },
+        downloadable_by_vendor: { type: "boolean" },
+        file_name: { type: "string" },
+        file_url: { type: "string" },
+        amount_claimed: { type: "string" },
+        payment_date: { type: "string" },
+        reference_number: { type: "string" },
+        notes: { type: "string" },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  @ApiOperation({
+    summary:
+      "Attach file to costing line (SALE/COST). purpose=PAYMENT_PROOF + tenant auto-mark setting posts receipt for that party amount.",
+  })
   addChargeAttachment(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("chargeId", ParseUUIDPipe) chargeId: string,
     @Body() dto: CreateJobChargeAttachmentDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.chargeAttachments.create(tenantId, id, chargeId, dto, actorId);
+    return this.chargeAttachments.create(
+      tenantId,
+      id,
+      chargeId,
+      dto,
+      actorId,
+      file,
+    );
   }
 
   @Post(":id/stop")
