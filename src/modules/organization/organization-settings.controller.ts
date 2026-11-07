@@ -15,6 +15,7 @@ import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { UpdateJobDateSettingsDto } from "./dto/job-date-settings.dto";
 import { UpdateDimensionSettingsDto } from "./dto/dimension-settings.dto";
 import { UpdateJobCreateSettingsDto } from "./dto/job-create-settings.dto";
+import { UpdateCostingSettingsDto } from "./dto/update-costing-settings.dto";
 import { DEFAULT_VOLUMETRIC_DIVISOR_CM } from "../jobs/utils/job-dimension-calc.util";
 import { websitePortalLinksForTenant } from "../payments/utils/frontend-url.util";
 
@@ -122,6 +123,44 @@ export class OrganizationSettingsController {
       where: { id: tenantId },
       data: { allow_create_party_from_job: dto.allow_create_party_from_job },
       select: { allow_create_party_from_job: true },
+    });
+    return { success: true, data: tenant };
+  }
+
+  @Get("costing")
+  @ApiOperation({
+    summary:
+      "Costing settings (auto mark-paid when uploading PAYMENT_PROOF on sale/cost attachments)",
+  })
+  async getCosting(@CurrentUser("tenantId") tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { costing_payment_proof_auto_mark_paid: true },
+    });
+    return {
+      success: true,
+      data: {
+        costing_payment_proof_auto_mark_paid:
+          tenant?.costing_payment_proof_auto_mark_paid ?? true,
+      },
+    };
+  }
+
+  @Patch("costing")
+  @ApiOperation({
+    summary: "Update costing_payment_proof_auto_mark_paid",
+  })
+  async patchCosting(
+    @CurrentUser("tenantId") tenantId: string,
+    @Body() dto: UpdateCostingSettingsDto,
+  ) {
+    const tenant = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        costing_payment_proof_auto_mark_paid:
+          dto.costing_payment_proof_auto_mark_paid,
+      },
+      select: { costing_payment_proof_auto_mark_paid: true },
     });
     return { success: true, data: tenant };
   }

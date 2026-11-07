@@ -1,16 +1,40 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { JobChargeAttachmentSide } from "@prisma/client";
-import { IsEnum, IsInt, IsOptional, IsString, Length, Min } from "class-validator";
+import { Transform } from "class-transformer";
+import {
+  JobChargeAttachmentPurpose,
+  JobChargeAttachmentSide,
+} from "@prisma/client";
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+} from "class-validator";
+
+function optionalBool({ value }: { value: unknown }): boolean | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value === "boolean") return value;
+  if (value === "true" || value === "1") return true;
+  if (value === "false" || value === "0") return false;
+  return undefined;
+}
 
 export class CreateJobChargeAttachmentDto {
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description: "Required when no multipart file is sent (metadata-only create)",
+  })
+  @IsOptional()
   @IsString()
   @Length(1, 300)
-  file_name!: string;
+  file_name?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  file_url!: string;
+  file_url?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -19,6 +43,9 @@ export class CreateJobChargeAttachmentDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) =>
+    value == null || value === "" ? undefined : Number(value),
+  )
   @IsInt()
   @Min(0)
   file_size?: number;
@@ -36,4 +63,64 @@ export class CreateJobChargeAttachmentDto {
   @IsOptional()
   @IsEnum(JobChargeAttachmentSide)
   side?: JobChargeAttachmentSide;
+
+  @ApiPropertyOptional({
+    enum: JobChargeAttachmentPurpose,
+    default: JobChargeAttachmentPurpose.GENERAL,
+    description:
+      "GENERAL = supporting doc; PAYMENT_PROOF = may auto-mark party amount paid when tenant config allows",
+  })
+  @IsOptional()
+  @IsEnum(JobChargeAttachmentPurpose)
+  purpose?: JobChargeAttachmentPurpose;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(optionalBool)
+  @IsBoolean()
+  visible_to_customer?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(optionalBool)
+  @IsBoolean()
+  visible_to_vendor?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(optionalBool)
+  @IsBoolean()
+  downloadable_by_customer?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(optionalBool)
+  @IsBoolean()
+  downloadable_by_vendor?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Optional amount when purpose=PAYMENT_PROOF (defaults to charge balance)",
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value == null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : value;
+  })
+  amount_claimed?: number;
+
+  @ApiPropertyOptional({ example: "2026-11-07" })
+  @IsOptional()
+  @IsString()
+  payment_date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  reference_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
