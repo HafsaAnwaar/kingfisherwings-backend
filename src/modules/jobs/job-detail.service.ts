@@ -69,6 +69,24 @@ const DETAIL_TABS = [
 
 const AIR_JOB_TYPES: JobType[] = ["AIR_EXPORT", "AIR_IMPORT"];
 
+const SEA_JOB_TYPES: JobType[] = [
+  "SEA_FCL_EXPORT",
+  "SEA_FCL_IMPORT",
+  "SEA_LCL_EXPORT",
+  "SEA_LCL_IMPORT",
+  "NVOCC_EXPORT",
+  "NVOCC_IMPORT",
+];
+
+function detailTabsForJobType(jobType: JobType): string[] {
+  const isAir = AIR_JOB_TYPES.includes(jobType);
+  return DETAIL_TABS.filter((tab) => {
+    if (tab === "mawb") return isAir;
+    if (tab === "planned_container" || tab === "actual_container") return !isAir;
+    return true;
+  });
+}
+
 const TERMINAL_STATUSES: JobStatus[] = ["COMPLETED", "CANCELLED"];
 
 @Injectable()
@@ -107,7 +125,7 @@ export class JobDetailService {
         links,
         actions: this.actionFlags(job, permissions),
         sections: await this.sectionSummaries(tenantId, job),
-        tabs: DETAIL_TABS,
+        tabs: detailTabsForJobType(job.job_type),
       },
     };
   }
@@ -126,6 +144,12 @@ export class JobDetailService {
       );
     }
     const job = await this.loadJob(tenantId, id, permissions, role);
+    const allowedTabs = detailTabsForJobType(job.job_type);
+    if (!allowedTabs.includes(normalized)) {
+      throw new BadRequestException(
+        `Tab "${tab}" is not available on ${job.job_type} jobs. Allowed: ${allowedTabs.join(", ")}`,
+      );
+    }
 
     if (normalized === "show_all" || normalized === "info") {
       return { success: true, data: await this.headerPayload(tenantId, job) };
@@ -143,9 +167,6 @@ export class JobDetailService {
       return this.tabPanels.getDepartmentTab(tenantId, id);
     }
     if (normalized === "planned_container") {
-      if (AIR_JOB_TYPES.includes(job.job_type)) {
-        return this.airMawbView(tenantId, job);
-      }
       return this.containerTab.getTab(
         tenantId,
         id,
@@ -211,7 +232,29 @@ export class JobDetailService {
         ? String(dto.line_no)
         : undefined);
     const mawbPatch = this.mergeShowAllMawbDto(dto);
-    const hasMawbField = this.hasAirMawbFields(mawbPatch);
+    const hasMawbField = this.hasAirMawbFields(mawbPatch, dto.mawb != null);
+    const hasSeaOnlyField =
+      dto.mbl_number !== undefined ||
+      dto.hbl_number !== undefined ||
+      dto.bl_number !== undefined ||
+      dto.container_number !== undefined ||
+      dto.container_status !== undefined ||
+      vesselName !== undefined ||
+      dto.voyage_number !== undefined ||
+      lineCode !== undefined;
+
+    const isAir = AIR_JOB_TYPES.includes(job.job_type);
+    if (isAir && hasSeaOnlyField) {
+      throw new BadRequestException(
+        "Sea fields (vessel, voyage, MBL/HBL, container) are not editable on Air jobs.",
+      );
+    }
+    if (!isAir && hasMawbField) {
+      throw new BadRequestException(
+        "MAWB / air fields are only editable on Air Export and Air Import jobs.",
+      );
+    }
+
     const hasField =
       dto.commodity !== undefined ||
       dto.pieces !== undefined ||
@@ -309,8 +352,16 @@ export class JobDetailService {
       let containerStatusCode: string | null | undefined = undefined;
       let containerStatus: ContainerStatus | null | undefined = undefined;
       if (dto.container_status !== undefined) {
-        const raw = String(dto.container_status ?? "").trim();
-        if (!raw) {
+        // null / "" / "—" (DTO Transform + defensive here) → clear
+        const raw =
+          dto.container_status == null
+            ? ""
+            : String(dto.container_status).trim();
+        const cleared =
+          !raw ||
+          /^[\u2014\u2013\u2212-]+$/.test(raw) ||
+          ["n/a", "none", "null"].includes(raw.toLowerCase());
+        if (cleared) {
           containerStatusCode = null;
           containerStatus = null;
         } else {
@@ -443,12 +494,14 @@ export class JobDetailService {
               ...(dto.container_number !== undefined
                 ? { container_number: dto.container_number }
                 : {}),
-              ...(containerStatus !== undefined
+              ...(containerStatusCode !== undefined
                 ? {
-                    status:
-                      containerStatus === null
-                        ? ContainerStatus.EMPTY
-                        : containerStatus,
+                    // Clearable: wipe catalog code. Do not force EMPTY — that
+                    // made show_all GET fall back to the old/default status.
+                    status_code: containerStatusCode,
+                    ...(containerStatus != null
+                      ? { status: containerStatus }
+                      : {}),
                   }
                 : {}),
               updated_by: actorId,
@@ -478,7 +531,7 @@ export class JobDetailService {
       }
 
       if (hasMawbField) {
-        if (!AIR_JOB_TYPES.includes(job.job_type) || !job.air_details) {
+        if (!job.air_details) {
           throw new BadRequestException(
             "MAWB / air fields are only editable on Air Export and Air Import jobs.",
           );
@@ -1223,8 +1276,16 @@ export class JobDetailService {
     };
   }
 
-  private hasAirMawbFields(dto: UpdateAirMawbDto): boolean {
-    return (
+  /**
+   * True air/MAWB keys only. Shared cargo fields (gross_weight / volume_cbm)
+   * count as air only when nested `mawb` was sent — otherwise sea show_all
+   * can patch weight/cbm without triggering the air gate.
+   */
+  private hasAirMawbFields(
+    dto: UpdateAirMawbDto,
+    nestedMawbPresent = false,
+  ): boolean {
+    const airOnly =
       dto.flight_no !== undefined ||
       dto.flight_number !== undefined ||
       dto.flight_status !== undefined ||
@@ -1237,7 +1298,10 @@ export class JobDetailService {
       dto.arrival_flight_number !== undefined ||
       dto.airline_name !== undefined ||
       dto.pallet_count !== undefined ||
-      dto.air_pallet !== undefined ||
+      dto.air_pallet !== undefined;
+    if (airOnly) return true;
+    if (!nestedMawbPresent) return false;
+    return (
       dto.dimensions !== undefined ||
       dto.volume_cbm !== undefined ||
       dto.weight !== undefined ||
@@ -1555,24 +1619,28 @@ export class JobDetailService {
       job.primary_container_number ??
       job.containers_job?.[0]?.container_number ??
       null;
+    // Prefer job primary; then container catalog code only. Never fall back to
+    // JobContainer.status (required enum, defaults EMPTY) or clears bounce back.
     const primaryStatus =
       job.primary_container_status_code ??
       job.primary_container_status ??
       job.containers_job?.[0]?.status_code ??
-      job.containers_job?.[0]?.status ??
       null;
     const containerStatusOptions =
       await this.containerStatuses.optionCodes(tenantId);
     const air = job.air_details;
-    const mawb = AIR_JOB_TYPES.includes(job.job_type)
-      ? await this.airMawbFields(tenantId, job)
-      : null;
+    const isAir = AIR_JOB_TYPES.includes(job.job_type);
+    const isSea = SEA_JOB_TYPES.includes(job.job_type);
+    const mawb = isAir ? await this.airMawbFields(tenantId, job) : null;
+    const closed =
+      job.status === "COMPLETED" || job.status === "CANCELLED";
     return this.labels.enrichOne(tenantId, {
       id: job.id,
       job_number: job.job_number,
       status: job.status,
       job_date: job.job_date,
       job_type: job.job_type,
+      transport_mode: isAir ? "air" : isSea ? "sea" : "other",
       branch_id: job.branch_id,
       department_id: job.department_id,
       company_id: job.company_id,
@@ -1590,40 +1658,50 @@ export class JobDetailService {
       pieces: job.pieces,
       gross_weight: mawb?.gross_weight ?? job.gross_weight,
       volume_cbm: mawb?.volume_cbm ?? job.volume_cbm,
-      mbl_number: mbl,
-      hbl_number: hbl,
-      bl_number: mbl ?? hbl,
-      rotation_number: job.rotation_number ?? null,
-      container_number: primaryCtr,
-      container_status: primaryStatus,
-      container_status_options: containerStatusOptions,
-      /** Air aliases: same source as MAWB tab (booking form ≻ air_details). */
-      mawb_number: mawb?.mawb_number ?? air?.mawb_number ?? null,
-      hawb_number: mawb?.hawb_number ?? air?.hawb_number ?? null,
-      flight_number: mawb?.flight_number ?? air?.flight_number ?? null,
-      flight_no: mawb?.flight_no ?? air?.flight_number ?? null,
-      flight_status: mawb?.flight_status ?? air?.flight_status ?? null,
-      flight_date: mawb?.flight_date ?? air?.flight_date ?? null,
-      shipment_date: mawb?.shipment_date ?? air?.shipment_date ?? null,
-      arrival_flight_number:
-        mawb?.arrival_flight_number ?? air?.arrival_flight_number ?? null,
-      airline_id: mawb?.airline_id ?? air?.airline_id ?? null,
-      airline_name: mawb?.airline_name ?? null,
-      mawb_no: mawb?.mawb_no ?? air?.mawb_number ?? null,
-      hawb_no: mawb?.hawb_no ?? air?.hawb_number ?? null,
-      pallet_count: mawb?.pallet_count ?? null,
-      air_pallet: mawb?.air_pallet ?? null,
-      dimensions: mawb?.dimensions ?? null,
-      weight: mawb?.weight ?? null,
+      /** Sea-only — omitted/null on air so FE cannot edit. */
+      mbl_number: isAir ? null : mbl,
+      hbl_number: isAir ? null : hbl,
+      bl_number: isAir ? null : mbl ?? hbl,
+      rotation_number: isAir ? null : job.rotation_number ?? null,
+      container_number: isAir ? null : primaryCtr,
+      container_status: isAir ? null : primaryStatus,
+      container_status_options: isAir ? [] : containerStatusOptions,
+      /** Air aliases — only on air jobs. */
+      mawb_number: isAir ? mawb?.mawb_number ?? air?.mawb_number ?? null : null,
+      hawb_number: isAir ? mawb?.hawb_number ?? air?.hawb_number ?? null : null,
+      flight_number: isAir
+        ? mawb?.flight_number ?? air?.flight_number ?? null
+        : null,
+      flight_no: isAir ? mawb?.flight_no ?? air?.flight_number ?? null : null,
+      flight_status: isAir
+        ? mawb?.flight_status ?? air?.flight_status ?? null
+        : null,
+      flight_date: isAir ? mawb?.flight_date ?? air?.flight_date ?? null : null,
+      shipment_date: isAir
+        ? mawb?.shipment_date ?? air?.shipment_date ?? null
+        : null,
+      arrival_flight_number: isAir
+        ? mawb?.arrival_flight_number ?? air?.arrival_flight_number ?? null
+        : null,
+      airline_id: isAir ? mawb?.airline_id ?? air?.airline_id ?? null : null,
+      airline_name: isAir ? mawb?.airline_name ?? null : null,
+      mawb_no: isAir ? mawb?.mawb_no ?? air?.mawb_number ?? null : null,
+      hawb_no: isAir ? mawb?.hawb_no ?? air?.hawb_number ?? null : null,
+      pallet_count: isAir ? mawb?.pallet_count ?? null : null,
+      air_pallet: isAir ? mawb?.air_pallet ?? null : null,
+      dimensions: isAir ? mawb?.dimensions ?? null : null,
+      weight: isAir ? mawb?.weight ?? null : null,
       mawb,
-      can_edit_mawb: AIR_JOB_TYPES.includes(job.job_type),
-      can_edit_container_status: !(
-        job.status === "COMPLETED" || job.status === "CANCELLED"
-      ),
-      vessel_name: job.vessel_name ?? null,
-      vessel_number: job.vessel_name ?? null,
-      voyage_number: job.voyage_number ?? sea?.voyage_number ?? null,
-      line_code: job.line_code ?? null,
+      can_edit_mawb: isAir && !closed,
+      can_edit_air_fields: isAir && !closed,
+      can_edit_sea_fields: !isAir && !closed,
+      can_edit_container_status: !isAir && !closed,
+      vessel_name: isAir ? null : job.vessel_name ?? null,
+      vessel_number: isAir ? null : job.vessel_name ?? null,
+      voyage_number: isAir
+        ? null
+        : job.voyage_number ?? sea?.voyage_number ?? null,
+      line_code: isAir ? null : job.line_code ?? null,
       company_code: job.edi_company_code ?? null,
       location_terminal: job.location_terminal ?? null,
       terminal: job.location_terminal ?? null,
@@ -1651,7 +1729,9 @@ export class JobDetailService {
     return {
       can_edit_header: !closed,
       can_edit: !closed,
-      can_edit_container_status: !closed,
+      can_edit_air_fields: isAir && !closed,
+      can_edit_sea_fields: !isAir && !closed,
+      can_edit_container_status: !isAir && !closed,
       can_edit_closed_delivery: canEditClosedDelivery,
       can_delete: !closed,
       can_change_status: true,

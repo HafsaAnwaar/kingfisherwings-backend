@@ -4981,6 +4981,12 @@ model JobCustomsRef {
   customs_status String?   @db.VarChar(40)
   filed_at       DateTime? @db.Date
   cleared_at     DateTime? @db.Date
+  /// Customs hold / examination timeline (Customs tab).
+  on_hold        Boolean   @default(false)
+  held_at        DateTime? @db.Timestamptz
+  inspection_at  DateTime? @db.Timestamptz
+  inspection_notes String? @db.Text
+  released_at    DateTime? @db.Timestamptz
   remarks        String?   @db.Text
   created_at     DateTime  @default(now()) @db.Timestamptz
   updated_at     DateTime  @updatedAt @db.Timestamptz
