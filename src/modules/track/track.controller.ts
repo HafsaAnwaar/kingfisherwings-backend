@@ -22,6 +22,7 @@ import { Response } from "express";
 import { Public } from "../../common/decorators/public.decorators";
 import { TrackService } from "./track.service";
 import { TrackShipmentResponseDto } from "./dto/track-response.dto";
+import { LiveTransportTrackingService } from "./live-transport-tracking.service";
 
 class TrackQueryDto {
   @ApiPropertyOptional({
@@ -53,6 +54,16 @@ class TrackEmbedQueryDto {
   tenant_slug?: string;
 }
 
+class LiveLookupQueryDto {
+  @ApiProperty({
+    example: "EK512",
+    description: "Flight IATA/callsign (EK512) or vessel name / IMO",
+  })
+  @IsString()
+  @Length(2, 100)
+  q!: string;
+}
+
 /**
  * Public Track & Trace (Ch.24.2) — no auth.
  * Sanitized: no charges, GP, costs, internal notes, or other parties’ PII.
@@ -61,7 +72,10 @@ class TrackEmbedQueryDto {
 @Public()
 @Controller("track")
 export class TrackController {
-  constructor(private readonly track: TrackService) {}
+  constructor(
+    private readonly track: TrackService,
+    private readonly live: LiveTransportTrackingService,
+  ) {}
 
   @Get()
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
@@ -80,6 +94,28 @@ export class TrackController {
       tenantSlug: query.tenant_slug,
       host: tenantDomain || host,
     });
+  }
+
+  @Get("live/flight")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({
+    summary: "Live flight lookup (Google-style)",
+    description:
+      "Looks up a flight by number/callsign. Uses AviationStack when AVIATIONSTACK_API_KEY is set, else OpenSky best-effort, plus Google/FlightAware/FR24 links.",
+  })
+  liveFlight(@Query() query: LiveLookupQueryDto) {
+    return this.live.lookupFlight(query.q);
+  }
+
+  @Get("live/vessel")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({
+    summary: "Live vessel / AIS lookup (Google-style)",
+    description:
+      "Looks up a vessel by name or IMO. Uses VesselFinder when VESSELFINDER_API_KEY is set; always returns MarineTraffic/VesselFinder/Google links.",
+  })
+  liveVessel(@Query() query: LiveLookupQueryDto) {
+    return this.live.lookupVessel(query.q);
   }
 
   @Get("pdf")

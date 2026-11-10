@@ -210,6 +210,8 @@ export class JobDetailService {
       (dto.line_no != null && dto.line_no !== ""
         ? String(dto.line_no)
         : undefined);
+    const mawbPatch = this.mergeShowAllMawbDto(dto);
+    const hasMawbField = this.hasAirMawbFields(mawbPatch);
     const hasField =
       dto.commodity !== undefined ||
       dto.pieces !== undefined ||
@@ -248,7 +250,8 @@ export class JobDetailService {
       dto.agent_id !== undefined ||
       dto.location_terminal !== undefined ||
       dto.terminal !== undefined ||
-      dto.location !== undefined;
+      dto.location !== undefined ||
+      hasMawbField;
     if (!hasField) {
       throw new BadRequestException(
         "Provide at least one show_all field to update.",
@@ -472,6 +475,22 @@ export class JobDetailService {
             });
           }
         }
+      }
+
+      if (hasMawbField) {
+        if (!AIR_JOB_TYPES.includes(job.job_type) || !job.air_details) {
+          throw new BadRequestException(
+            "MAWB / air fields are only editable on Air Export and Air Import jobs.",
+          );
+        }
+        await this.applyAirMawbPatch(
+          tx,
+          tenantId,
+          id,
+          job.air_details.id,
+          mawbPatch,
+          actorId,
+        );
       }
 
       await tx.auditLog.create({
@@ -1094,87 +1113,332 @@ export class JobDetailService {
         "MAWB fields are only available on Air Export and Air Import jobs.",
       );
     }
+    if (!this.hasAirMawbFields(dto)) {
+      throw new BadRequestException("Provide at least one MAWB field to update.");
+    }
     await this.prisma.runWithTenant(tenantId, async (tx) => {
-      await tx.airJobDetail.update({
-        where: { id: job.air_details!.id },
+      await this.applyAirMawbPatch(
+        tx,
+        tenantId,
+        id,
+        job.air_details!.id,
+        dto,
+        actorId,
+      );
+    });
+    return this.airMawbView(
+      tenantId,
+      await this.loadJob(tenantId, id, permissions, role),
+    );
+  }
+
+  /** Flatten show_all top-level air aliases + nested `mawb` block. */
+  private mergeShowAllMawbDto(dto: PatchShowAllDto): UpdateAirMawbDto {
+    const nested = dto.mawb ?? {};
+    return {
+      flight_no:
+        dto.flight_no !== undefined
+          ? dto.flight_no
+          : dto.flight_number !== undefined
+            ? dto.flight_number
+            : nested.flight_no !== undefined
+              ? nested.flight_no
+              : nested.flight_number,
+      flight_number:
+        dto.flight_number !== undefined
+          ? dto.flight_number
+          : nested.flight_number !== undefined
+            ? nested.flight_number
+            : nested.flight_no,
+      flight_status:
+        dto.flight_status !== undefined
+          ? dto.flight_status
+          : nested.flight_status,
+      flight_date:
+        dto.flight_date !== undefined ? dto.flight_date : nested.flight_date,
+      shipment_date:
+        dto.shipment_date !== undefined
+          ? dto.shipment_date
+          : nested.shipment_date,
+      mawb_no:
+        dto.mawb_no !== undefined
+          ? dto.mawb_no
+          : dto.mawb_number !== undefined
+            ? dto.mawb_number
+            : nested.mawb_no !== undefined
+              ? nested.mawb_no
+              : nested.mawb_number,
+      mawb_number:
+        dto.mawb_number !== undefined
+          ? dto.mawb_number
+          : nested.mawb_number !== undefined
+            ? nested.mawb_number
+            : nested.mawb_no,
+      hawb_no:
+        dto.hawb_no !== undefined
+          ? dto.hawb_no
+          : dto.hawb_number !== undefined
+            ? dto.hawb_number
+            : nested.hawb_no !== undefined
+              ? nested.hawb_no
+              : nested.hawb_number,
+      hawb_number:
+        dto.hawb_number !== undefined
+          ? dto.hawb_number
+          : nested.hawb_number !== undefined
+            ? nested.hawb_number
+            : nested.hawb_no,
+      arrival_flight_number:
+        dto.arrival_flight_number !== undefined
+          ? dto.arrival_flight_number
+          : nested.arrival_flight_number,
+      airline_name:
+        dto.airline_name !== undefined ? dto.airline_name : nested.airline_name,
+      pallet_count:
+        dto.pallet_count !== undefined ? dto.pallet_count : nested.pallet_count,
+      air_pallet:
+        dto.air_pallet !== undefined
+          ? (dto.air_pallet as UpdateAirMawbDto["air_pallet"])
+          : nested.air_pallet,
+      dimensions:
+        dto.dimensions !== undefined
+          ? dto.dimensions
+          : dto.volume_cbm !== undefined
+            ? dto.volume_cbm
+            : nested.dimensions !== undefined
+              ? nested.dimensions
+              : nested.volume_cbm,
+      volume_cbm:
+        dto.volume_cbm !== undefined ? dto.volume_cbm : nested.volume_cbm,
+      weight:
+        dto.weight !== undefined
+          ? dto.weight
+          : dto.gross_weight !== undefined
+            ? dto.gross_weight
+            : nested.weight !== undefined
+              ? nested.weight
+              : nested.gross_weight,
+      gross_weight:
+        dto.gross_weight !== undefined ? dto.gross_weight : nested.gross_weight,
+    };
+  }
+
+  private hasAirMawbFields(dto: UpdateAirMawbDto): boolean {
+    return (
+      dto.flight_no !== undefined ||
+      dto.flight_number !== undefined ||
+      dto.flight_status !== undefined ||
+      dto.flight_date !== undefined ||
+      dto.shipment_date !== undefined ||
+      dto.mawb_no !== undefined ||
+      dto.mawb_number !== undefined ||
+      dto.hawb_no !== undefined ||
+      dto.hawb_number !== undefined ||
+      dto.arrival_flight_number !== undefined ||
+      dto.airline_name !== undefined ||
+      dto.pallet_count !== undefined ||
+      dto.air_pallet !== undefined ||
+      dto.dimensions !== undefined ||
+      dto.volume_cbm !== undefined ||
+      dto.weight !== undefined ||
+      dto.gross_weight !== undefined
+    );
+  }
+
+  private clearableString(value: string | null | undefined): string | null {
+    if (value == null) return null;
+    const t = String(value).trim();
+    return t.length ? t : null;
+  }
+
+  private async applyAirMawbPatch(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+    airDetailId: string,
+    dto: UpdateAirMawbDto,
+    actorId?: string,
+  ) {
+    const flightNo =
+      dto.flight_no !== undefined
+        ? dto.flight_no
+        : dto.flight_number !== undefined
+          ? dto.flight_number
+          : undefined;
+    const mawbNo =
+      dto.mawb_no !== undefined
+        ? dto.mawb_no
+        : dto.mawb_number !== undefined
+          ? dto.mawb_number
+          : undefined;
+    const hawbNo =
+      dto.hawb_no !== undefined
+        ? dto.hawb_no
+        : dto.hawb_number !== undefined
+          ? dto.hawb_number
+          : undefined;
+    const dimensions =
+      dto.dimensions !== undefined
+        ? dto.dimensions
+        : dto.volume_cbm !== undefined
+          ? dto.volume_cbm
+          : undefined;
+    const weight =
+      dto.weight !== undefined
+        ? dto.weight
+        : dto.gross_weight !== undefined
+          ? dto.gross_weight
+          : undefined;
+
+    let airlineId: string | null | undefined = undefined;
+    if (dto.airline_name !== undefined) {
+      const name = this.clearableString(dto.airline_name);
+      if (!name) {
+        airlineId = null;
+      } else {
+        const airline = await tx.airline.findFirst({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            OR: [
+              { name: { equals: name, mode: "insensitive" } },
+              { iata_code: { equals: name.slice(0, 2).toUpperCase() } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (!airline) {
+          throw new BadRequestException(
+            `Airline not found for "${name}". Use airline master name or IATA code.`,
+          );
+        }
+        airlineId = airline.id;
+      }
+    }
+
+    await tx.airJobDetail.update({
+      where: { id: airDetailId },
+      data: {
+        ...(flightNo !== undefined
+          ? { flight_number: this.clearableString(flightNo) }
+          : {}),
+        ...(dto.flight_status !== undefined
+          ? { flight_status: this.clearableString(dto.flight_status) }
+          : {}),
+        ...(dto.flight_date !== undefined
+          ? {
+              flight_date: dto.flight_date
+                ? new Date(dto.flight_date)
+                : null,
+            }
+          : {}),
+        ...(dto.shipment_date !== undefined
+          ? {
+              shipment_date: dto.shipment_date
+                ? new Date(dto.shipment_date)
+                : null,
+            }
+          : {}),
+        ...(mawbNo !== undefined
+          ? { mawb_number: this.clearableString(mawbNo) }
+          : {}),
+        ...(hawbNo !== undefined
+          ? { hawb_number: this.clearableString(hawbNo) }
+          : {}),
+        ...(dto.arrival_flight_number !== undefined
+          ? {
+              arrival_flight_number: this.clearableString(
+                dto.arrival_flight_number,
+              ),
+            }
+          : {}),
+        ...(airlineId !== undefined ? { airline_id: airlineId } : {}),
+        updated_by: actorId,
+      },
+    });
+
+    const form = await tx.airBookingForm.findFirst({
+      where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+    });
+    const formData = {
+      ...(flightNo !== undefined
+        ? { flight_number: this.clearableString(flightNo) }
+        : {}),
+      ...(dto.flight_status !== undefined
+        ? { flight_status: this.clearableString(dto.flight_status) }
+        : {}),
+      ...(dto.flight_date !== undefined
+        ? {
+            flight_date: dto.flight_date ? new Date(dto.flight_date) : null,
+          }
+        : {}),
+      ...(mawbNo !== undefined
+        ? { mawb_number: this.clearableString(mawbNo) }
+        : {}),
+      ...(hawbNo !== undefined
+        ? { hawb_number: this.clearableString(hawbNo) }
+        : {}),
+      ...(dto.arrival_flight_number !== undefined
+        ? {
+            arrival_flight_number: this.clearableString(
+              dto.arrival_flight_number,
+            ),
+          }
+        : {}),
+      ...(dto.pallet_count !== undefined
+        ? { pallet_count: dto.pallet_count }
+        : {}),
+      ...(dto.air_pallet !== undefined
+        ? {
+            pallets_json:
+              dto.air_pallet == null
+                ? Prisma.DbNull
+                : (JSON.parse(
+                    JSON.stringify(dto.air_pallet),
+                  ) as Prisma.InputJsonValue),
+          }
+        : {}),
+      ...(dimensions !== undefined ? { volume_cbm: dimensions } : {}),
+      ...(weight !== undefined ? { gross_weight_kg: weight } : {}),
+      updated_by: actorId,
+    };
+    if (form) {
+      await tx.airBookingForm.update({
+        where: { id: form.id },
+        data: formData,
+      });
+    } else {
+      await tx.airBookingForm.create({
         data: {
-          ...(dto.flight_no !== undefined ? { flight_number: dto.flight_no } : {}),
-          ...(dto.flight_status !== undefined
-            ? { flight_status: dto.flight_status }
-            : {}),
-          ...(dto.flight_date !== undefined
-            ? {
-                flight_date: dto.flight_date
-                  ? new Date(dto.flight_date)
-                  : null,
-              }
-            : {}),
-          ...(dto.shipment_date !== undefined
-            ? {
-                shipment_date: dto.shipment_date
-                  ? new Date(dto.shipment_date)
-                  : null,
-              }
-            : {}),
-          ...(dto.mawb_no !== undefined ? { mawb_number: dto.mawb_no } : {}),
-          ...(dto.hawb_no !== undefined ? { hawb_number: dto.hawb_no } : {}),
+          tenant_id: tenantId,
+          job_id: jobId,
+          air_job_detail_id: airDetailId,
+          ...formData,
+          created_by: actorId,
+        },
+      });
+    }
+
+    if (weight !== undefined || dimensions !== undefined) {
+      await tx.job.update({
+        where: { id: jobId },
+        data: {
+          ...(weight !== undefined ? { gross_weight: weight } : {}),
+          ...(dimensions !== undefined ? { volume_cbm: dimensions } : {}),
           updated_by: actorId,
         },
       });
-      const form = await tx.airBookingForm.findFirst({
-        where: { tenant_id: tenantId, job_id: id, deleted_at: null },
+    }
+
+    if (flightNo !== undefined) {
+      await tx.shipment.updateMany({
+        where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+        data: {
+          flight_number: this.clearableString(flightNo),
+          updated_by: actorId,
+        },
       });
-      const formData = {
-        ...(dto.flight_no !== undefined ? { flight_number: dto.flight_no } : {}),
-        ...(dto.flight_status !== undefined
-          ? { flight_status: dto.flight_status }
-          : {}),
-        ...(dto.mawb_no !== undefined ? { mawb_number: dto.mawb_no } : {}),
-        ...(dto.hawb_no !== undefined ? { hawb_number: dto.hawb_no } : {}),
-        ...(dto.pallet_count !== undefined
-          ? { pallet_count: dto.pallet_count }
-          : {}),
-        ...(dto.air_pallet !== undefined
-          ? {
-              pallets_json: JSON.parse(
-                JSON.stringify(dto.air_pallet),
-              ) as Prisma.InputJsonValue,
-            }
-          : {}),
-        ...(dto.dimensions !== undefined ? { volume_cbm: dto.dimensions } : {}),
-        ...(dto.weight !== undefined ? { gross_weight_kg: dto.weight } : {}),
-        updated_by: actorId,
-      };
-      if (form) {
-        await tx.airBookingForm.update({
-          where: { id: form.id },
-          data: formData,
-        });
-      } else {
-        await tx.airBookingForm.create({
-          data: {
-            tenant_id: tenantId,
-            job_id: id,
-            air_job_detail_id: job.air_details!.id,
-            ...formData,
-            created_by: actorId,
-          },
-        });
-      }
-      if (dto.weight !== undefined || dto.dimensions !== undefined) {
-        await tx.job.update({
-          where: { id },
-          data: {
-            ...(dto.weight !== undefined ? { gross_weight: dto.weight } : {}),
-            ...(dto.dimensions !== undefined
-              ? { volume_cbm: dto.dimensions }
-              : {}),
-            updated_by: actorId,
-          },
-        });
-      }
-    });
-    return this.airMawbView(tenantId, await this.loadJob(tenantId, id, permissions, role));
+    }
   }
 
   private async airMawbView(
@@ -1196,20 +1460,38 @@ export class JobDetailService {
     const air = job.air_details;
     return {
       kind: "mawb" as const,
+      editable: true,
+      clearable: true,
       flight_no: form?.flight_number ?? air?.flight_number ?? null,
+      flight_number: form?.flight_number ?? air?.flight_number ?? null,
       flight_status: form?.flight_status ?? air?.flight_status ?? null,
-      flight_date: air?.flight_date ?? null,
+      flight_date: form?.flight_date ?? air?.flight_date ?? null,
       shipment_date: air?.shipment_date ?? null,
       mawb_no: form?.mawb_number ?? air?.mawb_number ?? null,
+      mawb_number: form?.mawb_number ?? air?.mawb_number ?? null,
       hawb_no: form?.hawb_number ?? air?.hawb_number ?? null,
+      hawb_number: form?.hawb_number ?? air?.hawb_number ?? null,
+      arrival_flight_number:
+        form?.arrival_flight_number ?? air?.arrival_flight_number ?? null,
+      airline_id: air?.airline_id ?? null,
       air_pallet: form?.pallets_json ?? null,
       pallet_count: form?.pallet_count ?? null,
       dimensions:
+        form?.volume_cbm != null ? Number(form.volume_cbm) : job.volume_cbm,
+      volume_cbm:
         form?.volume_cbm != null ? Number(form.volume_cbm) : job.volume_cbm,
       weight:
         form?.gross_weight_kg != null
           ? Number(form.gross_weight_kg)
           : job.gross_weight,
+      gross_weight:
+        form?.gross_weight_kg != null
+          ? Number(form.gross_weight_kg)
+          : job.gross_weight,
+      path_hints: {
+        patch_mawb: `/jobs/${job.id}/detail/mawb`,
+        patch_show_all: `/jobs/${job.id}/detail/show_all`,
+      },
     };
   }
 
@@ -1303,8 +1585,16 @@ export class JobDetailService {
       mawb_number: air?.mawb_number ?? null,
       hawb_number: air?.hawb_number ?? null,
       flight_number: air?.flight_number ?? null,
+      flight_no: air?.flight_number ?? null,
       flight_status: air?.flight_status ?? null,
+      flight_date: air?.flight_date ?? null,
+      shipment_date: air?.shipment_date ?? null,
+      arrival_flight_number: air?.arrival_flight_number ?? null,
+      airline_id: air?.airline_id ?? null,
+      mawb_no: air?.mawb_number ?? null,
+      hawb_no: air?.hawb_number ?? null,
       mawb,
+      can_edit_mawb: AIR_JOB_TYPES.includes(job.job_type),
       can_edit_container_status: !(
         job.status === "COMPLETED" || job.status === "CANCELLED"
       ),
@@ -1373,6 +1663,10 @@ export class JobDetailService {
         change_status: `/jobs/${job.id}/change-status`,
         status_options: `/jobs/status-options?job_id=${job.id}`,
         show_all_patch: `/jobs/${job.id}/detail/show_all`,
+        mawb: isAir ? `/jobs/${job.id}/detail/mawb` : null,
+        tracking_live: `/jobs/${job.id}/tracking/live`,
+        live_flight_lookup: "/track/live/flight?q=",
+        live_vessel_lookup: "/track/live/vessel?q=",
         container_status_options: `/jobs/container-statuses`,
         gpum: `/jobs/${job.id}/gpum`,
         cancel: `/jobs/${job.id}/cancel`,
@@ -1380,7 +1674,6 @@ export class JobDetailService {
         switch_bl: `/jobs/${job.id}/documents/switch-bl`,
         bills_of_lading: `/jobs/${job.id}/bills-of-lading`,
         air_waybills: isAir ? `/jobs/${job.id}/air-waybills` : null,
-        mawb: isAir ? `/jobs/${job.id}/detail/mawb` : null,
         awb: isAir ? `/jobs/${job.id}/air-waybills` : null,
         ...(isAir
           ? {

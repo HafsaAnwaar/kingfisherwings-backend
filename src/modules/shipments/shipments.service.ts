@@ -524,6 +524,44 @@ export class ShipmentsService {
     });
   }
 
+  async softDelete(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    permissions?: string[],
+  ): Promise<void> {
+    const shipment = await this.findOne(tenantId, id, permissions);
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const freedNumber = `${shipment.shipment_number}.del.${id.slice(0, 8)}`;
+      await tx.shipment.update({
+        where: { id },
+        data: {
+          deleted_at: new Date(),
+          shipment_number: freedNumber.slice(0, 40),
+          updated_by: actorId,
+        },
+      });
+      await tx.shipmentCharge.updateMany({
+        where: { shipment_id: id, tenant_id: tenantId, deleted_at: null },
+        data: { deleted_at: new Date(), updated_by: actorId },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actorId ?? null,
+          action: "SHIPMENT_DELETED",
+          entity: "SHIPMENT",
+          entity_id: id,
+          old_values: {
+            status: shipment.status,
+            shipment_number: shipment.shipment_number,
+          },
+          new_values: { deleted: true, shipment_number: freedNumber.slice(0, 40) },
+        },
+      });
+    });
+  }
+
   async changeStatus(
     tenantId: string,
     id: string,

@@ -185,6 +185,48 @@ export class UpsertJobRoutingLegDto {
   @IsString()
   @MaxLength(50)
   voyage_number?: string;
+
+  /** Air routing extras — accepted so FE air payloads do not 400. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  airline_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  flight_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  arrival_flight_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  mawb_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  hawb_number?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  flight_date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  flight_status?: string;
 }
 
 export class PushRoutingToSubJobsDto {

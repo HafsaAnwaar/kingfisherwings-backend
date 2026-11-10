@@ -233,6 +233,52 @@ export class CreateShipmentDto {
   @MaxLength(50)
   flight_number?: string;
 
+  @ApiPropertyOptional({
+    description: "Airline display name (accepted from FE; not stored on shipment)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  airline_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  arrival_flight_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  mawb_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  hawb_number?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  flight_date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  flight_status?: string;
+
+  @ApiPropertyOptional({
+    description: "Multi-leg air itinerary (accepted; stored via tracking/routing APIs)",
+    type: "array",
+    items: { type: "object" },
+  })
+  @IsOptional()
+  @IsArray()
+  legs?: Record<string, unknown>[];
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

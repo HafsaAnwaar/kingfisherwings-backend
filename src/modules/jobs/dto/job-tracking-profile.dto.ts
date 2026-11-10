@@ -12,7 +12,7 @@ import {
   ValidateNested,
 } from "class-validator";
 
-/** 1st / 2nd (and further) vessel legs. */
+/** 1st / 2nd (and further) vessel / flight legs. */
 export class JobTrackingLegDto {
   @ApiPropertyOptional({ example: 1, description: "1 = first leg, 2 = second leg" })
   @IsOptional()
@@ -55,6 +55,58 @@ export class JobTrackingLegDto {
   @IsString()
   @MaxLength(120)
   pod?: string;
+
+  /** Air legs — FE echoes these on save; stored in legs JSON. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  airline_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  flight_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  arrival_flight_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  mawb_number?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  hawb_number?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  flight_date?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  flight_status?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  etd?: string | null;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  eta?: string | null;
 }
 
 /**
@@ -402,6 +454,51 @@ export class UpsertJobTrackingProfileDto {
   @IsOptional()
   @IsDateString()
   terminal_cutoff_at?: string | null;
+
+  /**
+   * Air header fields — FE often PATCHes the full air show/track payload.
+   * Persisted into detailed_data so forbidNonWhitelisted does not 400.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  airline_name?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  flight_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  arrival_flight_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  mawb_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  hawb_number?: string | null;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  flight_date?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  flight_status?: string | null;
 
   @ApiPropertyOptional({
     type: [JobTrackingLegDto],

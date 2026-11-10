@@ -14,7 +14,9 @@ import {
   MaxLength,
   Min,
   ValidateIf,
+  ValidateNested,
 } from "class-validator";
+import { UpdateAirMawbDto } from "./air-mawb.dto";
 
 function emptyToUndef({ value }: { value: unknown }) {
   if (value === "" || value === null) return null;
@@ -180,6 +182,118 @@ export class PatchShowAllDto {
   @IsString()
   @MaxLength(50)
   voyage_number?: string | null;
+
+  /** Air show_all / track payload fields (FE echoes GET). */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  airline_name?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  flight_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  arrival_flight_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  mawb_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  hawb_number?: string | null;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @Transform(emptyToUndef)
+  @ValidateIf((_, v) => v != null && v !== "")
+  @IsDateString()
+  flight_date?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  flight_status?: string | null;
+
+  @ApiPropertyOptional({
+    description: "Air / routing legs echoed from show_all GET — accepted, not applied here",
+  })
+  @IsOptional()
+  @Allow()
+  legs?: unknown;
+
+  /** MAWB tab aliases — same editable fields as PUT …/detail/mawb */
+  @ApiPropertyOptional({ description: "Alias of flight_number" })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null && v !== "")
+  @IsString()
+  @MaxLength(20)
+  flight_no?: string | null;
+
+  @ApiPropertyOptional({ description: "Alias of mawb_number" })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null && v !== "")
+  @IsString()
+  @MaxLength(50)
+  mawb_no?: string | null;
+
+  @ApiPropertyOptional({ description: "Alias of hawb_number" })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null && v !== "")
+  @IsString()
+  @MaxLength(50)
+  hawb_no?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @ValidateIf((_, v) => v != null)
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  pallet_count?: number | null;
+
+  @ApiPropertyOptional({ description: "Pallet lines JSON (clears with null)" })
+  @IsOptional()
+  @Allow()
+  air_pallet?: unknown;
+
+  @ApiPropertyOptional({ description: "Volume CBM alias" })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null)
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  dimensions?: number | null;
+
+  @ApiPropertyOptional({ description: "Gross weight kg alias" })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null)
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  weight?: number | null;
+
+  @ApiPropertyOptional({
+    type: UpdateAirMawbDto,
+    description:
+      "Nested MAWB block from show_all GET (`mawb: { flight_no, … }`). Editable + clearable.",
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateAirMawbDto)
+  mawb?: UpdateAirMawbDto;
 
   @ApiPropertyOptional({ description: "Shipping line code" })
   @IsOptional()

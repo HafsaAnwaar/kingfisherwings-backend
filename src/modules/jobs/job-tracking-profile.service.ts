@@ -124,6 +124,47 @@ export class JobTrackingProfileService {
             ? dto.dest_label
             : undefined;
 
+      const airDetailPatch: Record<string, unknown> = {};
+      if (dto.airline_name !== undefined)
+        airDetailPatch.airline_name = dto.airline_name;
+      if (dto.flight_number !== undefined)
+        airDetailPatch.flight_number = dto.flight_number;
+      if (dto.arrival_flight_number !== undefined)
+        airDetailPatch.arrival_flight_number = dto.arrival_flight_number;
+      if (dto.mawb_number !== undefined)
+        airDetailPatch.mawb_number = dto.mawb_number;
+      if (dto.hawb_number !== undefined)
+        airDetailPatch.hawb_number = dto.hawb_number;
+      if (dto.flight_date !== undefined)
+        airDetailPatch.flight_date = dto.flight_date;
+      if (dto.flight_status !== undefined)
+        airDetailPatch.flight_status = dto.flight_status;
+
+      const existing = await tx.jobTrackingProfile.findUnique({
+        where: { job_id: jobId },
+        select: { detailed_data: true },
+      });
+      const existingDetailed =
+        existing?.detailed_data &&
+        typeof existing.detailed_data === "object" &&
+        !Array.isArray(existing.detailed_data)
+          ? (existing.detailed_data as Record<string, unknown>)
+          : {};
+      const incomingDetailed =
+        dto.detailed_data !== undefined &&
+        dto.detailed_data &&
+        typeof dto.detailed_data === "object"
+          ? dto.detailed_data
+          : {};
+      const mergedDetailed =
+        dto.detailed_data !== undefined || Object.keys(airDetailPatch).length
+          ? {
+              ...existingDetailed,
+              ...incomingDetailed,
+              ...airDetailPatch,
+            }
+          : undefined;
+
       const data: Prisma.JobTrackingProfileUncheckedUpdateInput = {
         updated_by: actorId,
         ...(dto.bl_number !== undefined ? { bl_number: dto.bl_number } : {}),
@@ -168,10 +209,9 @@ export class JobTrackingProfileService {
                 dto.customs_status as unknown as Prisma.InputJsonValue,
             }
           : {}),
-        ...(dto.detailed_data !== undefined
+        ...(mergedDetailed !== undefined
           ? {
-              detailed_data:
-                dto.detailed_data as unknown as Prisma.InputJsonValue,
+              detailed_data: mergedDetailed as unknown as Prisma.InputJsonValue,
             }
           : {}),
         ...(dto.pre_manifest !== undefined
@@ -211,7 +251,8 @@ export class JobTrackingProfileService {
             []) as unknown as Prisma.InputJsonValue,
           customs_status: (dto.customs_status ??
             []) as unknown as Prisma.InputJsonValue,
-          detailed_data: (dto.detailed_data ??
+          detailed_data: (mergedDetailed ??
+            dto.detailed_data ??
             this.seedFromJob(job)
               .detailed_data) as unknown as Prisma.InputJsonValue,
           pre_manifest: (dto.pre_manifest ??

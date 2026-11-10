@@ -176,6 +176,7 @@ import {
   SendDeliveryAcknowledgementDto,
 } from "./dto/delivery-acknowledgement.dto";
 import { TrackService } from "../track/track.service";
+import { LiveTransportTrackingService } from "../track/live-transport-tracking.service";
 import { JobCreateDraftService } from "./job-create-draft.service";
 import { JobTrackingProfileService } from "./job-tracking-profile.service";
 import { UpsertJobCreateDraftDto } from "./dto/job-create-draft.dto";
@@ -315,6 +316,7 @@ export class JobsController {
     private readonly sectionFiles: OpsSectionAttachmentsService,
     private readonly acknowledgement: DeliveryAcknowledgementService,
     private readonly track: TrackService,
+    private readonly liveTransport: LiveTransportTrackingService,
     private readonly createDrafts: JobCreateDraftService,
     private readonly trackingProfile: JobTrackingProfileService,
   ) {}
@@ -1462,17 +1464,35 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Track & trace (same payload as public /track) — route, timeline (milestones/containers only), cargo_info, pre_manifest, qty_gw_vol",
+      "Track & trace (same payload as public /track) — route, timeline (milestones/containers only), cargo_info, pre_manifest, qty_gw_vol, live_tracking",
   })
-  getJobTracking(
+  async getJobTracking(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Query("container") container?: string,
+    @Query("live") live?: string,
   ) {
-    return this.track.trackByJobId(tenantId, id, {
+    const payload = await this.track.trackByJobId(tenantId, id, {
       includeNotes: true,
       focusContainerNumber: container,
     });
+    const includeLive = live !== "0" && live !== "false";
+    if (!includeLive) return payload;
+    const live_tracking = await this.liveTransport.forJob(tenantId, id);
+    return { ...payload, live_tracking };
+  }
+
+  @Get(":id/tracking/live")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Live vessel or flight card for this job (AIS / flight position + Google-style external links)",
+  })
+  liveJobTracking(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.liveTransport.forJob(tenantId, id);
   }
 
   @Get(":id/tracking/pdf")
