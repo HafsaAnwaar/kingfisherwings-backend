@@ -87,6 +87,16 @@ export class DeliveryAcknowledgementService {
     const customerMarked =
       ack?.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER ||
       ack?.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN;
+    const sentOrLater =
+      ack?.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER ||
+      ack?.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER ||
+      ack?.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN ||
+      ack?.status === DeliveryAcknowledgementStatus.SUBMITTED;
+    const fieldsLocked = Boolean(sentOrLater);
+    const canAttachProof =
+      !!ack &&
+      ack.status !== DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN;
+    const hasProof = (ack?.attachments?.length ?? 0) > 0;
     const snapshot =
       ack?.template_snapshot &&
       typeof ack.template_snapshot === "object" &&
@@ -113,6 +123,15 @@ export class DeliveryAcknowledgementService {
             }
           : null,
         customer_marked_received: customerMarked,
+        /** After first send: message/container locked; proof may still be attached. */
+        fields_locked: fieldsLocked,
+        can_edit_message: !fieldsLocked,
+        can_edit_container: !fieldsLocked,
+        can_attach_proof: canAttachProof,
+        has_proof: hasProof,
+        can_resend_with_proof:
+          canAttachProof &&
+          ack?.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER,
         path_hints: {
           send: `/jobs/${jobId}/acknowledgement/send`,
           submit: `/portal/shipments/{id}/acknowledgement`,
@@ -159,6 +178,49 @@ export class DeliveryAcknowledgementService {
       throw new BadRequestException(
         `Acknowledgement already ${draft.status}.`,
       );
+    }
+
+    const alreadySent =
+      draft.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER ||
+      draft.status === DeliveryAcknowledgementStatus.SUBMITTED;
+
+    // After first send: message/container locked. Only proof attach + re-notify.
+    if (alreadySent) {
+      const incomingMessage = dto.message?.trim() || dto.remarks?.trim() || null;
+      const messageChanged =
+        !!incomingMessage &&
+        incomingMessage !== (draft.remarks?.trim() || null);
+      const containerChanged =
+        dto.container_id !== undefined &&
+        dto.container_id !== draft.container_id;
+      if (messageChanged || containerChanged) {
+        throw new BadRequestException(
+          "Acknowledgement already sent. Message and container are locked — attach proof only (multipart file or POST …/attachments).",
+        );
+      }
+      if (!file?.buffer?.length) {
+        throw new BadRequestException(
+          "Acknowledgement already sent without changing fields. Attach a proof file to send again, or use POST …/acknowledgement/attachments.",
+        );
+      }
+      const attached = await this.uploadAttachment(
+        tenantId,
+        jobId,
+        file,
+        actorId,
+      );
+      await this.notifyAckSent(tenantId, jobId, job, true);
+      return {
+        success: true,
+        data: {
+          ...draft,
+          admin_message: draft.remarks,
+          customer_marked_received: false,
+          attachment: attached.data,
+          fields_locked: true,
+        },
+        message: "Proof attached and customer notified",
+      };
     }
 
     const message =
@@ -208,20 +270,7 @@ export class DeliveryAcknowledgementService {
       await this.uploadAttachment(tenantId, jobId, file, actorId);
     }
 
-    const partyIds = portalPartyIdsFromJob(job);
-    for (const partyId of partyIds) {
-      void this.notifications
-        ?.notifyPartyPortalUsers(tenantId, partyId, {
-          type: NotificationType.DOCUMENT_READY,
-          title: `Acknowledgement requested — ${job.job_number}`,
-          message:
-            "Your logistics partner has sent a delivery acknowledgement. Please review and mark as received.",
-          entity_type: "JOB",
-          entity_id: jobId,
-          link_path: `/portal/shipments`,
-        })
-        .catch(() => undefined);
-    }
+    await this.notifyAckSent(tenantId, jobId, job, false);
 
     return {
       success: true,
@@ -229,9 +278,41 @@ export class DeliveryAcknowledgementService {
         ...updated,
         admin_message: message,
         customer_marked_received: false,
+        fields_locked: true,
+        can_attach_proof: true,
       },
       message: "Sent to customer",
     };
+  }
+
+  private async notifyAckSent(
+    tenantId: string,
+    jobId: string,
+    job: {
+      job_number: string;
+      shipper_id?: string | null;
+      consignee_id?: string | null;
+      billing_party_id?: string | null;
+    },
+    proofOnly: boolean,
+  ) {
+    const partyIds = portalPartyIdsFromJob(job);
+    for (const partyId of partyIds) {
+      void this.notifications
+        ?.notifyPartyPortalUsers(tenantId, partyId, {
+          type: NotificationType.DOCUMENT_READY,
+          title: proofOnly
+            ? `Acknowledgement proof added — ${job.job_number}`
+            : `Acknowledgement requested — ${job.job_number}`,
+          message: proofOnly
+            ? "Your logistics partner attached proof to the delivery acknowledgement. Please review."
+            : "Your logistics partner has sent a delivery acknowledgement. Please review and mark as received.",
+          entity_type: "JOB",
+          entity_id: jobId,
+          link_path: `/portal/shipments`,
+        })
+        .catch(() => undefined);
+    }
   }
 
   async listAttachments(tenantId: string, jobId: string) {

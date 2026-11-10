@@ -4697,7 +4697,8 @@ export class JobsController {
         file: {
           type: "string",
           format: "binary",
-          description: "Optional attachment",
+          description:
+            "Optional on first send. Required to re-send after send — message/container are locked; proof only.",
         },
       },
     },
@@ -4707,7 +4708,7 @@ export class JobsController {
   )
   @ApiOperation({
     summary:
-      "Admin sends written delivery acknowledgement to customer (optional attachment)",
+      "Admin sends delivery acknowledgement (optional file). After send, only proof attach/resend is allowed.",
   })
   sendAcknowledgement(
     @CurrentUser("tenantId") tenantId: string,

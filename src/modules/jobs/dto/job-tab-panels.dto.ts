@@ -298,6 +298,42 @@ export class UpsertJobCustomsRefDto {
   @IsDateString()
   cleared_at?: string;
 
+  @ApiPropertyOptional({
+    description: "Customs hold flag (inspection / exam hold)",
+  })
+  @IsOptional()
+  @IsBoolean()
+  on_hold?: boolean;
+
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "When cargo was placed on customs hold",
+  })
+  @IsOptional()
+  @IsDateString()
+  held_at?: string | null;
+
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "Customs inspection date/time",
+  })
+  @IsOptional()
+  @IsDateString()
+  inspection_at?: string | null;
+
+  @ApiPropertyOptional({ description: "Inspection / exam notes" })
+  @IsOptional()
+  @IsString()
+  inspection_notes?: string | null;
+
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "Customs release date/time",
+  })
+  @IsOptional()
+  @IsDateString()
+  released_at?: string | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

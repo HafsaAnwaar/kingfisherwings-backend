@@ -692,7 +692,7 @@ export class JobTabPanelsService {
   // ─── Customs / SB-BOE ───────────────────────────────────────
 
   async getCustomsTab(tenantId: string, jobId: string) {
-    await this.assertJob(tenantId, jobId);
+    const job = await this.assertJob(tenantId, jobId);
     const [refs, seaFcl] = await this.prisma.runWithTenant(
       tenantId,
       async (tx) => {
@@ -711,11 +711,31 @@ export class JobTabPanelsService {
       success: true,
       data: {
         refs,
+        /** Job-level ops hold (stop/hold) — alongside per-ref customs hold. */
+        job_hold: {
+          hold_reason: job.hold_reason ?? null,
+          held_at: job.held_at ?? null,
+          expected_release_at: job.expected_release_at ?? null,
+          status: job.status,
+        },
         sea_fcl: seaFcl ?? null,
+        field_hints: {
+          on_hold: "Customs hold flag",
+          held_at: "Hold date/time",
+          inspection_at: "Customs inspection date/time",
+          inspection_notes: "Inspection notes",
+          released_at: "Customs release date/time",
+          cleared_at: "Clearance date",
+          filed_at: "Filing date",
+        },
         actions: { add: true, update: true, delete: true },
         path_hints: {
           add: `/jobs/${jobId}/customs-refs`,
+          update: `/jobs/${jobId}/customs-refs/{refId}`,
           ops_references: `/ops/JOB/${jobId}/references`,
+          job_stop: `/jobs/${jobId}/stop`,
+          job_hold: `/jobs/${jobId}/hold`,
+          job_resume: `/jobs/${jobId}/resume`,
         },
       },
     };
@@ -739,6 +759,13 @@ export class JobTabPanelsService {
           customs_status: dto.customs_status,
           filed_at: dto.filed_at ? new Date(dto.filed_at) : undefined,
           cleared_at: dto.cleared_at ? new Date(dto.cleared_at) : undefined,
+          on_hold: dto.on_hold ?? false,
+          held_at: dto.held_at ? new Date(dto.held_at) : undefined,
+          inspection_at: dto.inspection_at
+            ? new Date(dto.inspection_at)
+            : undefined,
+          inspection_notes: dto.inspection_notes ?? undefined,
+          released_at: dto.released_at ? new Date(dto.released_at) : undefined,
           remarks: dto.remarks,
         },
       });
@@ -793,6 +820,27 @@ export class JobTabPanelsService {
             : {}),
           ...(dto.cleared_at !== undefined
             ? { cleared_at: dto.cleared_at ? new Date(dto.cleared_at) : null }
+            : {}),
+          ...(dto.on_hold !== undefined ? { on_hold: dto.on_hold } : {}),
+          ...(dto.held_at !== undefined
+            ? { held_at: dto.held_at ? new Date(dto.held_at) : null }
+            : {}),
+          ...(dto.inspection_at !== undefined
+            ? {
+                inspection_at: dto.inspection_at
+                  ? new Date(dto.inspection_at)
+                  : null,
+              }
+            : {}),
+          ...(dto.inspection_notes !== undefined
+            ? { inspection_notes: dto.inspection_notes }
+            : {}),
+          ...(dto.released_at !== undefined
+            ? {
+                released_at: dto.released_at
+                  ? new Date(dto.released_at)
+                  : null,
+              }
             : {}),
           ...(dto.remarks !== undefined ? { remarks: dto.remarks } : {}),
         },

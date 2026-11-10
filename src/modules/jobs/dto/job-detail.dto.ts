@@ -147,7 +147,7 @@ export class PatchShowAllDto {
 
   @ApiPropertyOptional({
     description:
-      "Primary JobContainer status — editable on show_all (EMPTY, PICKED, STUFFED, GATED_IN, LOADED, IN_TRANSIT, DISCHARGED, RETURNED). Send null/\"\" to clear.",
+      'Primary container status — editable + clearable on show_all. Send null, "", or placeholder "—" / "-" to clear.',
     enum: [
       "EMPTY",
       "PICKED",
@@ -158,8 +158,19 @@ export class PatchShowAllDto {
       "DISCHARGED",
       "RETURNED",
     ],
+    nullable: true,
   })
-  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined) return undefined;
+    if (value == null) return null;
+    const t = String(value).trim();
+    // FE select "empty" options often send an em/en dash or hyphen, not null.
+    if (!t || /^[\u2014\u2013\u2212-]+$/.test(t)) return null;
+    const lower = t.toLowerCase();
+    if (lower === "n/a" || lower === "none" || lower === "null") return null;
+    return t;
+  })
+  @ValidateIf((_, v) => v != null)
   @IsString()
   @MaxLength(40)
   container_status?: string | null;

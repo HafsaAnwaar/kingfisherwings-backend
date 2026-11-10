@@ -10,14 +10,16 @@ import {
 export class SendDeliveryAcknowledgementDto {
   @ApiPropertyOptional({
     format: "uuid",
-    description: "JobContainer to acknowledge when the job has multiple containers",
+    description:
+      "JobContainer to acknowledge when the job has multiple containers. Locked after first send.",
   })
   @IsOptional()
   @IsUUID()
   container_id?: string;
 
   @ApiPropertyOptional({
-    description: "Written acknowledgement message sent to the customer",
+    description:
+      "Written acknowledgement message sent to the customer. Required on first send; locked afterward (proof-only resend).",
     example: "Please confirm receipt of the consignment for this job.",
   })
   @IsOptional()
@@ -26,7 +28,7 @@ export class SendDeliveryAcknowledgementDto {
   message?: string;
 
   @ApiPropertyOptional({
-    description: "Alias for message (kept for existing clients)",
+    description: "Alias for message (kept for existing clients). Locked after first send.",
   })
   @IsOptional()
   @IsString()
