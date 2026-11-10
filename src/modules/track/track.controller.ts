@@ -82,18 +82,24 @@ export class TrackController {
   @ApiOperation({
     summary: "Public shipment track by reference",
     description:
-      "No auth and no tenant_slug required. Pass only ref = container number, BL (HBL/MBL), or AWB (HAWB/MAWB). Returns current_status, container meta, progress_legs, and history.",
+      "No auth and no tenant_slug required. Pass only ref = container number, BL (HBL/MBL), or AWB (HAWB/MAWB). Returns current_status, container meta, progress_legs, history, and live_tracking (vessel/flight). Pass live=0 to skip live lookup.",
   })
   @ApiOkResponse({ type: TrackShipmentResponseDto })
   trackShipment(
     @Query() query: TrackQueryDto,
+    @Query("live") live?: string,
     @Headers("host") host?: string,
     @Headers("x-tenant-domain") tenantDomain?: string,
   ) {
-    return this.track.track(query.ref, {
-      tenantSlug: query.tenant_slug,
-      host: tenantDomain || host,
-    });
+    const includeLive = live !== "0" && live !== "false";
+    return this.track.track(
+      query.ref,
+      {
+        tenantSlug: query.tenant_slug,
+        host: tenantDomain || host,
+      },
+      { includeLive },
+    );
   }
 
   @Get("live/flight")
@@ -188,17 +194,23 @@ export class TrackController {
   @ApiOperation({
     summary: "Public track by path reference (container / BL / AWB / token)",
     description:
-      "Same as GET /track?ref=… — no tenant_slug required. Share links: /track/{token}.",
+      "Same as GET /track?ref=… — no tenant_slug required. Share links: /track/{token}. Includes live_tracking unless live=0.",
   })
   trackByPath(
     @Param("ref") ref: string,
     @Query("tenant_slug") tenantSlug?: string,
+    @Query("live") live?: string,
     @Headers("host") host?: string,
     @Headers("x-tenant-domain") tenantDomain?: string,
   ) {
-    return this.track.track(ref, {
-      tenantSlug,
-      host: tenantDomain || host,
-    });
+    const includeLive = live !== "0" && live !== "false";
+    return this.track.track(
+      ref,
+      {
+        tenantSlug,
+        host: tenantDomain || host,
+      },
+      { includeLive },
+    );
   }
 }

@@ -1458,6 +1458,20 @@ export class JobDetailService {
       }),
     );
     const air = job.air_details;
+    let airlineName: string | null = null;
+    if (air?.airline_id) {
+      const airline = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.airline.findFirst({
+          where: {
+            id: air.airline_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { name: true, iata_code: true },
+        }),
+      );
+      airlineName = airline?.name ?? airline?.iata_code ?? null;
+    }
     return {
       kind: "mawb" as const,
       editable: true,
@@ -1474,6 +1488,7 @@ export class JobDetailService {
       arrival_flight_number:
         form?.arrival_flight_number ?? air?.arrival_flight_number ?? null,
       airline_id: air?.airline_id ?? null,
+      airline_name: airlineName,
       air_pallet: form?.pallets_json ?? null,
       pallet_count: form?.pallet_count ?? null,
       dimensions:
@@ -1573,8 +1588,8 @@ export class JobDetailService {
       eta: job.eta,
       commodity: job.commodity,
       pieces: job.pieces,
-      gross_weight: job.gross_weight,
-      volume_cbm: job.volume_cbm,
+      gross_weight: mawb?.gross_weight ?? job.gross_weight,
+      volume_cbm: mawb?.volume_cbm ?? job.volume_cbm,
       mbl_number: mbl,
       hbl_number: hbl,
       bl_number: mbl ?? hbl,
@@ -1582,17 +1597,24 @@ export class JobDetailService {
       container_number: primaryCtr,
       container_status: primaryStatus,
       container_status_options: containerStatusOptions,
-      mawb_number: air?.mawb_number ?? null,
-      hawb_number: air?.hawb_number ?? null,
-      flight_number: air?.flight_number ?? null,
-      flight_no: air?.flight_number ?? null,
-      flight_status: air?.flight_status ?? null,
-      flight_date: air?.flight_date ?? null,
-      shipment_date: air?.shipment_date ?? null,
-      arrival_flight_number: air?.arrival_flight_number ?? null,
-      airline_id: air?.airline_id ?? null,
-      mawb_no: air?.mawb_number ?? null,
-      hawb_no: air?.hawb_number ?? null,
+      /** Air aliases: same source as MAWB tab (booking form ≻ air_details). */
+      mawb_number: mawb?.mawb_number ?? air?.mawb_number ?? null,
+      hawb_number: mawb?.hawb_number ?? air?.hawb_number ?? null,
+      flight_number: mawb?.flight_number ?? air?.flight_number ?? null,
+      flight_no: mawb?.flight_no ?? air?.flight_number ?? null,
+      flight_status: mawb?.flight_status ?? air?.flight_status ?? null,
+      flight_date: mawb?.flight_date ?? air?.flight_date ?? null,
+      shipment_date: mawb?.shipment_date ?? air?.shipment_date ?? null,
+      arrival_flight_number:
+        mawb?.arrival_flight_number ?? air?.arrival_flight_number ?? null,
+      airline_id: mawb?.airline_id ?? air?.airline_id ?? null,
+      airline_name: mawb?.airline_name ?? null,
+      mawb_no: mawb?.mawb_no ?? air?.mawb_number ?? null,
+      hawb_no: mawb?.hawb_no ?? air?.hawb_number ?? null,
+      pallet_count: mawb?.pallet_count ?? null,
+      air_pallet: mawb?.air_pallet ?? null,
+      dimensions: mawb?.dimensions ?? null,
+      weight: mawb?.weight ?? null,
       mawb,
       can_edit_mawb: AIR_JOB_TYPES.includes(job.job_type),
       can_edit_container_status: !(

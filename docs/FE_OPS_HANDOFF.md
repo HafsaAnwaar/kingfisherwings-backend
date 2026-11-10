@@ -32,10 +32,26 @@ Backend-only delivery in FreightSaas. Use this checklist in the staff SPA / publ
   - **Section 2 Pre-manifest:** `pre_manifest.manifest_status`
   - **Section 3 QTY/G.W./VOL:** `qty_gw_vol` (`quantity`, `gross_weight`, `net_weight`, `volume`, `chargeable_weight`, units, `lines`)
   - `containers`
+  - **Live vessel / flight card:** `live_tracking` (see §4b). Opt out with `?live=0`.
 - Staff enter/edit: **`GET|PUT /jobs/:id/tracking/profile`** (seeds from job on first open; response includes `field_schemas`).
 - Arrival report row fields: status, sending_time, receipt_time, container_no, sub_container_no, vessel_name, voyage_no, imo
 - Customs row fields: carrier_operator, customs_released, sub_customs_no, quantity, weight, volume, customs_declaration_no, customs_inspection_status, customs_inspection_time
 - Manifest row fields: sub_customs_no, status, sending_time, receipt_receiving_time, container_no, vessel_name, voyage_no, imo
+
+### 4b. Live vessel / flight tracking (Google-style)
+
+- **Free search (any vessel or flight number):**
+  - `GET /track/live/flight?q=EK512`
+  - `GET /track/live/vessel?q=MSC+OSCAR` (name or IMO)
+- **On a job:** `GET /jobs/:id/tracking` and `GET /jobs/:id/tracking/live` — BE uses air `flight_number` or sea `vessel_name` / linked vessel **IMO**.
+- **Public track page:** `GET /track?ref=…` and `GET /track/:ref` include `live_tracking` by default (`?live=0` to skip).
+- Response shape (`live_tracking.data` or live lookup root):
+  - `status`: `OK` | `NOT_FOUND` | `CONFIG_REQUIRED` | `ERROR`
+  - `data.latitude` / `data.longitude` → map pin when present
+  - `data` also may include status, origin/dest, ETA, speed, course, IMO/MMSI, flight callsign
+  - `external_links[]` (`label`, `url`) — always show Google / FlightAware / MarineTraffic / VesselFinder fallbacks
+- FE: search box → call live endpoints; Tracking tab / public page → render `live_tracking`; if `CONFIG_REQUIRED` or no coords, show links card instead of empty map.
+- Env (ops/backend): `AVIATIONSTACK_API_KEY` (flights; OpenSky works without a key best-effort), `VESSELFINDER_API_KEY` (live AIS). Without keys, stub + external links still return.
 
 ## 5. Invoices — generate from quotation vs from job
 
@@ -63,10 +79,14 @@ Backend-only delivery in FreightSaas. Use this checklist in the staff SPA / publ
 - Portal: **`POST /portal/invoices/:id/payments`** requires proof file.
 - Party Payments tab: **`GET /parties/:id/payments`**.
 
-## 8. Air MAWB + air tracking
+## 8. Air MAWB + show_all + air tracking
 
-- MAWB tab: `flight_date`, `shipment_date` on GET/PUT `/jobs/:id/detail/mawb`.
-- Air track: `route` / `references` expose MAWB, HAWB, flight (not vessel/voyage).
+- **MAWB tab:** `GET|PUT /jobs/:id/detail/mawb` — `editable` / `clearable`; clear a field with `null` or `""`.
+- **Show all (same edits):** `GET|PATCH /jobs/:id/detail/show_all` exposes the same MAWB fields:
+  - Nested `mawb` block (canonical for the FE form) + flat aliases: `flight_no` / `flight_number`, `flight_status`, `flight_date`, `shipment_date`, `mawb_no` / `mawb_number`, `hawb_no` / `hawb_number`, `arrival_flight_number`, `airline_id`, `airline_name`, `pallet_count`, `air_pallet`, `dimensions` / `volume_cbm`, `weight` / `gross_weight`.
+  - GET sources match the MAWB tab (**booking form ≻ air_details**). `airline_name` is returned for round-trip PATCH.
+  - PATCH may send flat fields or nested `mawb`; both hit the same write path as PUT mawb. `can_edit_mawb: true` on air jobs.
+- Air track: `route` / `references` expose MAWB, HAWB, flight (not vessel/voyage). Live flight card via §4b.
 
 ## 9. Costing attachments + JOB_COSTING docs
 

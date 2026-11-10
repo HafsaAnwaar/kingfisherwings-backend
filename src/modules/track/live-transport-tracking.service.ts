@@ -46,16 +46,39 @@ export class LiveTransportTrackingService {
               arrival_flight_number: true,
             },
           },
+          sea_fcl_details: {
+            select: { vessel_id: true, voyage_number: true },
+          },
+          sea_lcl_details: {
+            select: { vessel_id: true, voyage_number: true },
+          },
         },
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+
+    const sea = job.sea_fcl_details ?? job.sea_lcl_details;
+    const vesselId = sea?.vessel_id ?? null;
+    let vesselImo: string | null = null;
+    let vesselMasterName: string | null = null;
+    if (vesselId) {
+      const vessel = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.vessel.findFirst({
+          where: { id: vesselId, tenant_id: tenantId, deleted_at: null },
+          select: { imo_number: true, name: true },
+        }),
+      );
+      vesselImo = vessel?.imo_number?.trim() || null;
+      vesselMasterName = vessel?.name?.trim() || null;
+    }
+
     const live = await this.lookupForJob({
       job_type: job.job_type,
       flight_number: job.air_details?.flight_number,
       arrival_flight_number: job.air_details?.arrival_flight_number,
-      vessel_name: job.vessel_name,
-      voyage_number: job.voyage_number,
+      vessel_name: job.vessel_name ?? vesselMasterName,
+      vessel_imo: vesselImo,
+      voyage_number: job.voyage_number ?? sea?.voyage_number ?? null,
     });
     return {
       success: true,
@@ -238,6 +261,8 @@ export class LiveTransportTrackingService {
     flight_number?: string | null;
     arrival_flight_number?: string | null;
     vessel_name?: string | null;
+    /** Prefer IMO when linked from sea job vessel master. */
+    vessel_imo?: string | null;
     voyage_number?: string | null;
   }): Promise<{
     flight: LiveTrackResult | null;
@@ -250,7 +275,8 @@ export class LiveTransportTrackingService {
       input.flight_number?.trim() ||
       input.arrival_flight_number?.trim() ||
       null;
-    const vesselQ = input.vessel_name?.trim() || null;
+    const vesselQ =
+      input.vessel_imo?.trim() || input.vessel_name?.trim() || null;
 
     const [flight, vessel] = await Promise.all([
       isAir && flightQ ? this.lookupFlight(flightQ) : Promise.resolve(null),

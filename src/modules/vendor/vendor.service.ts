@@ -772,7 +772,6 @@ export class VendorService {
         expires_at: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
       },
     });
-
     return { access_token, refresh_token };
   }
 

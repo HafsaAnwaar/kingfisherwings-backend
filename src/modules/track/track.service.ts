@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PdfService } from "../../shared/pdf/pdf.service";
+import { LiveTransportTrackingService } from "./live-transport-tracking.service";
 import { buildTrackTraceHtml } from "./track-pdf.util";
 import { jobPublicTrackRefOrClauses } from "./tracking-ref.util";
 import {
@@ -11,6 +12,11 @@ import {
 type TenantResolveInput = {
   tenantSlug?: string;
   host?: string;
+};
+
+type TrackOpts = {
+  /** Attach live vessel/flight card (default true). Pass false for PDF. */
+  includeLive?: boolean;
 };
 
 type PublicTenantBrand = {
@@ -39,13 +45,18 @@ export class TrackService {
     private readonly prisma: PrismaService,
     private readonly timeline: TrackTimelineService,
     private readonly pdf: PdfService,
+    private readonly live: LiveTransportTrackingService,
   ) {}
 
   /**
    * Public track — `ref` only (container / BL / AWB / booking / token).
    * `tenant_slug` is optional hint; never required.
    */
-  async track(ref: string, resolve: TenantResolveInput = {}) {
+  async track(
+    ref: string,
+    resolve: TenantResolveInput = {},
+    opts: TrackOpts = {},
+  ) {
     const q = ref.trim();
     if (q.length < 2) {
       throw new NotFoundException("Shipment not found.");
@@ -85,6 +96,11 @@ export class TrackService {
       focusContainerNumber: matched,
     });
 
+    const includeLive = opts.includeLive !== false;
+    const live_tracking = includeLive
+      ? await this.live.forJob(tenant.id, job.id)
+      : undefined;
+
     return {
       success: true,
       data: {
@@ -117,6 +133,7 @@ export class TrackService {
         summary: payload.summary,
         public_url: payload.public_url,
         pdf_url: `/track/pdf?ref=${encodeURIComponent(q)}`,
+        ...(live_tracking ? { live_tracking } : {}),
       },
     };
   }
@@ -154,7 +171,7 @@ export class TrackService {
     buffer: Buffer;
     filename: string;
   }> {
-    const result = await this.track(ref, resolve);
+    const result = await this.track(ref, resolve, { includeLive: false });
     const shipment = result.data.shipment as TrackTimelinePayload;
     const html = buildTrackTraceHtml(shipment, {
       tenant_name: result.data.branding.tenant_name,
