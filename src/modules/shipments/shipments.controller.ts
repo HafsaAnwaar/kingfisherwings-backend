@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -38,6 +40,7 @@ import { ShipmentDetailService } from "./shipment-detail.service";
 import { ShipmentTabParityService } from "./shipment-tab-parity.service";
 import { ShipmentEdiService } from "./shipment-edi.service";
 import { ShipmentStatusCatalogService } from "./shipment-status-catalog.service";
+import { LiveTransportTrackingService } from "../track/live-transport-tracking.service";
 import {
   CreateStatusCatalogDto,
   UpdateStatusCatalogDto,
@@ -82,6 +85,7 @@ export class ShipmentsController {
     private readonly awbDraftFromBooking: AwbDraftFromBookingService,
     private readonly sectionFiles: OpsSectionAttachmentsService,
     private readonly statusCatalog: ShipmentStatusCatalogService,
+    private readonly liveTransport: LiveTransportTrackingService,
   ) {}
 
   @Get("status-options")
@@ -575,13 +579,30 @@ export class ShipmentsController {
   @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Track & trace for a shipment — current status, progress, and full history (milestones, containers, status changes)",
+      "Track & trace for a shipment — current status, progress, history, and live vessel/flight card",
   })
-  tracking(
+  async tracking(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("live") live?: string,
+  ) {
+    const payload = await this.detail.tracking(tenantId, id);
+    if (live === "0" || live === "false") return payload;
+    const live_tracking = await this.liveTransport.forShipment(tenantId, id);
+    return { ...payload, live_tracking };
+  }
+
+  @Get(":id/tracking/live")
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary:
+      "Live vessel or flight card for this shipment (AIS / flight position + external links)",
+  })
+  liveTracking(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.detail.tracking(tenantId, id);
+    return this.liveTransport.forShipment(tenantId, id);
   }
 
   @Get(":id")
@@ -606,6 +627,22 @@ export class ShipmentsController {
     @Body() dto: UpdateShipmentDto,
   ) {
     return this.service.update(tenantId, id, dto, actorId, permissions);
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(SHIPMENTS_PERMISSIONS.DELETE)
+  @ApiOperation({
+    summary:
+      "Soft-delete a shipment (hides from lists; frees shipment_number for reuse)",
+  })
+  async remove(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    await this.service.softDelete(tenantId, id, actorId, permissions);
   }
 
   @Post(":id/change-status")

@@ -158,6 +158,14 @@ export class UpsertAirBookingFormDto extends AirWorkflowOverrideDto {
   @IsBoolean()
   is_dg?: boolean;
 
+  @ApiPropertyOptional({
+    description: "Display name; resolved from airline_id when present",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  airline_name?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -186,6 +194,12 @@ export class UpsertAirBookingFormDto extends AirWorkflowOverrideDto {
   @IsOptional()
   @IsDateString()
   flight_date?: string;
+
+  /** Multi-leg air itinerary — accepted and ignored by ops form (stored on tracking). */
+  @ApiPropertyOptional({ type: "array", items: { type: "object" } })
+  @IsOptional()
+  @IsArray()
+  legs?: Record<string, unknown>[];
 
   @ApiPropertyOptional()
   @IsOptional()
