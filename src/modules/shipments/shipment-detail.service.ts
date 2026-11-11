@@ -172,8 +172,15 @@ export class ShipmentDetailService {
     }
 
     const shipmentDate = dto.job_date ?? dto.shipment_date;
+    const payableAt =
+      dto.freight_payable_at !== undefined
+        ? dto.freight_payable_at
+        : dto.payable_at;
     const hasField =
       dto.commodity !== undefined ||
+      dto.commodity_description !== undefined ||
+      payableAt !== undefined ||
+      dto.chargeable_weight !== undefined ||
       dto.pieces !== undefined ||
       dto.gross_weight !== undefined ||
       dto.volume_cbm !== undefined ||
@@ -271,9 +278,21 @@ export class ShipmentDetailService {
       // Use UncheckedUpdateInput so scalar FKs are typed correctly.
       // customer_id is REQUIRED on Shipment — never pass null (FE echoes nulls).
       const customerFk = requiredFk(customerId);
+      const commodityValue =
+        dto.commodity !== undefined
+          ? dto.commodity
+          : dto.commodity_description !== undefined
+            ? dto.commodity_description == null
+              ? null
+              : dto.commodity_description.slice(0, 500)
+            : undefined;
       const data: Prisma.ShipmentUncheckedUpdateInput = {
         updated_by: actorId,
-        ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
+        ...(commodityValue !== undefined ? { commodity: commodityValue } : {}),
+        ...(payableAt !== undefined ? { freight_payable_at: payableAt } : {}),
+        ...(dto.chargeable_weight !== undefined
+          ? { chargeable_weight: dto.chargeable_weight }
+          : {}),
         ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
         ...(dto.gross_weight !== undefined
           ? { gross_weight: dto.gross_weight }
@@ -789,7 +808,11 @@ export class ShipmentDetailService {
       customer_address: shipment.customer_address,
       freight_terms: shipment.freight_terms,
       freight_payable_at: shipment.freight_payable_at,
+      payable_at: shipment.freight_payable_at,
       freight_payment_type: shipment.freight_payment_type,
+      commodity_description: shipment.commodity,
+      chargeable_weight: shipment.chargeable_weight,
+      service_type: shipment.job_type,
       bl_status: shipment.bl_status,
       por_port_id: shipment.por_port_id,
       origin_port_id: shipment.origin_port_id,

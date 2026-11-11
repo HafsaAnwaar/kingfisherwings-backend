@@ -49,6 +49,7 @@ import {
 import { MasterLabelService } from "../masters/master-label.service";
 import { PortsService } from "../masters/ports/ports.service";
 import { ShipmentsService } from "../shipments/shipments.service";
+import { JobOrganizationService } from "./job-organization.service";
 
 import { CreateJobDto, UpdateJobDto } from "./dto/job.dto";
 import {
@@ -161,6 +162,7 @@ export class JobsService {
     private readonly shipmentsService: ShipmentsService,
     private readonly jobDates: JobDateService,
     private readonly ports: PortsService,
+    private readonly jobOrganizations: JobOrganizationService,
   ) {}
 
   // ============================================================
@@ -273,6 +275,7 @@ export class JobsService {
           barcode_value: barcodeValue,
           job_type: dto.job_type,
           status: "BOOKING_CONFIRMED",
+          status_code: "BOOKING_CONFIRMED",
           job_date: jobDate,
           branch_id: dto.branch_id,
           department_id: dto.department_id,
@@ -309,6 +312,20 @@ export class JobsService {
           updated_by: actorId,
         },
       });
+
+      await this.jobOrganizations.seedFromJobFks(
+        tx,
+        tenantId,
+        job.id,
+        {
+          shipper_id: job.shipper_id,
+          consignee_id: job.consignee_id,
+          billing_party_id: job.billing_party_id,
+          agent_id: job.agent_id,
+          overseas_agent_id: job.overseas_agent_id,
+        },
+        actorId,
+      );
 
       await seedJobTypeExtras(tx, tenantId, job.id, dto.job_type, actorId);
 
@@ -1436,7 +1453,7 @@ export class JobsService {
         ...rest
       } = dto;
 
-      return tx.job.update({
+      const updated = await tx.job.update({
         where: { id },
         data: {
           ...rest,
@@ -1449,6 +1466,30 @@ export class JobsService {
           updated_by: actorId,
         },
       });
+
+      if (
+        dto.shipper_id !== undefined ||
+        dto.consignee_id !== undefined ||
+        dto.billing_party_id !== undefined ||
+        dto.agent_id !== undefined ||
+        (dto as { overseas_agent_id?: string }).overseas_agent_id !== undefined
+      ) {
+        await this.jobOrganizations.seedFromJobFks(
+          tx,
+          tenantId,
+          id,
+          {
+            shipper_id: updated.shipper_id,
+            consignee_id: updated.consignee_id,
+            billing_party_id: updated.billing_party_id,
+            agent_id: updated.agent_id,
+            overseas_agent_id: updated.overseas_agent_id,
+          },
+          actorId,
+        );
+      }
+
+      return updated;
     });
   }
 

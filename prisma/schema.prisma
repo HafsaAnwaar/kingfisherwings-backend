@@ -84,6 +84,8 @@ enum JobDateSource {
 
 enum JobPartyRole {
   CLIENT
+  /// Distinct from CLIENT — only present on a job after explicit Organization link.
+  CUSTOMER
   SHIPPER
   CONSIGNEE
   BILLING_PARTY
@@ -2733,9 +2735,15 @@ model Job {
   origin_port_id    String?   @db.Uuid
   dest_port_id      String?   @db.Uuid
   commodity         String?   @db.VarChar(500)
+  /// Longer commodity text for show_all / docs (kept in sync with commodity when patched).
+  commodity_description String? @db.Text
   hs_code           String?   @db.VarChar(12)
   gross_weight      Decimal?  @db.Decimal(12, 3)
   chargeable_weight Decimal?  @db.Decimal(12, 3)
+  /// Chargeable units (distinct from chargeable_weight kg).
+  chargeable_units  Decimal?  @db.Decimal(12, 3)
+  /// Freight payable at (show_all / sync to Shipment.freight_payable_at).
+  freight_payable_at String?  @db.VarChar(100)
   volume_cbm        Decimal?  @db.Decimal(10, 3)
   pieces            Int?
   container_type_id String?   @db.Uuid

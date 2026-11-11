@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
 } from "class-validator";
@@ -59,6 +60,21 @@ export class CreateStatusCatalogDto {
   @IsInt()
   @Min(0)
   sort_order?: number;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "When set, apply the new custom status to this job immediately (sets status + status_code).",
+  })
+  @IsOptional()
+  @IsUUID()
+  job_id?: string;
+
+  /** Alias accepted from FE save flows. */
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  apply_to_job_id?: string;
 }
 
 export class UpdateStatusCatalogDto {

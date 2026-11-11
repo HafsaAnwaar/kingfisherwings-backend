@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { JobStatus } from "@prisma/client";
+import { JobStatus, ServiceScope } from "@prisma/client";
 import { Transform, Type } from "class-transformer";
 import {
   Allow,
@@ -49,6 +49,112 @@ function pickNestedNameCode(
   return { name, code };
 }
 
+/** Nested warehouse must-haves on job show_all (writes WarehouseBookingForm). */
+export class ShowAllWarehouseDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  warehouse_name?: string | null;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  warehouse_id?: string | null;
+
+  @ApiPropertyOptional({ format: "date-time" })
+  @IsOptional()
+  @Transform(emptyToUndef)
+  @ValidateIf((_, v) => v != null && v !== "")
+  @IsDateString()
+  expected_inbound_at?: string | null;
+
+  @ApiPropertyOptional({ format: "date-time" })
+  @IsOptional()
+  @Transform(emptyToUndef)
+  @ValidateIf((_, v) => v != null && v !== "")
+  @IsDateString()
+  expected_outbound_at?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(numOrNull)
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  storage_days_requested?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  bonded?: boolean | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  temperature_controlled?: boolean | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  commodity?: string | null;
+}
+
+/** Nested land/transport must-haves on job show_all. */
+export class ShowAllTransportDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  pickup_address?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  delivery_address?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  origin_city_country?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  destination_city_country?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  vehicle_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  driver_name?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  driver_license?: string | null;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  trucker_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  freight_terms?: string | null;
+}
+
 /** PATCH /jobs|shipments/:id/detail/show_all — edit header fields by name/code. */
 export class PatchShowAllDto {
   @ApiPropertyOptional()
@@ -56,6 +162,75 @@ export class PatchShowAllDto {
   @IsString()
   @MaxLength(500)
   commodity?: string | null;
+
+  @ApiPropertyOptional({
+    description: "Longer commodity text; also syncs commodity when commodity omitted",
+  })
+  @IsOptional()
+  @IsString()
+  commodity_description?: string | null;
+
+  @ApiPropertyOptional({ description: "Alias of freight_payable_at" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  payable_at?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  freight_payable_at?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(numOrNull)
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  chargeable_units?: number | null;
+
+  @ApiPropertyOptional({ description: "Alias of chargeable_units" })
+  @IsOptional()
+  @Transform(numOrNull)
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  chargeable_unit?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(numOrNull)
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  chargeable_weight?: number | null;
+
+  @ApiPropertyOptional({ enum: ServiceScope })
+  @IsOptional()
+  @IsEnum(ServiceScope)
+  service_scope?: ServiceScope | null;
+
+  @ApiPropertyOptional({
+    description:
+      "Read alias of job_type on GET. On PATCH ignored unless equal to current job_type (no mode switch).",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  service_type?: string | null;
+
+  @ApiPropertyOptional({ type: ShowAllWarehouseDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ShowAllWarehouseDto)
+  warehouse?: ShowAllWarehouseDto | null;
+
+  @ApiPropertyOptional({ type: ShowAllTransportDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ShowAllTransportDto)
+  transport?: ShowAllTransportDto | null;
 
   @ApiPropertyOptional()
   @IsOptional()
