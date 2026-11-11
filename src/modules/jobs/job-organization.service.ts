@@ -16,7 +16,9 @@ import {
   AddJobOrganizationDto,
   CopyJobOrganizationsDto,
   InlineCreatePartyDto,
+  JOB_ORG_SEED_FROM_FK,
   JOB_ORGANIZATION_TYPES,
+  jobOrganizationTypeCatalog,
   RefreshOrgPartySnapshotDto,
   ReplaceJobOrganizationDto,
 } from "./dto/job-organization-tab.dto";
@@ -85,13 +87,16 @@ export class JobOrganizationService {
         party_references: refs,
         customer_name: customer?.party_display?.name ?? customer?.party?.name ?? null,
         customer_party: customer?.party_display ?? customer?.party ?? null,
-        organization_types: JOB_ORGANIZATION_TYPES,
+        organization_types: jobOrganizationTypeCatalog(),
+        /** Legacy bare codes — prefer organization_types catalog. */
+        organization_type_codes: JOB_ORGANIZATION_TYPES,
         party_types: Object.values(PartyType),
         job_fks: {
           shipper_id: job.shipper_id,
           consignee_id: job.consignee_id,
           billing_party_id: job.billing_party_id,
           agent_id: job.agent_id,
+          overseas_agent_id: job.overseas_agent_id,
         },
         actions: {
           add_organization: true,
@@ -107,7 +112,79 @@ export class JobOrganizationService {
     return {
       success: true,
       data: await this.listRows(tenantId, jobId),
+      meta: {
+        organization_types: jobOrganizationTypeCatalog(),
+      },
     };
+  }
+
+  /**
+   * Seed JobOrganization rows from Job FKs (create/update).
+   * Never invents CUSTOMER or CLIENT — those require explicit Organization link.
+   */
+  async seedFromJobFks(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+    fks: {
+      shipper_id?: string | null;
+      consignee_id?: string | null;
+      billing_party_id?: string | null;
+      agent_id?: string | null;
+      overseas_agent_id?: string | null;
+    },
+    actorId?: string,
+  ) {
+    for (const { org_type, fk } of JOB_ORG_SEED_FROM_FK) {
+      const partyId = fks[fk];
+      if (!partyId) continue;
+
+      const existing = await tx.jobOrganization.findFirst({
+        where: { tenant_id: tenantId, job_id: jobId, org_type },
+      });
+      if (existing && !existing.deleted_at) {
+        // Keep existing link; refresh party_id if FK changed.
+        if (existing.party_id !== partyId) {
+          const snapshot = await this.buildPartySnapshot(tx, tenantId, partyId);
+          await tx.jobOrganization.update({
+            where: { id: existing.id },
+            data: {
+              party_id: partyId,
+              party_snapshot: snapshot,
+              updated_by: actorId,
+            },
+          });
+        }
+        continue;
+      }
+
+      const snapshot = await this.buildPartySnapshot(tx, tenantId, partyId);
+      if (existing) {
+        await tx.jobOrganization.update({
+          where: { id: existing.id },
+          data: {
+            party_id: partyId,
+            party_snapshot: snapshot,
+            deleted_at: null,
+            is_primary_customer: false,
+            updated_by: actorId,
+          },
+        });
+      } else {
+        await tx.jobOrganization.create({
+          data: {
+            tenant_id: tenantId,
+            job_id: jobId,
+            org_type,
+            party_id: partyId,
+            is_primary_customer: false,
+            party_snapshot: snapshot,
+            created_by: actorId,
+            updated_by: actorId,
+          },
+        });
+      }
+    }
   }
 
   async add(

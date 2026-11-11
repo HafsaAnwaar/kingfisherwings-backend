@@ -15,6 +15,7 @@ import { CreatePartyDto } from "../../parties/dto/party.dto";
 
 export const JOB_ORGANIZATION_TYPES: JobPartyRole[] = [
   JobPartyRole.CLIENT,
+  JobPartyRole.CUSTOMER,
   JobPartyRole.SHIPPER,
   JobPartyRole.CONSIGNEE,
   JobPartyRole.NOTIFY,
@@ -22,6 +23,39 @@ export const JOB_ORGANIZATION_TYPES: JobPartyRole[] = [
   JobPartyRole.AGENT,
   JobPartyRole.OVERSEAS_AGENT,
   JobPartyRole.VENDOR,
+];
+
+/** Human labels for organization_types catalog (FE prefers this over hard-coded enums). */
+export const JOB_ORGANIZATION_TYPE_LABELS: Record<JobPartyRole, string> = {
+  [JobPartyRole.CLIENT]: "Client",
+  [JobPartyRole.CUSTOMER]: "Customer",
+  [JobPartyRole.SHIPPER]: "Shipper",
+  [JobPartyRole.CONSIGNEE]: "Consignee",
+  [JobPartyRole.NOTIFY]: "Notify",
+  [JobPartyRole.BILLING_PARTY]: "Billing Party",
+  [JobPartyRole.AGENT]: "Agent",
+  [JobPartyRole.OVERSEAS_AGENT]: "Overseas Agent",
+  [JobPartyRole.VENDOR]: "Vendor",
+};
+
+export function jobOrganizationTypeCatalog() {
+  return JOB_ORGANIZATION_TYPES.map((code) => ({
+    code,
+    label: JOB_ORGANIZATION_TYPE_LABELS[code] ?? code,
+    is_system: true,
+  }));
+}
+
+/** Org types seeded from Job FKs on create/update — never CUSTOMER or CLIENT. */
+export const JOB_ORG_SEED_FROM_FK: Array<{
+  org_type: JobPartyRole;
+  fk: "shipper_id" | "consignee_id" | "billing_party_id" | "agent_id" | "overseas_agent_id";
+}> = [
+  { org_type: JobPartyRole.SHIPPER, fk: "shipper_id" },
+  { org_type: JobPartyRole.CONSIGNEE, fk: "consignee_id" },
+  { org_type: JobPartyRole.BILLING_PARTY, fk: "billing_party_id" },
+  { org_type: JobPartyRole.AGENT, fk: "agent_id" },
+  { org_type: JobPartyRole.OVERSEAS_AGENT, fk: "overseas_agent_id" },
 ];
 
 /** Party types allowed for OVERSEAS_AGENT org role. */

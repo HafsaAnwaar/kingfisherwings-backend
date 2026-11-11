@@ -499,13 +499,14 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
     summary:
-      "Add a custom job status — send { label } (code/maps_to optional). Always active and listed in status-options.",
+      "Add a custom job status — send { label } (code/maps_to optional). Pass job_id to apply it to that job immediately.",
   })
   createStatusCatalog(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
     @Body() dto: CreateStatusCatalogDto,
   ) {
-    return this.statusCatalog.createCustom(tenantId, dto);
+    return this.statusCatalog.createCustom(tenantId, dto, actorId);
   }
 
   @Patch("status-catalog/:catalogId")

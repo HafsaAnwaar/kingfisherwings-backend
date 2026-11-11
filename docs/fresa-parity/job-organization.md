@@ -6,7 +6,9 @@ Fresa: [Add organization after job created](https://blog.fresatechnologies.com/h
 
 - Empty tab → `empty: true`, `actions.add_organization: true`
 - Add by selecting existing party (`party_id`) or inline `create_party`
-- Org types: `CLIENT`, `SHIPPER`, `CONSIGNEE`, `NOTIFY`, `BILLING_PARTY`, `AGENT`
+- Org types catalog (`organization_types`): `CLIENT`, `CUSTOMER`, `SHIPPER`, `CONSIGNEE`, `NOTIFY`, `BILLING_PARTY`, `AGENT`, `OVERSEAS_AGENT`, `VENDOR` — each `{ code, label, is_system }`
+- `CLIENT` and `CUSTOMER` are distinct roles; never merge. `CUSTOMER` only appears on a job after an explicit Organization link
+- Create/update job FKs seed `SHIPPER` / `CONSIGNEE` / `BILLING_PARTY` / `AGENT` / `OVERSEAS_AGENT` org rows (not `CLIENT` or `CUSTOMER`)
 - `CLIENT` / primary customer syncs `Job.billing_party_id` (customer name on job header)
 - Shipper / consignee / agent sync matching job FKs
 - Full party card returned on each org row

@@ -255,8 +255,34 @@ export class JobDetailService {
       );
     }
 
+    const payableAt =
+      dto.freight_payable_at !== undefined
+        ? dto.freight_payable_at
+        : dto.payable_at;
+    const chargeableUnits =
+      dto.chargeable_units !== undefined
+        ? dto.chargeable_units
+        : dto.chargeable_unit;
+    const commodityDescription = dto.commodity_description;
+    const commodityValue =
+      dto.commodity !== undefined
+        ? dto.commodity
+        : commodityDescription !== undefined
+          ? commodityDescription == null
+            ? null
+            : commodityDescription.slice(0, 500)
+          : undefined;
+
     const hasField =
       dto.commodity !== undefined ||
+      commodityDescription !== undefined ||
+      payableAt !== undefined ||
+      chargeableUnits !== undefined ||
+      dto.chargeable_weight !== undefined ||
+      dto.service_scope !== undefined ||
+      dto.service_type !== undefined ||
+      dto.warehouse !== undefined ||
+      dto.transport !== undefined ||
       dto.pieces !== undefined ||
       dto.gross_weight !== undefined ||
       dto.volume_cbm !== undefined ||
@@ -299,6 +325,13 @@ export class JobDetailService {
       throw new BadRequestException(
         "Provide at least one show_all field to update.",
       );
+    }
+    if (
+      dto.service_type != null &&
+      String(dto.service_type).trim() !== "" &&
+      String(dto.service_type).trim().toUpperCase() !== job.job_type
+    ) {
+      // Ignore mode switches via show_all — service_type is a read alias of job_type.
     }
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -373,7 +406,20 @@ export class JobDetailService {
 
       const data: Prisma.JobUncheckedUpdateInput = {
         updated_by: actorId,
-        ...(dto.commodity !== undefined ? { commodity: dto.commodity } : {}),
+        ...(commodityValue !== undefined ? { commodity: commodityValue } : {}),
+        ...(commodityDescription !== undefined
+          ? { commodity_description: commodityDescription }
+          : {}),
+        ...(payableAt !== undefined ? { freight_payable_at: payableAt } : {}),
+        ...(chargeableUnits !== undefined
+          ? { chargeable_units: chargeableUnits }
+          : {}),
+        ...(dto.chargeable_weight !== undefined
+          ? { chargeable_weight: dto.chargeable_weight }
+          : {}),
+        ...(dto.service_scope !== undefined
+          ? { service_scope: dto.service_scope }
+          : {}),
         ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
         ...(dto.gross_weight !== undefined
           ? { gross_weight: dto.gross_weight }
@@ -430,6 +476,53 @@ export class JobDetailService {
         data,
       });
 
+      if (
+        shipperId !== undefined ||
+        consigneeId !== undefined ||
+        billingPartyId !== undefined ||
+        agentId !== undefined
+      ) {
+        const refreshedFks = await tx.job.findFirst({
+          where: { id, tenant_id: tenantId },
+          select: {
+            shipper_id: true,
+            consignee_id: true,
+            billing_party_id: true,
+            agent_id: true,
+            overseas_agent_id: true,
+          },
+        });
+        if (refreshedFks) {
+          await this.organizations.seedFromJobFks(
+            tx,
+            tenantId,
+            id,
+            refreshedFks,
+            actorId,
+          );
+        }
+      }
+
+      if (dto.warehouse !== undefined && dto.warehouse !== null) {
+        await this.patchShowAllWarehouse(
+          tx,
+          tenantId,
+          id,
+          dto.warehouse,
+          actorId,
+        );
+      }
+      if (dto.transport !== undefined && dto.transport !== null) {
+        await this.patchShowAllTransport(
+          tx,
+          tenantId,
+          id,
+          job.job_type,
+          dto.transport,
+          actorId,
+        );
+      }
+
       const mbl =
         dto.mbl_number !== undefined
           ? dto.mbl_number
@@ -437,6 +530,47 @@ export class JobDetailService {
             ? dto.bl_number
             : undefined;
       const hbl = dto.hbl_number;
+      const shipmentSync: Prisma.ShipmentUncheckedUpdateManyInput = {
+        ...(mbl !== undefined ? { mbl_number: mbl } : {}),
+        ...(hbl !== undefined ? { hbl_number: hbl } : {}),
+        ...(commodityValue !== undefined ? { commodity: commodityValue } : {}),
+        ...(dto.pieces !== undefined ? { pieces: dto.pieces } : {}),
+        ...(dto.gross_weight !== undefined
+          ? { gross_weight: dto.gross_weight }
+          : {}),
+        ...(dto.volume_cbm !== undefined
+          ? { volume_cbm: dto.volume_cbm }
+          : {}),
+        ...(dto.chargeable_weight !== undefined
+          ? { chargeable_weight: dto.chargeable_weight }
+          : {}),
+        ...(dto.etd !== undefined
+          ? { etd: dto.etd ? new Date(dto.etd) : null }
+          : {}),
+        ...(dto.eta !== undefined
+          ? { eta: dto.eta ? new Date(dto.eta) : null }
+          : {}),
+        ...(payableAt !== undefined ? { freight_payable_at: payableAt } : {}),
+        ...(vesselName !== undefined ? { vessel_name: vesselName } : {}),
+        ...(dto.voyage_number !== undefined
+          ? { voyage_number: dto.voyage_number }
+          : {}),
+        ...(originPortId !== undefined
+          ? { origin_port_id: originPortId }
+          : {}),
+        ...(destPortId !== undefined ? { dest_port_id: destPortId } : {}),
+        ...(shipperId !== undefined ? { shipper_id: shipperId } : {}),
+        ...(consigneeId !== undefined ? { consignee_id: consigneeId } : {}),
+        ...(typeof billingPartyId === "string"
+          ? { customer_id: billingPartyId }
+          : {}),
+      };
+      if (Object.keys(shipmentSync).length > 0) {
+        await tx.shipment.updateMany({
+          where: { job_id: id, tenant_id: tenantId, deleted_at: null },
+          data: shipmentSync,
+        });
+      }
       if (mbl !== undefined || hbl !== undefined) {
         const blData = {
           ...(mbl !== undefined ? { mbl_number: mbl } : {}),
@@ -451,10 +585,6 @@ export class JobDetailService {
           data: blData,
         });
         await tx.nvoccJobDetail.updateMany({
-          where: { job_id: id, tenant_id: tenantId, deleted_at: null },
-          data: blData,
-        });
-        await tx.shipment.updateMany({
           where: { job_id: id, tenant_id: tenantId, deleted_at: null },
           data: blData,
         });
@@ -1592,6 +1722,14 @@ export class JobDetailService {
           sea_lcl_details: true,
           nvocc_details: true,
           air_details: true,
+          land_details: true,
+          road_freight_details: true,
+          warehouse_booking_form: true,
+          transport_requests: {
+            where: { deleted_at: null },
+            orderBy: { created_at: "asc" },
+            take: 1,
+          },
           containers_job: {
             where: { deleted_at: null },
             orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
@@ -1628,6 +1766,17 @@ export class JobDetailService {
       null;
     const containerStatusOptions =
       await this.containerStatuses.optionCodes(tenantId);
+    const statusCode = job.status_code ?? job.status;
+    const statusMeta = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobStatusCatalog.findFirst({
+        where: {
+          tenant_id: tenantId,
+          code: statusCode,
+          is_active: true,
+        },
+        select: { code: true, label: true, maps_to_system_status: true },
+      }),
+    );
     const air = job.air_details;
     const isAir = AIR_JOB_TYPES.includes(job.job_type);
     const isSea = SEA_JOB_TYPES.includes(job.job_type);
@@ -1638,8 +1787,11 @@ export class JobDetailService {
       id: job.id,
       job_number: job.job_number,
       status: job.status,
+      status_code: statusCode,
+      status_label: statusMeta?.label ?? statusCode,
       job_date: job.job_date,
       job_type: job.job_type,
+      service_type: job.job_type,
       transport_mode: isAir ? "air" : isSea ? "sea" : "other",
       branch_id: job.branch_id,
       department_id: job.department_id,
@@ -1655,9 +1807,27 @@ export class JobDetailService {
       etd: job.etd,
       eta: job.eta,
       commodity: job.commodity,
+      commodity_description:
+        (job as { commodity_description?: string | null }).commodity_description ??
+        job.commodity ??
+        null,
+      payable_at:
+        (job as { freight_payable_at?: string | null }).freight_payable_at ??
+        null,
+      freight_payable_at:
+        (job as { freight_payable_at?: string | null }).freight_payable_at ??
+        null,
+      chargeable_units:
+        (job as { chargeable_units?: unknown }).chargeable_units ?? null,
+      chargeable_unit:
+        (job as { chargeable_units?: unknown }).chargeable_units ?? null,
+      chargeable_weight: job.chargeable_weight ?? null,
+      service_scope: job.service_scope ?? null,
       pieces: job.pieces,
       gross_weight: mawb?.gross_weight ?? job.gross_weight,
       volume_cbm: mawb?.volume_cbm ?? job.volume_cbm,
+      warehouse: this.showAllWarehousePayload(job),
+      transport: this.showAllTransportPayload(job),
       /** Sea-only — omitted/null on air so FE cannot edit. */
       mbl_number: isAir ? null : mbl,
       hbl_number: isAir ? null : hbl,
@@ -1713,6 +1883,224 @@ export class JobDetailService {
       parent_job_id: job.parent_job_id,
       tracking_token: job.tracking_token,
     });
+  }
+
+  private showAllWarehousePayload(
+    job: Awaited<ReturnType<typeof this.loadJob>>,
+  ) {
+    const form = job.warehouse_booking_form;
+    if (!form && job.job_type !== "WAREHOUSE") return null;
+    return {
+      warehouse_id: form?.warehouse_id ?? null,
+      warehouse_name: form?.warehouse_name ?? null,
+      expected_inbound_at: form?.expected_inbound_at ?? null,
+      expected_outbound_at: form?.expected_outbound_at ?? null,
+      storage_days_requested: form?.storage_days_requested ?? null,
+      bonded: form?.bonded ?? false,
+      temperature_controlled: form?.temperature_controlled ?? false,
+      commodity: form?.commodity ?? job.commodity ?? null,
+    };
+  }
+
+  private showAllTransportPayload(
+    job: Awaited<ReturnType<typeof this.loadJob>>,
+  ) {
+    const land = job.land_details ?? job.road_freight_details;
+    const tr = job.transport_requests?.[0];
+    const isLandish =
+      job.job_type === "LAND" ||
+      job.job_type === "ROAD_FREIGHT" ||
+      !!land ||
+      !!tr;
+    if (!isLandish) return null;
+    return {
+      pickup_address:
+        tr?.pickup_address ?? job.origin_door_address ?? null,
+      delivery_address:
+        tr?.delivery_address ?? job.dest_door_address ?? null,
+      origin_city_country: land?.origin_city_country ?? null,
+      destination_city_country: land?.destination_city_country ?? null,
+      vehicle_number: land?.vehicle_number ?? tr?.vehicle_number ?? null,
+      driver_name: land?.driver_name ?? tr?.driver_name ?? null,
+      driver_license: land?.driver_license ?? tr?.driver_license ?? null,
+      trucker_id:
+        land?.trucker_id ?? tr?.assigned_trucker_id ?? null,
+      freight_terms: land?.freight_terms ?? null,
+    };
+  }
+
+  private async patchShowAllWarehouse(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+    wh: NonNullable<PatchShowAllDto["warehouse"]>,
+    actorId?: string,
+  ) {
+    const existing = await tx.warehouseBookingForm.findFirst({
+      where: { tenant_id: tenantId, job_id: jobId },
+    });
+    const data = {
+      ...(wh.warehouse_name !== undefined
+        ? { warehouse_name: wh.warehouse_name }
+        : {}),
+      ...(wh.warehouse_id !== undefined
+        ? { warehouse_id: wh.warehouse_id }
+        : {}),
+      ...(wh.expected_inbound_at !== undefined
+        ? {
+            expected_inbound_at: wh.expected_inbound_at
+              ? new Date(wh.expected_inbound_at)
+              : null,
+          }
+        : {}),
+      ...(wh.expected_outbound_at !== undefined
+        ? {
+            expected_outbound_at: wh.expected_outbound_at
+              ? new Date(wh.expected_outbound_at)
+              : null,
+          }
+        : {}),
+      ...(wh.storage_days_requested !== undefined
+        ? { storage_days_requested: wh.storage_days_requested }
+        : {}),
+      ...(wh.bonded !== undefined ? { bonded: wh.bonded ?? false } : {}),
+      ...(wh.temperature_controlled !== undefined
+        ? { temperature_controlled: wh.temperature_controlled ?? false }
+        : {}),
+      ...(wh.commodity !== undefined ? { commodity: wh.commodity } : {}),
+      updated_by: actorId,
+    };
+    if (existing) {
+      await tx.warehouseBookingForm.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      await tx.warehouseBookingForm.create({
+        data: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          ...data,
+          created_by: actorId,
+        },
+      });
+    }
+  }
+
+  private async patchShowAllTransport(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+    jobType: JobType,
+    trDto: NonNullable<PatchShowAllDto["transport"]>,
+    actorId?: string,
+  ) {
+    const landPatch = {
+      ...(trDto.origin_city_country !== undefined
+        ? { origin_city_country: trDto.origin_city_country }
+        : {}),
+      ...(trDto.destination_city_country !== undefined
+        ? { destination_city_country: trDto.destination_city_country }
+        : {}),
+      ...(trDto.vehicle_number !== undefined
+        ? { vehicle_number: trDto.vehicle_number }
+        : {}),
+      ...(trDto.driver_name !== undefined
+        ? { driver_name: trDto.driver_name }
+        : {}),
+      ...(trDto.driver_license !== undefined
+        ? { driver_license: trDto.driver_license }
+        : {}),
+      ...(trDto.trucker_id !== undefined
+        ? { trucker_id: trDto.trucker_id }
+        : {}),
+      ...(trDto.freight_terms !== undefined
+        ? { freight_terms: trDto.freight_terms }
+        : {}),
+      updated_by: actorId,
+    };
+
+    if (jobType === "LAND" || jobType === "ROAD_FREIGHT") {
+      if (jobType === "LAND") {
+        const existing = await tx.landJobDetail.findFirst({
+          where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+        });
+        if (existing && Object.keys(landPatch).length > 1) {
+          await tx.landJobDetail.update({
+            where: { id: existing.id },
+            data: landPatch,
+          });
+        }
+      } else {
+        const existing = await tx.roadFreightJobDetail.findFirst({
+          where: { job_id: jobId, tenant_id: tenantId, deleted_at: null },
+        });
+        if (existing && Object.keys(landPatch).length > 1) {
+          await tx.roadFreightJobDetail.update({
+            where: { id: existing.id },
+            data: landPatch,
+          });
+        }
+      }
+    }
+
+    if (
+      trDto.pickup_address !== undefined ||
+      trDto.delivery_address !== undefined ||
+      trDto.vehicle_number !== undefined ||
+      trDto.driver_name !== undefined ||
+      trDto.driver_license !== undefined ||
+      trDto.trucker_id !== undefined
+    ) {
+      const existingTr = await tx.transportRequest.findFirst({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        orderBy: { created_at: "asc" },
+      });
+      if (existingTr) {
+        await tx.transportRequest.update({
+          where: { id: existingTr.id },
+          data: {
+            ...(trDto.pickup_address !== undefined
+              ? { pickup_address: trDto.pickup_address }
+              : {}),
+            ...(trDto.delivery_address !== undefined
+              ? { delivery_address: trDto.delivery_address }
+              : {}),
+            ...(trDto.vehicle_number !== undefined
+              ? { vehicle_number: trDto.vehicle_number }
+              : {}),
+            ...(trDto.driver_name !== undefined
+              ? { driver_name: trDto.driver_name }
+              : {}),
+            ...(trDto.driver_license !== undefined
+              ? { driver_license: trDto.driver_license }
+              : {}),
+            ...(trDto.trucker_id !== undefined
+              ? { assigned_trucker_id: trDto.trucker_id }
+              : {}),
+            updated_by: actorId,
+          },
+        });
+      }
+    }
+
+    if (
+      trDto.pickup_address !== undefined ||
+      trDto.delivery_address !== undefined
+    ) {
+      await tx.job.update({
+        where: { id: jobId },
+        data: {
+          ...(trDto.pickup_address !== undefined
+            ? { origin_door_address: trDto.pickup_address }
+            : {}),
+          ...(trDto.delivery_address !== undefined
+            ? { dest_door_address: trDto.delivery_address }
+            : {}),
+          updated_by: actorId,
+        },
+      });
+    }
   }
 
   private actionFlags(

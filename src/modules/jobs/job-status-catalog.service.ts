@@ -115,7 +115,11 @@ export class JobStatusCatalogService {
     };
   }
 
-  async createCustom(tenantId: string, dto: CreateStatusCatalogDto) {
+  async createCustom(
+    tenantId: string,
+    dto: CreateStatusCatalogDto,
+    actorId?: string,
+  ) {
     await this.ensureCatalog(tenantId);
     const label = dto.label.trim();
     if (!label) throw new BadRequestException("label is required.");
@@ -134,6 +138,8 @@ export class JobStatusCatalogService {
       // Avoid shadowing system codes — suffix for custom.
       code = normalizeStatusCode(undefined, `${label}_CUSTOM`);
     }
+
+    const applyJobId = dto.job_id ?? dto.apply_to_job_id;
 
     try {
       const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -155,7 +161,7 @@ export class JobStatusCatalogService {
             );
           }
         }
-        return tx.jobStatusCatalog.create({
+        const created = await tx.jobStatusCatalog.create({
           data: {
             tenant_id: tenantId,
             code: candidate,
@@ -169,8 +175,55 @@ export class JobStatusCatalogService {
             is_active: true, // always listed; dto.is_active is ignored
           },
         });
+
+        if (applyJobId) {
+          const job = await tx.job.findFirst({
+            where: {
+              id: applyJobId,
+              tenant_id: tenantId,
+              deleted_at: null,
+            },
+            select: { id: true, status: true, status_code: true },
+          });
+          if (!job) {
+            throw new NotFoundException("Job not found for job_id.");
+          }
+          const systemStatus = mapsTo as JobStatus;
+          await tx.job.update({
+            where: { id: job.id },
+            data: {
+              status: systemStatus,
+              status_code: created.code,
+              updated_by: actorId,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              tenant_id: tenantId,
+              user_id: actorId ?? null,
+              action: "JOB_STATUS_CHANGE",
+              entity: "JOB",
+              entity_id: job.id,
+              metadata: {
+                from: job.status,
+                from_code: job.status_code ?? job.status,
+                to: systemStatus,
+                to_code: created.code,
+                reason: "custom_status_created_and_applied",
+              } as Prisma.InputJsonValue,
+            },
+          });
+        }
+
+        return created;
       });
-      return { success: true, data: row };
+      return {
+        success: true,
+        data: {
+          ...row,
+          applied_to_job_id: applyJobId ?? null,
+        },
+      };
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&

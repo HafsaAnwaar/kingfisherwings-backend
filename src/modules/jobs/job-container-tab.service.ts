@@ -301,8 +301,17 @@ export class JobContainerTabService {
       origin_port_id: string | null;
       dest_port_id: string | null;
       commodity: string | null;
+      pieces: number | null;
+      gross_weight: unknown;
+      chargeable_weight: unknown;
+      volume_cbm: unknown;
+      freight_payable_at: string | null;
+      vessel_name: string | null;
+      voyage_number: string | null;
       etd: Date | null;
       eta: Date | null;
+      hs_code: string | null;
+      incoterms: string | null;
     },
     containerId: string,
     containerNumber: string,
@@ -334,6 +343,15 @@ export class JobContainerTabService {
           origin_port_id: job.origin_port_id,
           dest_port_id: job.dest_port_id,
           commodity: job.commodity,
+          pieces: job.pieces,
+          gross_weight: job.gross_weight as never,
+          chargeable_weight: job.chargeable_weight as never,
+          volume_cbm: job.volume_cbm as never,
+          freight_payable_at: job.freight_payable_at,
+          vessel_name: job.vessel_name,
+          voyage_number: job.voyage_number,
+          hs_code: job.hs_code,
+          incoterms: job.incoterms,
           etd: job.etd,
           eta: job.eta,
           container_numbers: containerNumber,
@@ -1252,6 +1270,15 @@ export class JobContainerTabService {
           origin_port_id: true,
           dest_port_id: true,
           commodity: true,
+          pieces: true,
+          gross_weight: true,
+          chargeable_weight: true,
+          volume_cbm: true,
+          freight_payable_at: true,
+          vessel_name: true,
+          voyage_number: true,
+          hs_code: true,
+          incoterms: true,
           etd: true,
           eta: true,
         },
