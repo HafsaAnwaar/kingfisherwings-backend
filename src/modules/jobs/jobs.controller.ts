@@ -1570,7 +1570,7 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
   @ApiOperation({
     summary:
-      "Job finance ledger — invoices + credit/debit notes for this job (no invoice required for CN/DN)",
+      "Job finance ledger — sale + purchase invoices and credit/debit notes for this job",
   })
   getJobLedger(
     @CurrentUser("tenantId") tenantId: string,

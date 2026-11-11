@@ -1362,6 +1362,9 @@ export class JobCostingService {
       dto.voucher_type ? `voucher_type=${dto.voucher_type}` : null,
     ].filter(Boolean);
 
+    // Entered line amounts are the bill total unless a tax_rate_id is set.
+    // Do not apply silent default 5% VAT (that made total = subtotal + 5%).
+    const anyTaxableLine = dto.lines.some((l) => !!l.tax_rate_id);
     const createDto = {
       party_id: partyId,
       job_id: jobId,
@@ -1376,6 +1379,7 @@ export class JobCostingService {
       internal_notes: notesParts.length
         ? notesParts.join("; ")
         : undefined,
+      vat_rate: anyTaxableLine ? 5 : 0,
       lines: dto.lines.map((line, index) =>
         this.formLineToInvoiceLine(line, jobId, index),
       ),
@@ -2370,12 +2374,14 @@ export class JobCostingService {
     const qty = line.quantity ?? 1;
     const amount = Number(line.amount);
     const unitPrice = qty > 0 ? amount / qty : amount;
+    const taxable = !!line.tax_rate_id;
     return {
       description: line.description?.trim() || "Charge",
       quantity: qty,
       unit_price: unitPrice,
       charge_code_id: line.charge_code_id,
       tax_rate_id: line.tax_rate_id,
+      is_taxable: taxable,
       sort_order: index,
       job_charge_id: line.job_charge_id,
       job_id: jobId,
