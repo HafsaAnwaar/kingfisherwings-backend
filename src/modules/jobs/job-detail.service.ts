@@ -2052,7 +2052,12 @@ export class JobDetailService {
           job_id: jobId,
           deleted_at: null,
           invoice_type: {
-            in: ["CREDIT_NOTE", "DEBIT_NOTE", "CUSTOMER_INVOICE"],
+            in: [
+              "CREDIT_NOTE",
+              "DEBIT_NOTE",
+              "CUSTOMER_INVOICE",
+              "PURCHASE_INVOICE",
+            ],
           },
         },
         orderBy: { created_at: "desc" },
@@ -2063,6 +2068,8 @@ export class JobDetailService {
           status: true,
           party_id: true,
           currency_code: true,
+          subtotal: true,
+          tax_amount: true,
           total_amount: true,
           balance_due: true,
           amount_paid: true,
@@ -2078,6 +2085,12 @@ export class JobDetailService {
       data: {
         job_id: jobId,
         entries: rows,
+        customer_invoices: rows.filter(
+          (r) => r.invoice_type === "CUSTOMER_INVOICE",
+        ),
+        purchase_invoices: rows.filter(
+          (r) => r.invoice_type === "PURCHASE_INVOICE",
+        ),
         credit_notes: rows.filter((r) => r.invoice_type === "CREDIT_NOTE"),
         debit_notes: rows.filter((r) => r.invoice_type === "DEBIT_NOTE"),
       },
