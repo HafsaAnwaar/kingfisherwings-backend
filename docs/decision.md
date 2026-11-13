@@ -377,6 +377,21 @@ Portal finance and vendor finance call `InvoicesService` / `PaymentsService` / `
 
 **LOCKED:** Do **not** overload `portal_access` for vendors.
 
+### 2.13 Super Admin Tech Logs (platform activity + issues)
+
+**SHIPPED**
+
+Cross-tenant Super Admin triage needs its own tables. Tenant `audit_logs` stay RLS-scoped and must not be queried as a platform feed.
+
+| Choice | Why |
+|--------|-----|
+| `tech_activity_logs` + `tech_issues` (no RLS) | Super Admin reads every user’s actions/errors by name across tenants |
+| Denormalize `user_name` / `tenant_name` at write | Survives user rename/delete; list APIs stay simple |
+| Global `TechLogsInterceptor` (not `APP_FILTER`) | Respects §2.7; fire-and-forget on mutating requests + HTTP ≥400 |
+| Issues tab statuses `OPEN` → `IN_PROGRESS` → `RESOLVED` / `IGNORED` | Ops triage without inventing a ticket product |
+| Skip `/health`, `/docs*`, `/super-admin/tech-logs` | Avoid log noise / recursion |
+| Optional `POST …/client-errors` (staff JWT) | FE can push client-side exceptions into the same Issues tab |
+
 ---
 
 ## 3. Weeks 0–14 — decided & shipped

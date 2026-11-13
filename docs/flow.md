@@ -31,7 +31,7 @@ node / nest start
 
 | Client | Base paths | Auth |
 |--------|------------|------|
-| SuperAdmin console | `/auth/super-admin/*`, `/tenants` | `principal: 'super_admin'` |
+| SuperAdmin console | `/auth/super-admin/*`, `/tenants`, `/super-admin/tech-logs/*` | `principal: 'super_admin'` |
 | ERP staff / Tenant Admin | `/auth/*`, `/users`, `/masters/*`, `/parties`, `/organization/*`, `/quotations`, `/jobs`, `/invoices`, `/gl/*`, `/crm/*`, `/notifications`, `/search`, `/portal-admin`, `/vendor-admin`, party portal/vendor user admin | `principal: 'user'` |
 | Customer portal | `/portal/auth/*`, `/portal/*` | `principal: 'portal'` + `PortalAuthGuard` |
 | Vendor portal | `/vendor/auth/*`, `/vendor/*` | `principal: 'vendor'` + `VendorAuthGuard` |
@@ -56,6 +56,7 @@ There is no separate worker dyno required for crons (they run in the API). Docum
 | Health | `/health` |
 | Auth | `/auth` |
 | Tenants | `/tenants` |
+| Tech Logs (Super Admin) | `/super-admin/tech-logs/*` (summary, activity, issues, client-errors) |
 | Users | `/users` |
 | Companies | `/companies` |
 | Masters | `/masters/*`, `/vessels/:id/schedules` |
@@ -100,6 +101,7 @@ JwtAuthGuard
   │
   ▼
 TenantContextInterceptor  (tenantId → ALS)
+TechLogsInterceptor       (mutating + HTTP≥400 → tech_activity_logs / tech_issues)
   │
   ▼
 Controller @UseGuards(RolesGuard, PermissionsGuard)   [staff]
@@ -114,6 +116,20 @@ Service
 ```
 
 **Fail closed:** missing user → 401; missing permission → 403; missing row → 404 (also used to hide other parties’ records).
+
+### 2.0a Super Admin Tech Logs
+
+Platform tables `tech_activity_logs` / `tech_issues` (no RLS). Super Admin console tabs:
+
+| Tab / API | Purpose |
+|-----------|---------|
+| `GET /super-admin/tech-logs/activity` | Every user’s mutating API actions (and error GETs), with `user_name` |
+| `GET /super-admin/tech-logs/issues` | Errors faced by users (name + path + message) for triage |
+| `PATCH /super-admin/tech-logs/issues/:id` | Mark `OPEN` / `IN_PROGRESS` / `RESOLVED` / `IGNORED` + notes |
+| `POST /super-admin/tech-logs/client-errors` | Staff FE can push client-side exceptions (staff JWT) |
+| `GET /super-admin/tech-logs/summary` | 24h activity + open/critical counters |
+
+Capture skips `/health`, `/docs*`, and `/super-admin/tech-logs` itself. See decision §2.13.
 
 ### 2.1 `@Public()` + specialized guards
 

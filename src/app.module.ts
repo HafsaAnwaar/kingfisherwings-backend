@@ -45,6 +45,7 @@ import { TrackModule } from "./modules/track/track.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { StaffActivityModule } from "./modules/notifications/staff-activity/staff-activity.module";
+import { TechLogsModule } from "./modules/tech-logs/tech-logs.module";
 import { WhatsAppModule } from "./shared/whatsapp/whatsapp.module";
 
 import redisConfig from "./config/redis.config";
@@ -108,6 +109,7 @@ import { LocaleModule } from "./common/locale/locale.module";
     QuoteRequestsModule,
     PaymentsModule,
     StaffActivityModule,
+    TechLogsModule,
     WhatsAppModule,
   ],
   providers: [
