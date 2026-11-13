@@ -45,7 +45,11 @@ import {
 } from "../ops-activity/ops-continuum-path-hints";
 import { MasterLabelService } from "../masters/master-label.service";
 import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
-import { optionalFkPatch } from "./utils/show-all-fk.util";
+import {
+  optionalFkPatch,
+  resolveShowAllFk,
+  syncShowAllNestedRefs,
+} from "./utils/show-all-fk.util";
 
 const DETAIL_TABS = [
   "show_all",
@@ -362,52 +366,112 @@ export class JobDetailService {
     }
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const originPortId =
-        dto.origin_port_id !== undefined
-          ? dto.origin_port_id
-          : await this.lookups.resolvePort(tx, tenantId, {
-              name: dto.origin_port_name,
-              code: dto.origin_port_code,
-            });
-      const destPortId =
-        dto.dest_port_id !== undefined
-          ? dto.dest_port_id
-          : await this.lookups.resolvePort(tx, tenantId, {
-              name: dto.dest_port_name,
-              code: dto.dest_port_code,
-            });
-      const shipperId =
-        dto.shipper_id !== undefined
-          ? dto.shipper_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.shipper_name,
-              code: dto.shipper_code,
-              label: "shipper",
-            });
-      const consigneeId =
-        dto.consignee_id !== undefined
-          ? dto.consignee_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.consignee_name,
-              code: dto.consignee_code,
-              label: "consignee",
-            });
-      const billingPartyId =
-        dto.billing_party_id !== undefined
-          ? dto.billing_party_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.billing_party_name,
-              code: dto.billing_party_code,
-              label: "billing party",
-            });
-      const agentId =
-        dto.agent_id !== undefined
-          ? dto.agent_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.agent_name,
-              code: dto.agent_code,
-              label: "agent",
-            });
+      // Prefer name/code when they diverge from echoed *_id (FE edits of
+      // filled fields). Empty→fill already worked via name-only resolve.
+      const originPortId = await resolveShowAllFk({
+        id: dto.origin_port_id,
+        name: dto.origin_port_name,
+        code: dto.origin_port_code,
+        findById: async (id) => {
+          const row = await tx.port.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, un_locode: true },
+          });
+          return row
+            ? { name: row.name, code: row.un_locode }
+            : null;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolvePort(tx, tenantId, { name, code }),
+      });
+      const destPortId = await resolveShowAllFk({
+        id: dto.dest_port_id,
+        name: dto.dest_port_name,
+        code: dto.dest_port_code,
+        findById: async (id) => {
+          const row = await tx.port.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, un_locode: true },
+          });
+          return row
+            ? { name: row.name, code: row.un_locode }
+            : null;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolvePort(tx, tenantId, { name, code }),
+      });
+      const shipperId = await resolveShowAllFk({
+        id: dto.shipper_id,
+        name: dto.shipper_name,
+        code: dto.shipper_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "shipper",
+          }),
+      });
+      const consigneeId = await resolveShowAllFk({
+        id: dto.consignee_id,
+        name: dto.consignee_name,
+        code: dto.consignee_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "consignee",
+          }),
+      });
+      const billingPartyId = await resolveShowAllFk({
+        id: dto.billing_party_id,
+        name: dto.billing_party_name,
+        code: dto.billing_party_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "billing party",
+          }),
+      });
+      const agentId = await resolveShowAllFk({
+        id: dto.agent_id,
+        name: dto.agent_name,
+        code: dto.agent_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "agent",
+          }),
+      });
 
       let containerStatusCode: string | null | undefined = undefined;
       let containerStatus: ContainerStatus | null | undefined = undefined;
@@ -1536,39 +1600,7 @@ export class JobDetailService {
 
   /** Map camelCase + flat warehouse/transport aliases onto canonical DTO fields. */
   private normalizeShowAllAliases(dto: PatchShowAllDto) {
-    const raw = dto as PatchShowAllDto & Record<string, unknown>;
-    const nestedId = (key: string): string | undefined => {
-      const nested = raw[key];
-      if (nested && typeof nested === "object" && !Array.isArray(nested)) {
-        const id = (nested as { id?: unknown }).id;
-        if (typeof id === "string" && id.trim()) return id.trim();
-      }
-      return undefined;
-    };
-    if (dto.origin_port_id === undefined) {
-      const id = nestedId("origin_port");
-      if (id) dto.origin_port_id = id;
-    }
-    if (dto.dest_port_id === undefined) {
-      const id = nestedId("dest_port") ?? nestedId("destination_port");
-      if (id) dto.dest_port_id = id;
-    }
-    if (dto.shipper_id === undefined) {
-      const id = nestedId("shipper");
-      if (id) dto.shipper_id = id;
-    }
-    if (dto.consignee_id === undefined) {
-      const id = nestedId("consignee");
-      if (id) dto.consignee_id = id;
-    }
-    if (dto.billing_party_id === undefined) {
-      const id = nestedId("billing_party") ?? nestedId("customer");
-      if (id) dto.billing_party_id = id;
-    }
-    if (dto.agent_id === undefined) {
-      const id = nestedId("agent");
-      if (id) dto.agent_id = id;
-    }
+    syncShowAllNestedRefs(dto as PatchShowAllDto & Record<string, unknown>);
 
     if (dto.payable_at === undefined && dto.payableAt !== undefined) {
       dto.payable_at = dto.payableAt;
