@@ -176,11 +176,22 @@ export class PatchShowAllDto {
   @MaxLength(100)
   payable_at?: string | null;
 
+  /** camelCase FE alias */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  payableAt?: string | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(100)
   freight_payable_at?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  freightPayableAt?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -200,16 +211,41 @@ export class PatchShowAllDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Allow()
+  chargeableUnits?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  chargeableUnit?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @Transform(numOrNull)
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   chargeable_weight?: number | null;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  chargeableWeight?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  commodityDescription?: string | null;
+
   @ApiPropertyOptional({ enum: ServiceScope })
   @IsOptional()
   @IsEnum(ServiceScope)
   service_scope?: ServiceScope | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  serviceScope?: ServiceScope | null;
 
   @ApiPropertyOptional({
     description:
@@ -219,6 +255,11 @@ export class PatchShowAllDto {
   @IsString()
   @MaxLength(40)
   service_type?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  serviceType?: string | null;
 
   @ApiPropertyOptional({ type: ShowAllWarehouseDto })
   @IsOptional()
@@ -231,6 +272,88 @@ export class PatchShowAllDto {
   @ValidateNested()
   @Type(() => ShowAllTransportDto)
   transport?: ShowAllTransportDto | null;
+
+  /** Flat warehouse aliases (when FE does not nest under `warehouse`). */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  warehouse_name?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  warehouse_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  expected_inbound_at?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  expected_outbound_at?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  storage_days_requested?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  bonded?: boolean | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  temperature_controlled?: boolean | null;
+
+  /** Flat transport aliases. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  pickup_address?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  delivery_address?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  origin_city_country?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  destination_city_country?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  vehicle_number?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  driver_name?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  driver_license?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  trucker_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Allow()
+  freight_terms?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

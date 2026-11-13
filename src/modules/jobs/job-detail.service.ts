@@ -224,36 +224,63 @@ export class JobDetailService {
       throw new BadRequestException(`Cannot edit a ${job.status} job.`);
     }
 
+    this.normalizeShowAllAliases(dto);
+
     const jobDate = dto.job_date ?? dto.shipment_date;
-    const vesselName = dto.vessel_name ?? dto.vessel_number;
+    // Prefer explicit vessel_name (including null clear); do not coalesce null→vessel_number.
+    const vesselName =
+      dto.vessel_name !== undefined
+        ? dto.vessel_name
+        : dto.vessel_number !== undefined
+          ? dto.vessel_number
+          : undefined;
     const lineCode =
-      dto.line_code ??
-      (dto.line_no != null && dto.line_no !== ""
-        ? String(dto.line_no)
-        : undefined);
+      dto.line_code !== undefined
+        ? dto.line_code
+        : dto.line_no != null && dto.line_no !== ""
+          ? String(dto.line_no)
+          : undefined;
     const mawbPatch = this.mergeShowAllMawbDto(dto);
-    const hasMawbField = this.hasAirMawbFields(mawbPatch, dto.mawb != null);
-    const hasSeaOnlyField =
-      dto.mbl_number !== undefined ||
-      dto.hbl_number !== undefined ||
-      dto.bl_number !== undefined ||
-      dto.container_number !== undefined ||
-      dto.container_status !== undefined ||
-      vesselName !== undefined ||
-      dto.voyage_number !== undefined ||
-      lineCode !== undefined;
+    /**
+     * FE echoes the full show_all GET payload. Mode-incompatible keys come
+     * back as null (air gets vessel_name:null; sea gets mawb_number:null).
+     * Those null echoes must NOT trip cross-mode guards or block saves.
+     * Only reject when the client sends a real opposite-mode value.
+     */
+    const hasMeaningfulSeaOnlyField =
+      this.isMeaningfulShowAllValue(dto.mbl_number) ||
+      this.isMeaningfulShowAllValue(dto.hbl_number) ||
+      this.isMeaningfulShowAllValue(dto.bl_number) ||
+      this.isMeaningfulShowAllValue(dto.container_number) ||
+      this.isMeaningfulShowAllValue(dto.container_status) ||
+      this.isMeaningfulShowAllValue(vesselName) ||
+      this.isMeaningfulShowAllValue(dto.voyage_number) ||
+      this.isMeaningfulShowAllValue(lineCode);
+
+    // Cross-mode gate: ignore shared aliases (shipment_date ↔ job_date) and
+    // cargo weight/cbm — those are valid on every mode.
+    const hasMeaningfulAirOnlyField = this.hasAirOnlyMawbValues(mawbPatch, dto.mawb);
 
     const isAir = AIR_JOB_TYPES.includes(job.job_type);
-    if (isAir && hasSeaOnlyField) {
+    if (isAir && hasMeaningfulSeaOnlyField) {
       throw new BadRequestException(
         "Sea fields (vessel, voyage, MBL/HBL, container) are not editable on Air jobs.",
       );
     }
-    if (!isAir && hasMawbField) {
+    if (!isAir && hasMeaningfulAirOnlyField) {
       throw new BadRequestException(
         "MAWB / air fields are only editable on Air Export and Air Import jobs.",
       );
     }
+    // Echoed null opposite-mode fields are ignored (not written).
+    const applySeaFields = !isAir;
+    const applyMawbFields =
+      isAir &&
+      this.hasAirMawbFields(
+        mawbPatch,
+        dto.mawb != null && typeof dto.mawb === "object",
+        /* meaningfulOnly */ true,
+      );
 
     const payableAt =
       dto.freight_payable_at !== undefined
@@ -281,23 +308,23 @@ export class JobDetailService {
       dto.chargeable_weight !== undefined ||
       dto.service_scope !== undefined ||
       dto.service_type !== undefined ||
-      dto.warehouse !== undefined ||
-      dto.transport !== undefined ||
+      (dto.warehouse != null && typeof dto.warehouse === "object") ||
+      (dto.transport != null && typeof dto.transport === "object") ||
       dto.pieces !== undefined ||
       dto.gross_weight !== undefined ||
       dto.volume_cbm !== undefined ||
       dto.etd !== undefined ||
       dto.eta !== undefined ||
       jobDate !== undefined ||
-      dto.mbl_number !== undefined ||
-      dto.hbl_number !== undefined ||
-      dto.bl_number !== undefined ||
       dto.rotation_number !== undefined ||
-      dto.container_number !== undefined ||
-      dto.container_status !== undefined ||
-      vesselName !== undefined ||
-      dto.voyage_number !== undefined ||
-      lineCode !== undefined ||
+      (applySeaFields && dto.container_number !== undefined) ||
+      (applySeaFields && dto.container_status !== undefined) ||
+      (applySeaFields && vesselName !== undefined) ||
+      (applySeaFields && dto.voyage_number !== undefined) ||
+      (applySeaFields && lineCode !== undefined) ||
+      (applySeaFields && dto.mbl_number !== undefined) ||
+      (applySeaFields && dto.hbl_number !== undefined) ||
+      (applySeaFields && dto.bl_number !== undefined) ||
       dto.company_code !== undefined ||
       dto.origin_port_name !== undefined ||
       dto.origin_port_code !== undefined ||
@@ -320,7 +347,7 @@ export class JobDetailService {
       dto.location_terminal !== undefined ||
       dto.terminal !== undefined ||
       dto.location !== undefined ||
-      hasMawbField;
+      applyMawbFields;
     if (!hasField) {
       throw new BadRequestException(
         "Provide at least one show_all field to update.",
@@ -384,7 +411,7 @@ export class JobDetailService {
 
       let containerStatusCode: string | null | undefined = undefined;
       let containerStatus: ContainerStatus | null | undefined = undefined;
-      if (dto.container_status !== undefined) {
+      if (applySeaFields && dto.container_status !== undefined) {
         // null / "" / "—" (DTO Transform + defensive here) → clear
         const raw =
           dto.container_status == null
@@ -439,20 +466,24 @@ export class JobDetailService {
         ...(dto.rotation_number !== undefined
           ? { rotation_number: dto.rotation_number }
           : {}),
-        ...(dto.container_number !== undefined
+        ...(applySeaFields && dto.container_number !== undefined
           ? { primary_container_number: dto.container_number }
           : {}),
-        ...(containerStatus !== undefined
+        ...(applySeaFields && containerStatus !== undefined
           ? { primary_container_status: containerStatus }
           : {}),
-        ...(containerStatusCode !== undefined
+        ...(applySeaFields && containerStatusCode !== undefined
           ? { primary_container_status_code: containerStatusCode }
           : {}),
-        ...(vesselName !== undefined ? { vessel_name: vesselName } : {}),
-        ...(dto.voyage_number !== undefined
+        ...(applySeaFields && vesselName !== undefined
+          ? { vessel_name: vesselName }
+          : {}),
+        ...(applySeaFields && dto.voyage_number !== undefined
           ? { voyage_number: dto.voyage_number }
           : {}),
-        ...(lineCode !== undefined ? { line_code: lineCode } : {}),
+        ...(applySeaFields && lineCode !== undefined
+          ? { line_code: lineCode }
+          : {}),
         ...(dto.company_code !== undefined
           ? { edi_company_code: dto.company_code }
           : {}),
@@ -523,13 +554,14 @@ export class JobDetailService {
         );
       }
 
-      const mbl =
-        dto.mbl_number !== undefined
+      const mbl = applySeaFields
+        ? dto.mbl_number !== undefined
           ? dto.mbl_number
           : dto.bl_number !== undefined
             ? dto.bl_number
-            : undefined;
-      const hbl = dto.hbl_number;
+            : undefined
+        : undefined;
+      const hbl = applySeaFields ? dto.hbl_number : undefined;
       const shipmentSync: Prisma.ShipmentUncheckedUpdateManyInput = {
         ...(mbl !== undefined ? { mbl_number: mbl } : {}),
         ...(hbl !== undefined ? { hbl_number: hbl } : {}),
@@ -551,8 +583,10 @@ export class JobDetailService {
           ? { eta: dto.eta ? new Date(dto.eta) : null }
           : {}),
         ...(payableAt !== undefined ? { freight_payable_at: payableAt } : {}),
-        ...(vesselName !== undefined ? { vessel_name: vesselName } : {}),
-        ...(dto.voyage_number !== undefined
+        ...(applySeaFields && vesselName !== undefined
+          ? { vessel_name: vesselName }
+          : {}),
+        ...(applySeaFields && dto.voyage_number !== undefined
           ? { voyage_number: dto.voyage_number }
           : {}),
         ...(originPortId !== undefined
@@ -590,7 +624,10 @@ export class JobDetailService {
         });
       }
 
-      if (dto.voyage_number !== undefined || vesselName !== undefined) {
+      if (
+        applySeaFields &&
+        (dto.voyage_number !== undefined || vesselName !== undefined)
+      ) {
         const voyagePatch = {
           ...(dto.voyage_number !== undefined
             ? { voyage_number: dto.voyage_number }
@@ -610,8 +647,8 @@ export class JobDetailService {
 
       // Sync primary JobContainer number/status when provided.
       if (
-        dto.container_number !== undefined ||
-        containerStatus !== undefined
+        applySeaFields &&
+        (dto.container_number !== undefined || containerStatus !== undefined)
       ) {
         const existing = await tx.jobContainer.findFirst({
           where: { job_id: id, tenant_id: tenantId, deleted_at: null },
@@ -660,7 +697,7 @@ export class JobDetailService {
         }
       }
 
-      if (hasMawbField) {
+      if (applyMawbFields) {
         if (!job.air_details) {
           throw new BadRequestException(
             "MAWB / air fields are only editable on Air Export and Air Import jobs.",
@@ -1410,33 +1447,212 @@ export class JobDetailService {
    * True air/MAWB keys only. Shared cargo fields (gross_weight / volume_cbm)
    * count as air only when nested `mawb` was sent — otherwise sea show_all
    * can patch weight/cbm without triggering the air gate.
+   *
+   * When `meaningfulOnly` is true, null/"" echoes from GET round-trips are
+   * ignored so sea jobs can save with mawb_*:null.
    */
   private hasAirMawbFields(
     dto: UpdateAirMawbDto,
     nestedMawbPresent = false,
+    meaningfulOnly = false,
   ): boolean {
+    const check = (v: unknown) =>
+      meaningfulOnly
+        ? this.isMeaningfulShowAllValue(v)
+        : v !== undefined;
     const airOnly =
-      dto.flight_no !== undefined ||
-      dto.flight_number !== undefined ||
-      dto.flight_status !== undefined ||
-      dto.flight_date !== undefined ||
-      dto.shipment_date !== undefined ||
-      dto.mawb_no !== undefined ||
-      dto.mawb_number !== undefined ||
-      dto.hawb_no !== undefined ||
-      dto.hawb_number !== undefined ||
-      dto.arrival_flight_number !== undefined ||
-      dto.airline_name !== undefined ||
-      dto.pallet_count !== undefined ||
-      dto.air_pallet !== undefined;
+      check(dto.flight_no) ||
+      check(dto.flight_number) ||
+      check(dto.flight_status) ||
+      check(dto.flight_date) ||
+      check(dto.shipment_date) ||
+      check(dto.mawb_no) ||
+      check(dto.mawb_number) ||
+      check(dto.hawb_no) ||
+      check(dto.hawb_number) ||
+      check(dto.arrival_flight_number) ||
+      check(dto.airline_name) ||
+      check(dto.pallet_count) ||
+      check(dto.air_pallet);
     if (airOnly) return true;
     if (!nestedMawbPresent) return false;
     return (
-      dto.dimensions !== undefined ||
-      dto.volume_cbm !== undefined ||
-      dto.weight !== undefined ||
-      dto.gross_weight !== undefined
+      check(dto.dimensions) ||
+      check(dto.volume_cbm) ||
+      check(dto.weight) ||
+      check(dto.gross_weight)
     );
+  }
+
+  /**
+   * Air-exclusive values for the cross-mode show_all guard.
+   * Excludes shipment_date (alias of job_date) and cargo weight/cbm.
+   */
+  private hasAirOnlyMawbValues(
+    dto: UpdateAirMawbDto,
+    nestedMawb: PatchShowAllDto["mawb"],
+  ): boolean {
+    const nested =
+      nestedMawb != null && typeof nestedMawb === "object" ? nestedMawb : null;
+    const vals = [
+      dto.flight_no,
+      dto.flight_number,
+      dto.flight_status,
+      dto.flight_date,
+      dto.mawb_no,
+      dto.mawb_number,
+      dto.hawb_no,
+      dto.hawb_number,
+      dto.arrival_flight_number,
+      dto.airline_name,
+      dto.pallet_count,
+      dto.air_pallet,
+      nested?.flight_no,
+      nested?.flight_number,
+      nested?.flight_status,
+      nested?.flight_date,
+      nested?.mawb_no,
+      nested?.mawb_number,
+      nested?.hawb_no,
+      nested?.hawb_number,
+      nested?.arrival_flight_number,
+      nested?.airline_name,
+      nested?.pallet_count,
+      nested?.air_pallet,
+    ];
+    return vals.some((v) => this.isMeaningfulShowAllValue(v));
+  }
+
+  /** Real user value (not a GET null/empty echo). */
+  private isMeaningfulShowAllValue(value: unknown): boolean {
+    if (value === undefined || value === null) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value === "boolean") return true;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "object") return Object.keys(value as object).length > 0;
+    return true;
+  }
+
+  /** Map camelCase + flat warehouse/transport aliases onto canonical DTO fields. */
+  private normalizeShowAllAliases(dto: PatchShowAllDto) {
+    const raw = dto as PatchShowAllDto & Record<string, unknown>;
+    const nestedId = (key: string): string | undefined => {
+      const nested = raw[key];
+      if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+        const id = (nested as { id?: unknown }).id;
+        if (typeof id === "string" && id.trim()) return id.trim();
+      }
+      return undefined;
+    };
+    if (dto.origin_port_id === undefined) {
+      const id = nestedId("origin_port");
+      if (id) dto.origin_port_id = id;
+    }
+    if (dto.dest_port_id === undefined) {
+      const id = nestedId("dest_port") ?? nestedId("destination_port");
+      if (id) dto.dest_port_id = id;
+    }
+    if (dto.shipper_id === undefined) {
+      const id = nestedId("shipper");
+      if (id) dto.shipper_id = id;
+    }
+    if (dto.consignee_id === undefined) {
+      const id = nestedId("consignee");
+      if (id) dto.consignee_id = id;
+    }
+    if (dto.billing_party_id === undefined) {
+      const id = nestedId("billing_party") ?? nestedId("customer");
+      if (id) dto.billing_party_id = id;
+    }
+    if (dto.agent_id === undefined) {
+      const id = nestedId("agent");
+      if (id) dto.agent_id = id;
+    }
+
+    if (dto.payable_at === undefined && dto.payableAt !== undefined) {
+      dto.payable_at = dto.payableAt;
+    }
+    if (
+      dto.freight_payable_at === undefined &&
+      dto.freightPayableAt !== undefined
+    ) {
+      dto.freight_payable_at = dto.freightPayableAt;
+    }
+    if (
+      dto.chargeable_units === undefined &&
+      dto.chargeableUnits !== undefined
+    ) {
+      dto.chargeable_units = Number(dto.chargeableUnits);
+    }
+    if (
+      dto.chargeable_unit === undefined &&
+      dto.chargeableUnit !== undefined
+    ) {
+      dto.chargeable_unit = Number(dto.chargeableUnit);
+    }
+    if (
+      dto.chargeable_weight === undefined &&
+      dto.chargeableWeight !== undefined
+    ) {
+      dto.chargeable_weight = Number(dto.chargeableWeight);
+    }
+    if (
+      dto.commodity_description === undefined &&
+      dto.commodityDescription !== undefined
+    ) {
+      dto.commodity_description = dto.commodityDescription;
+    }
+    if (dto.service_scope === undefined && dto.serviceScope !== undefined) {
+      dto.service_scope = dto.serviceScope;
+    }
+    if (dto.service_type === undefined && dto.serviceType !== undefined) {
+      dto.service_type = dto.serviceType;
+    }
+
+    const hasFlatWarehouse =
+      dto.warehouse_name !== undefined ||
+      dto.warehouse_id !== undefined ||
+      dto.expected_inbound_at !== undefined ||
+      dto.expected_outbound_at !== undefined ||
+      dto.storage_days_requested !== undefined ||
+      dto.bonded !== undefined ||
+      dto.temperature_controlled !== undefined;
+    if (hasFlatWarehouse && (dto.warehouse == null || dto.warehouse === undefined)) {
+      dto.warehouse = {
+        warehouse_name: dto.warehouse_name,
+        warehouse_id: dto.warehouse_id,
+        expected_inbound_at: dto.expected_inbound_at,
+        expected_outbound_at: dto.expected_outbound_at,
+        storage_days_requested: dto.storage_days_requested,
+        bonded: dto.bonded,
+        temperature_controlled: dto.temperature_controlled,
+      };
+    }
+
+    const hasFlatTransport =
+      dto.pickup_address !== undefined ||
+      dto.delivery_address !== undefined ||
+      dto.origin_city_country !== undefined ||
+      dto.destination_city_country !== undefined ||
+      dto.vehicle_number !== undefined ||
+      dto.driver_name !== undefined ||
+      dto.driver_license !== undefined ||
+      dto.trucker_id !== undefined ||
+      dto.freight_terms !== undefined;
+    if (hasFlatTransport && (dto.transport == null || dto.transport === undefined)) {
+      dto.transport = {
+        pickup_address: dto.pickup_address,
+        delivery_address: dto.delivery_address,
+        origin_city_country: dto.origin_city_country,
+        destination_city_country: dto.destination_city_country,
+        vehicle_number: dto.vehicle_number,
+        driver_name: dto.driver_name,
+        driver_license: dto.driver_license,
+        trucker_id: dto.trucker_id,
+        freight_terms: dto.freight_terms,
+      };
+    }
   }
 
   private clearableString(value: string | null | undefined): string | null {
