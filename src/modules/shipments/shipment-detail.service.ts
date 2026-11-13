@@ -41,6 +41,8 @@ import { TrackService } from "../track/track.service";
 import {
   optionalFkPatch,
   requiredFk,
+  resolveShowAllFk,
+  syncShowAllNestedRefs,
 } from "../jobs/utils/show-all-fk.util";
 
 const DETAIL_TABS = [
@@ -171,6 +173,8 @@ export class ShipmentDetailService {
       throw new BadRequestException("Cannot edit a CANCELLED shipment.");
     }
 
+    syncShowAllNestedRefs(dto as PatchShowAllDto & Record<string, unknown>);
+
     const shipmentDate = dto.job_date ?? dto.shipment_date;
     const payableAt =
       dto.freight_payable_at !== undefined
@@ -220,60 +224,134 @@ export class ShipmentDetailService {
     }
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
-      const originPortId =
-        dto.origin_port_id !== undefined
-          ? dto.origin_port_id
-          : await this.lookups.resolvePort(tx, tenantId, {
-              name: dto.origin_port_name,
-              code: dto.origin_port_code,
-            });
-      const destPortId =
-        dto.dest_port_id !== undefined
-          ? dto.dest_port_id
-          : await this.lookups.resolvePort(tx, tenantId, {
-              name: dto.dest_port_name,
-              code: dto.dest_port_code,
-            });
-      const shipperId =
-        dto.shipper_id !== undefined
-          ? dto.shipper_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.shipper_name,
-              code: dto.shipper_code,
-              label: "shipper",
-            });
-      const consigneeId =
-        dto.consignee_id !== undefined
-          ? dto.consignee_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.consignee_name,
-              code: dto.consignee_code,
-              label: "consignee",
-            });
-      const customerId =
-        dto.customer_id !== undefined
-          ? dto.customer_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.customer_name ?? dto.billing_party_name,
-              code: dto.customer_code ?? dto.billing_party_code,
-              label: "customer",
-            });
-      const carrierId =
-        dto.carrier_id !== undefined
-          ? dto.carrier_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.carrier_name,
-              code: dto.carrier_code,
-              label: "carrier",
-            });
-      const agentId =
-        dto.agent_id !== undefined
-          ? dto.agent_id
-          : await this.lookups.resolveParty(tx, tenantId, {
-              name: dto.agent_name,
-              code: dto.agent_code,
-              label: "agent",
-            });
+      // Prefer name/code when they diverge from echoed *_id (same as job show_all).
+      const originPortId = await resolveShowAllFk({
+        id: dto.origin_port_id,
+        name: dto.origin_port_name,
+        code: dto.origin_port_code,
+        findById: async (id) => {
+          const row = await tx.port.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, un_locode: true },
+          });
+          return row ? { name: row.name, code: row.un_locode } : null;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolvePort(tx, tenantId, { name, code }),
+      });
+      const destPortId = await resolveShowAllFk({
+        id: dto.dest_port_id,
+        name: dto.dest_port_name,
+        code: dto.dest_port_code,
+        findById: async (id) => {
+          const row = await tx.port.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, un_locode: true },
+          });
+          return row ? { name: row.name, code: row.un_locode } : null;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolvePort(tx, tenantId, { name, code }),
+      });
+      const shipperId = await resolveShowAllFk({
+        id: dto.shipper_id,
+        name: dto.shipper_name,
+        code: dto.shipper_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "shipper",
+          }),
+      });
+      const consigneeId = await resolveShowAllFk({
+        id: dto.consignee_id,
+        name: dto.consignee_name,
+        code: dto.consignee_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "consignee",
+          }),
+      });
+      const customerId = await resolveShowAllFk({
+        id:
+          dto.customer_id !== undefined
+            ? dto.customer_id
+            : dto.billing_party_id,
+        name:
+          dto.customer_name !== undefined
+            ? dto.customer_name
+            : dto.billing_party_name,
+        code:
+          dto.customer_code !== undefined
+            ? dto.customer_code
+            : dto.billing_party_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "customer",
+          }),
+      });
+      const carrierId = await resolveShowAllFk({
+        id: dto.carrier_id,
+        name: dto.carrier_name,
+        code: dto.carrier_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "carrier",
+          }),
+      });
+      const agentId = await resolveShowAllFk({
+        id: dto.agent_id,
+        name: dto.agent_name,
+        code: dto.agent_code,
+        findById: async (id) => {
+          const row = await tx.party.findFirst({
+            where: { id, tenant_id: tenantId, deleted_at: null },
+            select: { name: true, code: true },
+          });
+          return row;
+        },
+        resolveByNameCode: (name, code) =>
+          this.lookups.resolveParty(tx, tenantId, {
+            name,
+            code,
+            label: "agent",
+          }),
+      });
 
       // Use UncheckedUpdateInput so scalar FKs are typed correctly.
       // customer_id is REQUIRED on Shipment — never pass null (FE echoes nulls).
