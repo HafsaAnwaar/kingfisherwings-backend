@@ -851,9 +851,21 @@ Staff routes under **`/jobs/:id/air/*`** and gated document posts. Portal: `POST
 /documentation/charge-templates/* — CRUD + apply to job charges
 /documentation/edi/*           — Bayan, CCN, CGM, eQO (Dubai/Oman), IAL gateways
 /documentation/mpci/filings/*  — UAE MPCI prepare/submit
-Extended GET /jobs filters     — department_id, consignee_id, customs_entry_number, date_field (etd/eta/atd/ata)
+Extended GET /jobs filters     — department_id, consignee_id, customs_entry_number, date_field (etd/eta/atd/ata), ops_user_id
 Extended GET /payment-requests — branch_id, job_number, voucher_pending
 ```
+
+### Job department pass (org handoff)
+
+Org department tab (not NVOCC workflow stages):
+
+- `GET /jobs/:id/detail/department` — includes `ops_user_id` / `ops_user_name`, `actions.can_pass`, `path_hints.pass`
+- `POST /jobs/:id/department/pass` — body: department + branch + user (ids or names), optional `notes`. Sets `Job.department_id`, `branch_id`, `ops_user_id`; syncs linked shipments; audits `JOB_DEPARTMENT_PASS`; notifies assignee.
+- Authorize: Tenant Admin / Branch Manager (`seesAllJobDepartments`), **or** actor’s `User.department_id` equals the job’s current `department_id`.
+- After pass, assignee lists with `GET /jobs?ops_user_id=<me>` (“Assigned to me”). Staff may only filter `ops_user_id` to themselves; admins may filter any.
+- Do not confuse org `Job.department_id` with ops “department” = `job_type` ACL grants.
+
+Credit/debit note create accepts optional `description` (stored as `Invoice.remarks`; `remarks` remains an alias). Party AR/AP statement rows and statement PDFs expose `description` (`remarks` or first line description).
 
 House shipment = house job (`parent_job_id`); no separate shipment table. EDI file generation in-app; `EDI_SUBMIT_ENABLED=true` for live submit adapters.
 

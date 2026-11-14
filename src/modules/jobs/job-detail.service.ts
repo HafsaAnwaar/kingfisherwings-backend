@@ -140,6 +140,7 @@ export class JobDetailService {
     tab: string,
     permissions?: string[],
     role?: string | null,
+    userId?: string,
   ) {
     const normalized = tab.toLowerCase();
     if (!DETAIL_TABS.includes(normalized as (typeof DETAIL_TABS)[number])) {
@@ -168,7 +169,11 @@ export class JobDetailService {
       return this.costing.getTab(tenantId, id, "STAFF");
     }
     if (normalized === "department") {
-      return this.tabPanels.getDepartmentTab(tenantId, id);
+      return this.tabPanels.getDepartmentTab(tenantId, id, {
+        userId,
+        role,
+        permissions,
+      });
     }
     if (normalized === "planned_container") {
       return this.containerTab.getTab(

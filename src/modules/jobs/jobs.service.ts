@@ -826,6 +826,17 @@ export class JobsService {
       if (isAdmin && query.created_by) {
         where.created_by = query.created_by;
       }
+      if (query.ops_user_id) {
+        if (
+          !isAdmin &&
+          (!_actor?.userId || query.ops_user_id !== _actor.userId)
+        ) {
+          throw new ForbiddenException(
+            "Staff may only filter ops_user_id to themselves.",
+          );
+        }
+        where.ops_user_id = query.ops_user_id;
+      }
       if (query.consignee_id) where.consignee_id = query.consignee_id;
       if (query.origin_port_id) where.origin_port_id = query.origin_port_id;
       if (query.dest_port_id) where.dest_port_id = query.dest_port_id;

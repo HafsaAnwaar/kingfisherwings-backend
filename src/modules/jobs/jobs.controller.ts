@@ -125,6 +125,7 @@ import {
   SaleSectionDto,
 } from "./dto/job-costing.dto";
 import {
+  PassJobDepartmentDto,
   PatchJobDepartmentDto,
   PushRoutingToSubJobsDto,
   UpsertJobCustomsRefDto,
@@ -667,10 +668,18 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
     @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("tab") tab: string,
   ) {
-    return this.detail.getDetailTab(tenantId, id, tab, permissions, role);
+    return this.detail.getDetailTab(
+      tenantId,
+      id,
+      tab,
+      permissions,
+      role,
+      userId,
+    );
   }
 
   @Put(":id/detail/mawb")
@@ -1134,6 +1143,29 @@ export class JobsController {
     @Body() dto: PatchJobDepartmentDto,
   ) {
     return this.tabPanels.patchDepartment(tenantId, id, dto, actorId);
+  }
+
+  @Post(":id/department/pass")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary:
+      "Pass job to another org department + branch + assignee (ops_user)",
+    description:
+      "Allowed for Tenant Admin / Branch Manager (seesAllJobDepartments), or staff whose User.department_id matches the job's current department_id. Sets department_id, branch_id, ops_user_id; syncs linked shipments; audits JOB_DEPARTMENT_PASS; notifies assignee. Assignee should list jobs with ops_user_id=<me>.",
+  })
+  passDepartment(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: PassJobDepartmentDto,
+  ) {
+    return this.tabPanels.passDepartment(tenantId, id, dto, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Post(":id/exchange-rates")

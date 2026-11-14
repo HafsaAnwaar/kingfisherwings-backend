@@ -87,6 +87,13 @@ export class ArApService {
           amount_paid: true,
           balance_due: true,
           job_id: true,
+          remarks: true,
+          lines: {
+            where: { deleted_at: null },
+            orderBy: { sort_order: "asc" },
+            take: 1,
+            select: { description: true },
+          },
         },
       });
 
@@ -154,7 +161,15 @@ export class ArApService {
         let payment_status: "UNPAID" | "PROOF_UPLOADED" | "PAID" = "UNPAID";
         if (balance <= 0.0001) payment_status = "PAID";
         else if (proofInvoiceIds.has(inv.id)) payment_status = "PROOF_UPLOADED";
-        return { ...inv, payment_status };
+        const { lines, remarks, ...rest } = inv;
+        const description =
+          remarks?.trim() || lines[0]?.description?.trim() || null;
+        return {
+          ...rest,
+          remarks: remarks ?? null,
+          description,
+          payment_status,
+        };
       });
 
       /**

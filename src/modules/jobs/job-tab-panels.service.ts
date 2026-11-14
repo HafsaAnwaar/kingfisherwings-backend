@@ -1,13 +1,16 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { JobType, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { seesAllJobDepartments } from "../../common/utils/job-type-access.util";
 import { ModeBookingFormService } from "./booking-forms/mode-booking-form.service";
 import { AirComplianceBookingFormService } from "./air-compliance-booking-form.service";
 import {
+  PassJobDepartmentDto,
   PatchJobDepartmentDto,
   PushRoutingToSubJobsDto,
   UpsertJobCustomsRefDto,
@@ -16,6 +19,7 @@ import {
 } from "./dto/job-tab-panels.dto";
 import { MasterLabelService } from "../masters/master-label.service";
 import { JobLookupsService } from "./job-lookups.service";
+import { NotificationEmitterService } from "../notifications/notification-emitter.service";
 
 type ModeFormKind =
   | "sea_fcl"
@@ -34,19 +38,34 @@ export class JobTabPanelsService {
     private readonly airCompliance: AirComplianceBookingFormService,
     private readonly labels: MasterLabelService,
     private readonly lookups: JobLookupsService,
+    private readonly notifications: NotificationEmitterService,
   ) {}
 
   // ─── Department ─────────────────────────────────────────────
 
-  async getDepartmentTab(tenantId: string, jobId: string) {
+  async getDepartmentTab(
+    tenantId: string,
+    jobId: string,
+    actor?: {
+      userId?: string;
+      role?: string | null;
+      permissions?: string[] | null;
+    },
+  ) {
     const job = await this.assertJob(tenantId, jobId);
     const named = await this.labels.enrichOne(tenantId, {
       branch_id: job.branch_id,
       company_id: job.company_id,
       department_id: job.department_id,
       salesperson_id: job.salesperson_id,
+      ops_user_id: job.ops_user_id,
     });
     const dropdowns = await this.lookups.dropdowns(tenantId);
+    const canPass = await this.canPassDepartment(
+      tenantId,
+      job.department_id,
+      actor,
+    );
     return {
       success: true,
       data: {
@@ -58,10 +77,14 @@ export class JobTabPanelsService {
         department: named.department,
         salesperson_name: named.salesperson_name,
         salesperson: named.salesperson,
+        ops_user_id: job.ops_user_id,
+        ops_user_name: named.ops_user_name,
+        ops_user: named.ops_user,
         dropdowns: dropdowns.data,
-        actions: { can_patch: true },
+        actions: { can_patch: true, can_pass: canPass },
         path_hints: {
           patch: `/jobs/${jobId}/department`,
+          pass: `/jobs/${jobId}/department/pass`,
           dropdowns: `/jobs/lookups/dropdowns`,
         },
       },
@@ -156,6 +179,172 @@ export class JobTabPanelsService {
     });
 
     return this.getDepartmentTab(tenantId, jobId);
+  }
+
+  /**
+   * Pass / hand off job to another org department + branch + assignee (ops_user).
+   * Allowed for tenant/branch admins, or staff whose org department matches the job's current department.
+   */
+  async passDepartment(
+    tenantId: string,
+    jobId: string,
+    dto: PassJobDepartmentDto,
+    actor?: {
+      userId?: string;
+      role?: string | null;
+      permissions?: string[] | null;
+    },
+  ) {
+    const job = await this.assertJob(tenantId, jobId);
+    const allowed = await this.canPassDepartment(
+      tenantId,
+      job.department_id,
+      actor,
+    );
+    if (!allowed) {
+      throw new ForbiddenException(
+        "Only Tenant Admin, Branch Manager, or staff in the job's current department can pass this job.",
+      );
+    }
+
+    const hasDept = dto.department_id != null || !!dto.department_name?.trim();
+    const hasBranch = dto.branch_id != null || !!dto.branch_name?.trim();
+    const hasUser = dto.user_id != null || !!dto.user_name?.trim();
+    if (!hasDept || !hasBranch || !hasUser) {
+      throw new BadRequestException(
+        "Pass requires department, branch, and user (ids or names).",
+      );
+    }
+
+    const result = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const departmentId = await this.lookups.resolveDepartment(
+        tx,
+        tenantId,
+        dto.department_id,
+        dto.department_name,
+      );
+      const branchId = await this.lookups.resolveBranch(
+        tx,
+        tenantId,
+        dto.branch_id,
+        dto.branch_name,
+      );
+      const opsUserId = await this.lookups.resolveUser(
+        tx,
+        tenantId,
+        dto.user_id,
+        dto.user_name,
+      );
+      if (!departmentId || !branchId || !opsUserId) {
+        throw new BadRequestException(
+          "Could not resolve department, branch, or user.",
+        );
+      }
+
+      const assignee = await tx.user.findFirst({
+        where: { id: opsUserId, tenant_id: tenantId, deleted_at: null },
+        select: {
+          id: true,
+          department_id: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+        },
+      });
+      if (!assignee) throw new NotFoundException("Assignee not found.");
+      if (
+        assignee.department_id &&
+        assignee.department_id !== departmentId
+      ) {
+        throw new BadRequestException(
+          "Selected user does not belong to the target department. Choose a user from that department.",
+        );
+      }
+
+      const before = {
+        branch_id: job.branch_id,
+        department_id: job.department_id,
+        ops_user_id: job.ops_user_id,
+      };
+
+      const updated = await tx.job.update({
+        where: { id: jobId },
+        data: {
+          department_id: departmentId,
+          branch_id: branchId,
+          ops_user_id: opsUserId,
+          updated_by: actor?.userId,
+        },
+      });
+
+      await tx.shipment.updateMany({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        data: {
+          branch_id: branchId,
+          department_id: departmentId,
+          ...(updated.company_id != null
+            ? { company_id: updated.company_id }
+            : {}),
+          ...(updated.salesperson_id != null
+            ? { salesperson_id: updated.salesperson_id }
+            : {}),
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: actor?.userId ?? null,
+          action: "JOB_DEPARTMENT_PASS",
+          entity: "JOB",
+          entity_id: jobId,
+          old_values: before as Prisma.InputJsonValue,
+          new_values: {
+            branch_id: updated.branch_id,
+            department_id: updated.department_id,
+            ops_user_id: updated.ops_user_id,
+            notes: dto.notes ?? null,
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      return updated;
+    });
+
+    const jobNumber = result.job_number;
+    void this.notifications.notifyStaffUser(tenantId, result.ops_user_id!, {
+      type: "JOB_MILESTONE_UPDATED",
+      title: `Job passed to you: ${jobNumber}`,
+      message:
+        dto.notes?.trim() ||
+        `Job ${jobNumber} was passed to your department and assigned to you.`,
+      entity_type: "job",
+      entity_id: jobId,
+      link_path: `/jobs/${jobId}`,
+    });
+
+    return this.getDepartmentTab(tenantId, jobId, actor);
+  }
+
+  private async canPassDepartment(
+    tenantId: string,
+    jobDepartmentId: string | null,
+    actor?: {
+      userId?: string;
+      role?: string | null;
+      permissions?: string[] | null;
+    },
+  ): Promise<boolean> {
+    if (!actor?.userId) return false;
+    if (seesAllJobDepartments(actor.role, actor.permissions)) return true;
+    if (!jobDepartmentId) return false;
+    const user = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.user.findFirst({
+        where: { id: actor.userId, tenant_id: tenantId, deleted_at: null },
+        select: { department_id: true },
+      }),
+    );
+    return !!user?.department_id && user.department_id === jobDepartmentId;
   }
 
   // ─── Exchange rates ─────────────────────────────────────────

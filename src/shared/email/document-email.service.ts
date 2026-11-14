@@ -264,20 +264,29 @@ export class DocumentEmailService {
       due_date?: unknown;
       total_amount: unknown;
       balance_due: unknown;
+      description?: string | null;
+      remarks?: string | null;
     }>;
   }): Promise<Buffer> {
+    const escapeHtml = (s: string) =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
     const rows = options.invoices
-      .map(
-        (inv) =>
-          `<tr>
-            <td>${inv.invoice_number}</td>
-            <td>${inv.invoice_type}</td>
+      .map((inv) => {
+        const desc = inv.description ?? inv.remarks ?? "";
+        return `<tr>
+            <td>${escapeHtml(inv.invoice_number)}</td>
+            <td>${escapeHtml(inv.invoice_type)}</td>
             <td>${String(inv.invoice_date).slice(0, 10)}</td>
             <td>${inv.due_date ? String(inv.due_date).slice(0, 10) : ""}</td>
+            <td>${escapeHtml(String(desc))}</td>
             <td style="text-align:right">${Number(inv.total_amount).toFixed(2)}</td>
             <td style="text-align:right">${Number(inv.balance_due).toFixed(2)}</td>
-          </tr>`,
-      )
+          </tr>`;
+      })
       .join("");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${options.title}</title>
@@ -292,8 +301,8 @@ export class DocumentEmailService {
       <p><strong>${options.partyName}</strong><br/>As of ${options.asOf}</p>
       <p>Open balance: <strong>${options.openBalance.toFixed(2)}</strong></p>
       <table>
-        <thead><tr><th>Invoice</th><th>Type</th><th>Date</th><th>Due</th><th>Total</th><th>Balance</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6">No invoices</td></tr>'}</tbody>
+        <thead><tr><th>Invoice</th><th>Type</th><th>Date</th><th>Due</th><th>Description</th><th>Total</th><th>Balance</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7">No invoices</td></tr>'}</tbody>
       </table>
       </body></html>`;
 

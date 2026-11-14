@@ -59,6 +59,53 @@ export class PatchJobDepartmentDto {
   salesperson_id?: string | null;
 }
 
+/** Pass / hand off a job to another org department + branch + assignee. */
+export class PassJobDepartmentDto {
+  @ApiPropertyOptional({ description: "Target department name or code" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  department_name?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  department_id?: string;
+
+  @ApiPropertyOptional({ description: "Target branch name or code" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  branch_name?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  branch_id?: string;
+
+  @ApiPropertyOptional({
+    description: "Assignee full name or email (becomes ops_user)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  user_name?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Assignee user id (becomes ops_user_id)",
+  })
+  @IsOptional()
+  @IsUUID()
+  user_id?: string;
+
+  @ApiPropertyOptional({ description: "Optional handoff notes" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string | null;
+}
+
 export class UpsertJobExchangeRateDto {
   @ApiProperty({ example: "USD" })
   @IsString()

@@ -103,6 +103,15 @@ export class JobQueryDto {
   @IsUUID()
   salesperson_id?: string;
 
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Filter by ops assignee (Job.ops_user_id). Staff may only pass their own user id (Assigned to me). Admins may filter any. Use after department pass handoff.",
+  })
+  @IsOptional()
+  @IsUUID()
+  ops_user_id?: string;
+
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
