@@ -13,6 +13,7 @@ import {
   IsUUID,
   Length,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
@@ -251,7 +252,18 @@ export class CreateCreditNoteDto {
   @Length(3, 3)
   currency_code?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      "User-entered note shown on AR statements (stored as Invoice.remarks). Alias of remarks.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({
+    description: "Alias of description — kept for existing clients.",
+  })
   @IsOptional()
   @IsString()
   remarks?: string;
@@ -297,7 +309,18 @@ export class CreateDebitNoteDto {
   @Length(3, 3)
   currency_code?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      "User-entered note shown on AR statements (stored as Invoice.remarks). Alias of remarks.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({
+    description: "Alias of description — kept for existing clients.",
+  })
   @IsOptional()
   @IsString()
   remarks?: string;

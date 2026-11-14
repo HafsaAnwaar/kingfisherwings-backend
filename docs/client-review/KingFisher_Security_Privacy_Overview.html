@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KingFisher Wings — Security, Privacy &amp; Data Protection</title>
+  <style>
+    :root {
+      --ink: #0f2744;
+      --muted: #5a6b7d;
+      --line: #d7e0ea;
+      --paper: #ffffff;
+      --wash: #f3f7fb;
+      --accent: #0c6e6b;
+      --accent-2: #1a4f8b;
+      --warn: #b45309;
+      --ok: #166534;
+      --danger: #9f1239;
+      --card: #e8f3f2;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+    }
+    .page {
+      page-break-after: always;
+      padding: 4mm 2mm 8mm;
+      min-height: 250mm;
+    }
+    .page:last-child { page-break-after: auto; }
+    h1, h2, h3 { margin: 0 0 8px; color: var(--ink); font-weight: 650; }
+    h1 { font-size: 22pt; letter-spacing: -0.02em; }
+    h2 { font-size: 14pt; border-bottom: 2px solid var(--accent); padding-bottom: 4px; margin-top: 4px; }
+    h3 { font-size: 11.5pt; color: var(--accent-2); }
+    p { margin: 0 0 8px; color: var(--ink); }
+    .muted { color: var(--muted); }
+    .small { font-size: 9pt; }
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 255mm;
+      background:
+        linear-gradient(160deg, #0f2744 0%, #1a4f8b 48%, #0c6e6b 100%);
+      color: #fff;
+      border-radius: 8px;
+      padding: 28mm 16mm 18mm;
+      margin: -2mm;
+    }
+    .cover h1 { color: #fff; font-size: 28pt; max-width: 140mm; }
+    .cover .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 9pt;
+      opacity: 0.85;
+      margin-bottom: 14px;
+    }
+    .cover .lead {
+      font-size: 12.5pt;
+      max-width: 145mm;
+      opacity: 0.95;
+      margin-top: 14px;
+    }
+    .cover-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 28px;
+    }
+    .cover-chip {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .cover-chip strong { display: block; font-size: 9pt; opacity: 0.8; margin-bottom: 2px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .card {
+      background: var(--wash);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .card.accent { background: var(--card); border-color: #b9d9d7; }
+    .card h3 { margin-bottom: 6px; }
+    .pill {
+      display: inline-block;
+      background: #dff3f1;
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: 8.5pt;
+      font-weight: 600;
+      margin-right: 4px;
+    }
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+      margin: 12px 0;
+      flex-wrap: nowrap;
+    }
+    .flow-step {
+      flex: 1;
+      background: var(--wash);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      min-width: 0;
+    }
+    .flow-step .n {
+      width: 22px; height: 22px; line-height: 22px;
+      margin: 0 auto 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 9pt;
+      font-weight: 700;
+    }
+    .flow-step strong { display: block; font-size: 9.5pt; margin-bottom: 4px; }
+    .flow-step span { display: block; font-size: 8.5pt; color: var(--muted); word-break: break-word; }
+    .flow-arrow {
+      align-self: center;
+      color: var(--accent);
+      font-size: 16pt;
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+    .mono {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 8.2pt;
+      background: #0f2744;
+      color: #d7f5ef;
+      padding: 10px 12px;
+      border-radius: 8px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+    .example-row {
+      display: grid;
+      grid-template-columns: 34mm 1fr;
+      gap: 8px;
+      margin: 6px 0;
+      align-items: start;
+    }
+    .example-row .label {
+      font-weight: 650;
+      color: var(--accent-2);
+      font-size: 9pt;
+      padding-top: 8px;
+    }
+    table.simple {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 12px;
+      font-size: 9.5pt;
+    }
+    table.simple th, table.simple td {
+      border: 1px solid var(--line);
+      padding: 7px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.simple th {
+      background: var(--wash);
+      color: var(--accent-2);
+      font-weight: 650;
+    }
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: #f0faf9;
+      padding: 10px 12px;
+      margin: 10px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .callout.warn {
+      border-left-color: var(--warn);
+      background: #fff7ed;
+    }
+    .tenant-viz {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .tenant-box {
+      border-radius: 10px;
+      padding: 12px;
+      border: 2px solid;
+      min-height: 78px;
+    }
+    .tenant-box.a { border-color: #1a4f8b; background: #eef4fb; }
+    .tenant-box.b { border-color: #0c6e6b; background: #e8f5f3; }
+    .tenant-box.c { border-color: #7c3aed; background: #f5f0ff; }
+    .tenant-box h4 { margin: 0 0 6px; font-size: 10pt; }
+    .tenant-box ul { margin: 0; padding-left: 16px; font-size: 8.5pt; color: var(--muted); }
+    .wall {
+      text-align: center;
+      font-size: 9pt;
+      font-weight: 700;
+      color: var(--danger);
+      letter-spacing: 0.04em;
+      margin: 4px 0 10px;
+    }
+    .layers {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 10px 0;
+    }
+    .layer {
+      display: grid;
+      grid-template-columns: 42mm 1fr;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .layer .tag {
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 8px;
+      font-weight: 650;
+      font-size: 9pt;
+      text-align: center;
+    }
+    .layer:nth-child(2) .tag { background: var(--accent-2); }
+    .layer:nth-child(3) .tag { background: var(--accent); }
+    .layer:nth-child(4) .tag { background: #0e7490; }
+    .layer:nth-child(5) .tag { background: #166534; }
+    .layer .body { padding: 8px 10px; font-size: 9pt; }
+    .cert-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .cert {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+      min-height: 120px;
+    }
+    .cert .badge {
+      display: inline-block;
+      background: var(--ink);
+      color: #fff;
+      font-size: 8pt;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    .roadmap ol { margin: 6px 0 0; padding-left: 18px; }
+    .roadmap li { margin-bottom: 5px; }
+    .footer-note {
+      margin-top: 14px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+      font-size: 8.5pt;
+      color: var(--muted);
+    }
+    svg.diagram { width: 100%; height: auto; display: block; margin: 8px 0 4px; }
+    ul.compact { margin: 4px 0 8px; padding-left: 18px; }
+    ul.compact li { margin-bottom: 3px; }
+    .cia {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .cia > div {
+      text-align: center;
+      padding: 12px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+    }
+    .cia strong { display: block; font-size: 11pt; margin-bottom: 4px; }
+    .cia span { font-size: 8.5pt; color: var(--muted); }
+    @media print {
+      .page { min-height: auto; }
+      .cover { min-height: 250mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== COVER ===================== -->
+  <section class="page">
+    <div class="cover">
+      <div>
+        <div class="eyebrow">Client security briefing</div>
+        <h1>Security, Privacy &amp; Data Protection</h1>
+        <p class="lead">
+          How KingFisher Wings protects passwords, isolates every company’s data,
+          and manages confidentiality, integrity, and availability across the platform.
+        </p>
+        <div class="cover-meta">
+          <div class="cover-chip">
+            <strong>Product</strong>
+            KingFisher Wings ERP (Freight SaaS)
+          </div>
+          <div class="cover-chip">
+            <strong>Audience</strong>
+            Prospects · Customers · Compliance reviews
+          </div>
+          <div class="cover-chip">
+            <strong>Document type</strong>
+            Technical overview with illustrative examples
+          </div>
+          <div class="cover-chip">
+            <strong>Date</strong>
+            November 2026
+          </div>
+        </div>
+      </div>
+      <div class="small" style="opacity:0.85;margin-top:24px;">
+        Confidential — for authorized client review. Example credentials below are fictional and used only for illustration.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PRINCIPLES ===================== -->
+  <section class="page">
+    <h2>1. Security principles we build on</h2>
+    <p class="muted">
+      Our platform follows industry practice: never store usable passwords, never trust the client alone,
+      and isolate every tenant’s data at the database layer.
+    </p>
+
+    <div class="cia">
+      <div>
+        <strong style="color:#1a4f8b;">Confidentiality</strong>
+        <span>Only the right people see the right data — per company, tenant, role, and portal.</span>
+      </div>
+      <div>
+        <strong style="color:#0c6e6b;">Integrity</strong>
+        <span>Validated inputs, audited changes, and controlled writes protect accuracy of freight records.</span>
+      </div>
+      <div>
+        <strong style="color:#166534;">Availability</strong>
+        <span>Rate limits, session controls, and resilient hosting keep operations running safely.</span>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:12px;">
+      <div class="card accent">
+        <h3>Passwords</h3>
+        <p class="small muted" style="margin:0;">Argon2id hashing — irreversible. Plain text is never saved.</p>
+      </div>
+      <div class="card accent">
+        <h3>Tenancy</h3>
+        <p class="small muted" style="margin:0;">PostgreSQL Row-Level Security + application tenant context.</p>
+      </div>
+      <div class="card accent">
+        <h3>Access</h3>
+        <p class="small muted" style="margin:0;">Separate JWT principals for staff, customer portal, vendor portal, and Super Admin.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:16px;">Defense in depth (layers)</h3>
+    <div class="layers">
+      <div class="layer">
+        <div class="tag">Edge</div>
+        <div class="body">HTTPS · Helmet security headers · API rate limiting (Throttler)</div>
+      </div>
+      <div class="layer">
+        <div class="tag">Identity</div>
+        <div class="body">Argon2id passwords · JWT access tokens · server-side sessions (`jti`) for instant revoke</div>
+      </div>
+      <div class="layer">
+        <div class="tag">Authorization</div>
+        <div class="body">Role + permission catalog · portal/vendor document rights · Super Admin platform scope only</div>
+      </div>
+      <div class="layer">
+        <div class="tag">Data plane</div>
+        <div class="body">`runWithTenant` + PostgreSQL RLS — a missed filter cannot leak another company</div>
+      </div>
+      <div class="layer">
+        <div class="tag">Accountability</div>
+        <div class="body">Audit logs · staff activity alerts · Super Admin tech logs for issue triage</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PASSWORD FLOW ===================== -->
+  <section class="page">
+    <h2>2. Password security — from typing to database</h2>
+    <p>
+      When a user sets or changes a password, the application <strong>never stores the password itself</strong>.
+      It runs a one-way cryptographic hash (Argon2id) and stores only the result.
+    </p>
+
+    <div class="callout">
+      <strong>Illustrative example</strong> (fictional user — not a live account)<br />
+      User types: <code>Welcome@123</code> → system saves only the Argon2id hash shown below.
+    </div>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="n">1</div>
+        <strong>User enters password</strong>
+        <span>Login / invite / reset form</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">2</div>
+        <strong>PasswordUtil.hash()</strong>
+        <span>Argon2id · memory-hard</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">3</div>
+        <strong>Store hash only</strong>
+        <span><code>password_hash</code> column</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">4</div>
+        <strong>On login: verify</strong>
+        <span>Compare input vs hash</span>
+      </div>
+    </div>
+
+    <div class="example-row">
+      <div class="label">Plain text<br />(never saved)</div>
+      <div class="mono">Welcome@123</div>
+    </div>
+    <div class="example-row">
+      <div class="label">What is saved<br />in the database</div>
+      <div class="mono">$argon2id$v=19$m=65536,t=3,p=1$fscbKfXqzPsE+/5mtcKqDw$kYIllLFe2ETG10f7GpHPT11jkD5V0r6o2MptmoYjRSQ</div>
+    </div>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Our setting</th>
+          <th>Why it matters</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Algorithm</td>
+          <td><strong>Argon2id</strong></td>
+          <td>Modern password hashing (winner of the Password Hashing Competition). Resists GPU and side-channel attacks better than older hashes.</td>
+        </tr>
+        <tr>
+          <td>memoryCost</td>
+          <td>65,536 KiB</td>
+          <td>Makes brute-force expensive in memory — slows attackers even with powerful hardware.</td>
+        </tr>
+        <tr>
+          <td>timeCost</td>
+          <td>3 iterations</td>
+          <td>Balances login speed for users with resistance for attackers.</td>
+        </tr>
+        <tr>
+          <td>parallelism</td>
+          <td>1</td>
+          <td>Stable, predictable hashing cost per request.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>What an attacker cannot do</h3>
+        <ul class="compact">
+          <li>Read your real password from the database</li>
+          <li>“Decrypt” the hash back to <code>Welcome@123</code></li>
+          <li>Reuse a stolen hash as a login password</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>What happens at login</h3>
+        <ul class="compact">
+          <li>User submits password again</li>
+          <li><code>PasswordUtil.verify(hash, password)</code></li>
+          <li>Match → issue JWT + create session</li>
+          <li>No match → reject (lockout / throttle apply)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== OOP ===================== -->
+  <section class="page">
+    <h2>3. Object-oriented design around passwords</h2>
+    <p>
+      Password handling is encapsulated in a single utility class so hashing rules stay consistent
+      everywhere (staff, tenant owner, Super Admin, portal invite temp passwords, refresh-token hashes).
+    </p>
+
+    <svg class="diagram" viewBox="0 0 720 220" role="img" aria-label="PasswordUtil OOP encapsulation diagram">
+      <rect x="20" y="30" width="200" height="160" rx="10" fill="#eef4fb" stroke="#1a4f8b" stroke-width="2"/>
+      <text x="120" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#1a4f8b">Auth / Users modules</text>
+      <text x="120" y="88" text-anchor="middle" font-size="11" fill="#5a6b7d">Login · Invite · Reset</text>
+      <text x="120" y="110" text-anchor="middle" font-size="11" fill="#5a6b7d">Change password</text>
+      <text x="120" y="132" text-anchor="middle" font-size="11" fill="#5a6b7d">Session refresh tokens</text>
+      <text x="120" y="165" text-anchor="middle" font-size="10" fill="#0c6e6b">calls →</text>
+
+      <polygon points="240,110 270,95 270,125" fill="#0c6e6b"/>
+
+      <rect x="280" y="20" width="240" height="180" rx="10" fill="#e8f5f3" stroke="#0c6e6b" stroke-width="2"/>
+      <text x="400" y="48" text-anchor="middle" font-size="13" font-weight="700" fill="#0c6e6b">PasswordUtil (class)</text>
+      <text x="400" y="78" text-anchor="middle" font-size="11" fill="#0f2744">+ hash(password)</text>
+      <text x="400" y="100" text-anchor="middle" font-size="11" fill="#0f2744">+ verify(hash, password)</text>
+      <text x="400" y="122" text-anchor="middle" font-size="11" fill="#0f2744">+ generateTemporaryPassword()</text>
+      <text x="400" y="155" text-anchor="middle" font-size="10" fill="#5a6b7d">Encapsulation: one place,</text>
+      <text x="400" y="172" text-anchor="middle" font-size="10" fill="#5a6b7d">one Argon2id policy</text>
+
+      <polygon points="540,110 570,95 570,125" fill="#0c6e6b"/>
+
+      <rect x="580" y="50" width="120" height="120" rx="10" fill="#0f2744"/>
+      <text x="640" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Database</text>
+      <text x="640" y="122" text-anchor="middle" font-size="10" fill="#d7f5ef">hash only</text>
+    </svg>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>OOP concept</th>
+          <th>How we use it for security</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Encapsulation</strong></td>
+          <td>Hashing parameters live inside <code>PasswordUtil</code>. Callers never invent their own algorithm.</td>
+        </tr>
+        <tr>
+          <td><strong>Abstraction</strong></td>
+          <td>Services call <code>hash</code> / <code>verify</code> — they do not handle salts or Argon2 encoding.</td>
+        </tr>
+        <tr>
+          <td><strong>Single responsibility</strong></td>
+          <td>Auth services handle sessions &amp; JWT; password crypto stays in one class.</td>
+        </tr>
+        <tr>
+          <td><strong>Reuse without copy-paste</strong></td>
+          <td>Same class protects staff passwords, tenant-owner passwords, Super Admin, and hashed refresh tokens.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>Important client message:</strong> Even platform administrators and DB operators cannot recover a user’s original password from the stored hash.
+    </div>
+  </section>
+
+  <!-- ===================== MULTI-TENANT ===================== -->
+  <section class="page">
+    <h2>4. Keeping every company’s data separate</h2>
+    <p>
+      KingFisher Wings is multi-tenant SaaS. Hierarchy is enforced in product and in the database:
+    </p>
+    <p><span class="pill">Super Admin</span> → <span class="pill">Company</span> → <span class="pill">Tenant</span> → <span class="pill">Users / Portals</span></p>
+
+    <svg class="diagram" viewBox="0 0 720 200" role="img" aria-label="Multi-tenant hierarchy">
+      <rect x="260" y="10" width="200" height="36" rx="8" fill="#0f2744"/>
+      <text x="360" y="33" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Super Admin (platform)</text>
+      <line x1="360" y1="46" x2="360" y2="68" stroke="#5a6b7d" stroke-width="2"/>
+      <rect x="260" y="68" width="200" height="36" rx="8" fill="#1a4f8b"/>
+      <text x="360" y="91" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Company</text>
+      <line x1="360" y1="104" x2="180" y2="128" stroke="#5a6b7d" stroke-width="2"/>
+      <line x1="360" y1="104" x2="540" y2="128" stroke="#5a6b7d" stroke-width="2"/>
+      <rect x="80" y="128" width="200" height="50" rx="8" fill="#0c6e6b"/>
+      <text x="180" y="150" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Tenant A</text>
+      <text x="180" y="168" text-anchor="middle" fill="#d7f5ef" font-size="10">Gulf Freight LLC</text>
+      <rect x="440" y="128" width="200" height="50" rx="8" fill="#0c6e6b"/>
+      <text x="540" y="150" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Tenant B</text>
+      <text x="540" y="168" text-anchor="middle" fill="#d7f5ef" font-size="10">Asia Lines Pte Ltd</text>
+    </svg>
+
+    <div class="wall">✖ RLS WALL — Tenant A queries cannot see Tenant B rows ✖</div>
+
+    <div class="tenant-viz">
+      <div class="tenant-box a">
+        <h4>Tenant A data</h4>
+        <ul>
+          <li>Jobs · Quotes · Invoices</li>
+          <li>Parties · Users · Docs</li>
+          <li><code>tenant_id = A</code></li>
+        </ul>
+      </div>
+      <div class="tenant-box b">
+        <h4>Tenant B data</h4>
+        <ul>
+          <li>Jobs · Quotes · Invoices</li>
+          <li>Parties · Users · Docs</li>
+          <li><code>tenant_id = B</code></li>
+        </ul>
+      </div>
+      <div class="tenant-box c">
+        <h4>Platform only</h4>
+        <ul>
+          <li>Companies · Tenants</li>
+          <li>Super Admin console</li>
+          <li>No tenant job leakage</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>How isolation works (two locks)</h3>
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Mechanism</th>
+          <th>Client benefit</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Application</strong></td>
+          <td><code>prisma.runWithTenant(tenantId, …)</code> sets tenant context for every request</td>
+          <td>Business logic always scoped to the logged-in company</td>
+        </tr>
+        <tr>
+          <td><strong>Database (RLS)</strong></td>
+          <td>PostgreSQL Row-Level Security: <code>tenant_id = current_tenant_id()</code></td>
+          <td>Even a coding mistake cannot return another tenant’s rows</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>Example:</strong> User from <em>Gulf Freight LLC</em> opens Jobs.
+      The API sets tenant context to A. Postgres RLS allows only rows where <code>tenant_id = A</code>.
+      Asia Lines’ shipments never appear — not in UI, not in API JSON, not in exports.
+    </div>
+  </section>
+
+  <!-- ===================== ACCESS MODEL ===================== -->
+  <section class="page">
+    <h2>5. Who can access what — identity isolation</h2>
+    <p>
+      Different actors receive different token types. A customer portal token cannot call staff ERP APIs,
+      and a staff token cannot act as a vendor.
+    </p>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Actor</th>
+          <th>Login</th>
+          <th>Principal</th>
+          <th>Sees</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Super Admin</td>
+          <td><code>/auth/super-admin/login</code></td>
+          <td><code>super_admin</code></td>
+          <td>Platform: companies &amp; tenants (not tenant ops data via staff APIs)</td>
+        </tr>
+        <tr>
+          <td>Tenant Admin / Staff</td>
+          <td><code>/auth/login</code> or tenant-login</td>
+          <td><code>user</code></td>
+          <td>Own tenant ERP modules per role &amp; permissions</td>
+        </tr>
+        <tr>
+          <td>Customer (portal)</td>
+          <td><code>/portal/auth/*</code></td>
+          <td><code>portal</code></td>
+          <td>Own party’s shipments, AR, quotes — stripped of internal cost/GP</td>
+        </tr>
+        <tr>
+          <td>Vendor (portal)</td>
+          <td><code>/vendor/auth/*</code></td>
+          <td><code>vendor</code></td>
+          <td>Own vendor AP documents — separate from customer portal</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <svg class="diagram" viewBox="0 0 720 160" role="img" aria-label="JWT principal isolation">
+      <rect x="20" y="40" width="150" height="70" rx="8" fill="#eef4fb" stroke="#1a4f8b" stroke-width="2"/>
+      <text x="95" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#1a4f8b">Staff JWT</text>
+      <text x="95" y="92" text-anchor="middle" font-size="9" fill="#5a6b7d">principal: user</text>
+
+      <rect x="200" y="40" width="150" height="70" rx="8" fill="#e8f5f3" stroke="#0c6e6b" stroke-width="2"/>
+      <text x="275" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#0c6e6b">Portal JWT</text>
+      <text x="275" y="92" text-anchor="middle" font-size="9" fill="#5a6b7d">principal: portal</text>
+
+      <rect x="380" y="40" width="150" height="70" rx="8" fill="#fff7ed" stroke="#b45309" stroke-width="2"/>
+      <text x="455" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#b45309">Vendor JWT</text>
+      <text x="455" y="92" text-anchor="middle" font-size="9" fill="#5a6b7d">principal: vendor</text>
+
+      <rect x="560" y="40" width="140" height="70" rx="8" fill="#0f2744"/>
+      <text x="630" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">Super Admin</text>
+      <text x="630" y="92" text-anchor="middle" font-size="9" fill="#d7f5ef">platform only</text>
+
+      <text x="360" y="140" text-anchor="middle" font-size="11" fill="#9f1239" font-weight="700">Mutually rejected — tokens cannot be mixed across surfaces</text>
+    </svg>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Session safety</h3>
+        <ul class="compact">
+          <li>Access JWT embeds permissions for speed</li>
+          <li>Server session row validated every request</li>
+          <li>Logout / password change revokes immediately via <code>jti</code></li>
+          <li>Refresh tokens stored as hashes (same Argon2 discipline)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Extra controls</h3>
+        <ul class="compact">
+          <li>Login throttling on auth endpoints</li>
+          <li>Optional IP / office-hours / lockout policies</li>
+          <li>Password history on change</li>
+          <li>TOTP 2FA implemented — enable at production go-live</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PRIVACY & SAFETY ===================== -->
+  <section class="page">
+    <h2>6. Privacy, safety &amp; operational controls</h2>
+
+    <div class="grid-2">
+      <div class="card accent">
+        <h3>Privacy by design</h3>
+        <ul class="compact">
+          <li>Portal/vendor responses strip internal notes, GL accounts, other parties, cost &amp; GP</li>
+          <li>Document rights matrices (<code>PortalPermission</code> / <code>VendorPermission</code>)</li>
+          <li>Public track links use opaque tokens — barcode labels do not expose ERP data</li>
+          <li>Soft-delete keeps auditability without silent hard wipes</li>
+        </ul>
+      </div>
+      <div class="card accent">
+        <h3>Safety &amp; abuse resistance</h3>
+        <ul class="compact">
+          <li>Input validation (DTO whitelist / transform)</li>
+          <li>Helmet HTTP headers reduce common web risks</li>
+          <li>Throttling limits brute-force and API flood</li>
+          <li>Permission checks on mutating business actions</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-top:14px;">Illustrative request path</h3>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="n">1</div>
+        <strong>HTTPS request</strong>
+        <span>TLS in transit</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">2</div>
+        <strong>Throttle + JWT</strong>
+        <span>Who is calling?</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">3</div>
+        <strong>Permissions</strong>
+        <span>May they do this?</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">4</div>
+        <strong>Tenant + RLS</strong>
+        <span>Only their rows</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">5</div>
+        <strong>Audit</strong>
+        <span>Who changed what</span>
+      </div>
+    </div>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Concern</th>
+          <th>How KingFisher Wings addresses it</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Password theft from DB dump</td>
+          <td>Argon2id hashes only — no reversible encryption of passwords</td>
+        </tr>
+        <tr>
+          <td>Cross-company data leak</td>
+          <td>Tenant context + PostgreSQL RLS on business tables</td>
+        </tr>
+        <tr>
+          <td>Stolen access token</td>
+          <td>Short-lived JWT + server session revoke on logout/password change</td>
+        </tr>
+        <tr>
+          <td>Customer seeing vendor/cost data</td>
+          <td>Separate principals + response stripping + document rights</td>
+        </tr>
+        <tr>
+          <td>Insider / ops mistakes</td>
+          <td>Role permissions, audit logs, Super Admin tech issue tracking</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== CERTIFICATES ===================== -->
+  <section class="page">
+    <h2>7. Security certificates — what Fresa shows &amp; how we can obtain them</h2>
+    <p>
+      <a href="https://fresatechnologies.com/about-us/certifications/">Fresa Technologies</a> publicly lists
+      management-system certifications. These are <strong>organization / process certificates</strong>
+      (how the company runs security &amp; quality), not automatic “badges” generated by source code alone.
+    </p>
+
+    <div class="cert-grid">
+      <div class="cert">
+        <div class="badge">ISO/IEC 27001:2022</div>
+        <h3>Information Security (ISMS)</h3>
+        <p class="small muted" style="margin:0;">
+          Policies, risk assessment, access control, incident response, supplier security, continual audit.
+          This is the primary certificate clients ask for in SaaS / ERP deals.
+        </p>
+      </div>
+      <div class="cert">
+        <div class="badge">ISO 9001:2015</div>
+        <h3>Quality Management (QMS)</h3>
+        <p class="small muted" style="margin:0;">
+          Documented delivery processes, customer satisfaction, corrective actions, consistent operations.
+        </p>
+      </div>
+      <div class="cert">
+        <div class="badge">ISO/IEC 42001:2023</div>
+        <h3>AI Management (AIMS)</h3>
+        <p class="small muted" style="margin:0;">
+          Governance for responsible AI — relevant when AI features are productized (Fresa highlights this).
+        </p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:16px;">How to get certificates like Fresa (practical roadmap)</h3>
+    <div class="roadmap card">
+      <ol>
+        <li><strong>Choose scope</strong> — e.g. “Design, development, hosting operations, and support of KingFisher Wings freight ERP.”</li>
+        <li><strong>Build the management system</strong> — information security policy, asset inventory, risk register, access-control policy, change management, backup/DR, incident response, vendor list, staff training records.</li>
+        <li><strong>Implement controls</strong> — map our existing technical controls (Argon2id, RLS, JWT isolation, logging, backups) into ISO 27001 Annex A / Statement of Applicability.</li>
+        <li><strong>Operate for evidence</strong> — typically several months of real tickets, access reviews, backup tests, vulnerability handling, and management reviews.</li>
+        <li><strong>Internal audit + management review</strong> — fix gaps before the external auditor arrives.</li>
+        <li><strong>Select an accredited certification body</strong> — IAF-recognized body (examples in market: InterCert, BSI, TÜV, SGS, Bureau Veritas, local IAS-accredited CBs). Fresa’s public materials reference InterCert / IQNet-related pathways.</li>
+        <li><strong>Stage 1 + Stage 2 audit</strong> — documentation review, then on-site/remote effectiveness audit → certificate (usually 3-year cycle with annual surveillance).</li>
+        <li><strong>Optional parallel tracks</strong> — ISO 9001 for quality; ISO 42001 if AI features need formal AI governance; SOC 2 Type I/II if US enterprise buyers require it (AICPA Trust Services Criteria via a CPA firm).</li>
+      </ol>
+    </div>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Track</th>
+          <th>Typical buyer ask</th>
+          <th>Rough effort*</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>ISO/IEC 27001</td>
+          <td>Security &amp; privacy RFPs, UAE/EU enterprise</td>
+          <td>3–9 months + surveillance years</td>
+        </tr>
+        <tr>
+          <td>ISO 9001</td>
+          <td>Delivery quality / process maturity</td>
+          <td>2–6 months</td>
+        </tr>
+        <tr>
+          <td>ISO 42001</td>
+          <td>AI feature governance marketing</td>
+          <td>After AI product processes exist</td>
+        </tr>
+        <tr>
+          <td>SOC 2 Type II</td>
+          <td>US SaaS procurement</td>
+          <td>Often 6–12+ months observation</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="small muted">*Depends on company size, existing policies, and whether you hire a consultant. Costs vary widely by certification body and geography.</p>
+
+    <div class="callout">
+      <strong>Honest positioning for clients today:</strong>
+      KingFisher Wings already implements strong <em>technical</em> security controls described in this document.
+      Formal ISO/SOC certificates are an organizational next step — we can pursue ISO/IEC 27001 first to match the market expectation set by peers such as Fresa.
+    </div>
+  </section>
+
+  <!-- ===================== SUMMARY ===================== -->
+  <section class="page">
+    <h2>8. Summary for decision makers</h2>
+    <div class="grid-2">
+      <div class="card accent">
+        <h3>You can tell your stakeholders</h3>
+        <ul class="compact">
+          <li>Passwords are hashed with Argon2id — never stored in plain text</li>
+          <li>Each company’s freight data is isolated with application tenancy <em>and</em> database RLS</li>
+          <li>Staff, customers, vendors, and platform admins use separate identity channels</li>
+          <li>Security is layered: network headers, auth, permissions, data isolation, audit</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Recommended next steps with us</h3>
+        <ul class="compact">
+          <li>Enable production 2FA for admins at go-live</li>
+          <li>Agree backup / DR and hosting region commitments</li>
+          <li>Start ISO/IEC 27001 gap assessment if certificate is required in contract</li>
+          <li>Optional: SOC 2 if selling heavily into US enterprise</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-top:16px;">Password journey — one-page reminder</h3>
+    <div class="mono">User types:  Welcome@123
+        │
+        ▼
+PasswordUtil.hash()  →  Argon2id (m=65536, t=3, p=1)
+        │
+        ▼
+Database stores ONLY:
+$argon2id$v=19$m=65536,t=3,p=1$…$…
+        │
+        ▼
+Login later: PasswordUtil.verify(storedHash, typedPassword)
+        │
+        ├── match → JWT + session
+        └── fail  → reject (throttle / lockout)</div>
+
+    <div class="footer-note">
+      KingFisher Wings — Security, Privacy &amp; Data Protection Overview · November 2026<br />
+      Technical controls described reflect the current NestJS + PostgreSQL (RLS) + Argon2id architecture.
+      Certification claims require a completed audit by an accredited body and are not asserted by this document.
+      Example password and hash are illustrative. © KingFisher Wings / project owners.
+    </div>
+  </section>
+
+</body>
+</html>

@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KingFisher Wings — Information Security &amp; Privacy Overview</title>
+  <style>
+    :root {
+      --navy: #002d62;
+      --navy-2: #243552;
+      --orange: #ee7a1a;
+      --orange-deep: #d4630c;
+      --orange-soft: #fff3e6;
+      --ink: #1a2332;
+      --slate: #5c6b82;
+      --muted: #8896a8;
+      --line: #e4eaf2;
+      --bg-1: #eef2f7;
+      --bg-2: #f7f4ef;
+      --info: #eaf2fb;
+      --card: #ffffff;
+      --ok: #0f9f6e;
+      --ok-bg: #e8f8f1;
+      --danger: #e0453a;
+      --danger-bg: #fff1f0;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      color: var(--ink);
+      background: #fff;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.5;
+    }
+    .page {
+      page-break-after: always;
+      padding: 2mm 1mm 10mm;
+      position: relative;
+    }
+    .page:last-child { page-break-after: auto; }
+
+    /* —— Letterhead —— */
+    .letterhead {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      border-bottom: 3px solid var(--navy);
+      position: relative;
+    }
+    .letterhead::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 72px;
+      height: 3px;
+      background: var(--orange);
+    }
+    .letterhead img.logo {
+      height: 52px;
+      width: auto;
+      display: block;
+    }
+    .letterhead-meta {
+      text-align: right;
+      font-size: 8pt;
+      color: var(--slate);
+      line-height: 1.35;
+      padding-bottom: 4px;
+    }
+    .letterhead-meta strong {
+      display: block;
+      color: var(--navy);
+      font-size: 9pt;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 { margin: 0 0 8px; font-weight: 650; color: var(--navy); }
+    h1 { font-size: 20pt; letter-spacing: -0.02em; line-height: 1.2; }
+    h2 {
+      font-size: 13pt;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid var(--navy);
+      position: relative;
+    }
+    h2::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -2px;
+      width: 40px;
+      height: 2px;
+      background: var(--orange);
+    }
+    h3 { font-size: 11pt; color: var(--navy-2); margin-top: 12px; }
+    p { margin: 0 0 9px; }
+    .muted { color: var(--slate); }
+    .small { font-size: 9pt; }
+
+    /* —— Cover —— */
+    .cover-page { padding-top: 0; }
+    .cover {
+      min-height: 252mm;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .cover-top {
+      background: linear-gradient(145deg, #002d62 0%, #0a3d75 48%, #243552 100%);
+      color: #fff;
+      padding: 22mm 16mm 18mm;
+      position: relative;
+      flex: 1;
+    }
+    .cover-top::before {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--orange), #f5b041 40%, #5b9bd5 75%, #002d62);
+    }
+    .cover-logo-wrap {
+      background: #fff;
+      display: inline-block;
+      padding: 10px 16px;
+      border-radius: 6px;
+      margin-bottom: 22px;
+    }
+    .cover-logo-wrap img { height: 58px; width: auto; display: block; }
+    .doc-class {
+      display: inline-block;
+      border: 1px solid rgba(255,255,255,0.45);
+      color: #fff;
+      font-size: 8pt;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 2px;
+      margin-bottom: 16px;
+    }
+    .cover h1 {
+      color: #fff;
+      font-size: 26pt;
+      max-width: 150mm;
+      margin-bottom: 10px;
+    }
+    .cover .lead {
+      font-size: 12pt;
+      max-width: 148mm;
+      opacity: 0.94;
+      line-height: 1.45;
+      margin-bottom: 0;
+    }
+    .cover-bottom {
+      background: #fff;
+      padding: 14mm 16mm 12mm;
+    }
+    .cover-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .cover-chip {
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--orange);
+      background: var(--bg-1);
+      border-radius: 2px;
+      padding: 10px 12px;
+    }
+    .cover-chip strong {
+      display: block;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--orange-deep);
+      margin-bottom: 3px;
+    }
+    .cover-chip span { color: var(--navy); font-size: 10pt; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    .card {
+      background: var(--bg-1);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 12px 13px;
+    }
+    .card.accent {
+      background: var(--orange-soft);
+      border-color: #ffd7a8;
+    }
+    .card.info {
+      background: var(--info);
+      border-color: #c5d8ee;
+    }
+    .card h3 { margin-top: 0; margin-bottom: 6px; }
+    .num {
+      font-size: 8.5pt;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--orange-deep);
+      margin-bottom: 4px;
+    }
+
+    .cia {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .cia > div {
+      text-align: center;
+      padding: 14px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .cia .icon {
+      width: 36px; height: 36px; line-height: 36px;
+      margin: 0 auto 8px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #fff;
+      font-weight: 700;
+      font-size: 11pt;
+    }
+    .cia strong { display: block; font-size: 11pt; color: var(--navy); margin-bottom: 4px; }
+    .cia span { font-size: 9pt; color: var(--slate); }
+
+    .layers { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 4px; }
+    .layer {
+      display: grid;
+      grid-template-columns: 42mm 1fr;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .layer .tag {
+      background: var(--navy);
+      color: #fff;
+      padding: 10px 8px;
+      font-weight: 650;
+      font-size: 9pt;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .layer:nth-child(2) .tag { background: #0a3d75; }
+    .layer:nth-child(3) .tag { background: #145a8a; }
+    .layer:nth-child(4) .tag { background: var(--orange-deep); }
+    .layer:nth-child(5) .tag { background: var(--navy-2); }
+    .layer .body { padding: 9px 11px; font-size: 9.5pt; color: var(--ink); }
+
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 5px;
+      margin: 12px 0;
+    }
+    .flow-step {
+      flex: 1;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--navy);
+      border-radius: 4px;
+      padding: 10px 7px;
+      text-align: center;
+      min-width: 0;
+    }
+    .flow-step:nth-child(3) { border-top-color: var(--orange); }
+    .flow-step:nth-child(5) { border-top-color: var(--orange); }
+    .flow-step:nth-child(7) { border-top-color: var(--navy); }
+    .flow-step .n {
+      width: 22px; height: 22px; line-height: 22px;
+      margin: 0 auto 6px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #fff;
+      font-size: 9pt;
+      font-weight: 700;
+    }
+    .flow-step strong { display: block; font-size: 9pt; color: var(--navy); margin-bottom: 3px; }
+    .flow-step span { display: block; font-size: 8pt; color: var(--slate); }
+    .flow-arrow {
+      align-self: center;
+      color: var(--orange);
+      font-size: 14pt;
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+
+    .mono {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 8pt;
+      background: var(--navy);
+      color: #e8f0fa;
+      padding: 11px 12px;
+      border-radius: 4px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      border-left: 3px solid var(--orange);
+    }
+
+    .example-box {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 12px 14px;
+      background: var(--bg-1);
+      margin: 10px 0;
+    }
+    .example-box .title {
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 8px;
+      font-size: 10pt;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .example-box .title::before {
+      content: "";
+      width: 8px; height: 8px;
+      background: var(--orange);
+      border-radius: 1px;
+      flex: 0 0 auto;
+    }
+
+    .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+    .vs .bad {
+      background: var(--danger-bg);
+      border: 1px solid #f5c2bd;
+      border-radius: 4px;
+      padding: 12px;
+    }
+    .vs .good {
+      background: var(--ok-bg);
+      border: 1px solid #b6e6d4;
+      border-radius: 4px;
+      padding: 12px;
+    }
+    .vs h3 { margin: 0 0 6px; font-size: 10.5pt; }
+    .vs .bad h3 { color: var(--danger); }
+    .vs .good h3 { color: var(--ok); }
+
+    table.simple {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 12px;
+      font-size: 9.5pt;
+    }
+    table.simple th, table.simple td {
+      border: 1px solid var(--line);
+      padding: 7px 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.simple th {
+      background: var(--navy);
+      color: #fff;
+      font-weight: 650;
+      font-size: 9pt;
+    }
+    table.simple tr:nth-child(even) td { background: #f8fafc; }
+
+    .callout {
+      border-left: 4px solid var(--orange);
+      background: var(--orange-soft);
+      padding: 10px 12px;
+      margin: 10px 0;
+      border-radius: 0 4px 4px 0;
+    }
+    .callout.navy {
+      border-left-color: var(--navy);
+      background: var(--info);
+    }
+    .callout.warn {
+      border-left-color: var(--orange-deep);
+      background: #fff7ef;
+    }
+
+    .analogy {
+      background: var(--bg-2);
+      border: 1px solid #eadfcf;
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin: 10px 0;
+      font-size: 9.5pt;
+      color: var(--navy-2);
+    }
+    .analogy strong { color: var(--orange-deep); }
+
+    .tenant-viz {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .tenant-box {
+      border-radius: 4px;
+      padding: 12px;
+      border: 2px solid;
+      min-height: 84px;
+      background: #fff;
+    }
+    .tenant-box.a { border-color: var(--navy); }
+    .tenant-box.b { border-color: var(--orange); }
+    .tenant-box h4 {
+      margin: 0 0 6px;
+      font-size: 10.5pt;
+      color: var(--navy);
+    }
+    .tenant-box.b h4 { color: var(--orange-deep); }
+    .tenant-box ul { margin: 0; padding-left: 16px; font-size: 9pt; color: var(--slate); }
+
+    .wall {
+      text-align: center;
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: var(--navy);
+      margin: 4px 0 10px;
+      padding: 6px;
+      background: var(--bg-1);
+      border: 1px dashed var(--orange);
+      border-radius: 4px;
+    }
+
+    .cert-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .cert {
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--navy);
+      border-radius: 4px;
+      padding: 12px;
+      background: #fff;
+      min-height: 108px;
+    }
+    .cert:nth-child(2) { border-top-color: var(--orange); }
+    .cert .badge {
+      display: inline-block;
+      background: var(--navy);
+      color: #fff;
+      font-size: 7.5pt;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 7px;
+      border-radius: 2px;
+      margin-bottom: 8px;
+    }
+    .cert:nth-child(2) .badge { background: var(--orange-deep); }
+
+    .roadmap {
+      background: var(--bg-1);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 12px 14px 12px 8px;
+    }
+    .roadmap ol { margin: 4px 0 0; padding-left: 22px; }
+    .roadmap li { margin-bottom: 7px; }
+
+    .step-list { counter-reset: step; list-style: none; padding: 0; margin: 8px 0; }
+    .step-list li {
+      counter-increment: step;
+      position: relative;
+      padding: 9px 11px 9px 44px;
+      margin-bottom: 6px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+    }
+    .step-list li::before {
+      content: counter(step);
+      position: absolute;
+      left: 10px;
+      top: 9px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #fff;
+      font-weight: 700;
+      text-align: center;
+      line-height: 24px;
+      font-size: 10pt;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+      font-size: 8pt;
+      color: var(--slate);
+    }
+    .footer-note .brand-line {
+      color: var(--navy);
+      font-weight: 650;
+      margin-bottom: 2px;
+    }
+
+    svg.diagram { width: 100%; height: auto; display: block; margin: 8px 0 4px; }
+    ul.compact { margin: 4px 0 6px; padding-left: 17px; }
+    ul.compact li { margin-bottom: 4px; }
+
+    .section-kicker {
+      font-size: 8pt;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--orange-deep);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== COVER ===================== -->
+  <section class="page cover-page">
+    <div class="cover">
+      <div class="cover-top">
+        <div class="cover-logo-wrap">
+          <img src="kingfisher-wings-logo.png" alt="KingFisher Wings Group" />
+        </div>
+        <div class="doc-class">Confidential · Client briefing</div>
+        <h1>Information Security &amp; Privacy Overview</h1>
+        <p class="lead">
+          A formal, plain-language briefing on how KingFisher Wings protects passwords,
+          keeps each organisation’s information separate, and safeguards freight data in daily use.
+        </p>
+      </div>
+      <div class="cover-bottom">
+        <div class="cover-grid">
+          <div class="cover-chip">
+            <strong>Document owner</strong>
+            <span>KingFisher Wings Group</span>
+          </div>
+          <div class="cover-chip">
+            <strong>Audience</strong>
+            <span>Clients · Management · Stakeholders</span>
+          </div>
+          <div class="cover-chip">
+            <strong>Classification</strong>
+            <span>Confidential — authorised review</span>
+          </div>
+          <div class="cover-chip">
+            <strong>Issued</strong>
+            <span>November 2026</span>
+          </div>
+        </div>
+        <p class="small muted" style="margin:14px 0 0;">
+          This document avoids specialised technical jargon. Illustrative credentials are fictional and used solely for explanation.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 1 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 01</div>
+    <h2>Our commitments to protect your business</h2>
+    <p class="muted">
+      KingFisher Wings treats your freight platform like a secure corporate facility.
+      Three principles guide every control we apply:
+    </p>
+
+    <div class="cia">
+      <div>
+        <div class="icon">P</div>
+        <strong>Privacy</strong>
+        <span>Only authorised people may see your organisation’s information.</span>
+      </div>
+      <div>
+        <div class="icon">A</div>
+        <strong>Accuracy</strong>
+        <span>Jobs, invoices and documents remain reliable; changes are controlled.</span>
+      </div>
+      <div>
+        <div class="icon">R</div>
+        <strong>Reliability</strong>
+        <span>Service stays available, with protection against misuse and abuse.</span>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card accent">
+        <div class="num">Pillar 01</div>
+        <h3>Passwords</h3>
+        <p class="small muted" style="margin:0;">We never store the password you type. We store a one-way scrambled form that cannot be reversed.</p>
+      </div>
+      <div class="card info">
+        <div class="num">Pillar 02</div>
+        <h3>Company separation</h3>
+        <p class="small muted" style="margin:0;">Your jobs and customers remain inside your organisation. Other companies on the platform cannot open them.</p>
+      </div>
+      <div class="card">
+        <div class="num">Pillar 03</div>
+        <h3>Authorised access</h3>
+        <p class="small muted" style="margin:0;">Staff, customers and vendors each use a separate entrance — they cannot enter one another’s areas.</p>
+      </div>
+    </div>
+
+    <h3>Defence in layers</h3>
+    <div class="analogy">
+      <strong>Formal analogy:</strong> A financial institution does not rely on a single lock.
+      It combines perimeter control, identity checks, vault restrictions, monitoring and records.
+      KingFisher Wings applies the same layered approach.
+    </div>
+
+    <div class="layers">
+      <div class="layer">
+        <div class="tag">Perimeter</div>
+        <div class="body">Encrypted internet connections · browser safety headers · limits on repeated login attempts</div>
+      </div>
+      <div class="layer">
+        <div class="tag">Identity</div>
+        <div class="body">Strong password protection · signed session credentials · immediate cancellation on logout or password change</div>
+      </div>
+      <div class="layer">
+        <div class="tag">Authority</div>
+        <div class="body">Each staff role sees only what the role requires (sales, operations, finance, administration)</div>
+      </div>
+      <div class="layer">
+        <div class="tag">Company vault</div>
+        <div class="body">Every record is bound to your organisation — cross-company access is refused</div>
+      </div>
+      <div class="layer">
+        <div class="tag">Accountability</div>
+        <div class="body">Material actions can be traced — who performed them, and when</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 2 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 02</div>
+    <h2>How passwords are protected</h2>
+    <p>
+      When a password is created or changed, KingFisher Wings does <strong>not</strong> retain the typed value.
+      The system converts it into a one-way scramble and stores only that result.
+    </p>
+
+    <div class="analogy">
+      <strong>Plain analogy:</strong> Fruit placed in a blender cannot be restored as whole fruit.
+      Password protection works in the same spirit — the stored form cannot be turned back into the original password.
+    </div>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="n">1</div>
+        <strong>Password entered</strong>
+        <span>Login or setup screen</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">2</div>
+        <strong>One-way scramble</strong>
+        <span>Industry-standard method</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">3</div>
+        <strong>Scramble stored</strong>
+        <span>Original value discarded</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">4</div>
+        <strong>Checked at login</strong>
+        <span>New entry compared safely</span>
+      </div>
+    </div>
+
+    <div class="example-box">
+      <div class="title">Illustrative example (fictional account)</div>
+      <p style="margin-bottom:6px;"><strong>Value typed by the user</strong></p>
+      <div class="mono" style="margin-bottom:10px;">Welcome@123</div>
+      <p style="margin-bottom:6px;"><strong>Value retained by the system</strong></p>
+      <div class="mono">$argon2id$v=19$m=65536,t=3,p=1$fscbKfXqzPsE+/5mtcKqDw$kYIllLFe2ETG10f7GpHPT11jkD5V0r6o2MptmoYjRSQ</div>
+      <p class="small muted" style="margin:8px 0 0;">
+        The long stored string is a fingerprint of the password — not a code that can be typed to gain access.
+      </p>
+    </div>
+
+    <div class="vs">
+      <div class="bad">
+        <h3>Practice we reject</h3>
+        <p class="small" style="margin:0;">
+          Saving <em>Welcome@123</em> in readable form.
+          Anyone with a copy of the storage could read every password.
+        </p>
+      </div>
+      <div class="good">
+        <h3>Practice we apply</h3>
+        <p class="small" style="margin:0;">
+          Saving only the scrambled fingerprint.
+          Even a full storage copy does not reveal the original password.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout navy">
+      <strong>Client assurance:</strong>
+      Support personnel and system administrators cannot retrieve a user’s original password.
+      Forgotten passwords must be reset; they cannot be recovered.
+    </div>
+  </section>
+
+  <!-- ===================== 3 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 03</div>
+    <h2>Consistent password handling</h2>
+    <p>
+      All password operations pass through a single controlled process —
+      login, invitations, password changes and security tokens alike.
+      This prevents weaker methods from appearing in other parts of the product.
+    </p>
+
+    <svg class="diagram" viewBox="0 0 720 190" role="img" aria-label="Password handling flow">
+      <rect x="30" y="35" width="180" height="120" rx="4" fill="#eaf2fb" stroke="#002d62" stroke-width="2"/>
+      <text x="120" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#002d62">Sign-in screens</text>
+      <text x="120" y="95" text-anchor="middle" font-size="11" fill="#5c6b82">Invite · Reset</text>
+      <text x="120" y="117" text-anchor="middle" font-size="11" fill="#5c6b82">Change password</text>
+
+      <polygon points="230,95 258,82 258,108" fill="#ee7a1a"/>
+
+      <rect x="270" y="22" width="220" height="146" rx="4" fill="#fff3e6" stroke="#d4630c" stroke-width="2"/>
+      <text x="380" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#d4630c">Password control</text>
+      <text x="380" y="85" text-anchor="middle" font-size="11" fill="#002d62">Scramble password</text>
+      <text x="380" y="107" text-anchor="middle" font-size="11" fill="#002d62">Verify at sign-in</text>
+      <text x="380" y="129" text-anchor="middle" font-size="11" fill="#002d62">Temporary passwords</text>
+      <text x="380" y="152" text-anchor="middle" font-size="10" fill="#5c6b82">One standard, always</text>
+
+      <polygon points="510,95 538,82 538,108" fill="#ee7a1a"/>
+
+      <rect x="550" y="45" width="140" height="100" rx="4" fill="#002d62"/>
+      <text x="620" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Secure storage</text>
+      <text x="620" y="112" text-anchor="middle" font-size="10" fill="#ffd7a8">scramble only</text>
+    </svg>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Principle</th>
+          <th>Meaning for your organisation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Single controlled path</strong></td>
+          <td>Every password action follows the same approved process — no shortcuts.</td>
+        </tr>
+        <tr>
+          <td><strong>Clear separation of duties</strong></td>
+          <td>Other parts of the system only request “protect” or “verify”; they never invent their own method.</td>
+        </tr>
+        <tr>
+          <td><strong>Uniform strength</strong></td>
+          <td>Staff, company owners and platform administrators receive the same high standard of protection.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== 4 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 04</div>
+    <h2>Your organisation’s data remains yours</h2>
+    <p>
+      Multiple organisations may use KingFisher Wings concurrently — comparable to separate offices in one building.
+      Each organisation holds its own key. Neighbouring organisations cannot open your door.
+    </p>
+
+    <svg class="diagram" viewBox="0 0 720 180" role="img" aria-label="Organisation separation">
+      <rect x="260" y="6" width="200" height="32" rx="4" fill="#002d62"/>
+      <text x="360" y="27" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Platform administration</text>
+      <line x1="360" y1="38" x2="360" y2="54" stroke="#8896a8" stroke-width="2"/>
+      <rect x="260" y="54" width="200" height="32" rx="4" fill="#243552"/>
+      <text x="360" y="75" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Company group</text>
+      <line x1="360" y1="86" x2="180" y2="108" stroke="#8896a8" stroke-width="2"/>
+      <line x1="360" y1="86" x2="540" y2="108" stroke="#8896a8" stroke-width="2"/>
+      <rect x="80" y="108" width="200" height="50" rx="4" fill="#002d62"/>
+      <text x="180" y="130" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Organisation A</text>
+      <text x="180" y="148" text-anchor="middle" fill="#ffd7a8" font-size="10">e.g. Gulf Freight LLC</text>
+      <rect x="440" y="108" width="200" height="50" rx="4" fill="#d4630c"/>
+      <text x="540" y="130" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Organisation B</text>
+      <text x="540" y="148" text-anchor="middle" fill="#fff3e6" font-size="10">e.g. Asia Lines Pte Ltd</text>
+    </svg>
+
+    <div class="wall">Strict separation — Organisation A cannot view Organisation B’s jobs or customers</div>
+
+    <div class="tenant-viz">
+      <div class="tenant-box a">
+        <h4>Organisation A may access</h4>
+        <ul>
+          <li>Its own jobs and shipments</li>
+          <li>Its own customers and invoices</li>
+          <li>Its own staff accounts</li>
+        </ul>
+      </div>
+      <div class="tenant-box b">
+        <h4>Organisation B may access</h4>
+        <ul>
+          <li>Only its own jobs and shipments</li>
+          <li>Only its own customers and invoices</li>
+          <li>Only its own staff accounts</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Worked example:</strong>
+      A user from Gulf Freight opens the Jobs list.
+      Only Gulf Freight records appear.
+      Asia Lines shipments do not appear on screen, in exports or in search —
+      even though both organisations use the same product.
+    </div>
+
+    <h3>Two independent safeguards</h3>
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Safeguard</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Application control</strong></td>
+          <td>Every request is bound to the signed-in organisation before data is retrieved.</td>
+        </tr>
+        <tr>
+          <td><strong>Storage control</strong></td>
+          <td>The data store itself refuses rows belonging to another organisation — a second line of defence.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== 5 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 05</div>
+    <h2>Separate entrances for separate roles</h2>
+    <p>
+      Different parties do not share a single entrance.
+      This prevents a customer session from behaving as a staff session,
+      and prevents a vendor from viewing another customer’s invoices.
+    </p>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Party</th>
+          <th>Entrance</th>
+          <th>Authorised scope</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Platform administrator</strong></td>
+          <td>Dedicated admin sign-in</td>
+          <td>Platform companies and tenants — not day-to-day freight work inside a client organisation</td>
+        </tr>
+        <tr>
+          <td><strong>Your staff</strong></td>
+          <td>Staff / company sign-in</td>
+          <td>Operational modules according to role (sales, operations, finance, branch management)</td>
+        </tr>
+        <tr>
+          <td><strong>Your customers</strong></td>
+          <td>Customer portal</td>
+          <td>Their own shipments, quotations and invoices — not your internal cost figures</td>
+        </tr>
+        <tr>
+          <td><strong>Your vendors</strong></td>
+          <td>Vendor portal</td>
+          <td>Their own supplier documents — kept separate from the customer portal</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <svg class="diagram" viewBox="0 0 720 140" role="img" aria-label="Separate access entrances">
+      <rect x="18" y="28" width="155" height="68" rx="4" fill="#eaf2fb" stroke="#002d62" stroke-width="2"/>
+      <text x="95" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#002d62">Staff</text>
+      <text x="95" y="78" text-anchor="middle" font-size="10" fill="#5c6b82">Employees</text>
+
+      <rect x="193" y="28" width="155" height="68" rx="4" fill="#fff3e6" stroke="#d4630c" stroke-width="2"/>
+      <text x="270" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#d4630c">Customer</text>
+      <text x="270" y="78" text-anchor="middle" font-size="10" fill="#5c6b82">Portal users</text>
+
+      <rect x="368" y="28" width="155" height="68" rx="4" fill="#eef2f7" stroke="#243552" stroke-width="2"/>
+      <text x="445" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#243552">Vendor</text>
+      <text x="445" y="78" text-anchor="middle" font-size="10" fill="#5c6b82">Suppliers</text>
+
+      <rect x="543" y="28" width="155" height="68" rx="4" fill="#002d62"/>
+      <text x="620" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Admin</text>
+      <text x="620" y="78" text-anchor="middle" font-size="10" fill="#ffd7a8">Platform only</text>
+
+      <text x="360" y="125" text-anchor="middle" font-size="11" fill="#002d62" font-weight="700">Credentials are not interchangeable across entrances</text>
+    </svg>
+
+    <div class="grid-2">
+      <div class="card info">
+        <h3>Session control</h3>
+        <ul class="compact">
+          <li>Sessions may be cancelled immediately on logout</li>
+          <li>Password changes invalidate prior sessions</li>
+          <li>Long-lived credentials are stored in scrambled form</li>
+        </ul>
+      </div>
+      <div class="card accent">
+        <h3>Additional controls</h3>
+        <ul class="compact">
+          <li>Repeated failed attempts are slowed or locked</li>
+          <li>Roles restrict who may approve, edit or settle</li>
+          <li>Optional two-step verification available at go-live</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 6 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 06</div>
+    <h2>Privacy and safety in daily operations</h2>
+
+    <div class="grid-2">
+      <div class="card accent">
+        <h3>Outside the customer’s view</h3>
+        <ul class="compact">
+          <li>Internal cost and margin figures</li>
+          <li>Other customers’ records</li>
+          <li>Internal staff notes not intended for release</li>
+        </ul>
+      </div>
+      <div class="card info">
+        <h3>Behaviours we restrict</h3>
+        <ul class="compact">
+          <li>Automated guessing of passwords</li>
+          <li>Flooding the service with excessive requests</li>
+          <li>Staff actions beyond assigned authority</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>A typical request — controlled path</h3>
+    <ol class="step-list">
+      <li><strong>Secure arrival</strong> — the connection is encrypted in transit (browser padlock).</li>
+      <li><strong>Identity confirmed</strong> — a valid sign-in is required; excessive attempts are constrained.</li>
+      <li><strong>Authority checked</strong> — confirmation that the person may perform the requested action.</li>
+      <li><strong>Organisation boundary enforced</strong> — only that organisation’s records are opened.</li>
+      <li><strong>Accountability retained</strong> — material changes remain available for later review.</li>
+    </ol>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Business concern</th>
+          <th>KingFisher Wings response</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Copy of storage obtained by a third party</td>
+          <td>Original passwords remain unreadable — only scrambled fingerprints exist.</td>
+        </tr>
+        <tr>
+          <td>Another organisation on the same platform</td>
+          <td>Organisation walls in the application and in storage prevent cross-access.</td>
+        </tr>
+        <tr>
+          <td>Unattended signed-in device</td>
+          <td>Sessions can be ended; logout and password change cancel access.</td>
+        </tr>
+        <tr>
+          <td>Customer portal misuse</td>
+          <td>Customers see only their own party’s information — not the full internal system.</td>
+        </tr>
+        <tr>
+          <td>Human error by staff</td>
+          <td>Roles, permissions and activity records reduce and explain residual risk.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== 7 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 07</div>
+    <h2>Complete company privacy — what stays private</h2>
+    <p>
+      Every organisation on KingFisher Wings owns a private working environment.
+      The items below are bound to that organisation and are <strong>not shared</strong> with other companies on the platform.
+    </p>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Area</th>
+          <th>What remains private to your company</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>People &amp; access</strong></td>
+          <td>Staff accounts, roles, permissions, invites, password records (scrambled), session history, office/login rules</td>
+        </tr>
+        <tr>
+          <td><strong>Organisation setup</strong></td>
+          <td>Company profile, branches, departments, number formats, module settings, branding and logos you upload</td>
+        </tr>
+        <tr>
+          <td><strong>Masters &amp; parties</strong></td>
+          <td>Customers, shippers, consignees, agents, carriers, vendors, contacts, addresses, credit terms, party notes</td>
+        </tr>
+        <tr>
+          <td><strong>Sales &amp; CRM</strong></td>
+          <td>Leads, enquiries, quotations, tariffs, price sheets, sales activity and follow-ups</td>
+        </tr>
+        <tr>
+          <td><strong>Operations</strong></td>
+          <td>Jobs, shipments, bookings, containers, routing, dimensions, warehouse and transport records, status history</td>
+        </tr>
+        <tr>
+          <td><strong>Documents</strong></td>
+          <td>Bills of lading, airway bills, manifests, PDFs, uploads, soft dockets, document rights settings</td>
+        </tr>
+        <tr>
+          <td><strong>Finance</strong></td>
+          <td>Invoices, credit/debit notes, payment requests, receipts, general ledger, vouchers, cheques, AR/AP, costing and margins</td>
+        </tr>
+        <tr>
+          <td><strong>Portals</strong></td>
+          <td>Your customer-portal users and vendor-portal users — and only the records those portals are allowed to show</td>
+        </tr>
+        <tr>
+          <td><strong>HR &amp; WMS</strong></td>
+          <td>Employee records (where used), leave/payroll-related data, warehouse stock, lots, movements and storage charges</td>
+        </tr>
+        <tr>
+          <td><strong>Communication &amp; audit</strong></td>
+          <td>Notifications, email logs tied to your work, activity trails and audit records for your organisation</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout navy">
+      <strong>Rule in plain words:</strong>
+      If the information was created inside your company account, it belongs to your company vault.
+      Another company using KingFisher Wings cannot open, search, export or report on it.
+    </div>
+  </section>
+
+  <!-- ===================== 8 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 08</div>
+    <h2>Database, files &amp; how privacy is enforced</h2>
+    <p>
+      Behind the screens, your information lives in a shared platform building —
+      but each company’s rooms are locked. Privacy is enforced in more than one place so a single mistake cannot expose another company.
+    </p>
+
+    <h3>Where your data lives</h3>
+    <div class="grid-2">
+      <div class="card info">
+        <h3>Business database</h3>
+        <ul class="compact">
+          <li>Jobs, invoices, parties, users and finance sit in structured storage</li>
+          <li>Every business row is tagged to one organisation</li>
+          <li>The storage engine itself refuses to return another organisation’s rows</li>
+          <li>Application requests always declare “which company is asking” before reading or writing</li>
+        </ul>
+      </div>
+      <div class="card accent">
+        <h3>Files &amp; generated documents</h3>
+        <ul class="compact">
+          <li>Uploaded proofs, attachments and generated PDFs stay under your organisation</li>
+          <li>Download links respect sign-in and permissions</li>
+          <li>Customer/vendor portals only receive documents they are allowed to see</li>
+          <li>Public tracking uses limited tokens — not open access to your full records</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>How separation works (non-technical)</h3>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="n">1</div>
+        <strong>You sign in</strong>
+        <span>Company identity known</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">2</div>
+        <strong>Request tagged</strong>
+        <span>“Only this company”</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">3</div>
+        <strong>Storage filter</strong>
+        <span>Other companies blocked</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">4</div>
+        <strong>Your data only</strong>
+        <span>Screen / export / report</span>
+      </div>
+    </div>
+
+    <table class="simple">
+      <thead>
+        <tr>
+          <th>Privacy question</th>
+          <th>Answer</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Can Company B query Company A’s database rows?</td>
+          <td><strong>No.</strong> Storage rules and application tags both block it.</td>
+        </tr>
+        <tr>
+          <td>Can Company B see Company A’s uploaded files?</td>
+          <td><strong>No.</strong> Files are resolved only inside the signed-in organisation and rights.</td>
+        </tr>
+        <tr>
+          <td>Can a customer see another customer of the same forwarder?</td>
+          <td><strong>No.</strong> Portal users see only their own party’s allowed records.</td>
+        </tr>
+        <tr>
+          <td>Can a vendor see customer invoices or your margins?</td>
+          <td><strong>No.</strong> Vendor entrance is separate; internal cost/GP is stripped.</td>
+        </tr>
+        <tr>
+          <td>Are deleted records wiped for everyone immediately?</td>
+          <td>Business records are typically soft-removed (hidden from normal use) so your audit trail remains trustworthy — not handed to other companies.</td>
+        </tr>
+        <tr>
+          <td>Do backups mix companies into one open list?</td>
+          <td>Backups protect the platform; restored data still carries organisation tags and the same separation rules.</td>
+        </tr>
+        <tr>
+          <td>What can platform administrators see?</td>
+          <td>Platform administration manages companies and tenants — not day-to-day freight operations inside your vault as if they were your staff.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="analogy">
+      <strong>Picture:</strong> One library building, many locked cabinets.
+      Staff from Cabinet A cannot open Cabinet B — even though both cabinets stand in the same building.
+    </div>
+  </section>
+
+  <!-- ===================== 9 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 09</div>
+    <h2>Independent security certifications</h2>
+    <p>
+      Established software providers (including Fresa Technologies) publish certificates issued after
+      an <strong>independent audit</strong> of company processes — policies, training, incident handling and operational discipline —
+      in addition to product controls.
+    </p>
+
+    <div class="cert-grid">
+      <div class="cert">
+        <div class="badge">Primary market ask</div>
+        <h3>Information security</h3>
+        <p class="small muted" style="margin:0;">
+          Confirms an international management system for protecting information
+          (commonly known in the market as ISO 27001).
+        </p>
+      </div>
+      <div class="cert">
+        <div class="badge">Quality</div>
+        <h3>Quality management</h3>
+        <p class="small muted" style="margin:0;">
+          Demonstrates consistent delivery and continual improvement
+          (commonly known as ISO 9001).
+        </p>
+      </div>
+      <div class="cert">
+        <div class="badge">Where AI applies</div>
+        <h3>Responsible AI governance</h3>
+        <p class="small muted" style="margin:0;">
+          Formal oversight for artificial intelligence features,
+          as promoted by peers such as Fresa.
+        </p>
+      </div>
+    </div>
+
+    <h3>How such certificates are obtained</h3>
+    <div class="roadmap">
+      <ol>
+        <li><strong>Define scope</strong> — which product and services the certificate will cover.</li>
+        <li><strong>Establish the rulebook</strong> — security policy, ownership, risk handling.</li>
+        <li><strong>Align rules with live controls</strong> — password protection, organisation separation, backups and logging (strong technical foundations already exist).</li>
+        <li><strong>Operate with evidence</strong> — retain records over a period (reviews, training, incidents).</li>
+        <li><strong>Internal assessment</strong> — identify and close gaps.</li>
+        <li><strong>Engage an accredited auditor</strong> — review of documentation and practical operation.</li>
+        <li><strong>Certification</strong> — award of the certificate, typically with annual surveillance.</li>
+      </ol>
+    </div>
+
+    <div class="callout warn">
+      <strong>Formal position:</strong>
+      KingFisher Wings already applies the technical protections described in this briefing.
+      An official international certificate is an organisational programme that can be initiated
+      when required by contract or market expectation. The customary first target is the information-security certificate (ISO 27001).
+    </div>
+  </section>
+
+  <!-- ===================== 10 ===================== -->
+  <section class="page">
+    <div class="letterhead">
+      <img class="logo" src="kingfisher-wings-logo.png" alt="KingFisher Wings" />
+      <div class="letterhead-meta">
+        <strong>Information Security Briefing</strong>
+        Confidential · November 2026
+      </div>
+    </div>
+
+    <div class="section-kicker">Section 10</div>
+    <h2>Executive summary</h2>
+
+    <div class="grid-2">
+      <div class="card accent">
+        <h3>Points suitable for stakeholders</h3>
+        <ul class="compact">
+          <li>Passwords are scrambled — never retained as typed</li>
+          <li>Database rows, files and reports are organisation-tagged and blocked across companies</li>
+          <li>Operations, finance, documents, portals, HR/WMS and audit trails stay private per company</li>
+          <li>Staff, customers and vendors use separate entrances</li>
+        </ul>
+      </div>
+      <div class="card info">
+        <h3>Recommended follow-up</h3>
+        <ul class="compact">
+          <li>Enable two-step verification for administrators at go-live</li>
+          <li>Confirm hosting region and backup commitments</li>
+          <li>If required, commence an official certification programme</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Password protection — single view</h3>
+    <div class="mono">User enters:     Welcome@123
+                    │
+                    ▼
+            One-way scramble applied
+                    │
+                    ▼
+            Only the scramble is retained
+                    │
+                    ▼
+At next sign-in: compare safely
+                    │
+           ┌────────┴────────┐
+           │ match → access  │
+           │ fail  → denied  │
+           └─────────────────┘</div>
+
+    <div class="footer-note">
+      <div class="brand-line">KingFisher Wings Group — Information Security &amp; Privacy Overview</div>
+      Document classification: Confidential · Issued November 2026<br />
+      Prepared for authorised client and stakeholder review. Illustrative credentials are fictional.
+      Independent certifications require completion of an accredited audit and are not asserted by this briefing alone.
+    </div>
+  </section>
+
+</body>
+</html>
