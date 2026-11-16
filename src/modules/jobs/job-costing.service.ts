@@ -1363,8 +1363,31 @@ export class JobCostingService {
     ].filter(Boolean);
 
     // Entered line amounts are the bill total unless a tax_rate_id is set.
-    // Do not apply silent default 5% VAT (that made total = subtotal + 5%).
-    const anyTaxableLine = dto.lines.some((l) => !!l.tax_rate_id);
+    // Use the actual TaxRate.rate when present — never invent 5%.
+    const taxRateIds = [
+      ...new Set(
+        dto.lines
+          .map((l) => l.tax_rate_id)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    let headerVatRate = 0;
+    if (taxRateIds.length) {
+      const rates = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.taxRate.findMany({
+          where: {
+            tenant_id: tenantId,
+            id: { in: taxRateIds },
+            deleted_at: null,
+          },
+          select: { rate: true },
+        }),
+      );
+      headerVatRate = rates.reduce(
+        (max, r) => Math.max(max, Number(r.rate)),
+        0,
+      );
+    }
     const createDto = {
       party_id: partyId,
       job_id: jobId,
@@ -1379,7 +1402,7 @@ export class JobCostingService {
       internal_notes: notesParts.length
         ? notesParts.join("; ")
         : undefined,
-      vat_rate: anyTaxableLine ? 5 : 0,
+      vat_rate: headerVatRate,
       lines: dto.lines.map((line, index) =>
         this.formLineToInvoiceLine(line, jobId, index),
       ),

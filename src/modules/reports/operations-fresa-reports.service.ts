@@ -702,6 +702,7 @@ export class OperationsFresaReportsService {
         if (
           wanted.has("not_closed_past_eta") &&
           j.status !== JobStatus.COMPLETED &&
+          j.status !== JobStatus.CLOSED &&
           j.status !== JobStatus.CANCELLED &&
           j.eta
         ) {
@@ -771,7 +772,7 @@ export class OperationsFresaReportsService {
         deleted_at: null,
         ...(dateBasis === "completed_at"
           ? {
-              status: JobStatus.COMPLETED,
+              status: { in: [JobStatus.COMPLETED, JobStatus.CLOSED] },
               updated_at: { gte: from, lte: to },
             }
           : { job_date: { gte: from, lte: to } }),
@@ -829,7 +830,9 @@ export class OperationsFresaReportsService {
           status: j.status,
           job_date: j.job_date,
           completed_at:
-            j.status === JobStatus.COMPLETED ? j.updated_at : null,
+            j.status === JobStatus.COMPLETED || j.status === JobStatus.CLOSED
+              ? j.updated_at
+              : null,
           etd: j.etd,
           eta: j.eta,
           atd,

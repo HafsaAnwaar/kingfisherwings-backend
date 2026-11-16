@@ -98,7 +98,10 @@ export class CreateInvoiceLineDto {
   @IsUUID()
   tax_rate_id?: string;
 
-  @ApiPropertyOptional({ default: true })
+  @ApiPropertyOptional({
+    default: false,
+    description: "Omit or false = no tax. Set true only when VAT should apply.",
+  })
   @IsOptional()
   @Transform(({ value }) => {
     if (value === "true" || value === 1 || value === "1") return true;
@@ -178,7 +181,10 @@ export class CreateInvoiceDto {
   @Min(0)
   exchange_rate?: number;
 
-  @ApiPropertyOptional({ default: 5, description: "UAE VAT default 5%" })
+  @ApiPropertyOptional({
+    default: 0,
+    description: "Header VAT %. Defaults to 0 — set explicitly when tax applies.",
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

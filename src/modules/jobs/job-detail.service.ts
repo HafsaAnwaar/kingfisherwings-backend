@@ -91,7 +91,7 @@ function detailTabsForJobType(jobType: JobType): string[] {
   });
 }
 
-const TERMINAL_STATUSES: JobStatus[] = ["COMPLETED", "CANCELLED"];
+const TERMINAL_STATUSES: JobStatus[] = ["COMPLETED", "CLOSED", "CANCELLED"];
 
 @Injectable()
 export class JobDetailService {
@@ -229,7 +229,11 @@ export class JobDetailService {
     actorId?: string,
   ) {
     const job = await this.loadJob(tenantId, id);
-    if (job.status === "COMPLETED" || job.status === "CANCELLED") {
+    if (
+      job.status === "COMPLETED" ||
+      job.status === "CLOSED" ||
+      job.status === "CANCELLED"
+    ) {
       throw new BadRequestException(`Cannot edit a ${job.status} job.`);
     }
 
@@ -827,9 +831,14 @@ export class JobDetailService {
     const canForce =
       permissions?.includes(JOBS_PERMISSIONS.STATUS_FORCE) ||
       permissions?.includes(JOBS_PERMISSIONS.CLOSE);
-    if (systemStatus === "COMPLETED" && !canForce) {
+    if (systemStatus === "CLOSED" && !canForce) {
       warnings.push(
-        "Setting COMPLETED via change-status skips close checklist — prefer POST /jobs/:id/close.",
+        "Setting CLOSED via change-status skips close checklist — prefer POST /jobs/:id/close.",
+      );
+    }
+    if (systemStatus === "COMPLETED") {
+      warnings.push(
+        "COMPLETED marks ops finished; use POST /jobs/:id/close for final CLOSED.",
       );
     }
     if (systemStatus === "CANCELLED") {
@@ -878,7 +887,7 @@ export class JobDetailService {
     const job = await this.loadJob(tenantId, id);
     if (!TERMINAL_STATUSES.includes(job.status) && job.status !== "DELIVERED") {
       throw new BadRequestException(
-        "Reopen applies to Closed (COMPLETED), Cancelled, or Delivered jobs.",
+        "Reopen applies to Completed, Closed, Cancelled, or Delivered jobs.",
       );
     }
     const target = (dto.status ?? DEFAULT_REOPEN_STATUS) as JobStatus;
@@ -1033,11 +1042,12 @@ export class JobDetailService {
     const job = await this.loadJob(tenantId, jobId);
     const closed =
       job.status === "COMPLETED" ||
+      job.status === "CLOSED" ||
       job.status === "CANCELLED" ||
       job.status === "DELIVERED";
     if (!closed) {
       throw new BadRequestException(
-        "Closed overrides apply only when job is completed, cancelled, or delivered. Use normal edit otherwise.",
+        "Closed overrides apply only when job is completed, closed, cancelled, or delivered. Use normal edit otherwise.",
       );
     }
 
@@ -2035,7 +2045,9 @@ export class JobDetailService {
     const isSea = SEA_JOB_TYPES.includes(job.job_type);
     const mawb = isAir ? await this.airMawbFields(tenantId, job) : null;
     const closed =
-      job.status === "COMPLETED" || job.status === "CANCELLED";
+      job.status === "COMPLETED" ||
+      job.status === "CLOSED" ||
+      job.status === "CANCELLED";
     return this.labels.enrichOne(tenantId, {
       id: job.id,
       job_number: job.job_number,
@@ -2361,7 +2373,9 @@ export class JobDetailService {
     permissions?: string[],
   ) {
     const closed =
-      job.status === "COMPLETED" || job.status === "CANCELLED";
+      job.status === "COMPLETED" ||
+      job.status === "CLOSED" ||
+      job.status === "CANCELLED";
     const isAir = AIR_JOB_TYPES.includes(job.job_type);
     const isMaster = !job.parent_job_id;
     const canEditClosedDelivery =
@@ -2380,7 +2394,8 @@ export class JobDetailService {
         closed || job.status === "DELIVERED",
       can_stop: !closed && job.status !== "ON_HOLD",
       can_resume: job.status === "ON_HOLD",
-      can_close: !closed,
+      // Final close allowed from COMPLETED (and other non-closed/cancelled).
+      can_close: job.status !== "CLOSED" && job.status !== "CANCELLED",
       can_cancel: !closed,
       can_copy: true,
       can_upload_docs: true,

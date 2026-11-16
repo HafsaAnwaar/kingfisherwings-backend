@@ -174,7 +174,7 @@ export class SeaDocsDataPackService {
           ...(to ? { lte: to } : {}),
         };
         where.status = {
-          notIn: [JobStatus.CANCELLED, JobStatus.COMPLETED],
+          notIn: [JobStatus.CANCELLED, JobStatus.COMPLETED, JobStatus.CLOSED],
         };
         break;
       case "sea.cargo_manifest_list":
@@ -227,7 +227,12 @@ export class SeaDocsDataPackService {
         break;
       case "sea.hbl_draft_list":
         where.status = {
-          notIn: [JobStatus.DELIVERED, JobStatus.COMPLETED, JobStatus.CANCELLED],
+          notIn: [
+            JobStatus.DELIVERED,
+            JobStatus.COMPLETED,
+            JobStatus.CLOSED,
+            JobStatus.CANCELLED,
+          ],
         };
         where.documents = {
           none: {

@@ -440,7 +440,11 @@ export class TrackTimelineService {
           : null,
       ].filter(Boolean);
       detail = bits.length ? bits.join(" ") : "Operations will resume movement once the hold is cleared.";
-    } else if (status === "DELIVERED" || status === "COMPLETED") {
+    } else if (
+      status === "DELIVERED" ||
+      status === "COMPLETED" ||
+      status === "CLOSED"
+    ) {
       headline = "Shipment delivered";
       detail = last?.label ? `Latest update: ${last.label}.` : null;
     } else if (status === "CANCELLED") {

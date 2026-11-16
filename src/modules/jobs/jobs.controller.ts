@@ -488,7 +488,9 @@ export class JobsController {
 
   @Get("status-options")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "Job status catalog (Approved/Open/Closed labels)" })
+  @ApiOperation({
+    summary: "Job status catalog (Completed and Closed are separate)",
+  })
   statusOptions(
     @CurrentUser("tenantId") tenantId: string,
     @Query("job_id") jobId?: string,
@@ -1807,7 +1809,8 @@ export class JobsController {
   @Patch(":id")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
   @ApiOperation({
-    summary: "Update a job (not allowed once COMPLETED or CANCELLED)",
+    summary:
+      "Update a job (not allowed once COMPLETED, CLOSED, or CANCELLED)",
   })
   update(
     @CurrentUser("tenantId") tenantId: string,
@@ -1840,7 +1843,7 @@ export class JobsController {
   @RequirePermissions(JOBS_PERMISSIONS.CLOSE)
   @ApiOperation({
     summary:
-      "Close a job (status -> COMPLETED). Enforces close checklist unless force=true.",
+      "Close a job (status -> CLOSED). Enforces close checklist unless force=true. COMPLETED remains a separate ops-finished status.",
   })
   closeJob(
     @CurrentUser("tenantId") tenantId: string,

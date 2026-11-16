@@ -49,6 +49,13 @@ import {
 } from "./dto/invoice.dto";
 
 const EDITABLE_STATUSES: InvoiceStatus[] = ["DRAFT"];
+const PDF_DOWNLOADABLE_STATUSES: InvoiceStatus[] = [
+  "DRAFT",
+  "POSTED",
+  "SENT",
+  "PARTIALLY_PAID",
+  "PAID",
+];
 
 @Injectable()
 export class InvoicesService {
@@ -261,8 +268,27 @@ export class InvoicesService {
         party_email: party?.email ?? null,
         shipment,
         lines,
+        actions: {
+          can_edit: EDITABLE_STATUSES.includes(invoice.status),
+          can_download: PDF_DOWNLOADABLE_STATUSES.includes(invoice.status),
+        },
       };
     });
+  }
+
+  /** Assert invoice type for credit/debit note route aliases. */
+  async assertNoteType(
+    tenantId: string,
+    id: string,
+    expected: "CREDIT_NOTE" | "DEBIT_NOTE",
+  ) {
+    const invoice = await this.findOne(tenantId, id);
+    if (invoice.invoice_type !== expected) {
+      throw new BadRequestException(
+        `Expected a ${expected === "CREDIT_NOTE" ? "credit" : "debit"} note.`,
+      );
+    }
+    return invoice;
   }
 
   /**
@@ -382,7 +408,7 @@ export class InvoicesService {
           due_date: dto.due_date ? new Date(dto.due_date) : undefined,
           currency_code: dto.currency_code,
           exchange_rate: dto.exchange_rate ?? 1,
-          vat_rate: dto.vat_rate ?? 5,
+          vat_rate: dto.vat_rate ?? 0,
           party_vat_number: party?.vat_number,
           lpo_number: dto.lpo_number,
           remarks: dto.remarks,
@@ -651,7 +677,7 @@ export class InvoicesService {
       },
       orderBy: { effective_from: "desc" },
     });
-    const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
+    const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 0;
     const currency =
       charges[0].cost_currency ?? charges[0].currency_code;
     const exRate = Number(
@@ -779,7 +805,7 @@ export class InvoicesService {
         },
         orderBy: { effective_from: "desc" },
       });
-      const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
+      const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 0;
 
       const invoice = await tx.invoice.create({
         data: {
@@ -893,7 +919,7 @@ export class InvoicesService {
       },
       orderBy: { effective_from: "desc" },
     });
-    const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 5;
+    const defaultVatRate = defaultTax ? Number(defaultTax.rate) : 0;
 
     const chargeAmount = Number(charge.amount);
     const chargeTax = Number(charge.tax_amount);
@@ -988,7 +1014,7 @@ export class InvoicesService {
       },
       orderBy: { effective_from: "desc" },
     });
-    const taxRate = defaultTax ? Number(defaultTax.rate) : 5;
+    const taxRate = defaultTax ? Number(defaultTax.rate) : 0;
     const invoice = await tx.invoice.create({
       data: {
         tenant_id: tenantId,
@@ -1256,6 +1282,7 @@ export class InvoicesService {
           department_id: job.department_id,
           credited_invoice_id: null,
           currency_code: currency,
+          vat_rate: 0,
           party_vat_number: party.vat_number,
           remarks: dto.description ?? dto.remarks,
           created_by: actorId,
@@ -2050,6 +2077,11 @@ export class InvoicesService {
     dto?: StoreInvoicePdfDto,
   ) {
     const invoice = await this.findOne(tenantId, id);
+    if (!PDF_DOWNLOADABLE_STATUSES.includes(invoice.status)) {
+      throw new BadRequestException(
+        "PDF is only available for draft, posted, sent, or paid invoices (not cancelled/void).",
+      );
+    }
     const clientPdf = resolveClientPdfBuffer({
       file,
       pdf_base64: dto?.pdf_base64,
@@ -2172,7 +2204,7 @@ export class InvoicesService {
   ) {
     const quantity = dto.quantity ?? 1;
     const amount = quantity * dto.unit_price;
-    const isTaxable = dto.is_taxable ?? true;
+    const isTaxable = dto.is_taxable ?? false;
     const taxRate = isTaxable ? Number(headerVatRate) : 0;
     const taxAmount = (amount * taxRate) / 100;
 

@@ -104,7 +104,12 @@ export class SeaKpiReportController {
 
       const [total, completed, inProgress, scans] = await Promise.all([
         tx.job.count({ where }),
-        tx.job.count({ where: { ...where, status: "COMPLETED" } }),
+        tx.job.count({
+          where: {
+            ...where,
+            status: { in: ["COMPLETED", "CLOSED"] },
+          },
+        }),
         tx.job.count({ where: { ...where, status: "IN_PROGRESS" } }),
         tx.jobSeaScan.count({ where: { tenant_id: tenantId } }),
       ]);

@@ -16,6 +16,7 @@ type Params = Record<string, unknown>;
 const TERMINAL: JobStatus[] = [
   JobStatus.DELIVERED,
   JobStatus.COMPLETED,
+  JobStatus.CLOSED,
   JobStatus.CANCELLED,
 ];
 
@@ -83,10 +84,18 @@ export class OpsListDataPackService {
           templateCode,
           parameters.title ? String(parameters.title) : undefined,
         );
+        const listParams = { ...parameters };
+        if (!listParams.status && templateCode) {
+          if (/CLOSED_JOB/i.test(templateCode)) {
+            listParams.status = JobStatus.CLOSED;
+          } else if (/CANCELLED_JOB/i.test(templateCode)) {
+            listParams.status = JobStatus.CANCELLED;
+          }
+        }
         return {
           title: cfg.title,
           columns: cfg.columns,
-          rows: await this.jobsListOptionalDates(tenantId, parameters),
+          rows: await this.jobsListOptionalDates(tenantId, listParams),
           branding,
           generated_at,
         };
@@ -309,7 +318,9 @@ export class OpsListDataPackService {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        status: { notIn: [JobStatus.COMPLETED, JobStatus.CANCELLED] },
+        status: {
+          notIn: [JobStatus.COMPLETED, JobStatus.CLOSED, JobStatus.CANCELLED],
+        },
         [field]: { gte: from, lte: to },
         ...(params.branch_id ? { branch_id: String(params.branch_id) } : {}),
       };
@@ -463,7 +474,9 @@ export class OpsListDataPackService {
         where: {
           tenant_id: tenantId,
           deleted_at: null,
-          status: { in: [JobStatus.DELIVERED, JobStatus.COMPLETED] },
+          status: {
+            in: [JobStatus.DELIVERED, JobStatus.COMPLETED, JobStatus.CLOSED],
+          },
           updated_at: { gte: from, lte: to },
           ...(params.branch_id ? { branch_id: String(params.branch_id) } : {}),
         },

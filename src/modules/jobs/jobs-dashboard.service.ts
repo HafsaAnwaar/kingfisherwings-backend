@@ -91,7 +91,8 @@ export class JobsDashboardService {
       const open_bucket =
         (statusMap["OPEN"] ?? 0) + pending;
       const delivered = statusMap["DELIVERED"] ?? 0;
-      const completed = statusMap["COMPLETED"] ?? 0;
+      const completed =
+        (statusMap["COMPLETED"] ?? 0) + (statusMap["CLOSED"] ?? 0);
       const cancelled = statusMap["CANCELLED"] ?? 0;
       const on_hold = statusMap["ON_HOLD"] ?? 0;
       const delayed = openWithEta.filter((j) => isOpenJobDelayed(j)).length;
