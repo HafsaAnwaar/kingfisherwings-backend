@@ -1438,7 +1438,9 @@ export class InvoicesService {
           ...(dto.lpo_number !== undefined
             ? { lpo_number: dto.lpo_number }
             : {}),
-          ...(dto.remarks !== undefined ? { remarks: dto.remarks } : {}),
+          ...(dto.description !== undefined || dto.remarks !== undefined
+            ? { remarks: dto.description ?? dto.remarks }
+            : {}),
           ...(dto.internal_notes !== undefined
             ? { internal_notes: dto.internal_notes }
             : {}),

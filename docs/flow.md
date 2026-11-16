@@ -865,7 +865,7 @@ Org department tab (not NVOCC workflow stages):
 - After pass, assignee lists with `GET /jobs?ops_user_id=<me>` (“Assigned to me”). Staff may only filter `ops_user_id` to themselves; admins may filter any.
 - Do not confuse org `Job.department_id` with ops “department” = `job_type` ACL grants.
 
-Credit/debit note create accepts optional `description` (stored as `Invoice.remarks`; `remarks` remains an alias). Party AR/AP statement rows and statement PDFs expose `description` (`remarks` or first line description).
+Credit/debit note create requires `description` (stored as `Invoice.remarks`; `remarks` remains an optional alias). Party AR/AP statement rows and statement PDFs expose `description` (`remarks` or first line description). `PATCH` invoices/CN/DN also whitelist `description`.
 
 ### Finance — no silent VAT + CN/DN draft APIs (FreightNest contract)
 
