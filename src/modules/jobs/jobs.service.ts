@@ -1452,7 +1452,11 @@ export class JobsService {
       const existing = await this.getOrThrow(tx, tenantId, id);
       this.assertDepartmentAccess(existing, access, "write");
 
-      if (existing.status === "COMPLETED" || existing.status === "CANCELLED") {
+      if (
+        existing.status === "COMPLETED" ||
+        existing.status === "CLOSED" ||
+        existing.status === "CANCELLED"
+      ) {
         throw new BadRequestException(`Cannot edit a ${existing.status} job.`);
       }
 
@@ -1616,7 +1620,7 @@ export class JobsService {
       const job = await this.getOrThrow(tx, tenantId, id);
       this.assertDepartmentAccess(job, access, "write");
 
-      if (job.status === "COMPLETED") {
+      if (job.status === "CLOSED") {
         throw new ConflictException("Job is already closed.");
       }
 
@@ -1626,7 +1630,11 @@ export class JobsService {
 
       const updated = await tx.job.update({
         where: { id },
-        data: { status: "COMPLETED", updated_by: actorId },
+        data: {
+          status: "CLOSED",
+          status_code: "CLOSED",
+          updated_by: actorId,
+        },
       });
 
       if (job.job_type === "NVOCC_EXPORT" || job.job_type === "NVOCC_IMPORT") {
@@ -1648,7 +1656,7 @@ export class JobsService {
           entity: "JOB",
           entity_id: id,
           old_values: { status: job.status },
-          new_values: { status: "COMPLETED" },
+          new_values: { status: "CLOSED" },
           metadata: { force: force === true },
         },
       });
@@ -1667,8 +1675,10 @@ export class JobsService {
       const job = await this.getOrThrow(tx, tenantId, id);
       this.assertDepartmentAccess(job, access, "write");
 
-      if (job.status === "COMPLETED") {
-        throw new BadRequestException("Cannot cancel a completed job.");
+      if (job.status === "COMPLETED" || job.status === "CLOSED") {
+        throw new BadRequestException(
+          `Cannot cancel a ${job.status.toLowerCase()} job.`,
+        );
       }
 
       if (job.status === "CANCELLED") {
@@ -1706,9 +1716,13 @@ export class JobsService {
       const job = await this.getOrThrow(tx, tenantId, id);
       this.assertDepartmentAccess(job, access, "write");
 
-      if (job.status !== "CANCELLED" && job.status !== "COMPLETED") {
+      if (
+        job.status !== "CANCELLED" &&
+        job.status !== "COMPLETED" &&
+        job.status !== "CLOSED"
+      ) {
         throw new BadRequestException(
-          "Only COMPLETED or CANCELLED jobs can be deleted.",
+          "Only COMPLETED, CLOSED, or CANCELLED jobs can be deleted.",
         );
       }
 

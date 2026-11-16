@@ -1140,6 +1140,7 @@ export class PortalShipmentsService {
         return ShipmentStatus.IN_PROGRESS;
       case JobStatus.DELIVERED:
       case JobStatus.COMPLETED:
+      case JobStatus.CLOSED:
         return ShipmentStatus.COMPLETED;
       case JobStatus.CANCELLED:
         return ShipmentStatus.CANCELLED;

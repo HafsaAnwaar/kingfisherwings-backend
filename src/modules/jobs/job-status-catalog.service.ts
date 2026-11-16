@@ -43,6 +43,25 @@ export class JobStatusCatalogService {
               },
             });
           }
+          // Split old "Closed" label off COMPLETED; CLOSED is its own status.
+          if (row.code === "COMPLETED" && row.label === "Closed") {
+            await tx.jobStatusCatalog.update({
+              where: { id: row.id },
+              data: { label: "Completed" },
+            });
+          }
+        }
+        const existingCodes = new Set(rows.map((r) => r.code));
+        const missing = DEFAULT_JOB_STATUS_CATALOG.filter(
+          (d) => !existingCodes.has(d.code),
+        );
+        if (missing.length) {
+          await tx.jobStatusCatalog.createMany({
+            data: missing.map((row) => ({
+              tenant_id: tenantId,
+              ...row,
+            })),
+          });
         }
         return;
       }
@@ -322,7 +341,11 @@ export class JobStatusCatalogService {
   ): boolean {
     const hit = rows.find((r) => r.code === status);
     if (hit) return hit.is_terminal;
-    return status === "COMPLETED" || status === "CANCELLED";
+    return (
+      status === "COMPLETED" ||
+      status === "CLOSED" ||
+      status === "CANCELLED"
+    );
   }
 
   async terminalSet(tenantId: string): Promise<Set<string>> {

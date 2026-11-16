@@ -191,7 +191,7 @@ export class DocumentationReportService {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        status: { not: JobStatus.COMPLETED },
+        status: { notIn: [JobStatus.COMPLETED, JobStatus.CLOSED] },
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
         ...(Object.keys(range).length ? { [field]: range } : {}),
       };

@@ -22,7 +22,10 @@ export class OperationsDashboardService {
       const [total, completed, inProgress] = await Promise.all([
         tx.job.count({ where: base }),
         tx.job.count({
-          where: { ...base, status: JobStatus.COMPLETED },
+          where: {
+            ...base,
+            status: { in: [JobStatus.COMPLETED, JobStatus.CLOSED] },
+          },
         }),
         tx.job.count({
           where: { ...base, status: JobStatus.IN_PROGRESS },
@@ -53,7 +56,7 @@ export class OperationsDashboardService {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        status: JobStatus.COMPLETED,
+        status: JobStatus.CLOSED,
         job_date: { gte: from, lte: to },
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
       };

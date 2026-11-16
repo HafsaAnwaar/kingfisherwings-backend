@@ -899,7 +899,8 @@ export class CustomsClearanceService {
       await tx.job.update({
         where: { id: jobId },
         data: {
-          status: "COMPLETED",
+          status: "CLOSED",
+          status_code: "CLOSED",
           updated_by: user.id,
         },
       });

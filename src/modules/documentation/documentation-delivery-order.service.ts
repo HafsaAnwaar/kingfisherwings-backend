@@ -33,7 +33,7 @@ export class DocumentationDeliveryOrderService {
       const where: Prisma.JobWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        status: JobStatus.COMPLETED,
+        status: { in: [JobStatus.COMPLETED, JobStatus.CLOSED] },
         job_type: { in: EXPORT_JOB_TYPES },
         ...(query.branch_id ? { branch_id: query.branch_id } : {}),
         ...(query.search
@@ -87,9 +87,12 @@ export class DocumentationDeliveryOrderService {
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
       });
       if (!job) throw new NotFoundException("Job not found.");
-      if (job.status !== JobStatus.COMPLETED) {
+      if (
+        job.status !== JobStatus.COMPLETED &&
+        job.status !== JobStatus.CLOSED
+      ) {
         throw new BadRequestException(
-          "Delivery order updates are allowed only on completed jobs.",
+          "Delivery order updates are allowed only on completed or closed jobs.",
         );
       }
       if (!EXPORT_JOB_TYPES.includes(job.job_type)) {

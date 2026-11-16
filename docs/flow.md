@@ -867,6 +867,32 @@ Org department tab (not NVOCC workflow stages):
 
 Credit/debit note create accepts optional `description` (stored as `Invoice.remarks`; `remarks` remains an alias). Party AR/AP statement rows and statement PDFs expose `description` (`remarks` or first line description).
 
+### Finance — no silent VAT + CN/DN draft APIs (FreightNest contract)
+
+**Backend defaults (do not invent 5%):** omitted `is_taxable` → `false`; omitted header `vat_rate` → `0`. Explicit `is_taxable: true` + positive `vat_rate` still applies tax. Job-from-charge paths keep charge-derived tax.
+
+**FreightNest must stop auto-tax on forms:**
+
+- `InvoiceForm` / `InvoiceLinesEditor` / `PurchaseInvoiceForm`: new lines `is_taxable: false`; do not default `vat_rate` to 5 in `invoiceToFormValues`, `normalizeInvoice`, `purchaseInvoiceToFormValues`, `normalizePurchaseInvoice`
+- Credit/debit note normalize: missing line `is_taxable` → treat as false (not true)
+- Shared PDF helper (`formatPayloadToInvoicePdfModel`): do not fall back VAT rate to 5 when absent — use stored 0 / null
+- When tax is intentional, send `is_taxable: true` and a real `vat_rate` (or `tax_rate_id` on job costing lines)
+
+**Credit / debit notes (staff):**
+
+- Editable while `DRAFT`: `PATCH /credit-notes/:id` (+ `/lines`) or existing `PATCH /invoices/:id`
+- Downloadable while `DRAFT|POSTED|SENT|PARTIALLY_PAID|PAID`: `POST /credit-notes/:id/pdf` / `POST /debit-notes/:id/pdf` (or `/invoices/:id/pdf`)
+- GET includes `actions.can_edit` / `actions.can_download`
+- Email `send` still requires posted-family statuses (not DRAFT)
+
+### Job statuses — COMPLETED vs CLOSED
+
+- `COMPLETED` = ops finished (change-status / catalog); label **Completed**
+- `CLOSED` = final close via `POST /jobs/:id/close` (and CC stage close); label **Closed**
+- Both terminal. Close allowed from non-`CLOSED` / non-`CANCELLED` (including from `COMPLETED`)
+- Historical jobs that were UI-“Closed” remain `COMPLETED` until re-closed
+- FreightNest: status options show both; close action → `CLOSED`; do not label `COMPLETED` as Closed
+
 House shipment = house job (`parent_job_id`); no separate shipment table. EDI file generation in-app; `EDI_SUBMIT_ENABLED=true` for live submit adapters.
 
 ### Week 22 — Documentation ops + Admin/Public API/Stripe (deferred from original Week 21)

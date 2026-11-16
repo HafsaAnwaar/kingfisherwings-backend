@@ -12,8 +12,13 @@ export type OnTimeSummary = {
   scored_jobs: number;
 };
 
-const TERMINAL_DELIVERED = new Set(["DELIVERED", "COMPLETED"]);
-const TERMINAL_ALL = new Set(["DELIVERED", "COMPLETED", "CANCELLED"]);
+const TERMINAL_DELIVERED = new Set(["DELIVERED", "COMPLETED", "CLOSED"]);
+const TERMINAL_ALL = new Set([
+  "DELIVERED",
+  "COMPLETED",
+  "CLOSED",
+  "CANCELLED",
+]);
 
 /**
  * Score jobs whose ETA falls in the period.
@@ -100,6 +105,7 @@ export const OPEN_JOB_STATUSES = [
 export const TERMINAL_JOB_STATUSES = [
   "DELIVERED",
   "COMPLETED",
+  "CLOSED",
   "CANCELLED",
 ] as const;
 
@@ -130,6 +136,8 @@ export function jobStatusesForCategory(
       return ["CANCELLED"];
     case "completed":
       return ["COMPLETED"];
+    case "closed":
+      return ["CLOSED"];
     case "in_progress":
       // Staff UIs treat "in progress" as every non-terminal ops job. Live jobs
       // are usually BOOKING_CONFIRMED; the old narrow set made lists empty

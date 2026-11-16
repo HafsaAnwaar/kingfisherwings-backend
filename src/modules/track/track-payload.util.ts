@@ -63,6 +63,9 @@ export function containerMoveLabel(
     case "COMPLETED":
       move = "COMPLETED";
       break;
+    case "CLOSED":
+      move = "CLOSED";
+      break;
     default:
       move = s
         ? s.replace(/_/g, " ")
@@ -174,7 +177,7 @@ export function buildRouteLegs(input: {
   let currentCode: TrackRouteLegCode = "POL";
   if (
     ["DISCHARGED", "RETURNED"].includes(cs) ||
-    ["DELIVERED", "COMPLETED"].includes(js)
+    ["DELIVERED", "COMPLETED", "CLOSED"].includes(js)
   ) {
     currentCode = "POD";
   } else if (cs === "IN_TRANSIT" || js === "IN_PROGRESS") {
