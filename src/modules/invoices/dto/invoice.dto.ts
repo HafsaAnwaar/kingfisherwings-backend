@@ -206,6 +206,15 @@ export class CreateInvoiceDto {
   @Length(1, 100)
   lpo_number?: string;
 
+  @ApiPropertyOptional({
+    description:
+      "User-entered note / AR description (alias of remarks). Whitelisted for PATCH.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -258,20 +267,21 @@ export class CreateCreditNoteDto {
   @Length(3, 3)
   currency_code?: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
-      "User-entered note shown on AR statements (stored as Invoice.remarks). Alias of remarks.",
+      "Required note shown on AR statements (stored as Invoice.remarks).",
+    example: "Advance refund / rate adjustment",
   })
-  @IsOptional()
   @IsString()
-  @MaxLength(2000)
-  description?: string;
+  @Length(1, 2000)
+  description!: string;
 
   @ApiPropertyOptional({
     description: "Alias of description — kept for existing clients.",
   })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   remarks?: string;
 
   @ApiPropertyOptional({ type: [CreateInvoiceLineDto] })
@@ -315,20 +325,21 @@ export class CreateDebitNoteDto {
   @Length(3, 3)
   currency_code?: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
-      "User-entered note shown on AR statements (stored as Invoice.remarks). Alias of remarks.",
+      "Required note shown on AR statements (stored as Invoice.remarks).",
+    example: "Extra handling charge",
   })
-  @IsOptional()
   @IsString()
-  @MaxLength(2000)
-  description?: string;
+  @Length(1, 2000)
+  description!: string;
 
   @ApiPropertyOptional({
     description: "Alias of description — kept for existing clients.",
   })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   remarks?: string;
 
   @ApiPropertyOptional({ type: [CreateInvoiceLineDto] })

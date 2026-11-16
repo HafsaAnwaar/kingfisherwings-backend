@@ -224,6 +224,7 @@ export class PortalFinanceService {
         job_id: job.id,
         party_id: user.partyId,
         currency_code: dto.currency_code,
+        description: remarks,
         remarks,
         lines,
       },
