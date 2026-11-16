@@ -15,6 +15,7 @@ import { looksLikeUuid } from "../../common/utils/business-key.util";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NumberGeneratorService } from "../organization/number-formats/number-generator.service";
 import { ContainerStatusCatalogService } from "./container-status-catalog.service";
+import { assertJobNotClosed } from "./utils/job-mutability.util";
 import {
   BulkJobContainersDto,
   ConfirmContainerUploadDto,
@@ -105,7 +106,7 @@ export class JobContainerTabService {
   }
 
   async list(tenantId: string, jobId: string, kind?: JobContainerKind) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     return {
       success: true,
       data: await this.listMapped(tenantId, jobId, kind),
@@ -123,7 +124,7 @@ export class JobContainerTabService {
     dto: CreateJobContainerDto,
     actorId?: string,
   ) {
-    const job = await this.assertJob(tenantId, jobId);
+    const job = await this.assertJob(tenantId, jobId, true);
     const type = await this.resolveContainerType(tenantId, {
       container_type_id: dto.container_type_id,
       container_type_code: dto.container_type_code,
@@ -247,7 +248,7 @@ export class JobContainerTabService {
     jobId: string,
     actorId?: string,
   ) {
-    const job = await this.assertJob(tenantId, jobId);
+    const job = await this.assertJob(tenantId, jobId, true);
     const containers = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobContainer.findMany({
         where: {
@@ -463,7 +464,7 @@ export class JobContainerTabService {
     dto: BulkJobContainersDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const results = [];
     if (dto.replace_all) {
       await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -508,7 +509,7 @@ export class JobContainerTabService {
     dto: UpdateJobDetailsFromContainerTabDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const updated = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.update({
         where: { id: jobId },
@@ -537,7 +538,7 @@ export class JobContainerTabService {
     dto: SyncContainersFromSubJobsDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const matchingOnly = dto.matching_only !== false;
     const includeHouses = dto.include_houses !== false;
     const isSubJobOnly = dto.is_sub_job_only === true;
@@ -663,7 +664,7 @@ export class JobContainerTabService {
     dto: PushContainersToSubJobsDto,
     actorId?: string,
   ) {
-    const job = await this.assertJob(tenantId, jobId);
+    const job = await this.assertJob(tenantId, jobId, true);
     if (job.parent_job_id) {
       throw new BadRequestException(
         "Container push is only allowed from a master (root) job.",
@@ -896,7 +897,7 @@ export class JobContainerTabService {
     replaceAll: boolean,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const text = await this.fileToText(file);
     return this.processUpload(tenantId, jobId, text, confirm, replaceAll, actorId);
   }
@@ -907,7 +908,7 @@ export class JobContainerTabService {
     dto: PasteContainerUploadDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     return this.processUpload(
       tenantId,
       jobId,
@@ -1256,12 +1257,17 @@ export class JobContainerTabService {
     return row;
   }
 
-  private async assertJob(tenantId: string, jobId: string) {
+  private async assertJob(
+    tenantId: string,
+    jobId: string,
+    mutable = false,
+  ) {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
         select: {
           id: true,
+          status: true,
           job_type: true,
           parent_job_id: true,
           shipper_id: true,
@@ -1285,6 +1291,7 @@ export class JobContainerTabService {
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+    if (mutable) assertJobNotClosed(job.status);
     return job;
   }
 }

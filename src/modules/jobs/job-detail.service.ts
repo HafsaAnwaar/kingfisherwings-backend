@@ -36,7 +36,18 @@ import { JobLookupsService } from "./job-lookups.service";
 import { EntityTimelineService } from "../ops-activity/entity-timeline.service";
 import { DEFAULT_REOPEN_STATUS } from "./constants/job-status-catalog.defaults";
 import { JOBS_PERMISSIONS } from "./constants/jobs-permission.constants";
-import { assertJobTypeAccess } from "../../common/utils/job-type-access.util";
+import {
+  assertJobTypeAccess,
+  canSeeJobTypeForActor,
+  seesAllJobDepartments,
+} from "../../common/utils/job-type-access.util";
+import {
+  assertJobNotClosed,
+  assertTenantAdmin,
+  isHandoffLimitedAudience,
+  isJobClosed,
+  isTenantAdminRole,
+} from "./utils/job-mutability.util";
 import { JobContainerKind, JobPartyRole } from "@prisma/client";
 import { DocumentEmailService } from "../../shared/email/document-email.service";
 import {
@@ -61,6 +72,7 @@ const DETAIL_TABS = [
   "ex_rate",
   "costing",
   "department",
+  "handoff",
   "shipping_bill_boe",
   "routing",
   "customs",
@@ -119,17 +131,44 @@ export class JobDetailService {
     id: string,
     permissions?: string[],
     role?: string | null,
+    userId?: string,
   ) {
-    const job = await this.loadJob(tenantId, id, permissions, role);
+    const job = await this.loadJob(tenantId, id, permissions, role, userId);
+    const limited = await this.resolveHandoffLimited(
+      tenantId,
+      job,
+      userId,
+      role,
+      permissions,
+    );
     const links = await this.resolveLinks(tenantId, job);
+    const actions = this.actionFlags(job, permissions, role);
+    if (limited) {
+      Object.assign(actions, {
+        view_mode: "handoff_limited",
+        can_edit: false,
+        can_edit_header: false,
+        can_view_containers: true,
+        can_assign_trucker: !isJobClosed(job.status),
+        can_port_token: !isJobClosed(job.status),
+        can_edit_container_status: !isJobClosed(job.status),
+        job_finance_report: false,
+        can_booking_form: false,
+        can_edi: false,
+      });
+    }
     return {
       success: true,
       data: {
         job: await this.headerPayload(tenantId, job),
         links,
-        actions: this.actionFlags(job, permissions),
-        sections: await this.sectionSummaries(tenantId, job),
-        tabs: detailTabsForJobType(job.job_type),
+        actions,
+        sections: limited
+          ? [{ key: "handoff", label: "Handoff" }]
+          : await this.sectionSummaries(tenantId, job),
+        tabs: limited
+          ? ["handoff", "actual_container", "planned_container", "info"]
+          : detailTabsForJobType(job.job_type),
       },
     };
   }
@@ -148,8 +187,22 @@ export class JobDetailService {
         `Unknown tab "${tab}". Allowed: ${DETAIL_TABS.join(", ")}`,
       );
     }
-    const job = await this.loadJob(tenantId, id, permissions, role);
-    const allowedTabs = detailTabsForJobType(job.job_type);
+    const job = await this.loadJob(tenantId, id, permissions, role, userId);
+    const limited = await this.resolveHandoffLimited(
+      tenantId,
+      job,
+      userId,
+      role,
+      permissions,
+    );
+    const allowedTabs = limited
+      ? ["handoff", "actual_container", "planned_container", "info", "show_all"]
+      : detailTabsForJobType(job.job_type);
+    if (limited && !["handoff", "actual_container", "planned_container", "info", "show_all"].includes(normalized)) {
+      throw new ForbiddenException(
+        `Tab "${tab}" is not available in handoff-limited view. Use handoff / containers.`,
+      );
+    }
     if (!allowedTabs.includes(normalized)) {
       throw new BadRequestException(
         `Tab "${tab}" is not available on ${job.job_type} jobs. Allowed: ${allowedTabs.join(", ")}`,
@@ -166,7 +219,22 @@ export class JobDetailService {
       return this.dimensions.getTab(tenantId, id);
     }
     if (normalized === "costing") {
+      const limited = await this.resolveHandoffLimited(
+        tenantId,
+        job,
+        userId,
+        role,
+        permissions,
+      );
+      if (limited) {
+        throw new ForbiddenException(
+          "Costing is not available in handoff-limited view.",
+        );
+      }
       return this.costing.getTab(tenantId, id, "STAFF");
+    }
+    if (normalized === "handoff") {
+      return this.getHandoffTab(tenantId, job, userId, role, permissions);
     }
     if (normalized === "department") {
       return this.tabPanels.getDepartmentTab(tenantId, id, {
@@ -231,11 +299,11 @@ export class JobDetailService {
     const job = await this.loadJob(tenantId, id);
     if (
       job.status === "COMPLETED" ||
-      job.status === "CLOSED" ||
       job.status === "CANCELLED"
     ) {
       throw new BadRequestException(`Cannot edit a ${job.status} job.`);
     }
+    assertJobNotClosed(job.status);
 
     this.normalizeShowAllAliases(dto);
 
@@ -831,12 +899,17 @@ export class JobDetailService {
     const canForce =
       permissions?.includes(JOBS_PERMISSIONS.STATUS_FORCE) ||
       permissions?.includes(JOBS_PERMISSIONS.CLOSE);
-    if (systemStatus === "CLOSED" && !canForce) {
-      warnings.push(
-        "Setting CLOSED via change-status skips close checklist — prefer POST /jobs/:id/close.",
+    if (job.status === "CLOSED") {
+      throw new BadRequestException(
+        "Job is closed. Request reopen and wait for Tenant Admin approval.",
       );
     }
-    if (systemStatus === "COMPLETED") {
+    if (systemStatus === "CLOSED") {
+      throw new BadRequestException(
+        "Use POST /jobs/:id/close to close a job (checklist enforced).",
+      );
+    }
+    if (systemStatus === "COMPLETED" && !canForce) {
       warnings.push(
         "COMPLETED marks ops finished; use POST /jobs/:id/close for final CLOSED.",
       );
@@ -883,7 +956,13 @@ export class JobDetailService {
     id: string,
     dto: ReopenJobDto,
     actorId?: string,
+    role?: string | null,
   ) {
+    // Direct reopen is Tenant Admin only — staff must use reopen-requests.
+    // Callers that already asserted Tenant Admin (approve path) omit `role`.
+    if (role !== undefined) {
+      assertTenantAdmin(role);
+    }
     const job = await this.loadJob(tenantId, id);
     if (!TERMINAL_STATUSES.includes(job.status) && job.status !== "DELIVERED") {
       throw new BadRequestException(
@@ -896,7 +975,11 @@ export class JobDetailService {
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const row = await tx.job.update({
         where: { id },
-        data: { status: target, updated_by: actorId },
+        data: {
+          status: target,
+          status_code: target,
+          updated_by: actorId,
+        },
       });
       await tx.auditLog.create({
         data: {
@@ -1972,6 +2055,7 @@ export class JobDetailService {
     id: string,
     permissions?: string[],
     role?: string | null,
+    userId?: string,
   ) {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
@@ -2002,8 +2086,109 @@ export class JobDetailService {
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
-    assertJobTypeAccess(permissions, job.job_type, "see", role);
+    try {
+      assertJobTypeAccess(permissions, job.job_type, "see", role);
+    } catch (err) {
+      if (!(err instanceof ForbiddenException) || !userId) throw err;
+      const actor = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.user.findFirst({
+          where: { id: userId, tenant_id: tenantId, deleted_at: null },
+          select: { department_id: true },
+        }),
+      );
+      const viaDept =
+        !!actor?.department_id &&
+        actor.department_id === job.department_id;
+      const viaOps = job.ops_user_id === userId;
+      if (!viaDept && !viaOps) throw err;
+    }
     return job;
+  }
+
+  private async resolveHandoffLimited(
+    tenantId: string,
+    job: { job_type: JobType; department_id: string | null; ops_user_id: string | null },
+    userId?: string,
+    role?: string | null,
+    permissions?: string[] | null,
+  ): Promise<boolean> {
+    if (!userId) return false;
+    if (seesAllJobDepartments(role, permissions)) return false;
+    const hasJobTypeGrant = canSeeJobTypeForActor(
+      permissions,
+      job.job_type,
+      role,
+    );
+    const actor = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.user.findFirst({
+        where: { id: userId, tenant_id: tenantId, deleted_at: null },
+        select: { department_id: true },
+      }),
+    );
+    return isHandoffLimitedAudience({
+      role,
+      permissions,
+      actorDepartmentId: actor?.department_id,
+      actorUserId: userId,
+      jobDepartmentId: job.department_id,
+      jobOpsUserId: job.ops_user_id,
+      hasJobTypeGrant,
+    });
+  }
+
+  private async getHandoffTab(
+    tenantId: string,
+    job: Awaited<ReturnType<typeof this.loadJob>>,
+    userId?: string,
+    role?: string | null,
+    permissions?: string[] | null,
+  ) {
+    const containers = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobContainer.findMany({
+        where: { tenant_id: tenantId, job_id: job.id, deleted_at: null },
+        orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+        select: {
+          id: true,
+          container_number: true,
+          container_type_id: true,
+          status: true,
+          status_code: true,
+          container_kind: true,
+          seal_number: true,
+        },
+      }),
+    );
+    const locked = isJobClosed(job.status);
+    return {
+      success: true,
+      data: {
+        view_mode: "handoff_limited",
+        job_id: job.id,
+        job_number: job.job_number,
+        status: job.status,
+        branch_id: job.branch_id,
+        department_id: job.department_id,
+        ops_user_id: job.ops_user_id,
+        container_count: containers.length,
+        containers,
+        actions: {
+          can_view_containers: true,
+          can_assign_trucker: !locked,
+          can_port_token: !locked,
+          can_edit_container_status: !locked,
+        },
+        path_hints: {
+          containers: `/jobs/${job.id}/containers`,
+          planned_container: `/jobs/${job.id}/detail/planned_container`,
+          actual_container: `/jobs/${job.id}/detail/actual_container`,
+          port_token: `/jobs/${job.id}/port-token`,
+          port_token_confirm: `/jobs/${job.id}/port-token/confirm`,
+          transport_requests: `/jobs/${job.id}/transport-requests`,
+          assign_trucker_land: `/jobs/${job.id}/land/assign-trucker`,
+          assign_trucker_road: `/jobs/${job.id}/road-freight/assign-trucker`,
+        },
+      },
+    };
   }
 
   private async headerPayload(
@@ -2371,51 +2556,62 @@ export class JobDetailService {
   private actionFlags(
     job: Awaited<ReturnType<typeof this.loadJob>>,
     permissions?: string[],
+    role?: string | null,
   ) {
+    const lockedClosed = isJobClosed(job.status);
     const closed =
       job.status === "COMPLETED" ||
-      job.status === "CLOSED" ||
+      lockedClosed ||
       job.status === "CANCELLED";
     const isAir = AIR_JOB_TYPES.includes(job.job_type);
     const isMaster = !job.parent_job_id;
     const canEditClosedDelivery =
       !!permissions?.includes(JOBS_PERMISSIONS.CLOSED_DELIVERY_EDIT);
+    const isAdmin = isTenantAdminRole(role);
+    const canRequestReopen =
+      (closed || job.status === "DELIVERED") &&
+      !!permissions?.includes(JOBS_PERMISSIONS.UPDATE);
     const ediTypes = this.jobEdi.eligibleTypes(job.job_type, !isMaster);
+    const editable = !closed;
     return {
-      can_edit_header: !closed,
-      can_edit: !closed,
-      can_edit_air_fields: isAir && !closed,
-      can_edit_sea_fields: !isAir && !closed,
-      can_edit_container_status: !isAir && !closed,
-      can_edit_closed_delivery: canEditClosedDelivery,
-      can_delete: !closed,
-      can_change_status: true,
-      can_reopen:
-        closed || job.status === "DELIVERED",
-      can_stop: !closed && job.status !== "ON_HOLD",
+      can_edit_header: editable,
+      can_edit: editable,
+      can_edit_air_fields: isAir && editable,
+      can_edit_sea_fields: !isAir && editable,
+      can_edit_container_status: editable,
+      can_edit_closed_delivery: canEditClosedDelivery && lockedClosed,
+      can_delete: editable,
+      can_change_status: editable,
+      /** Direct reopen — Tenant Admin only. Staff use can_request_reopen. */
+      can_reopen: isAdmin && (closed || job.status === "DELIVERED"),
+      can_request_reopen: canRequestReopen && !isAdmin,
+      can_approve_reopen: isAdmin && lockedClosed,
+      can_reject_reopen: isAdmin && lockedClosed,
+      can_stop: editable && job.status !== "ON_HOLD",
       can_resume: job.status === "ON_HOLD",
-      // Final close allowed from COMPLETED (and other non-closed/cancelled).
       can_close: job.status !== "CLOSED" && job.status !== "CANCELLED",
-      can_cancel: !closed,
+      can_cancel: editable,
       can_copy: true,
-      can_upload_docs: true,
-      can_booking_form: true,
-      can_acknowledgement: true,
-      can_switch_bl: true,
-      can_edi: ediTypes.length > 0,
+      can_upload_docs: editable,
+      can_booking_form: editable,
+      can_acknowledgement: editable,
+      can_switch_bl: editable,
+      can_edi: editable && ediTypes.length > 0,
       edi_types: ediTypes,
       can_kpi: true,
-      can_bl_entry: true,
-      can_awb: isAir,
+      can_bl_entry: editable,
+      can_awb: isAir && editable,
       can_track: !!job.tracking_token,
-      routing_push_to_subjobs: isMaster,
-      containers_sync_from_sub_jobs: isMaster,
-      containers_push_to_sub_jobs: isMaster,
-      job_not_invoiced_do: true,
-      job_finance_report: true,
+      routing_push_to_subjobs: isMaster && editable,
+      containers_sync_from_sub_jobs: isMaster && editable,
+      containers_push_to_sub_jobs: isMaster && editable,
+      job_not_invoiced_do: editable,
+      job_finance_report: seesAllJobDepartments(role, permissions),
       path_hints: {
         close: `/jobs/${job.id}/close`,
         reopen: `/jobs/${job.id}/reopen`,
+        reopen_request: `/jobs/${job.id}/reopen-requests`,
+        reopen_inbox: `/jobs/reopen-requests`,
         stop: `/jobs/${job.id}/stop`,
         resume: `/jobs/${job.id}/resume`,
         change_status: `/jobs/${job.id}/change-status`,
@@ -2427,6 +2623,7 @@ export class JobDetailService {
         live_vessel_lookup: "/track/live/vessel?q=",
         container_status_options: `/jobs/container-statuses`,
         gpum: `/jobs/${job.id}/gpum`,
+        handoff: `/jobs/${job.id}/detail/handoff`,
         cancel: `/jobs/${job.id}/cancel`,
         copy: `/jobs/${job.id}/copy`,
         switch_bl: `/jobs/${job.id}/documents/switch-bl`,

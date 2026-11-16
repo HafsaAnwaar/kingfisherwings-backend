@@ -9,6 +9,7 @@ import {
   OVERSEAS_AGENT_PARTY_TYPES,
 } from "./dto/job-organization-tab.dto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { assertJobNotClosed } from "./utils/job-mutability.util";
 import { PartiesService } from "../parties/parties.service";
 import { CreatePartyDto } from "../parties/dto/party.dto";
 import { PARTIES_PERMISSIONS } from "../parties/constants/parties-permission.constants";
@@ -108,7 +109,7 @@ export class JobOrganizationService {
   }
 
   async list(tenantId: string, jobId: string) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     return {
       success: true,
       data: await this.listRows(tenantId, jobId),
@@ -194,7 +195,7 @@ export class JobOrganizationService {
     actorId?: string,
     actorPermissions?: string[],
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     if (!dto.party_id && !dto.create_party) {
       throw new BadRequestException(
         "Provide party_id or create_party to add an organization.",
@@ -312,7 +313,7 @@ export class JobOrganizationService {
     actorId?: string,
     actorPermissions?: string[],
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     if (!dto.party_id && !dto.create_party) {
       throw new BadRequestException("Provide party_id or create_party.");
     }
@@ -402,7 +403,7 @@ export class JobOrganizationService {
     orgType: JobPartyRole,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.jobOrganization.findFirst({
         where: {
@@ -456,14 +457,14 @@ export class JobOrganizationService {
     dto: CopyJobOrganizationsDto,
     actorId?: string,
   ) {
-    const job = await this.assertJob(tenantId, jobId);
+    const job = await this.assertJob(tenantId, jobId, true);
     const sourceId = dto.source_job_id ?? job.parent_job_id;
     if (!sourceId) {
       throw new BadRequestException(
         "No source_job_id and job has no parent_job_id.",
       );
     }
-    await this.assertJob(tenantId, sourceId);
+    await this.assertJob(tenantId, sourceId, true);
     const sourceOrgs = await this.listRows(tenantId, sourceId);
     if (!sourceOrgs.length) {
       return { success: true, data: [], message: "Source has no organizations." };
@@ -524,7 +525,7 @@ export class JobOrganizationService {
     dto: RefreshOrgPartySnapshotDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const rows = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.jobOrganization.findMany({
         where: {
@@ -803,7 +804,11 @@ export class JobOrganizationService {
     }
   }
 
-  private async assertJob(tenantId: string, jobId: string) {
+  private async assertJob(
+    tenantId: string,
+    jobId: string,
+    mutable = false,
+  ) {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
@@ -820,6 +825,7 @@ export class JobOrganizationService {
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+    if (mutable) assertJobNotClosed(job.status);
     return job;
   }
 }

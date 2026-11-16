@@ -77,6 +77,12 @@ enum JobStatusCategory {
   OPERATIONAL
 }
 
+enum JobReopenRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum JobDateSource {
   ETD_ATD
   ETA_ATA
@@ -2858,6 +2864,7 @@ model Job {
   exchange_rates       JobExchangeRate[]
   customs_refs         JobCustomsRef[]
   tracking_profile     JobTrackingProfile?
+  reopen_requests      JobReopenRequest[]
 
   @@unique([tenant_id, job_number])
   @@unique([tenant_id, barcode_value])
@@ -2869,7 +2876,31 @@ model Job {
   @@index([tenant_id, parent_job_id])
   @@index([tenant_id, company_id])
   @@index([tenant_id, billing_party_id])
+  @@index([tenant_id, department_id])
+  @@index([tenant_id, ops_user_id])
   @@map("jobs")
+}
+
+/// Staff reopen request for a CLOSED (or terminal) job — Tenant Admin approve/reject.
+model JobReopenRequest {
+  id             String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id      String                 @db.Uuid
+  job_id         String                 @db.Uuid
+  requested_by   String                 @db.Uuid
+  reason         String                 @db.Text
+  target_status  JobStatus              @default(IN_PROGRESS)
+  status         JobReopenRequestStatus @default(PENDING)
+  reviewed_by    String?                @db.Uuid
+  review_notes   String?                @db.Text
+  reviewed_at    DateTime?              @db.Timestamptz
+  created_at     DateTime               @default(now()) @db.Timestamptz
+  updated_at     DateTime               @updatedAt @db.Timestamptz
+
+  job Job @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, status])
+  @@index([tenant_id, job_id, status])
+  @@map("job_reopen_requests")
 }
 
 /// In-progress job create wizard state (server draft; FE may also keep localStorage).

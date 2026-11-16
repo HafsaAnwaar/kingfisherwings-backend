@@ -893,6 +893,19 @@ Credit/debit note create requires `description` (stored as `Invoice.remarks`; `r
 - Historical jobs that were UI-“Closed” remain `COMPLETED` until re-closed
 - FreightNest: status options show both; close action → `CLOSED`; do not label `COMPLETED` as Closed
 
+**Hard lock on CLOSED:** mutations are blocked (`Job is closed. Request reopen…`). Allowlist: closed-overrides (`jobs.closed_delivery.edit`), reads, reopen-request flow.
+
+**Reopen approval (Tenant Admin only):**
+- Staff: `POST /jobs/:id/reopen-requests` `{ reason }` → PENDING (notifies Tenant Admins)
+- Admin inbox: `GET /jobs/reopen-requests?status=PENDING`
+- Admin: `POST /jobs/reopen-requests/:requestId/approve|reject`
+- Direct `POST /jobs/:id/reopen` is Tenant Admin only
+
+**Dept pass list + handoff-limited view:**
+- Staff `GET /jobs` includes jobs where org `department_id` matches the actor’s `User.department_id`, **or** `ops_user_id` is self, **or** job_type grants (as before)
+- Handoff-only staff (no job_type grant, reached via org dept/assignee) get `view_mode: "handoff_limited"` — containers, assign trucker, port-token (`GET/POST /jobs/:id/port-token`); no costing/show_all write
+- Detail tab: `GET /jobs/:id/detail/handoff`
+
 House shipment = house job (`parent_job_id`); no separate shipment table. EDI file generation in-app; `EDI_SUBMIT_ENABLED=true` for live submit adapters.
 
 ### Week 22 — Documentation ops + Admin/Public API/Stripe (deferred from original Week 21)

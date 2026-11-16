@@ -39,9 +39,11 @@ import {
   buildVisibleJobsBaseWhere,
   canSeeJobTypeForActor,
   canWriteJobTypeForActor,
+  jobTypeFilterFromVisible,
   resolveVisibleJobTypes,
   seesAllJobDepartments,
 } from "../../common/utils/job-type-access.util";
+import { assertJobNotClosed } from "./utils/job-mutability.util";
 import {
   jobStatusesForCategory,
   OPEN_JOB_STATUSES,
@@ -763,20 +765,60 @@ export class JobsService {
         _actor?.userId,
         _actor?.role,
       );
-      const visibilityWhere = buildVisibleJobsBaseWhere(
-        tenantId,
-        visibleJobTypes,
-        { branch_id: query.branch_id, job_type: query.job_type },
+      const isAdmin = seesAllJobDepartments(
+        _actor?.role,
+        _actor?.permissions,
       );
+
+      let actorDepartmentId: string | null = null;
+      if (!isAdmin && _actor?.userId) {
+        const actorUser = await tx.user.findFirst({
+          where: {
+            id: _actor.userId,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { department_id: true },
+        });
+        actorDepartmentId = actorUser?.department_id ?? null;
+      }
+
+      // Staff: job_type grants OR org department handoff OR ops assignee.
+      let visibilityWhere: Prisma.JobWhereInput;
+      if (isAdmin || visibleJobTypes === null) {
+        visibilityWhere = buildVisibleJobsBaseWhere(
+          tenantId,
+          visibleJobTypes,
+          { branch_id: query.branch_id, job_type: query.job_type },
+        );
+      } else {
+        const jobTypeFilter = jobTypeFilterFromVisible(
+          visibleJobTypes,
+          query.job_type,
+        );
+        const orParts: Prisma.JobWhereInput[] = [];
+        if (jobTypeFilter) {
+          orParts.push({ job_type: jobTypeFilter });
+        }
+        if (actorDepartmentId) {
+          orParts.push({ department_id: actorDepartmentId });
+        }
+        if (_actor?.userId) {
+          orParts.push({ ops_user_id: _actor.userId });
+        }
+        visibilityWhere = {
+          tenant_id: tenantId,
+          deleted_at: null,
+          ...(query.branch_id ? { branch_id: query.branch_id } : {}),
+          ...(orParts.length ? { OR: orParts } : { id: { in: [] } }),
+        };
+      }
+
       // Same number dashboard job_count uses for this branch/job_type.
       const visibilityTotal = await tx.job.count({ where: visibilityWhere });
       const where: Prisma.JobWhereInput = { ...visibilityWhere };
 
       const andFilters: Prisma.JobWhereInput[] = [];
-      const isAdmin = seesAllJobDepartments(
-        _actor?.role,
-        _actor?.permissions,
-      );
 
       if (query.status) {
         // Literal OPEN is rarely used; staff UIs mean the open bucket.
@@ -1454,11 +1496,11 @@ export class JobsService {
 
       if (
         existing.status === "COMPLETED" ||
-        existing.status === "CLOSED" ||
         existing.status === "CANCELLED"
       ) {
         throw new BadRequestException(`Cannot edit a ${existing.status} job.`);
       }
+      assertJobNotClosed(existing.status);
 
       const {
         etd,

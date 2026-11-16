@@ -69,6 +69,7 @@ import { CustomsClearanceQueueController } from "./customs-clearance/customs-cle
 import { DeliveryAcknowledgementService } from "./delivery-acknowledgement.service";
 import { JobCreateDraftService } from "./job-create-draft.service";
 import { JobTrackingProfileService } from "./job-tracking-profile.service";
+import { JobReopenRequestService } from "./job-reopen-request.service";
 
 @Module({
   imports: [
@@ -145,6 +146,7 @@ import { JobTrackingProfileService } from "./job-tracking-profile.service";
     DeliveryAcknowledgementService,
     JobCreateDraftService,
     JobTrackingProfileService,
+    JobReopenRequestService,
   ],
   exports: [
     JobsService,

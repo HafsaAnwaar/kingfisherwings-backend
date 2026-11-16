@@ -41,6 +41,12 @@ import "multer";
 import { JobsService } from "./jobs.service";
 import { JobsDashboardService } from "./jobs-dashboard.service";
 import { JobDetailService } from "./job-detail.service";
+import { JobReopenRequestService } from "./job-reopen-request.service";
+import {
+  CreateJobReopenRequestDto,
+  ListJobReopenRequestsQueryDto,
+  ReviewJobReopenRequestDto,
+} from "./dto/job-reopen-request.dto";
 import {
   ChangeJobStatusDto,
   PatchShowAllDto,
@@ -320,6 +326,7 @@ export class JobsController {
     private readonly liveTransport: LiveTransportTrackingService,
     private readonly createDrafts: JobCreateDraftService,
     private readonly trackingProfile: JobTrackingProfileService,
+    private readonly reopenRequests: JobReopenRequestService,
   ) {}
 
   @Get("create-drafts")
@@ -496,6 +503,69 @@ export class JobsController {
     @Query("job_id") jobId?: string,
   ) {
     return this.statusCatalog.listOptions(tenantId, jobId);
+  }
+
+  @Get("reopen-requests")
+  @RequirePermissions(JOBS_PERMISSIONS.VIEW)
+  @ApiOperation({
+    summary: "List job reopen requests (Tenant Admin inbox)",
+  })
+  listReopenRequests(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("role") role: string,
+    @Query() query: ListJobReopenRequestsQueryDto,
+  ) {
+    return this.reopenRequests.list(tenantId, query, role);
+  }
+
+  @Post("reopen-requests/:requestId/approve")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Approve a pending reopen request (Tenant Admin)" })
+  approveReopenRequest(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @Param("requestId", ParseUUIDPipe) requestId: string,
+    @Body() dto: ReviewJobReopenRequestDto,
+  ) {
+    return this.reopenRequests.approve(tenantId, requestId, dto, {
+      userId: actorId,
+      role,
+    });
+  }
+
+  @Post("reopen-requests/:requestId/reject")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Reject a pending reopen request (Tenant Admin)" })
+  rejectReopenRequest(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @Param("requestId", ParseUUIDPipe) requestId: string,
+    @Body() dto: ReviewJobReopenRequestDto,
+  ) {
+    return this.reopenRequests.reject(tenantId, requestId, dto, {
+      userId: actorId,
+      role,
+    });
+  }
+
+  @Post(":id/reopen-requests")
+  @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
+  @ApiOperation({
+    summary: "Staff: request reopen of a closed/terminal job (Tenant Admin decides)",
+  })
+  createReopenRequest(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CreateJobReopenRequestDto,
+  ) {
+    return this.reopenRequests.create(tenantId, id, dto, {
+      userId: actorId,
+      role,
+    });
   }
 
   @Post("status-catalog")
@@ -733,9 +803,10 @@ export class JobsController {
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("permissions") permissions: string[],
     @CurrentUser("role") role: string,
+    @CurrentUser("id") userId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.detail.getDetail(tenantId, id, permissions, role);
+    return this.detail.getDetail(tenantId, id, permissions, role, userId);
   }
 
   @Patch(":id/closed-overrides")
@@ -775,14 +846,18 @@ export class JobsController {
 
   @Post(":id/reopen")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Reopen closed/cancelled/delivered job" })
+  @ApiOperation({
+    summary:
+      "Reopen closed/cancelled/delivered job (Tenant Admin only — staff use reopen-requests)",
+  })
   reopenJob(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: ReopenJobDto,
   ) {
-    return this.detail.reopen(tenantId, id, dto, actorId);
+    return this.detail.reopen(tenantId, id, dto, actorId, role);
   }
 
   @Patch(":id/organization/client-reference")

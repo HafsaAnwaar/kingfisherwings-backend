@@ -20,6 +20,7 @@ import {
 import { MasterLabelService } from "../masters/master-label.service";
 import { JobLookupsService } from "./job-lookups.service";
 import { NotificationEmitterService } from "../notifications/notification-emitter.service";
+import { assertJobNotClosed } from "./utils/job-mutability.util";
 
 type ModeFormKind =
   | "sea_fcl"
@@ -97,7 +98,7 @@ export class JobTabPanelsService {
     dto: PatchJobDepartmentDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     if (
       dto.branch_id === undefined &&
       dto.company_id === undefined &&
@@ -195,7 +196,7 @@ export class JobTabPanelsService {
       permissions?: string[] | null;
     },
   ) {
-    const job = await this.assertJob(tenantId, jobId);
+    const job = await this.assertJob(tenantId, jobId, { mutable: true });
     const allowed = await this.canPassDepartment(
       tenantId,
       job.department_id,
@@ -422,7 +423,7 @@ export class JobTabPanelsService {
     dto: UpsertJobExchangeRateDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     const currency = dto.currency_code.toUpperCase();
 
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -502,7 +503,7 @@ export class JobTabPanelsService {
     rateId: string,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const row = await tx.jobExchangeRate.findFirst({
         where: {
@@ -587,7 +588,7 @@ export class JobTabPanelsService {
     dto: PushRoutingToSubJobsDto,
     actorId?: string,
   ) {
-    const job = await this.assertJob(tenantId, jobId);
+    const job = await this.assertJob(tenantId, jobId, { mutable: true });
     if (job.parent_job_id) {
       throw new BadRequestException(
         "Routing push is only allowed from a master (root) job.",
@@ -701,7 +702,7 @@ export class JobTabPanelsService {
     dto: UpsertJobRoutingLegDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const refs = await this.resolveRoutingRefs(tx, tenantId, dto);
       const max = await tx.jobRoutingLeg.aggregate({
@@ -750,7 +751,7 @@ export class JobTabPanelsService {
     dto: UpsertJobRoutingLegDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const leg = await tx.jobRoutingLeg.findFirst({
         where: {
@@ -850,7 +851,7 @@ export class JobTabPanelsService {
     legId: string,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const leg = await tx.jobRoutingLeg.findFirst({
         where: {
@@ -936,7 +937,7 @@ export class JobTabPanelsService {
     dto: UpsertJobCustomsRefDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const created = await tx.jobCustomsRef.create({
         data: {
@@ -980,7 +981,7 @@ export class JobTabPanelsService {
     dto: UpsertJobCustomsRefDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.jobCustomsRef.findFirst({
         where: {
@@ -1055,7 +1056,7 @@ export class JobTabPanelsService {
     refId: string,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, { mutable: true });
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.jobCustomsRef.findFirst({
         where: {
@@ -1191,13 +1192,18 @@ export class JobTabPanelsService {
     };
   }
 
-  private async assertJob(tenantId: string, jobId: string) {
+  private async assertJob(
+    tenantId: string,
+    jobId: string,
+    opts?: { mutable?: boolean },
+  ) {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+    if (opts?.mutable) assertJobNotClosed(job.status);
     return job;
   }
 }
