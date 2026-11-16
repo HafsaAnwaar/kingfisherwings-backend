@@ -13,6 +13,7 @@ import {
 import { parse as parseCsv } from "csv-parse/sync";
 import * as ExcelJS from "exceljs";
 import { PrismaService } from "../../prisma/prisma.service";
+import { assertJobNotClosed } from "./utils/job-mutability.util";
 import {
   BulkJobDimensionsDto,
   ConfirmDimensionUploadDto,
@@ -88,7 +89,7 @@ export class JobDimensionService {
   }
 
   async list(tenantId: string, jobId: string) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     return { success: true, data: await this.listLines(tenantId, jobId) };
   }
 
@@ -98,7 +99,7 @@ export class JobDimensionService {
     dto: UpsertJobDimensionLineDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const { sync_to_cargo, ...lineDto } = dto;
     const prepared = await this.prepareLine(tenantId, jobId, lineDto);
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -137,7 +138,7 @@ export class JobDimensionService {
     dto: UpdateJobDimensionLineDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const existing = await this.getLineOrThrow(tenantId, jobId, lineId);
     const { sync_to_cargo, ...rest } = dto;
     const prepared = await this.prepareLine(tenantId, jobId, {
@@ -171,7 +172,7 @@ export class JobDimensionService {
     lineId: string,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const existing = await this.getLineOrThrow(tenantId, jobId, lineId);
     await this.prisma.runWithTenant(tenantId, async (tx) => {
       await tx.jobDimensionLine.update({
@@ -200,7 +201,7 @@ export class JobDimensionService {
     dto: BulkJobDimensionsDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const results = await this.prisma.runWithTenant(tenantId, async (tx) => {
       if (dto.replace_all) {
         const prior = await tx.jobDimensionLine.findMany({
@@ -313,7 +314,7 @@ export class JobDimensionService {
     dto: SyncDimensionsToCargoDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const result = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const lines = await tx.jobDimensionLine.findMany({
         where: {
@@ -475,7 +476,7 @@ export class JobDimensionService {
     replaceAll: boolean,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const text = await this.fileToText(file);
     return this.processUploadContent(
       tenantId,
@@ -493,7 +494,7 @@ export class JobDimensionService {
     dto: PasteDimensionUploadDto,
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     return this.processUploadContent(
       tenantId,
       jobId,
@@ -1080,14 +1081,19 @@ export class JobDimensionService {
     return row;
   }
 
-  private async assertJob(tenantId: string, jobId: string) {
+  private async assertJob(
+    tenantId: string,
+    jobId: string,
+    mutable = false,
+  ) {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
-        select: { id: true },
+        select: { id: true, status: true },
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+    if (mutable) assertJobNotClosed(job.status);
   }
 }
 

@@ -29,6 +29,7 @@ import {
 import { InvoiceAttachmentService } from "../invoices/invoice-attachment.service";
 import { stripCostingTabForAudience } from "./utils/job-costing-visibility.util";
 import { resolveAutoChargeQuantity } from "./utils/job-charge-quantity.util";
+import { assertJobNotClosed } from "./utils/job-mutability.util";
 
 @Injectable()
 export class JobCostingService {
@@ -300,7 +301,7 @@ export class JobCostingService {
   }
 
   async listCharges(tenantId: string, jobId: string) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const charges = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobCharge.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
@@ -342,7 +343,7 @@ export class JobCostingService {
         "Provide at least a sale or cost section.",
       );
     }
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
 
     const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
       await this.assertChargeCode(tx, tenantId, dto.charge.charge_code_id);
@@ -571,7 +572,7 @@ export class JobCostingService {
   }
 
   async listVouchers(tenantId: string, jobId: string) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const data = await this.vouchers.findAll(tenantId, { job_id: jobId });
     return { success: true, data };
   }
@@ -582,7 +583,7 @@ export class JobCostingService {
     dto: GenerateJobVoucherDto,
     actorId?: string,
   ) {
-    const job = await this.assertJob(tenantId, jobId);
+    const job = await this.assertJob(tenantId, jobId, true);
     const side = dto.side ?? "SALE";
     const charges = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.jobCharge.findMany({
@@ -1323,7 +1324,7 @@ export class JobCostingService {
     actorId?: string,
     file?: Express.Multer.File,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const partyId = dto.organization_id ?? dto.party_id;
     if (!partyId) {
       throw new BadRequestException(
@@ -1431,7 +1432,7 @@ export class JobCostingService {
    * Fresa Generate Bulk PI dialog: vouchers + pending cost lines grouped by vendor.
    */
   async previewBulkPurchaseInvoice(tenantId: string, jobId: string) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
 
     const vouchersRes = await this.listVouchers(tenantId, jobId);
     const charges = await this.invoices.findPendingPurchaseCharges(
@@ -1767,7 +1768,7 @@ export class JobCostingService {
     parts: { sale?: SaleSectionDto; cost?: CostSectionDto },
     actorId?: string,
   ) {
-    await this.assertJob(tenantId, jobId);
+    await this.assertJob(tenantId, jobId, true);
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.jobCharge.findFirst({
         where: {
@@ -2854,13 +2855,18 @@ export class JobCostingService {
     });
   }
 
-  private async assertJob(tenantId: string, jobId: string) {
+  private async assertJob(
+    tenantId: string,
+    jobId: string,
+    mutable = false,
+  ) {
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+    if (mutable) assertJobNotClosed(job.status);
     return job;
   }
 }
