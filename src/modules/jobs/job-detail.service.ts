@@ -967,11 +967,15 @@ export class JobDetailService {
     }
 
     if (isPassToTransport) {
-      const hasBranch = !!dto.pass_branch_id || !!dto.pass_branch_name?.trim();
-      const hasUser = !!dto.pass_user_id || !!dto.pass_user_name?.trim();
+      const branchId = dto.branch_id ?? dto.pass_branch_id;
+      const branchName = dto.branch_name ?? dto.pass_branch_name;
+      const userId = dto.user_id ?? dto.pass_user_id;
+      const userName = dto.user_name ?? dto.pass_user_name;
+      const hasBranch = !!branchId || !!branchName?.trim();
+      const hasUser = !!userId || !!userName?.trim();
       if (!hasBranch || !hasUser) {
         throw new BadRequestException(
-          "PASS_TO_TRANSPORT requires pass_branch_id|pass_branch_name and pass_user_id|pass_user_name.",
+          "PASS_TO_TRANSPORT requires branch_id|branch_name and user_id|user_name (or pass_* aliases).",
         );
       }
     }
@@ -1006,12 +1010,13 @@ export class JobDetailService {
 
     if (isPassToTransport) {
       const passDto: PassJobDepartmentDto = {
-        department_name: "TRANSPORT",
-        branch_id: dto.pass_branch_id,
-        branch_name: dto.pass_branch_name,
-        user_id: dto.pass_user_id,
-        user_name: dto.pass_user_name,
-        notes: dto.pass_notes ?? dto.reason ?? null,
+        department_name: dto.department_name?.trim() || "TRANSPORT",
+        department_id: dto.department_id,
+        branch_id: dto.branch_id ?? dto.pass_branch_id,
+        branch_name: dto.branch_name ?? dto.pass_branch_name,
+        user_id: dto.user_id ?? dto.pass_user_id,
+        user_name: dto.user_name ?? dto.pass_user_name,
+        notes: dto.notes ?? dto.pass_notes ?? dto.reason ?? null,
       };
       const department = await this.tabPanels.passDepartment(
         tenantId,

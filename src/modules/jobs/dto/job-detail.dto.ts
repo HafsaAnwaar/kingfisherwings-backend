@@ -1005,9 +1005,63 @@ export class ChangeJobStatusDto {
   @MaxLength(500)
   reason?: string;
 
+  // PASS_TO_TRANSPORT handoff — same names as department/pass (preferred),
+  // plus pass_* aliases.
   @ApiPropertyOptional({
     description:
-      "Required when status=PASS_TO_TRANSPORT — target branch name/code",
+      "PASS_TO_TRANSPORT: target branch name/code (same as department/pass)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  branch_name?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "PASS_TO_TRANSPORT: target branch id",
+  })
+  @IsOptional()
+  @IsUUID()
+  branch_id?: string;
+
+  @ApiPropertyOptional({
+    description: "PASS_TO_TRANSPORT: assignee name/email",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  user_name?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "PASS_TO_TRANSPORT: assignee user id",
+  })
+  @IsOptional()
+  @IsUUID()
+  user_id?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "PASS_TO_TRANSPORT: optional dept override (defaults to TRANSPORT)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  department_name?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  department_id?: string;
+
+  @ApiPropertyOptional({ description: "PASS_TO_TRANSPORT handoff notes" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string | null;
+
+  @ApiPropertyOptional({
+    description: "Alias of branch_name for PASS_TO_TRANSPORT",
   })
   @IsOptional()
   @IsString()
@@ -1016,15 +1070,14 @@ export class ChangeJobStatusDto {
 
   @ApiPropertyOptional({
     format: "uuid",
-    description: "Required when status=PASS_TO_TRANSPORT — target branch id",
+    description: "Alias of branch_id for PASS_TO_TRANSPORT",
   })
   @IsOptional()
   @IsUUID()
   pass_branch_id?: string;
 
   @ApiPropertyOptional({
-    description:
-      "Required when status=PASS_TO_TRANSPORT — assignee name/email",
+    description: "Alias of user_name for PASS_TO_TRANSPORT",
   })
   @IsOptional()
   @IsString()
@@ -1033,14 +1086,14 @@ export class ChangeJobStatusDto {
 
   @ApiPropertyOptional({
     format: "uuid",
-    description: "Required when status=PASS_TO_TRANSPORT — assignee user id",
+    description: "Alias of user_id for PASS_TO_TRANSPORT",
   })
   @IsOptional()
   @IsUUID()
   pass_user_id?: string;
 
   @ApiPropertyOptional({
-    description: "Optional notes for PASS_TO_TRANSPORT handoff",
+    description: "Alias of notes for PASS_TO_TRANSPORT",
   })
   @IsOptional()
   @IsString()

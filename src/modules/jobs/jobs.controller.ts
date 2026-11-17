@@ -860,7 +860,7 @@ export class JobsController {
   @ApiOperation({
     summary: "Change job status (any catalog value, anytime)",
     description:
-      "PASS_TO_TRANSPORT maps to IN_PROGRESS and requires pass_branch_* + pass_user_* to auto-pass the job to the TRANSPORT org department.",
+      "PASS_TO_TRANSPORT maps to IN_PROGRESS and requires branch_id|branch_name + user_id|user_name (same as department/pass; pass_* aliases OK) to auto-pass the job to the TRANSPORT org department.",
   })
   changeStatus(
     @CurrentUser("tenantId") tenantId: string,
