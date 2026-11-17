@@ -903,8 +903,24 @@ Credit/debit note create requires `description` (stored as `Invoice.remarks`; `r
 
 **Dept pass list + handoff-limited view:**
 - Staff `GET /jobs` includes jobs where org `department_id` matches the actor’s `User.department_id`, **or** `ops_user_id` is self, **or** job_type grants (as before)
-- Handoff-only staff (no job_type grant, reached via org dept/assignee) get `view_mode: "handoff_limited"` — containers, assign trucker, port-token (`GET/POST /jobs/:id/port-token`); no costing/show_all write
-- Detail tab: `GET /jobs/:id/detail/handoff`
+- Handoff-only staff (no job_type grant, reached via org dept/assignee) get `view_mode: "handoff_limited"` — **single tab** `handoff` only
+- Allowed actions: containers, assign trucker, port-token (`GET/POST /jobs/:id/port-token`), **doc upload** (`POST /jobs/:id/documents…`); blocked: costing, department pass, close, show_all patch, finance, booking writes
+- Detail tab: `GET /jobs/:id/detail/handoff` (includes BL/HBL/MBL or MAWB/HAWB refs, party/route summary, containers, path_hints)
+
+**Staff costing visibility (`User.can_see_sales` / `User.can_see_cost`):**
+- Neither → costing tab omitted / 403; sale-only → CUSTOMER strip (hide cost); cost-only → VENDOR strip (hide sale); both → full STAFF
+- Detail `actions`: `can_view_costing`, `can_view_sale`, `can_view_cost` (Tenant Admin / sees-all → both true)
+- Write gates on `PATCH …/charges/:id/sale|cost` and sale/purchase invoice-from-charges
+- Staff user create/update/GET already expose these flags for FreightNest permission UI
+
+**Pass to Transport:**
+- Catalog code `PASS_TO_TRANSPORT` (maps to system `IN_PROGRESS`); seeded via status catalog ensure
+- `POST /jobs/:id/change-status` with `{ status: "PASS_TO_TRANSPORT", pass_branch_id|pass_branch_name, pass_user_id|pass_user_name, pass_notes? }` auto-runs department pass to org dept **TRANSPORT** (same rules as `POST …/department/pass`); CLOSED jobs rejected
+
+**Accounts jobs:**
+- Permission `jobs.accounts.view` (Tenant Admin pack + Finance role preset)
+- `GET /jobs/accounts?branch_id&from_date&to_date&search&page&limit` → jobs with `status in [COMPLETED, DELIVERED, CLOSED]` (not ops job_type-scoped; tenant RLS). Compact rows include invoice flags `has_sale_invoice` / `has_purchase_invoice`
+- FreightNest: Accounts tab → this endpoint
 
 House shipment = house job (`parent_job_id`); no separate shipment table. EDI file generation in-app; `EDI_SUBMIT_ENABLED=true` for live submit adapters.
 

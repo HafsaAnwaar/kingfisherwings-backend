@@ -1189,6 +1189,136 @@ export class JobsService {
     });
   }
 
+  /**
+   * Accounts tab: COMPLETED | DELIVERED | CLOSED jobs.
+   * Gated by jobs.accounts.view (not ops job_type scope).
+   */
+  async findAccountsJobs(
+    tenantId: string,
+    query: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      branch_id?: string;
+      from_date?: string;
+      to_date?: string;
+    },
+  ) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const where: Prisma.JobWhereInput = {
+        tenant_id: tenantId,
+        deleted_at: null,
+        status: { in: ["COMPLETED", "DELIVERED", "CLOSED"] },
+        ...(query.branch_id ? { branch_id: query.branch_id } : {}),
+      };
+      const andFilters: Prisma.JobWhereInput[] = [];
+      if (query.from_date || query.to_date) {
+        const range: Prisma.DateTimeFilter = {};
+        if (query.from_date) range.gte = new Date(query.from_date);
+        if (query.to_date) range.lte = new Date(query.to_date);
+        andFilters.push({
+          OR: [{ job_date: range }, { updated_at: range }],
+        });
+      }
+      if (query.search?.trim()) {
+        const s = query.search.trim();
+        andFilters.push({
+          OR: [
+            { job_number: { contains: s, mode: "insensitive" } },
+            { commodity: { contains: s, mode: "insensitive" } },
+          ],
+        });
+      }
+      if (andFilters.length) where.AND = andFilters;
+
+      const [rows, total] = await Promise.all([
+        tx.job.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { updated_at: "desc" },
+          select: {
+            id: true,
+            job_number: true,
+            job_type: true,
+            status: true,
+            status_code: true,
+            branch_id: true,
+            department_id: true,
+            shipper_id: true,
+            consignee_id: true,
+            billing_party_id: true,
+            job_date: true,
+            etd: true,
+            eta: true,
+            updated_at: true,
+          },
+        }),
+        tx.job.count({ where }),
+      ]);
+
+      const jobIds = rows.map((r) => r.id);
+      const invoiceAgg =
+        jobIds.length === 0
+          ? []
+          : await tx.invoice.groupBy({
+              by: ["job_id", "invoice_type"],
+              where: {
+                tenant_id: tenantId,
+                deleted_at: null,
+                job_id: { in: jobIds },
+              },
+              _count: { _all: true },
+            });
+      const invByJob = new Map<
+        string,
+        { has_sale_invoice: boolean; has_purchase_invoice: boolean }
+      >();
+      for (const row of invoiceAgg) {
+        if (!row.job_id) continue;
+        const cur = invByJob.get(row.job_id) ?? {
+          has_sale_invoice: false,
+          has_purchase_invoice: false,
+        };
+        if (
+          row.invoice_type === "CUSTOMER_INVOICE" ||
+          row.invoice_type === "DEBIT_NOTE"
+        ) {
+          cur.has_sale_invoice = true;
+        }
+        if (
+          row.invoice_type === "PURCHASE_INVOICE" ||
+          row.invoice_type === "CREDIT_NOTE"
+        ) {
+          cur.has_purchase_invoice = true;
+        }
+        invByJob.set(row.job_id, cur);
+      }
+
+      const data = rows.map((r) => ({
+        ...r,
+        ...(invByJob.get(r.id) ?? {
+          has_sale_invoice: false,
+          has_purchase_invoice: false,
+        }),
+      }));
+
+      return {
+        success: true,
+        data: await this.masterLabels.enrichRows(tenantId, data, tx),
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit) || 1,
+          statuses: ["COMPLETED", "DELIVERED", "CLOSED"],
+        },
+      };
+    });
+  }
+
   async findOne(
     tenantId: string,
     id: string,

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -27,9 +28,18 @@ import {
   SaleSectionDto,
 } from "./dto/job-costing.dto";
 import { InvoiceAttachmentService } from "../invoices/invoice-attachment.service";
-import { stripCostingTabForAudience } from "./utils/job-costing-visibility.util";
+import {
+  audienceFromStaffFlags,
+  stripCostingTabForAudience,
+} from "./utils/job-costing-visibility.util";
 import { resolveAutoChargeQuantity } from "./utils/job-charge-quantity.util";
 import { assertJobNotClosed } from "./utils/job-mutability.util";
+import { seesAllJobDepartments } from "../../common/utils/job-type-access.util";
+
+export type CostingActorOpts = {
+  role?: string | null;
+  permissions?: string[] | null;
+};
 
 @Injectable()
 export class JobCostingService {
@@ -457,7 +467,9 @@ export class JobCostingService {
     chargeId: string,
     dto: SaleSectionDto,
     actorId?: string,
+    actor?: CostingActorOpts,
   ) {
+    await this.assertStaffCostingSide(tenantId, actorId, "sale", actor);
     return this.patchSide(tenantId, jobId, chargeId, { sale: dto }, actorId);
   }
 
@@ -467,7 +479,9 @@ export class JobCostingService {
     chargeId: string,
     dto: CostSectionDto,
     actorId?: string,
+    actor?: CostingActorOpts,
   ) {
+    await this.assertStaffCostingSide(tenantId, actorId, "cost", actor);
     return this.patchSide(tenantId, jobId, chargeId, { cost: dto }, actorId);
   }
 
@@ -750,7 +764,9 @@ export class JobCostingService {
     dto: JobInvoiceFormSaveDto | JobInvoiceFromChargesDto,
     actorId?: string,
     file?: Express.Multer.File,
+    actor?: CostingActorOpts,
   ) {
+    await this.assertStaffCostingSide(tenantId, actorId, "sale", actor);
     const form = dto as JobInvoiceFormSaveDto;
     const sourceNorm = String(form.source ?? "")
       .trim()
@@ -797,7 +813,9 @@ export class JobCostingService {
     dto: JobInvoiceFormSaveDto | JobInvoiceFromChargesDto,
     actorId?: string,
     file?: Express.Multer.File,
+    actor?: CostingActorOpts,
   ) {
+    await this.assertStaffCostingSide(tenantId, actorId, "cost", actor);
     const form = dto as JobInvoiceFormSaveDto;
     if (form.lines?.length || form.organization_id || form.party_id) {
       return this.saveInvoiceForm(
@@ -2853,6 +2871,45 @@ export class JobCostingService {
         },
       });
     });
+  }
+
+  private async assertStaffCostingSide(
+    tenantId: string,
+    actorId: string | undefined,
+    side: "sale" | "cost",
+    actor?: CostingActorOpts,
+  ) {
+    if (seesAllJobDepartments(actor?.role, actor?.permissions)) return;
+    if (!actorId) {
+      throw new ForbiddenException(
+        `Missing actor for costing ${side} write.`,
+      );
+    }
+    const user = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.user.findFirst({
+        where: { id: actorId, tenant_id: tenantId, deleted_at: null },
+        select: { can_see_sales: true, can_see_cost: true },
+      }),
+    );
+    const audience = audienceFromStaffFlags({
+      can_see_sales: !!user?.can_see_sales,
+      can_see_cost: !!user?.can_see_cost,
+    });
+    if (!audience) {
+      throw new ForbiddenException(
+        "Costing is not available for this user (can_see_sales / can_see_cost).",
+      );
+    }
+    if (side === "sale" && audience === "VENDOR") {
+      throw new ForbiddenException(
+        "Sale costing is not available for this user (can_see_sales=false).",
+      );
+    }
+    if (side === "cost" && audience === "CUSTOMER") {
+      throw new ForbiddenException(
+        "Cost costing is not available for this user (can_see_cost=false).",
+      );
+    }
   }
 
   private async assertJob(

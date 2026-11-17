@@ -48,6 +48,10 @@ import {
   isJobClosed,
   isTenantAdminRole,
 } from "./utils/job-mutability.util";
+import {
+  audienceFromStaffFlags,
+  StaffCostingFlags,
+} from "./utils/job-costing-visibility.util";
 import { JobContainerKind, JobPartyRole } from "@prisma/client";
 import { DocumentEmailService } from "../../shared/email/document-email.service";
 import {
@@ -61,6 +65,7 @@ import {
   resolveShowAllFk,
   syncShowAllNestedRefs,
 } from "./utils/show-all-fk.util";
+import { PassJobDepartmentDto } from "./dto/job-tab-panels.dto";
 
 const DETAIL_TABS = [
   "show_all",
@@ -141,8 +146,14 @@ export class JobDetailService {
       role,
       permissions,
     );
+    const costingFlags = await this.loadStaffCostingFlags(
+      tenantId,
+      userId,
+      role,
+      permissions,
+    );
     const links = await this.resolveLinks(tenantId, job);
-    const actions = this.actionFlags(job, permissions, role);
+    const actions = this.actionFlags(job, permissions, role, costingFlags);
     if (limited) {
       Object.assign(actions, {
         view_mode: "handoff_limited",
@@ -152,10 +163,22 @@ export class JobDetailService {
         can_assign_trucker: !isJobClosed(job.status),
         can_port_token: !isJobClosed(job.status),
         can_edit_container_status: !isJobClosed(job.status),
+        can_upload_docs: !isJobClosed(job.status),
         job_finance_report: false,
         can_booking_form: false,
         can_edi: false,
+        can_view_costing: false,
+        can_view_sale: false,
+        can_view_cost: false,
+        can_pass_department: false,
+        can_close: false,
       });
+    }
+    let tabs = limited
+      ? ["handoff"]
+      : detailTabsForJobType(job.job_type);
+    if (!limited && !costingFlags.can_view_costing) {
+      tabs = tabs.filter((t) => t !== "costing");
     }
     return {
       success: true,
@@ -166,9 +189,7 @@ export class JobDetailService {
         sections: limited
           ? [{ key: "handoff", label: "Handoff" }]
           : await this.sectionSummaries(tenantId, job),
-        tabs: limited
-          ? ["handoff", "actual_container", "planned_container", "info"]
-          : detailTabsForJobType(job.job_type),
+        tabs,
       },
     };
   }
@@ -196,11 +217,11 @@ export class JobDetailService {
       permissions,
     );
     const allowedTabs = limited
-      ? ["handoff", "actual_container", "planned_container", "info", "show_all"]
+      ? ["handoff"]
       : detailTabsForJobType(job.job_type);
-    if (limited && !["handoff", "actual_container", "planned_container", "info", "show_all"].includes(normalized)) {
+    if (limited && normalized !== "handoff") {
       throw new ForbiddenException(
-        `Tab "${tab}" is not available in handoff-limited view. Use handoff / containers.`,
+        `Tab "${tab}" is not available in handoff-limited view. Use GET …/detail/handoff (containers/trucker/token/docs via path_hints).`,
       );
     }
     if (!allowedTabs.includes(normalized)) {
@@ -219,19 +240,27 @@ export class JobDetailService {
       return this.dimensions.getTab(tenantId, id);
     }
     if (normalized === "costing") {
-      const limited = await this.resolveHandoffLimited(
-        tenantId,
-        job,
-        userId,
-        role,
-        permissions,
-      );
       if (limited) {
         throw new ForbiddenException(
           "Costing is not available in handoff-limited view.",
         );
       }
-      return this.costing.getTab(tenantId, id, "STAFF");
+      const flags = await this.loadStaffCostingFlags(
+        tenantId,
+        userId,
+        role,
+        permissions,
+      );
+      const audience = audienceFromStaffFlags(
+        { can_see_sales: flags.can_view_sale, can_see_cost: flags.can_view_cost },
+        { seesAll: flags.sees_all },
+      );
+      if (!audience) {
+        throw new ForbiddenException(
+          "Costing is not available for this user (can_see_sales / can_see_cost).",
+        );
+      }
+      return this.costing.getTab(tenantId, id, audience);
     }
     if (normalized === "handoff") {
       return this.getHandoffTab(tenantId, job, userId, role, permissions);
@@ -295,8 +324,10 @@ export class JobDetailService {
     id: string,
     dto: PatchShowAllDto,
     actorId?: string,
+    role?: string | null,
+    permissions?: string[] | null,
   ) {
-    const job = await this.loadJob(tenantId, id);
+    const job = await this.loadJob(tenantId, id, permissions ?? undefined, role, actorId);
     if (
       job.status === "COMPLETED" ||
       job.status === "CANCELLED"
@@ -304,6 +335,18 @@ export class JobDetailService {
       throw new BadRequestException(`Cannot edit a ${job.status} job.`);
     }
     assertJobNotClosed(job.status);
+    const limited = await this.resolveHandoffLimited(
+      tenantId,
+      job,
+      actorId,
+      role,
+      permissions,
+    );
+    if (limited) {
+      throw new ForbiddenException(
+        "show_all patch is not available in handoff-limited view.",
+      );
+    }
 
     this.normalizeShowAllAliases(dto);
 
@@ -879,6 +922,7 @@ export class JobDetailService {
     dto: ChangeJobStatusDto,
     actorId?: string,
     permissions?: string[],
+    role?: string | null,
   ) {
     const job = await this.loadJob(tenantId, id);
     const resolved = await this.statusCatalog.resolveCode(
@@ -887,8 +931,10 @@ export class JobDetailService {
     );
     const catalogCode = resolved.code;
     const systemStatus = resolved.systemStatus;
+    const isPassToTransport = catalogCode === "PASS_TO_TRANSPORT";
 
     if (
+      !isPassToTransport &&
       catalogCode === (job.status_code ?? job.status) &&
       systemStatus === job.status
     ) {
@@ -920,6 +966,16 @@ export class JobDetailService {
       );
     }
 
+    if (isPassToTransport) {
+      const hasBranch = !!dto.pass_branch_id || !!dto.pass_branch_name?.trim();
+      const hasUser = !!dto.pass_user_id || !!dto.pass_user_name?.trim();
+      if (!hasBranch || !hasUser) {
+        throw new BadRequestException(
+          "PASS_TO_TRANSPORT requires pass_branch_id|pass_branch_name and pass_user_id|pass_user_name.",
+        );
+      }
+    }
+
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const row = await tx.job.update({
         where: { id },
@@ -947,6 +1003,29 @@ export class JobDetailService {
       });
       return row;
     });
+
+    if (isPassToTransport) {
+      const passDto: PassJobDepartmentDto = {
+        department_name: "TRANSPORT",
+        branch_id: dto.pass_branch_id,
+        branch_name: dto.pass_branch_name,
+        user_id: dto.pass_user_id,
+        user_name: dto.pass_user_name,
+        notes: dto.pass_notes ?? dto.reason ?? null,
+      };
+      const department = await this.tabPanels.passDepartment(
+        tenantId,
+        id,
+        passDto,
+        { userId: actorId, role, permissions },
+      );
+      return {
+        success: true,
+        data: updated,
+        warnings,
+        pass: department,
+      };
+    }
 
     return { success: true, data: updated, warnings };
   }
@@ -2125,6 +2204,34 @@ export class JobDetailService {
         select: { department_id: true },
       }),
     );
+
+    // Job currently sitting in TRANSPORT org dept → same limited surface for
+    // non-admins without a job_type grant (even if grant path would otherwise expand).
+    let jobDeptIsTransport = false;
+    if (job.department_id && !hasJobTypeGrant) {
+      const dept = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.department.findFirst({
+          where: {
+            id: job.department_id!,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { code: true, name: true },
+        }),
+      );
+      const code = (dept?.code ?? "").trim().toUpperCase();
+      const name = (dept?.name ?? "").trim().toUpperCase();
+      jobDeptIsTransport = code === "TRANSPORT" || name === "TRANSPORT";
+    }
+
+    if (
+      jobDeptIsTransport &&
+      (actor?.department_id === job.department_id ||
+        job.ops_user_id === userId)
+    ) {
+      return true;
+    }
+
     return isHandoffLimitedAudience({
       role,
       permissions,
@@ -2159,6 +2266,12 @@ export class JobDetailService {
       }),
     );
     const locked = isJobClosed(job.status);
+    const sea = job.sea_fcl_details ?? job.sea_lcl_details;
+    const nvocc = job.nvocc_details;
+    const air = job.air_details;
+    const isAir = AIR_JOB_TYPES.includes(job.job_type);
+    const mbl = sea?.mbl_number ?? nvocc?.mbl_number ?? null;
+    const hbl = sea?.hbl_number ?? nvocc?.hbl_number ?? null;
     return {
       success: true,
       data: {
@@ -2166,9 +2279,30 @@ export class JobDetailService {
         job_id: job.id,
         job_number: job.job_number,
         status: job.status,
+        status_code: job.status_code ?? job.status,
+        job_type: job.job_type,
         branch_id: job.branch_id,
         department_id: job.department_id,
         ops_user_id: job.ops_user_id,
+        party_summary: {
+          shipper_id: job.shipper_id,
+          consignee_id: job.consignee_id,
+          billing_party_id: job.billing_party_id,
+          agent_id: job.agent_id,
+        },
+        route_summary: {
+          origin_port_id: job.origin_port_id,
+          dest_port_id: job.dest_port_id,
+          etd: job.etd,
+          eta: job.eta,
+        },
+        docs_refs: {
+          mbl_number: isAir ? null : mbl,
+          hbl_number: isAir ? null : hbl,
+          bl_number: isAir ? null : mbl ?? hbl,
+          mawb_number: isAir ? air?.mawb_number ?? null : null,
+          hawb_number: isAir ? air?.hawb_number ?? null : null,
+        },
         container_count: containers.length,
         containers,
         actions: {
@@ -2176,18 +2310,66 @@ export class JobDetailService {
           can_assign_trucker: !locked,
           can_port_token: !locked,
           can_edit_container_status: !locked,
+          can_upload_docs: !locked,
         },
         path_hints: {
           containers: `/jobs/${job.id}/containers`,
-          planned_container: `/jobs/${job.id}/detail/planned_container`,
-          actual_container: `/jobs/${job.id}/detail/actual_container`,
           port_token: `/jobs/${job.id}/port-token`,
           port_token_confirm: `/jobs/${job.id}/port-token/confirm`,
           transport_requests: `/jobs/${job.id}/transport-requests`,
           assign_trucker_land: `/jobs/${job.id}/land/assign-trucker`,
           assign_trucker_road: `/jobs/${job.id}/road-freight/assign-trucker`,
+          documents: `/jobs/${job.id}/documents`,
+          document_upload: `/jobs/${job.id}/documents`,
         },
       },
+    };
+  }
+
+  private async loadStaffCostingFlags(
+    tenantId: string,
+    userId?: string,
+    role?: string | null,
+    permissions?: string[] | null,
+  ): Promise<{
+    can_view_costing: boolean;
+    can_view_sale: boolean;
+    can_view_cost: boolean;
+    sees_all: boolean;
+  }> {
+    const seesAll = seesAllJobDepartments(role, permissions);
+    if (seesAll) {
+      return {
+        can_view_costing: true,
+        can_view_sale: true,
+        can_view_cost: true,
+        sees_all: true,
+      };
+    }
+    if (!userId) {
+      return {
+        can_view_costing: false,
+        can_view_sale: false,
+        can_view_cost: false,
+        sees_all: false,
+      };
+    }
+    const user = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.user.findFirst({
+        where: { id: userId, tenant_id: tenantId, deleted_at: null },
+        select: { can_see_sales: true, can_see_cost: true },
+      }),
+    );
+    const flags: StaffCostingFlags = {
+      can_see_sales: !!user?.can_see_sales,
+      can_see_cost: !!user?.can_see_cost,
+    };
+    const audience = audienceFromStaffFlags(flags);
+    return {
+      can_view_costing: audience != null,
+      can_view_sale: flags.can_see_sales,
+      can_view_cost: flags.can_see_cost,
+      sees_all: false,
     };
   }
 
@@ -2557,6 +2739,11 @@ export class JobDetailService {
     job: Awaited<ReturnType<typeof this.loadJob>>,
     permissions?: string[],
     role?: string | null,
+    costingFlags?: {
+      can_view_costing: boolean;
+      can_view_sale: boolean;
+      can_view_cost: boolean;
+    },
   ) {
     const lockedClosed = isJobClosed(job.status);
     const closed =
@@ -2573,6 +2760,9 @@ export class JobDetailService {
       !!permissions?.includes(JOBS_PERMISSIONS.UPDATE);
     const ediTypes = this.jobEdi.eligibleTypes(job.job_type, !isMaster);
     const editable = !closed;
+    const canViewCosting = costingFlags?.can_view_costing ?? isAdmin;
+    const canViewSale = costingFlags?.can_view_sale ?? isAdmin;
+    const canViewCost = costingFlags?.can_view_cost ?? isAdmin;
     return {
       can_edit_header: editable,
       can_edit: editable,
@@ -2607,6 +2797,9 @@ export class JobDetailService {
       containers_push_to_sub_jobs: isMaster && editable,
       job_not_invoiced_do: editable,
       job_finance_report: seesAllJobDepartments(role, permissions),
+      can_view_costing: canViewCosting,
+      can_view_sale: canViewSale,
+      can_view_cost: canViewCost,
       path_hints: {
         close: `/jobs/${job.id}/close`,
         reopen: `/jobs/${job.id}/reopen`,

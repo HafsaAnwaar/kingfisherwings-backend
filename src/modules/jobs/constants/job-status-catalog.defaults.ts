@@ -59,6 +59,16 @@ export const DEFAULT_JOB_STATUS_CATALOG: JobStatusCatalogSeed[] = [
   },
   { code: "ON_HOLD", label: "On Hold", category: "OPERATIONAL", is_terminal: false, sort_order: 80, maps_to_system_status: "ON_HOLD", is_system: true, is_custom: false },
   { code: "DELIVERED", label: "Delivered", category: "OPERATIONAL", is_terminal: false, sort_order: 90, maps_to_system_status: "DELIVERED", is_system: true, is_custom: false },
+  {
+    code: "PASS_TO_TRANSPORT",
+    label: "Pass to Transport",
+    category: "OPERATIONAL",
+    is_terminal: false,
+    sort_order: 95,
+    maps_to_system_status: "IN_PROGRESS",
+    is_system: true,
+    is_custom: false,
+  },
   { code: "COMPLETED", label: "Completed", category: "LIFECYCLE", is_terminal: true, sort_order: 100, maps_to_system_status: "COMPLETED", is_system: true, is_custom: false },
   { code: "CLOSED", label: "Closed", category: "LIFECYCLE", is_terminal: true, sort_order: 105, maps_to_system_status: "CLOSED", is_system: true, is_custom: false },
   { code: "CANCELLED", label: "Cancelled", category: "LIFECYCLE", is_terminal: true, sort_order: 110, maps_to_system_status: "CANCELLED", is_system: true, is_custom: false },
@@ -66,7 +76,15 @@ export const DEFAULT_JOB_STATUS_CATALOG: JobStatusCatalogSeed[] = [
 
 export const DEFAULT_REOPEN_STATUS = "IN_PROGRESS";
 
-export const SYSTEM_JOB_STATUSES = DEFAULT_JOB_STATUS_CATALOG.map((r) => r.code);
+/** Valid JobStatus enum targets for maps_to_system_status (unique). */
+export const SYSTEM_JOB_STATUSES = [
+  ...new Set(DEFAULT_JOB_STATUS_CATALOG.map((r) => r.maps_to_system_status)),
+];
+
+/** All default catalog codes (includes aliases like PASS_TO_TRANSPORT). */
+export const SYSTEM_JOB_CATALOG_CODES = DEFAULT_JOB_STATUS_CATALOG.map(
+  (r) => r.code,
+);
 
 export const DEFAULT_SHIPMENT_STATUS_CATALOG = [
   { code: "BOOKED", label: "Booked", is_terminal: false, sort_order: 10, maps_to_system_status: "BOOKED", is_system: true, is_custom: false },
