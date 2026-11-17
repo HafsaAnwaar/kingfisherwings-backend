@@ -992,7 +992,7 @@ export class PatchShowAllDto {
 export class ChangeJobStatusDto {
   @ApiProperty({
     description:
-      "Catalog code (system JobStatus or tenant custom status). Custom codes map via maps_to_system_status.",
+      "Catalog code (system JobStatus or tenant custom status). Custom codes map via maps_to_system_status. PASS_TO_TRANSPORT maps to IN_PROGRESS and auto-runs department pass to TRANSPORT.",
     example: "IN_PROGRESS",
   })
   @IsString()
@@ -1004,6 +1004,48 @@ export class ChangeJobStatusDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Required when status=PASS_TO_TRANSPORT — target branch name/code",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  pass_branch_name?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Required when status=PASS_TO_TRANSPORT — target branch id",
+  })
+  @IsOptional()
+  @IsUUID()
+  pass_branch_id?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Required when status=PASS_TO_TRANSPORT — assignee name/email",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  pass_user_name?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Required when status=PASS_TO_TRANSPORT — assignee user id",
+  })
+  @IsOptional()
+  @IsUUID()
+  pass_user_id?: string;
+
+  @ApiPropertyOptional({
+    description: "Optional notes for PASS_TO_TRANSPORT handoff",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  pass_notes?: string;
 }
 
 export class ReopenJobDto {

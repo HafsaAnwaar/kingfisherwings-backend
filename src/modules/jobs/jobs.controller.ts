@@ -215,6 +215,7 @@ import {
 import { SendPreAlertDto } from "./dto/pre-alert.dto";
 import { GenerateJobDocumentDto } from "./dto/generate-job-document.dto";
 import { JobQueryDto } from "./dto/job-query.dto";
+import { AccountsJobsQueryDto } from "./dto/accounts-jobs-query.dto";
 import {
   CreatePaymentRequestFromJobDto,
   CreateSubJobDto,
@@ -415,6 +416,20 @@ export class JobsController {
       permissions,
       userId,
     });
+  }
+
+  @Get("accounts")
+  @RequirePermissions(JOBS_PERMISSIONS.ACCOUNTS_VIEW)
+  @ApiOperation({
+    summary: "Accounts jobs list (COMPLETED | DELIVERED | CLOSED)",
+    description:
+      "Finance/Accounts tab aggregate. Requires jobs.accounts.view. Not ops job_type-scoped — tenant RLS only. Filters: branch_id, from_date, to_date, search.",
+  })
+  findAccountsJobs(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query() query: AccountsJobsQueryDto,
+  ) {
+    return this.service.findAccountsJobs(tenantId, query);
   }
 
   @Get("dashboard-counts")
@@ -788,10 +803,19 @@ export class JobsController {
   patchShowAll(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: PatchShowAllDto,
   ) {
-    return this.detail.patchShowAll(tenantId, id, dto, actorId);
+    return this.detail.patchShowAll(
+      tenantId,
+      id,
+      dto,
+      actorId,
+      role,
+      permissions,
+    );
   }
 
   @Get(":id/detail")
@@ -833,15 +857,27 @@ export class JobsController {
 
   @Post(":id/change-status")
   @RequirePermissions(JOBS_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: "Change job status (any catalog value, anytime)" })
+  @ApiOperation({
+    summary: "Change job status (any catalog value, anytime)",
+    description:
+      "PASS_TO_TRANSPORT maps to IN_PROGRESS and requires pass_branch_* + pass_user_* to auto-pass the job to the TRANSPORT org department.",
+  })
   changeStatus(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @CurrentUser("permissions") permissions: string[],
+    @CurrentUser("role") role: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: ChangeJobStatusDto,
   ) {
-    return this.detail.changeStatus(tenantId, id, dto, actorId, permissions);
+    return this.detail.changeStatus(
+      tenantId,
+      id,
+      dto,
+      actorId,
+      permissions,
+      role,
+    );
   }
 
   @Post(":id/reopen")
@@ -2625,11 +2661,16 @@ export class JobsController {
   patchChargeSale(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Param("chargeId", ParseUUIDPipe) chargeId: string,
     @Body() dto: SaleSectionDto,
   ) {
-    return this.costing.patchSale(tenantId, id, chargeId, dto, actorId);
+    return this.costing.patchSale(tenantId, id, chargeId, dto, actorId, {
+      role,
+      permissions,
+    });
   }
 
   @Patch(":id/charges/:chargeId/cost")
@@ -2638,11 +2679,16 @@ export class JobsController {
   patchChargeCost(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Param("chargeId", ParseUUIDPipe) chargeId: string,
     @Body() dto: CostSectionDto,
   ) {
-    return this.costing.patchCost(tenantId, id, chargeId, dto, actorId);
+    return this.costing.patchCost(tenantId, id, chargeId, dto, actorId, {
+      role,
+      permissions,
+    });
   }
 
   @Post(":id/get-charges")
@@ -2847,10 +2893,19 @@ export class JobsController {
   generateSaleInvoice(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: JobInvoiceFormSaveDto,
   ) {
-    return this.costing.createSaleInvoice(tenantId, id, dto ?? {}, actorId);
+    return this.costing.createSaleInvoice(
+      tenantId,
+      id,
+      dto ?? {},
+      actorId,
+      undefined,
+      { role, permissions },
+    );
   }
 
   @Get(":id/invoices/purchase/bulk")
@@ -2914,6 +2969,8 @@ export class JobsController {
   generatePurchaseInvoice(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: JobInvoiceFormSaveDto & { data?: string },
     @UploadedFile() file?: Express.Multer.File,
@@ -2934,6 +2991,7 @@ export class JobsController {
       body,
       actorId,
       file,
+      { role, permissions },
     );
   }
 

@@ -9,6 +9,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import {
   DEFAULT_JOB_STATUS_CATALOG,
   DEFAULT_REOPEN_STATUS,
+  SYSTEM_JOB_CATALOG_CODES,
   SYSTEM_JOB_STATUSES,
 } from "./constants/job-status-catalog.defaults";
 import {
@@ -38,8 +39,8 @@ export class JobStatusCatalogService {
               where: { id: row.id },
               data: {
                 maps_to_system_status: row.code,
-                is_system: SYSTEM_JOB_STATUSES.includes(row.code),
-                is_custom: !SYSTEM_JOB_STATUSES.includes(row.code),
+                is_system: SYSTEM_JOB_CATALOG_CODES.includes(row.code),
+                is_custom: !SYSTEM_JOB_CATALOG_CODES.includes(row.code),
               },
             });
           }
@@ -153,7 +154,7 @@ export class JobStatusCatalogService {
     }
 
     let code = normalizeStatusCode(dto.code, label);
-    if (SYSTEM_JOB_STATUSES.includes(code)) {
+    if (SYSTEM_JOB_CATALOG_CODES.includes(code)) {
       // Avoid shadowing system codes — suffix for custom.
       code = normalizeStatusCode(undefined, `${label}_CUSTOM`);
     }
