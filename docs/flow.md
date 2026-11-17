@@ -915,7 +915,7 @@ Credit/debit note create requires `description` (stored as `Invoice.remarks`; `r
 
 **Pass to Transport:**
 - Catalog code `PASS_TO_TRANSPORT` (maps to system `IN_PROGRESS`); seeded via status catalog ensure
-- `POST /jobs/:id/change-status` with `{ status: "PASS_TO_TRANSPORT", pass_branch_id|pass_branch_name, pass_user_id|pass_user_name, pass_notes? }` auto-runs department pass to org dept **TRANSPORT** (same rules as `POST …/department/pass`); CLOSED jobs rejected
+- `POST /jobs/:id/change-status` with `{ status: "PASS_TO_TRANSPORT", branch_id|branch_name, user_id|user_name, department_name?, notes? }` (same field names as `POST …/department/pass`; `pass_*` aliases also accepted) auto-runs department pass to org dept **TRANSPORT**; CLOSED jobs rejected
 
 **Accounts jobs:**
 - Permission `jobs.accounts.view` (Tenant Admin pack + Finance role preset)
