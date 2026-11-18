@@ -917,6 +917,15 @@ Credit/debit note create requires `description` (stored as `Invoice.remarks`; `r
 - Catalog code `PASS_TO_TRANSPORT` (maps to system `IN_PROGRESS`); seeded via status catalog ensure
 - `POST /jobs/:id/change-status` with `{ status: "PASS_TO_TRANSPORT", branch_id|branch_name, user_id|user_name, department_name?, notes? }` (same field names as `POST …/department/pass`; `pass_*` aliases also accepted) auto-runs department pass to org dept **TRANSPORT**; CLOSED jobs rejected
 
+**Transport handoff permission (`jobs.transport.handoff`):**
+- Dedicated transport assignees — grant `jobs.view` + `jobs.update` + `jobs.transport.handoff` **without** any `operations_*.see/write` (those would list every Sea/Air job of that type)
+- Role pack: seeded role `DRIVER` is labeled **Transport Handoff** with that pack (`TRANSPORT_HANDOFF_STAFF_PERMISSIONS`)
+- `GET /jobs` + dashboard counts: **only** jobs where `ops_user_id = me` (not org-dept queue, not job_type)
+- Detail open: assignee only; forced `handoff_limited` surface
+- Allowed: containers, trucker, port-token, **doc upload** (visible to full staff on the same job), **change-status**, **create custom status** via `POST /jobs/status-catalog` **with `job_id`** (applied to that assigned job)
+- Blocked: costing, close, department pass, Pass-to-Transport, show_all patch, finance, booking
+- Pass-to-Transport must set `ops_user_id` so the assignee’s queue fills
+
 **Accounts jobs:**
 - Permission `jobs.accounts.view` (Tenant Admin pack + Finance role preset)
 - `GET /jobs/accounts?branch_id&from_date&to_date&search&page&limit` → jobs with `status in [COMPLETED, DELIVERED, CLOSED]` (not ops job_type-scoped; tenant RLS). Compact rows include invoice flags `has_sale_invoice` / `has_purchase_invoice`

@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { JobStatus, UserRole } from "@prisma/client";
+import { hasAnyOperationsMatrix } from "../../../common/constants/module-permission-tree";
 import { seesAllJobDepartments } from "../../../common/utils/job-type-access.util";
+import { JOBS_PERMISSIONS } from "../constants/jobs-permission.constants";
 
 export const CLOSED_JOB_LOCK_MESSAGE =
   "Job is closed. Request reopen and wait for Tenant Admin approval.";
@@ -33,6 +35,21 @@ export function assertTenantAdmin(role?: string | null): void {
 }
 
 /**
+ * Dedicated transport assignee: has jobs.transport.handoff and no ops
+ * job-type matrix / admin sees-all. List = ops_user_id only.
+ */
+export function isTransportHandoffOnly(
+  role?: string | null,
+  permissions?: string[] | null,
+): boolean {
+  const perms = permissions ?? [];
+  if (!perms.includes(JOBS_PERMISSIONS.TRANSPORT_HANDOFF)) return false;
+  if (seesAllJobDepartments(role, perms)) return false;
+  if (hasAnyOperationsMatrix(perms)) return false;
+  return true;
+}
+
+/**
  * Handoff-limited: staff who reach the job via org department / assignee,
  * not via admin / sees-all. Full ops (job_type grant holders who also match)
  * stay full if they seesAll or are admin; otherwise limited when only handoff.
@@ -47,6 +64,13 @@ export function isHandoffLimitedAudience(input: {
   hasJobTypeGrant?: boolean;
 }): boolean {
   if (seesAllJobDepartments(input.role, input.permissions)) return false;
+  if (isTransportHandoffOnly(input.role, input.permissions)) {
+    return (
+      !!input.actorUserId &&
+      !!input.jobOpsUserId &&
+      input.actorUserId === input.jobOpsUserId
+    );
+  }
   const inOrgDept =
     !!input.actorDepartmentId &&
     !!input.jobDepartmentId &&

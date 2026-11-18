@@ -3,7 +3,10 @@ import { MASTERS_PERMISSIONS } from "../../modules/masters/constants/masters-per
 import { PARTIES_PERMISSIONS } from "../../modules/parties/constants/parties-permission.constants";
 import { QUOTATIONS_PERMISSIONS } from "../../modules/quotations/constants/quotations-permission.constants";
 import { SHIPMENTS_PERMISSIONS } from "../../modules/shipments/constants/shipments-permission.constants";
-import { JOBS_PERMISSIONS } from "../../modules/jobs/constants/jobs-permission.constants";
+import {
+  JOBS_PERMISSIONS,
+  TRANSPORT_HANDOFF_STAFF_PERMISSIONS,
+} from "../../modules/jobs/constants/jobs-permission.constants";
 import { AWB_STOCK_PERMISSIONS } from "../../modules/awb-stock/constants/awb-stock-permission.constants";
 import { SEARCH_PERMISSIONS } from "../../modules/search/constants/search-permission.constants";
 import { TOOLS_PERMISSIONS } from "../../modules/tools/constants/tools-permission.constants";
@@ -376,8 +379,14 @@ export const ROLE_CATALOG: RoleCatalogEntry[] = [
   },
   {
     code: "DRIVER",
-    name: "Driver",
-    permissions: [MASTERS_PERMISSIONS.VIEW],
+    name: "Transport Handoff",
+    /** Assignee-only job queue — no operations_*.see (would expose all Sea/Air jobs). */
+    permissions: [
+      MASTERS_PERMISSIONS.VIEW,
+      ...TRANSPORT_HANDOFF_STAFF_PERMISSIONS,
+      TRANSPORT_PERMISSIONS.VIEW,
+      NOTIFICATIONS_PERMISSIONS.VIEW,
+    ],
   },
   {
     code: "READ_ONLY",

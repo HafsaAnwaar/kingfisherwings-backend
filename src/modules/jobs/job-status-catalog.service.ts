@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -17,6 +18,8 @@ import {
   UpdateStatusCatalogDto,
 } from "./dto/status-catalog.dto";
 import { normalizeStatusCode } from "./utils/status-catalog.util";
+import { isTransportHandoffOnly } from "./utils/job-mutability.util";
+import { assertJobNotClosed } from "./utils/job-mutability.util";
 
 const DEFAULT_CUSTOM_MAPS_TO = "IN_PROGRESS";
 
@@ -139,6 +142,7 @@ export class JobStatusCatalogService {
     tenantId: string,
     dto: CreateStatusCatalogDto,
     actorId?: string,
+    actor?: { role?: string | null; permissions?: string[] | null },
   ) {
     await this.ensureCatalog(tenantId);
     const label = dto.label.trim();
@@ -160,6 +164,15 @@ export class JobStatusCatalogService {
     }
 
     const applyJobId = dto.job_id ?? dto.apply_to_job_id;
+    const handoffOnly = isTransportHandoffOnly(
+      actor?.role,
+      actor?.permissions,
+    );
+    if (handoffOnly && !applyJobId) {
+      throw new BadRequestException(
+        "Transport handoff users must pass job_id (or apply_to_job_id) to create and apply a custom status.",
+      );
+    }
 
     try {
       const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -203,10 +216,21 @@ export class JobStatusCatalogService {
               tenant_id: tenantId,
               deleted_at: null,
             },
-            select: { id: true, status: true, status_code: true },
+            select: {
+              id: true,
+              status: true,
+              status_code: true,
+              ops_user_id: true,
+            },
           });
           if (!job) {
             throw new NotFoundException("Job not found for job_id.");
+          }
+          assertJobNotClosed(job.status);
+          if (handoffOnly && job.ops_user_id !== actorId) {
+            throw new ForbiddenException(
+              "Transport handoff users may only apply custom status to jobs assigned to them.",
+            );
           }
           const systemStatus = mapsTo as JobStatus;
           await tx.job.update({
