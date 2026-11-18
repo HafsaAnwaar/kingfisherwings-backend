@@ -47,6 +47,7 @@ import {
   isHandoffLimitedAudience,
   isJobClosed,
   isTenantAdminRole,
+  isTransportHandoffOnly,
 } from "./utils/job-mutability.util";
 import {
   audienceFromStaffFlags,
@@ -155,15 +156,18 @@ export class JobDetailService {
     const links = await this.resolveLinks(tenantId, job);
     const actions = this.actionFlags(job, permissions, role, costingFlags);
     if (limited) {
+      const locked = isJobClosed(job.status);
       Object.assign(actions, {
         view_mode: "handoff_limited",
         can_edit: false,
         can_edit_header: false,
         can_view_containers: true,
-        can_assign_trucker: !isJobClosed(job.status),
-        can_port_token: !isJobClosed(job.status),
-        can_edit_container_status: !isJobClosed(job.status),
-        can_upload_docs: !isJobClosed(job.status),
+        can_assign_trucker: !locked,
+        can_port_token: !locked,
+        can_edit_container_status: !locked,
+        can_upload_docs: !locked,
+        can_change_status: !locked,
+        can_create_custom_status: !locked,
         job_finance_report: false,
         can_booking_form: false,
         can_edi: false,
@@ -924,7 +928,13 @@ export class JobDetailService {
     permissions?: string[],
     role?: string | null,
   ) {
-    const job = await this.loadJob(tenantId, id);
+    const job = await this.loadJob(
+      tenantId,
+      id,
+      permissions,
+      role,
+      actorId,
+    );
     const resolved = await this.statusCatalog.resolveCode(
       tenantId,
       dto.status.trim().toUpperCase(),
@@ -932,6 +942,7 @@ export class JobDetailService {
     const catalogCode = resolved.code;
     const systemStatus = resolved.systemStatus;
     const isPassToTransport = catalogCode === "PASS_TO_TRANSPORT";
+    const handoffOnly = isTransportHandoffOnly(role, permissions);
 
     if (
       !isPassToTransport &&
@@ -945,6 +956,11 @@ export class JobDetailService {
     const canForce =
       permissions?.includes(JOBS_PERMISSIONS.STATUS_FORCE) ||
       permissions?.includes(JOBS_PERMISSIONS.CLOSE);
+    if (handoffOnly && isPassToTransport) {
+      throw new ForbiddenException(
+        "Transport handoff users cannot pass the job to another department.",
+      );
+    }
     if (job.status === "CLOSED") {
       throw new BadRequestException(
         "Job is closed. Request reopen and wait for Tenant Admin approval.",
@@ -2170,6 +2186,15 @@ export class JobDetailService {
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+    const handoffOnly = isTransportHandoffOnly(role, permissions);
+    if (handoffOnly) {
+      if (!userId || job.ops_user_id !== userId) {
+        throw new ForbiddenException(
+          "Transport handoff users may only open jobs assigned to them.",
+        );
+      }
+      return job;
+    }
     try {
       assertJobTypeAccess(permissions, job.job_type, "see", role);
     } catch (err) {
@@ -2198,6 +2223,9 @@ export class JobDetailService {
   ): Promise<boolean> {
     if (!userId) return false;
     if (seesAllJobDepartments(role, permissions)) return false;
+    if (isTransportHandoffOnly(role, permissions)) {
+      return job.ops_user_id === userId;
+    }
     const hasJobTypeGrant = canSeeJobTypeForActor(
       permissions,
       job.job_type,
@@ -2211,7 +2239,7 @@ export class JobDetailService {
     );
 
     // Job currently sitting in TRANSPORT org dept → same limited surface for
-    // non-admins without a job_type grant (even if grant path would otherwise expand).
+    // non-admins without a job_type grant.
     let jobDeptIsTransport = false;
     if (job.department_id && !hasJobTypeGrant) {
       const dept = await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -2316,6 +2344,8 @@ export class JobDetailService {
           can_port_token: !locked,
           can_edit_container_status: !locked,
           can_upload_docs: !locked,
+          can_change_status: !locked,
+          can_create_custom_status: !locked,
         },
         path_hints: {
           containers: `/jobs/${job.id}/containers`,
@@ -2326,6 +2356,9 @@ export class JobDetailService {
           assign_trucker_road: `/jobs/${job.id}/road-freight/assign-trucker`,
           documents: `/jobs/${job.id}/documents`,
           document_upload: `/jobs/${job.id}/documents`,
+          change_status: `/jobs/${job.id}/change-status`,
+          status_options: `/jobs/status-options?job_id=${job.id}`,
+          create_custom_status: `/jobs/status-catalog`,
         },
       },
     };

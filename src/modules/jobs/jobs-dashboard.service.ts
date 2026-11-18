@@ -5,7 +5,9 @@ import {
 } from "../../common/dto/dashboard-period-query.dto";
 import {
   buildVisibleJobsBaseWhere,
+  jobTypeFilterFromVisible,
   resolveVisibleJobTypes,
+  seesAllJobDepartments,
 } from "../../common/utils/job-type-access.util";
 import {
   DEFAULT_OPS_CAPACITY,
@@ -13,10 +15,56 @@ import {
   OPEN_JOB_STATUSES,
 } from "../../common/utils/on-time.util";
 import { PrismaService } from "../../prisma/prisma.service";
+import { isTransportHandoffOnly } from "./utils/job-mutability.util";
 
 @Injectable()
 export class JobsDashboardService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Same visibility rules as GET /jobs (transport handoff = assignee only). */
+  private async visibilityWhere(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    permissions: string[],
+    role?: string | null,
+    userId?: string | null,
+    opts?: { branch_id?: string; job_type?: string },
+  ): Promise<Prisma.JobWhereInput> {
+    if (isTransportHandoffOnly(role, permissions)) {
+      return {
+        tenant_id: tenantId,
+        deleted_at: null,
+        ops_user_id: userId ?? "__none__",
+        ...(opts?.branch_id ? { branch_id: opts.branch_id } : {}),
+        ...(opts?.job_type ? { job_type: opts.job_type as never } : {}),
+      };
+    }
+    const visible = await resolveVisibleJobTypes(tx, tenantId, userId, role);
+    const isAdmin = seesAllJobDepartments(role, permissions);
+    if (!isAdmin && visible !== null && userId) {
+      const actorUser = await tx.user.findFirst({
+        where: { id: userId, tenant_id: tenantId, deleted_at: null },
+        select: { department_id: true },
+      });
+      const jobTypeFilter = jobTypeFilterFromVisible(visible, opts?.job_type);
+      const orParts: Prisma.JobWhereInput[] = [];
+      if (jobTypeFilter) orParts.push({ job_type: jobTypeFilter });
+      if (actorUser?.department_id) {
+        orParts.push({ department_id: actorUser.department_id });
+      }
+      orParts.push({ ops_user_id: userId });
+      return {
+        tenant_id: tenantId,
+        deleted_at: null,
+        ...(opts?.branch_id ? { branch_id: opts.branch_id } : {}),
+        ...(orParts.length ? { OR: orParts } : { id: { in: [] } }),
+      };
+    }
+    return buildVisibleJobsBaseWhere(tenantId, visible, {
+      branch_id: opts?.branch_id,
+      job_type: opts?.job_type,
+    });
+  }
 
   async dashboardCounts(
     tenantId: string,
@@ -28,13 +76,13 @@ export class JobsDashboardService {
     const { from, to, period } = query.resolve("30d");
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      void permissions;
-      // Same DB resolver + base where as GET /jobs. Never JWT-only.
-      const visible = await resolveVisibleJobTypes(tx, tenantId, userId, role);
-      const base = buildVisibleJobsBaseWhere(tenantId, visible, {
+      const base = await this.visibilityWhere(tx, tenantId, permissions, role, userId, {
         branch_id: query.branch_id,
         job_type: query.job_type,
       });
+      const visibleJobTypesMeta = isTransportHandoffOnly(role, permissions)
+        ? []
+        : await resolveVisibleJobTypes(tx, tenantId, userId, role);
 
       const [byStatus, byType, jobCount, createdInPeriod, openWithEta] =
         await Promise.all([
@@ -120,7 +168,7 @@ export class JobsDashboardService {
             byType.map((r) => [r.job_type, r._count._all]),
           ),
           created_in_period: createdInPeriod,
-          visible_job_types: visible,
+          visible_job_types: visibleJobTypesMeta,
         },
       };
     });
@@ -137,13 +185,12 @@ export class JobsDashboardService {
     const capacity = DEFAULT_OPS_CAPACITY;
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      void permissions;
-      const visible = await resolveVisibleJobTypes(tx, tenantId, userId, role);
+      const base = await this.visibilityWhere(tx, tenantId, permissions, role, userId, {
+        branch_id: query.branch_id,
+        job_type: query.job_type,
+      });
       const jobWhere: Prisma.JobWhereInput = {
-        ...buildVisibleJobsBaseWhere(tenantId, visible, {
-          branch_id: query.branch_id,
-          job_type: query.job_type,
-        }),
+        ...base,
         status: { in: [...OPEN_JOB_STATUSES] as JobStatus[] },
       };
 
@@ -167,10 +214,7 @@ export class JobsDashboardService {
           tenant_id: tenantId,
           deleted_at: null,
           planned_date: { gte: from, lte: to },
-          job: buildVisibleJobsBaseWhere(tenantId, visible, {
-            branch_id: query.branch_id,
-            job_type: query.job_type,
-          }),
+          job: base,
         },
         select: {
           planned_date: true,
@@ -320,11 +364,16 @@ export class JobsDashboardService {
     userId?: string | null,
   ) {
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      void permissions;
-      const visible = await resolveVisibleJobTypes(tx, tenantId, userId, role);
+      const base = await this.visibilityWhere(
+        tx,
+        tenantId,
+        permissions,
+        role,
+        userId,
+      );
       const jobs = await tx.job.findMany({
         where: {
-          ...buildVisibleJobsBaseWhere(tenantId, visible),
+          ...base,
           status: JobStatus.ON_HOLD,
         },
         orderBy: { held_at: "desc" },

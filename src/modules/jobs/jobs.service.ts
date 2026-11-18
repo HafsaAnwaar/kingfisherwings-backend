@@ -43,7 +43,10 @@ import {
   resolveVisibleJobTypes,
   seesAllJobDepartments,
 } from "../../common/utils/job-type-access.util";
-import { assertJobNotClosed } from "./utils/job-mutability.util";
+import {
+  assertJobNotClosed,
+  isTransportHandoffOnly,
+} from "./utils/job-mutability.util";
 import {
   jobStatusesForCategory,
   OPEN_JOB_STATUSES,
@@ -783,9 +786,23 @@ export class JobsService {
         actorDepartmentId = actorUser?.department_id ?? null;
       }
 
+      // Transport handoff-only: assignee queue (ops_user_id), never job_type/dept.
+      const handoffOnly = isTransportHandoffOnly(
+        _actor?.role,
+        _actor?.permissions,
+      );
+
       // Staff: job_type grants OR org department handoff OR ops assignee.
       let visibilityWhere: Prisma.JobWhereInput;
-      if (isAdmin || visibleJobTypes === null) {
+      if (handoffOnly) {
+        visibilityWhere = {
+          tenant_id: tenantId,
+          deleted_at: null,
+          ops_user_id: _actor?.userId ?? "__none__",
+          ...(query.branch_id ? { branch_id: query.branch_id } : {}),
+          ...(query.job_type ? { job_type: query.job_type } : {}),
+        };
+      } else if (isAdmin || visibleJobTypes === null) {
         visibilityWhere = buildVisibleJobsBaseWhere(
           tenantId,
           visibleJobTypes,

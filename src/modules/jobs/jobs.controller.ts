@@ -592,9 +592,14 @@ export class JobsController {
   createStatusCatalog(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Body() dto: CreateStatusCatalogDto,
   ) {
-    return this.statusCatalog.createCustom(tenantId, dto, actorId);
+    return this.statusCatalog.createCustom(tenantId, dto, actorId, {
+      role,
+      permissions,
+    });
   }
 
   @Patch("status-catalog/:catalogId")
