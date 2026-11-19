@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { StorageService } from "../../../shared/storage/storage.service";
 import { OperationsFresaReportsService } from "../operations-fresa-reports.service";
 import { REPORT_ROW_LIMIT } from "../constants/reports.constants";
 import { loadReportBranding } from "../helpers/report-branding.helper";
@@ -13,6 +14,7 @@ export class FinanceDataPackService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fresaOps: OperationsFresaReportsService,
+    private readonly storage: StorageService,
   ) {}
 
   supports(rendererKey: string): boolean {
@@ -25,7 +27,11 @@ export class FinanceDataPackService {
     parameters: Params,
     context?: Ctx,
   ): Promise<ReportDataset> {
-    const branding = await loadReportBranding(this.prisma, tenantId);
+    const branding = await loadReportBranding(
+      this.prisma,
+      tenantId,
+      this.storage,
+    );
     const generated_at = new Date().toISOString();
 
     switch (rendererKey) {

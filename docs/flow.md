@@ -61,7 +61,7 @@ There is no separate worker dyno required for crons (they run in the API). Docum
 | Companies | `/companies` |
 | Masters | `/masters/*`, `/vessels/:id/schedules` |
 | Parties | `/parties`, `/portal-users`, `/vendor-users` |
-| Organization | `/organization/profile`, `/organization/bank-accounts`, `/organization/number-formats` |
+| Organization | `/organization/profile`, `/organization/logo` (GET bytes / POST upload), `/organization/bank-accounts`, `/organization/number-formats` |
 | Quotations | `/quotations`, `/quotations/tariffs`, `/quotations/zip-distances` |
 | Jobs | `/jobs` |
 | NVOCC | `/nvocc/*` (voyages, enquiries, bookings, tariffs, workflow, docs, reports) |

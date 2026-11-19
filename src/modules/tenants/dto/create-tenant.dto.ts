@@ -91,7 +91,7 @@ export class CreateTenantDto {
   website?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsString()
   logo_url?: string;
 
   @IsOptional()

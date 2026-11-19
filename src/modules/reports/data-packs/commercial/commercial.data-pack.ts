@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import { StorageService } from "../../../../shared/storage/storage.service";
 import { loadReportBranding } from "../../helpers/report-branding.helper";
 import { ReportDataset } from "../../types/report.types";
 import { InvoiceFormatPayloadService } from "./invoice-format-payload.service";
@@ -52,6 +53,7 @@ export class CommercialDataPackService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly payload: InvoiceFormatPayloadService,
+    private readonly storage: StorageService,
   ) {}
 
   supports(rendererKey: string): boolean {
@@ -78,7 +80,11 @@ export class CommercialDataPackService {
       );
     }
 
-    const branding = await loadReportBranding(this.prisma, tenantId);
+    const branding = await loadReportBranding(
+      this.prisma,
+      tenantId,
+      this.storage,
+    );
     const generated_at = new Date().toISOString();
     const data = await this.payload.build(tenantId, invoiceId, {
       format_key: rendererKey,
