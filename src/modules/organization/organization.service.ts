@@ -36,7 +36,23 @@ export class OrganizationService {
     }
 
     const { password_hash, ...safe } = tenant;
-    return safe;
+    const durable = this.storage.toDurableLogoUrl(tenantId, safe.logo_url);
+    // Heal DB when a legacy presigned URL is still stored.
+    if (
+      durable &&
+      safe.logo_url &&
+      durable !== safe.logo_url &&
+      this.storage.isPresignedObjectUrl(safe.logo_url)
+    ) {
+      await this.prisma.tenant.update({
+        where: { id: tenantId },
+        data: { logo_url: durable },
+      });
+    }
+    return {
+      ...safe,
+      logo_url: durable ?? safe.logo_url,
+    };
   }
 
   async updateProfile(
@@ -66,13 +82,34 @@ export class OrganizationService {
       }
     }
 
+    if (data.logo_url !== undefined && data.logo_url !== null) {
+      const trimmed = String(data.logo_url).trim();
+      if (this.storage.isPresignedObjectUrl(trimmed)) {
+        throw new BadRequestException(
+          "logo_url must be a durable URL (/files/... or public CDN), not a presigned R2/S3 link.",
+        );
+      }
+      const durable = this.storage.toDurableLogoUrl(tenantId, trimmed);
+      if (!durable) {
+        throw new BadRequestException(
+          "logo_url must be an absolute https URL or /files/{tenantId}/{filename}.",
+        );
+      }
+      data.logo_url = durable;
+    }
+
     const updated = await this.prisma.tenant.update({
       where: { id: tenantId },
       data: { ...data },
     });
 
     const { password_hash, ...safe } = updated;
-    return safe;
+    return {
+      ...safe,
+      logo_url:
+        this.storage.toDurableLogoUrl(tenantId, safe.logo_url) ??
+        safe.logo_url,
+    };
   }
 
   async uploadLogo(
@@ -107,11 +144,72 @@ export class OrganizationService {
       mime || "image/png",
     );
 
+    // saveBuffer already returns durableFileUrl; normalize again for safety.
+    const logoUrl =
+      this.storage.toDurableLogoUrl(tenantId, stored.fileUrl) ??
+      this.storage.durableFileUrl(stored.s3Key);
+
     await this.prisma.tenant.update({
       where: { id: tenantId },
-      data: { logo_url: stored.fileUrl },
+      data: { logo_url: logoUrl },
     });
 
-    return { logo_url: stored.fileUrl };
+    return { logo_url: logoUrl };
+  }
+
+  /**
+   * Current tenant logo bytes for PDF embed / sidebar (no R2 CORS).
+   */
+  async getLogoBytes(tenantId: string): Promise<{
+    buffer: Buffer;
+    mimeType: string;
+    fileName: string;
+  }> {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deleted_at: null },
+      select: { logo_url: true },
+    });
+    if (!tenant?.logo_url?.trim()) {
+      throw new NotFoundException("Organization logo not set.");
+    }
+
+    const logoUrl = tenant.logo_url.trim();
+    const s3Key = this.storage.deriveObjectKey(logoUrl, tenantId);
+    const fileName = s3Key
+      ? s3Key.split("/").pop() || "logo.png"
+      : "logo.png";
+
+    if (s3Key) {
+      return this.storage.readByStoredFile(tenantId, {
+        file_name: fileName,
+        file_url: logoUrl,
+        s3_key: s3Key,
+        mime_type: this.guessLogoMime(fileName),
+      });
+    }
+
+    throw new NotFoundException(
+      "Organization logo file not found in storage. Re-upload the logo.",
+    );
+  }
+
+  /** Data URI for Puppeteer PDFs (avoids remote fetch / CORS / expiry). */
+  async resolveLogoDataUri(tenantId: string): Promise<string | null> {
+    try {
+      const { buffer, mimeType } = await this.getLogoBytes(tenantId);
+      return `data:${mimeType};base64,${buffer.toString("base64")}`;
+    } catch {
+      return null;
+    }
+  }
+
+  private guessLogoMime(fileName: string): string {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith(".png")) return "image/png";
+    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+    if (lower.endsWith(".webp")) return "image/webp";
+    if (lower.endsWith(".gif")) return "image/gif";
+    if (lower.endsWith(".svg")) return "image/svg+xml";
+    return "image/png";
   }
 }

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { StorageService } from "../../../shared/storage/storage.service";
 import { REPORT_ROW_LIMIT } from "../constants/reports.constants";
 import { loadReportBranding } from "../helpers/report-branding.helper";
 import { ReportDataset } from "../types/report.types";
@@ -8,7 +9,10 @@ type Params = Record<string, unknown>;
 
 @Injectable()
 export class WmsDataPackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   supports(rendererKey: string): boolean {
     return rendererKey.startsWith("wms.");
@@ -19,7 +23,11 @@ export class WmsDataPackService {
     rendererKey: string,
     parameters: Params,
   ): Promise<ReportDataset> {
-    const branding = await loadReportBranding(this.prisma, tenantId);
+    const branding = await loadReportBranding(
+      this.prisma,
+      tenantId,
+      this.storage,
+    );
     const generated_at = new Date().toISOString();
 
     if (rendererKey === "wms.asn") {

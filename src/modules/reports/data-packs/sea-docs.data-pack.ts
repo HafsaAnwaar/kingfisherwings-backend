@@ -6,6 +6,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { StorageService } from "../../../shared/storage/storage.service";
 import { REPORT_ROW_LIMIT } from "../constants/reports.constants";
 import { loadReportBranding } from "../helpers/report-branding.helper";
 import { ReportDataset, ReportListRow } from "../types/report.types";
@@ -55,7 +56,10 @@ type JobRow = {
 
 @Injectable()
 export class SeaDocsDataPackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   supports(rendererKey: string): boolean {
     return rendererKey.startsWith("sea.");
@@ -110,7 +114,7 @@ export class SeaDocsDataPackService {
   }
 
   private async loadBranding(tenantId: string) {
-    return loadReportBranding(this.prisma, tenantId);
+    return loadReportBranding(this.prisma, tenantId, this.storage);
   }
 
   private dateRange(params: Params) {

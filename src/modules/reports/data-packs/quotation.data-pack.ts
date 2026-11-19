@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { StorageService } from "../../../shared/storage/storage.service";
 import { loadReportBranding } from "../helpers/report-branding.helper";
 import { ReportDataset } from "../types/report.types";
 
@@ -8,7 +9,10 @@ type Ctx = { quotation_id?: string };
 
 @Injectable()
 export class QuotationDataPackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   supports(rendererKey: string): boolean {
     return rendererKey.startsWith("quotation.");
@@ -34,7 +38,11 @@ export class QuotationDataPackService {
       );
     }
 
-    const branding = await loadReportBranding(this.prisma, tenantId);
+    const branding = await loadReportBranding(
+      this.prisma,
+      tenantId,
+      this.storage,
+    );
     const generated_at = new Date().toISOString();
 
     const quote = await this.prisma.runWithTenant(tenantId, (tx) =>

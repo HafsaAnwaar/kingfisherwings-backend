@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { StorageService } from "../../../shared/storage/storage.service";
 import { ReportBranding } from "../types/report.types";
 
 export type ReportBankDetails = {
@@ -52,13 +53,49 @@ function publicLogoUrl(): string | null {
   return `${base.replace(/\/$/, "")}/branding/king-fisher-technologies-logo.png`;
 }
 
+function guessLogoMime(fileName: string): string {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".svg")) return "image/svg+xml";
+  return "image/png";
+}
+
+async function loadTenantLogoDataUri(
+  storage: StorageService | undefined,
+  tenantId: string,
+  logoUrl: string | null | undefined,
+): Promise<string | null> {
+  if (!storage || !logoUrl?.trim()) return null;
+  const durable =
+    storage.toDurableLogoUrl(tenantId, logoUrl) ?? logoUrl.trim();
+  const s3Key = storage.deriveObjectKey(durable, tenantId);
+  if (!s3Key) return null;
+  const fileName = s3Key.split("/").pop() || "logo.png";
+  try {
+    const file = await storage.readByStoredFile(tenantId, {
+      file_name: fileName,
+      file_url: durable,
+      s3_key: s3Key,
+      mime_type: guessLogoMime(fileName),
+    });
+    return `data:${file.mimeType};base64,${file.buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Tenant org identity for catalogue report packs.
  * Only logo + company identity differ from Fresa samples — form chrome stays sample colors.
+ * Pass StorageService so tenant logos embed as data-URIs (no R2 CORS / expiry in Puppeteer).
  */
 export async function loadReportBranding(
   prisma: PrismaService,
   tenantId: string,
+  storage?: StorageService,
 ): Promise<ReportBranding> {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -89,17 +126,23 @@ export async function loadReportBranding(
     .filter(Boolean);
 
   const platformDataUri = loadPlatformLogoDataUri();
-  const logoUrl =
-    tenant?.logo_url?.trim() ||
-    publicLogoUrl() ||
-    platformDataUri ||
-    null;
+  const durableLogoUrl = storage
+    ? storage.toDurableLogoUrl(tenantId, tenant?.logo_url) ??
+      tenant?.logo_url?.trim() ??
+      null
+    : tenant?.logo_url?.trim() || null;
 
-  /** Prefer data-URI for Puppeteer reliability when tenant has no logo. */
-  const logoDataUri =
-    tenant?.logo_url?.trim()
-      ? null
-      : platformDataUri;
+  const tenantLogoDataUri = await loadTenantLogoDataUri(
+    storage,
+    tenantId,
+    durableLogoUrl,
+  );
+
+  const logoUrl =
+    durableLogoUrl || publicLogoUrl() || platformDataUri || null;
+
+  /** Prefer embedded bytes for Puppeteer; fall back to platform KF logo. */
+  const logoDataUri = tenantLogoDataUri || (!durableLogoUrl ? platformDataUri : null);
 
   return {
     company_name: legalName,
@@ -149,7 +192,7 @@ export async function loadDefaultBank(
   };
 }
 
-/** Logo src for HTML templates: tenant URL, else embedded KF data-URI. */
+/** Logo src for HTML templates: embedded data-URI first, else URL. */
 export function brandingLogoSrc(branding: ReportBranding): string | null {
   return branding.logo_data_uri || branding.logo_url || null;
 }

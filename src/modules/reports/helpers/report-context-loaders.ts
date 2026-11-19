@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { StorageService } from "../../../shared/storage/storage.service";
 import {
   loadDefaultBank,
   loadReportBranding,
@@ -32,14 +33,17 @@ function reqId(
  */
 @Injectable()
 export class ReportContextLoaders {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async branding(tenantId: string): Promise<{
     branding: ReportBranding;
     bank?: ReportBankDetails;
   }> {
     const [branding, bank] = await Promise.all([
-      loadReportBranding(this.prisma, tenantId),
+      loadReportBranding(this.prisma, tenantId, this.storage),
       loadDefaultBank(this.prisma, tenantId),
     ]);
     return { branding, bank };

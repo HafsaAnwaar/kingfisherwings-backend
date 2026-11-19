@@ -548,12 +548,16 @@ export class TenantsService {
       mime || "image/png",
     );
 
+    const logoUrl =
+      this.storage.toDurableLogoUrl(id, stored.fileUrl) ??
+      this.storage.durableFileUrl(stored.s3Key);
+
     await this.prisma.tenant.update({
       where: { id },
-      data: { logo_url: stored.fileUrl },
+      data: { logo_url: logoUrl },
     });
 
-    return { logo_url: stored.fileUrl };
+    return { logo_url: logoUrl };
   }
 
   // =====================================================
@@ -671,6 +675,16 @@ export class TenantsService {
       if (patch.timezone === undefined && defaults.timezone) {
         patch.timezone = defaults.timezone;
       }
+    }
+
+    if (patch.logo_url !== undefined && patch.logo_url !== null) {
+      if (this.storage.isPresignedObjectUrl(patch.logo_url)) {
+        throw new BadRequestException(
+          "logo_url must be durable (/files/... or public CDN), not a presigned R2/S3 link.",
+        );
+      }
+      const durable = this.storage.toDurableLogoUrl(id, patch.logo_url);
+      if (durable) patch.logo_url = durable;
     }
 
     const updatedTenant = await this.prisma.$transaction(async (tx) => {
@@ -985,8 +999,11 @@ export class TenantsService {
     available_modules: { key: string; label: string }[];
   } {
     const { password_hash, ...safe } = tenant;
+    const durableLogo =
+      this.storage.toDurableLogoUrl(tenant.id, safe.logo_url) ?? safe.logo_url;
     return {
       ...safe,
+      logo_url: durableLogo,
       enabled_modules: normalizeEnabledModules(tenant.enabled_modules),
       available_modules: MODULE_PERMISSION_TREE.map((m) => ({
         key: m.key,

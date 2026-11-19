@@ -226,6 +226,15 @@ STORAGE_PUBLIC_BASE_URL=/files
 
 When R2 is correctly configured, durable object storage is used instead of disk.
 
+### 2.3b Organization logos (durable — required for cross-device PDFs)
+
+`POST /organization/logo` and `POST /tenants/:id/logo` **never** persist presigned `X-Amz-*` URLs.
+
+- If `R2_PUBLIC_BASE_URL` / `STORAGE_PUBLIC_BASE` is set → stable CDN `https://…/{tenantId}/{file}`
+- Otherwise → `/files/{tenantId}/{filename}` (served by `GET /files/…` with staff JWT; object key defaults to `{tenantId}/{filename}`)
+
+Also: `GET /organization/logo` returns image bytes for the current tenant. PDF branding embeds logo as a data-URI so Puppeteer does not fetch R2.
+
 ### 2.4 Save and redeploy
 
 1. Save environment changes.

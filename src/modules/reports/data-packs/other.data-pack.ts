@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { StorageService } from "../../../shared/storage/storage.service";
 import { loadReportBranding } from "../helpers/report-branding.helper";
 import { ReportDataset } from "../types/report.types";
 
@@ -13,7 +14,10 @@ const OTHER_KEYS = new Set([
 
 @Injectable()
 export class OtherDataPackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   supports(rendererKey: string): boolean {
     return OTHER_KEYS.has(rendererKey);
@@ -32,7 +36,11 @@ export class OtherDataPackService {
       );
     }
 
-    const branding = await loadReportBranding(this.prisma, tenantId);
+    const branding = await loadReportBranding(
+      this.prisma,
+      tenantId,
+      this.storage,
+    );
     const generated_at = new Date().toISOString();
 
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>

@@ -37,9 +37,15 @@ export class UpdateOrganizationProfileDto {
   @Length(2, 200)
   display_name?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      "Durable logo URL: absolute https (CDN) or /files/{tenantId}/{filename}. Presigned R2/S3 URLs are rejected.",
+    example: "/files/00000000-0000-0000-0000-000000000001/1700000000-logo.png",
+  })
   @IsOptional()
-  @IsUrl()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== "")
+  @IsString()
+  @Length(1, 2000)
   logo_url?: string;
 
   @ApiPropertyOptional({ example: "#0A66C2" })

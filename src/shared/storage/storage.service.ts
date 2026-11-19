@@ -126,18 +126,104 @@ export class StorageService implements OnModuleInit {
     }
   }
 
+  /**
+   * Non-expiring URL for persistence (org logos, etc.).
+   * Prefer public CDN base when configured; otherwise `/files/{tenantId}/{filename}`.
+   * Never returns a presigned X-Amz-* URL.
+   */
+  durableFileUrl(s3Key: string): string {
+    const key = s3Key.replace(/^\/+/, "");
+    if (this.settings.publicBase) {
+      return `${this.settings.publicBase.replace(/\/$/, "")}/${key}`;
+    }
+    const slash = key.indexOf("/");
+    const tenantId = slash >= 0 ? key.slice(0, slash) : key;
+    const filename = slash >= 0 ? key.slice(slash + 1) : key;
+    const base = (this.settings.publicBaseUrl || "/files").replace(/\/$/, "");
+    return `${base}/${tenantId}/${encodeURIComponent(filename)}`;
+  }
+
+  /** True when a stored logo_url looks like an expiring S3/R2 signed link. */
+  isPresignedObjectUrl(url: string | null | undefined): boolean {
+    if (!url?.trim()) return false;
+    const u = url.trim();
+    return (
+      /[?&]X-Amz-Algorithm=/i.test(u) ||
+      /[?&]X-Amz-Signature=/i.test(u) ||
+      /[?&]X-Amz-Credential=/i.test(u)
+    );
+  }
+
+  /**
+   * Rewrite a stored logo_url to a durable form (CDN or /files/…).
+   * Extracts object key from legacy presigned R2/S3 URLs when possible.
+   */
+  toDurableLogoUrl(
+    tenantId: string,
+    logoUrl: string | null | undefined,
+  ): string | null {
+    if (!logoUrl?.trim()) return null;
+    const raw = logoUrl.trim();
+
+    if (raw.startsWith("/files/")) {
+      return raw.split("?")[0];
+    }
+
+    if (this.settings.publicBase) {
+      const base = this.settings.publicBase.replace(/\/$/, "");
+      if (raw.startsWith(base + "/") && !this.isPresignedObjectUrl(raw)) {
+        return raw.split("?")[0];
+      }
+    }
+
+    const key = this.deriveObjectKey(raw, tenantId);
+    if (key) return this.durableFileUrl(key);
+
+    // Absolute non-presigned https (external CDN / website) — keep as-is.
+    if (
+      /^https?:\/\//i.test(raw) &&
+      !this.isPresignedObjectUrl(raw)
+    ) {
+      return raw;
+    }
+
+    return null;
+  }
+
+  /** Recover object key from /files path, CDN URL, or expired presigned URL. */
+  deriveObjectKey(
+    fileUrl: string | null | undefined,
+    tenantId: string,
+  ): string | null {
+    if (!fileUrl?.trim()) return null;
+    const raw = fileUrl.trim();
+
+    const filesMatch = raw.match(/^\/files\/([^/]+)\/(.+?)(?:\?|$)/i);
+    if (filesMatch) {
+      const tid = decodeURIComponent(filesMatch[1]);
+      const name = decodeURIComponent(filesMatch[2]);
+      if (tid === tenantId) return `${tid}/${name}`;
+    }
+
+    try {
+      const u = new URL(raw);
+      const keyParam = u.searchParams.get("Key") ?? u.searchParams.get("key");
+      if (keyParam?.includes(tenantId)) {
+        return decodeURIComponent(keyParam);
+      }
+      const pathPart = decodeURIComponent(u.pathname.replace(/^\/+/, ""));
+      // Strip bucket name prefix when path-style: bucket/tenantId/file
+      const idx = pathPart.indexOf(`${tenantId}/`);
+      if (idx >= 0) return pathPart.slice(idx);
+    } catch {
+      /* relative / opaque */
+    }
+    return null;
+  }
+
   /** Resolve a public/presigned URL for an existing storage key (backfill mirrors). */
   async resolveUrlForKey(s3Key: string): Promise<string> {
-    if (this.isDurable()) {
-      if (this.settings.publicBase) {
-        return `${this.settings.publicBase.replace(/\/$/, "")}/${s3Key}`;
-      }
-      return this.presignedGetUrl(s3Key);
-    }
-    const parts = s3Key.split("/");
-    const tenantId = parts[0] ?? "";
-    const uniqueName = parts.slice(1).join("/");
-    return `${this.settings.publicBaseUrl}/${tenantId}/${encodeURIComponent(uniqueName)}`;
+    return this.durableFileUrl(s3Key);
   }
 
   async saveBuffer(
@@ -180,11 +266,13 @@ export class StorageService implements OnModuleInit {
         );
       }
 
-      const fileUrl = this.settings.publicBase
-        ? `${this.settings.publicBase.replace(/\/$/, "")}/${s3Key}`
-        : await this.presignedGetUrl(s3Key);
-
-      return { fileUrl, s3Key, fileSize: buffer.length, mimeType };
+      // Always durable — never persist a short-lived presigned URL.
+      return {
+        fileUrl: this.durableFileUrl(s3Key),
+        s3Key,
+        fileSize: buffer.length,
+        mimeType,
+      };
     }
 
     const dir = path.join(this.settings.root, tenantId);
@@ -192,7 +280,7 @@ export class StorageService implements OnModuleInit {
     const filePath = this.resolveLocalPath(tenantId, uniqueName);
     await fs.writeFile(filePath, buffer);
 
-    const fileUrl = `${this.settings.publicBaseUrl}/${tenantId}/${encodeURIComponent(uniqueName)}`;
+    const fileUrl = this.durableFileUrl(s3Key);
     this.logger.log(`Saved file locally: ${filePath}`);
 
     return { fileUrl, s3Key, fileSize: buffer.length, mimeType };

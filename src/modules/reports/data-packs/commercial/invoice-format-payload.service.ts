@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import { StorageService } from "../../../../shared/storage/storage.service";
 import { amountInWords } from "../../../../common/utils/amount-in-words.util";
 import {
   brandingLogoSrc,
@@ -24,7 +25,10 @@ function d10(v?: Date | null): string | undefined {
 
 @Injectable()
 export class InvoiceFormatPayloadService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async build(
     tenantId: string,
@@ -36,7 +40,11 @@ export class InvoiceFormatPayloadService {
     const template_code =
       options?.template_code ?? "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA";
 
-    const branding = await loadReportBranding(this.prisma, tenantId);
+    const branding = await loadReportBranding(
+      this.prisma,
+      tenantId,
+      this.storage,
+    );
     const bank = await loadDefaultBank(this.prisma, tenantId);
 
     const invoice = await this.prisma.runWithTenant(tenantId, (tx) =>
