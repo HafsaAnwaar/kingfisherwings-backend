@@ -1189,6 +1189,10 @@ model User {
   can_see_cost          Boolean @default(false)
   can_see_gp            Boolean @default(false)
   can_see_invoices      Boolean @default(false)
+  /// Fine-grained: CUSTOMER_INVOICE + DEBIT_NOTE (independent of costing can_see_sales).
+  can_see_sale_invoices Boolean @default(false)
+  /// Fine-grained: PURCHASE_INVOICE + CREDIT_NOTE (independent of costing can_see_cost).
+  can_see_purchase_invoices Boolean @default(false)
   can_see_payments      Boolean @default(false)
   can_see_bank_balances Boolean @default(false)
   can_see_ar_ap         Boolean @default(false)

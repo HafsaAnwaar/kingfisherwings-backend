@@ -153,7 +153,9 @@ export class DeliveryAcknowledgementService {
     dto: SendDeliveryAcknowledgementDto,
     actorId: string,
     file?: Express.Multer.File,
+    files?: Express.Multer.File[],
   ) {
+    const proofFiles = this.normalizeUploadFiles(file, files);
     const job = await this.assertJobFull(tenantId, jobId);
     if (dto.container_id) {
       const ctr = await this.prisma.runWithTenant(tenantId, (tx) =>
@@ -198,15 +200,15 @@ export class DeliveryAcknowledgementService {
           "Acknowledgement already sent. Message and container are locked — attach proof only (multipart file or POST …/attachments).",
         );
       }
-      if (!file?.buffer?.length) {
+      if (!proofFiles.length) {
         throw new BadRequestException(
           "Acknowledgement already sent without changing fields. Attach a proof file to send again, or use POST …/acknowledgement/attachments.",
         );
       }
-      const attached = await this.uploadAttachment(
+      const attached = await this.uploadAttachments(
         tenantId,
         jobId,
-        file,
+        proofFiles,
         actorId,
       );
       await this.notifyAckSent(tenantId, jobId, job, true);
@@ -216,7 +218,8 @@ export class DeliveryAcknowledgementService {
           ...draft,
           admin_message: draft.remarks,
           customer_marked_received: false,
-          attachment: attached.data,
+          attachment: attached.attachments[0] ?? null,
+          attachments: attached.attachments,
           fields_locked: true,
         },
         message: "Proof attached and customer notified",
@@ -259,15 +262,25 @@ export class DeliveryAcknowledgementService {
           metadata: {
             acknowledgement_id: row.id,
             message: message.slice(0, 240),
-            has_attachment: Boolean(file?.buffer?.length),
+            has_attachment: proofFiles.length > 0,
+            attachment_count: proofFiles.length,
           } as Prisma.InputJsonValue,
         },
       });
       return row;
     });
 
-    if (file?.buffer?.length) {
-      await this.uploadAttachment(tenantId, jobId, file, actorId);
+    let attachments: Awaited<
+      ReturnType<DeliveryAcknowledgementService["uploadAttachments"]>
+    >["attachments"] = [];
+    if (proofFiles.length) {
+      const uploaded = await this.uploadAttachments(
+        tenantId,
+        jobId,
+        proofFiles,
+        actorId,
+      );
+      attachments = uploaded.attachments;
     }
 
     await this.notifyAckSent(tenantId, jobId, job, false);
@@ -280,6 +293,7 @@ export class DeliveryAcknowledgementService {
         customer_marked_received: false,
         fields_locked: true,
         can_attach_proof: true,
+        attachments,
       },
       message: "Sent to customer",
     };
@@ -336,15 +350,54 @@ export class DeliveryAcknowledgementService {
     };
   }
 
+  /** Cap for multi-file acknowledgement uploads (per request). */
+  static readonly MAX_ACK_FILES = 10;
+
+  private normalizeUploadFiles(
+    file?: Express.Multer.File,
+    files?: Express.Multer.File[],
+  ): Express.Multer.File[] {
+    const out: Express.Multer.File[] = [];
+    if (file?.buffer?.length) out.push(file);
+    for (const f of files ?? []) {
+      if (f?.buffer?.length) out.push(f);
+    }
+    if (out.length > DeliveryAcknowledgementService.MAX_ACK_FILES) {
+      throw new BadRequestException(
+        `At most ${DeliveryAcknowledgementService.MAX_ACK_FILES} files per request.`,
+      );
+    }
+    return out;
+  }
+
   async uploadAttachment(
     tenantId: string,
     jobId: string,
     file: Express.Multer.File,
     actorId: string,
   ) {
-    if (!file?.buffer?.length) {
+    const result = await this.uploadAttachments(
+      tenantId,
+      jobId,
+      [file],
+      actorId,
+    );
+    return {
+      success: true,
+      data: result.attachments[0],
+    };
+  }
+
+  async uploadAttachments(
+    tenantId: string,
+    jobId: string,
+    files: Express.Multer.File[],
+    actorId: string,
+  ) {
+    const list = this.normalizeUploadFiles(undefined, files);
+    if (!list.length) {
       throw new BadRequestException(
-        "File is required (multipart field name: file).",
+        "File is required (multipart field name: files or file).",
       );
     }
     const ack = await this.getOrCreateDraft(tenantId, jobId, actorId);
@@ -353,32 +406,43 @@ export class DeliveryAcknowledgementService {
         "Acknowledgement already received by admin; attachments are locked.",
       );
     }
-    const stored = await this.storage.saveBuffer(
-      tenantId,
-      file.buffer,
-      file.originalname || "acknowledgement-attachment.bin",
-      file.mimetype || "application/octet-stream",
-    );
-    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.deliveryAcknowledgementAttachment.create({
-        data: {
-          tenant_id: tenantId,
-          acknowledgement_id: ack.id,
-          file_name: file.originalname || stored.s3Key,
-          file_url: stored.fileUrl,
-          s3_key: stored.s3Key,
-          mime_type: stored.mimeType,
-          file_size: stored.fileSize,
-          uploaded_by: actorId,
-        },
-      }),
-    );
-    return {
-      success: true,
-      data: {
+
+    const attachments: Array<
+      Prisma.DeliveryAcknowledgementAttachmentGetPayload<object> & {
+        download_path: string;
+      }
+    > = [];
+
+    for (const file of list) {
+      const stored = await this.storage.saveBuffer(
+        tenantId,
+        file.buffer,
+        file.originalname || "acknowledgement-attachment.bin",
+        file.mimetype || "application/octet-stream",
+      );
+      const row = await this.prisma.runWithTenant(tenantId, (tx) =>
+        tx.deliveryAcknowledgementAttachment.create({
+          data: {
+            tenant_id: tenantId,
+            acknowledgement_id: ack.id,
+            file_name: file.originalname || stored.s3Key,
+            file_url: stored.fileUrl,
+            s3_key: stored.s3Key,
+            mime_type: stored.mimeType,
+            file_size: stored.fileSize,
+            uploaded_by: actorId,
+          },
+        }),
+      );
+      attachments.push({
         ...row,
         download_path: `/jobs/${jobId}/acknowledgement/attachments/${row.id}/download`,
-      },
+      });
+    }
+
+    return {
+      success: true as const,
+      attachments,
     };
   }
 

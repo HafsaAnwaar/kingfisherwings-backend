@@ -15,12 +15,16 @@ import {
   Res,
   StreamableFile,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
   ApiBody,
@@ -4818,21 +4822,59 @@ export class JobsController {
   @ApiBody({
     schema: {
       type: "object",
-      required: ["file"],
-      properties: { file: { type: "string", format: "binary" } },
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
+          description: "Single file (backward compatible)",
+        },
+        files: {
+          type: "array",
+          items: { type: "string", format: "binary" },
+          description: "Up to 10 files × 25MB each",
+        },
+      },
     },
   })
   @UseInterceptors(
-    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+    FileFieldsInterceptor(
+      [
+        { name: "file", maxCount: 1 },
+        { name: "files", maxCount: 10 },
+      ],
+      { limits: { fileSize: 25 * 1024 * 1024 } },
+    ),
   )
-  @ApiOperation({ summary: "Upload a delivery acknowledgement attachment" })
-  uploadAcknowledgementAttachment(
+  @ApiOperation({
+    summary:
+      "Upload delivery acknowledgement attachment(s) — multipart `files` (multi) or `file` (single)",
+  })
+  async uploadAcknowledgementAttachment(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFiles()
+    uploaded?: {
+      file?: Express.Multer.File[];
+      files?: Express.Multer.File[];
+    },
   ) {
-    return this.acknowledgement.uploadAttachment(tenantId, id, file, actorId);
+    const single = uploaded?.file?.[0];
+    const multi = uploaded?.files ?? [];
+    const result = await this.acknowledgement.uploadAttachments(
+      tenantId,
+      id,
+      [...(single ? [single] : []), ...multi],
+      actorId,
+    );
+    return {
+      success: true,
+      data:
+        result.attachments.length === 1
+          ? result.attachments[0]
+          : undefined,
+      attachments: result.attachments,
+    };
   }
 
   @Get(":id/acknowledgement/attachments/:attachmentId/download")
@@ -4872,26 +4914,48 @@ export class JobsController {
           type: "string",
           format: "binary",
           description:
-            "Optional on first send. Required to re-send after send — message/container are locked; proof only.",
+            "Optional single proof on first send. Required (or files) to re-send after send.",
+        },
+        files: {
+          type: "array",
+          items: { type: "string", format: "binary" },
+          description: "Optional multi proof files (up to 10 × 25MB)",
         },
       },
     },
   })
   @UseInterceptors(
-    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+    FileFieldsInterceptor(
+      [
+        { name: "file", maxCount: 1 },
+        { name: "files", maxCount: 10 },
+      ],
+      { limits: { fileSize: 25 * 1024 * 1024 } },
+    ),
   )
   @ApiOperation({
     summary:
-      "Admin sends delivery acknowledgement (optional file). After send, only proof attach/resend is allowed.",
+      "Admin sends delivery acknowledgement (optional file/files). After send, only proof attach/resend is allowed.",
   })
   sendAcknowledgement(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: SendDeliveryAcknowledgementDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles()
+    uploaded?: {
+      file?: Express.Multer.File[];
+      files?: Express.Multer.File[];
+    },
   ) {
-    return this.acknowledgement.send(tenantId, id, dto, actorId, file);
+    return this.acknowledgement.send(
+      tenantId,
+      id,
+      dto,
+      actorId,
+      uploaded?.file?.[0],
+      uploaded?.files,
+    );
   }
 
   @Post(":id/acknowledgement/receive")

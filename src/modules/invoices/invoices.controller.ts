@@ -64,6 +64,8 @@ export class InvoicesController {
   @ApiOperation({ summary: "List customer invoices (Ch.18)" })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
     @CurrentUser("permissions") permissions: string[],
     @Query() query: InvoiceQueryDto,
   ) {
@@ -72,6 +74,7 @@ export class InvoicesController {
       query,
       "CUSTOMER_INVOICE",
       permissions,
+      { userId, role, permissions },
     );
   }
 
@@ -91,10 +94,16 @@ export class InvoicesController {
   })
   getHistory(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
     @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.getHistory(tenantId, id, permissions);
+    return this.service.getHistory(tenantId, id, permissions, {
+      userId,
+      role,
+      permissions,
+    });
   }
 
   @Get(":id")
@@ -102,10 +111,16 @@ export class InvoicesController {
   @ApiOperation({ summary: "Get invoice with lines" })
   findOne(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
     @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id, permissions);
+    return this.service.findOne(tenantId, id, permissions, {
+      userId,
+      role,
+      permissions,
+    });
   }
 
   @Post()
@@ -114,6 +129,7 @@ export class InvoicesController {
   create(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
     @CurrentUser("permissions") permissions: string[],
     @Body() dto: CreateInvoiceDto,
   ) {
@@ -123,6 +139,7 @@ export class InvoicesController {
       actorId,
       "CUSTOMER_INVOICE",
       permissions,
+      { userId: actorId, role, permissions },
     );
   }
 
@@ -135,10 +152,12 @@ export class InvoicesController {
   createFromJob(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
     @CurrentUser("permissions") permissions: string[],
     @Param("jobId", ParseUUIDPipe) jobId: string,
     @Body() body?: { charge_ids?: string[] },
   ) {
+    const actor = { userId: actorId, role, permissions };
     if (body?.charge_ids?.length) {
       return this.service.createFromJobSelected(
         tenantId,
@@ -146,6 +165,7 @@ export class InvoicesController {
         body.charge_ids,
         actorId,
         permissions,
+        actor,
       );
     }
     return this.service.createFromJob(
@@ -154,6 +174,7 @@ export class InvoicesController {
       actorId,
       undefined,
       permissions,
+      actor,
     );
   }
 
@@ -163,10 +184,16 @@ export class InvoicesController {
   update(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateInvoiceDto,
   ) {
-    return this.service.update(tenantId, id, dto, actorId);
+    return this.service.update(tenantId, id, dto, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Delete(":id")
@@ -176,9 +203,15 @@ export class InvoicesController {
   async remove(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    await this.service.softDelete(tenantId, id, actorId);
+    await this.service.softDelete(tenantId, id, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Post(":id/lines")
@@ -191,10 +224,16 @@ export class InvoicesController {
   addLine(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: CreateInvoiceLineDto,
   ) {
-    return this.service.addLine(tenantId, id, dto, actorId);
+    return this.service.addLine(tenantId, id, dto, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Patch(":id/lines/:lineId")
@@ -203,11 +242,17 @@ export class InvoicesController {
   updateLine(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Param("lineId", ParseUUIDPipe) lineId: string,
     @Body() dto: UpdateInvoiceLineDto,
   ) {
-    return this.service.updateLine(tenantId, id, lineId, dto, actorId);
+    return this.service.updateLine(tenantId, id, lineId, dto, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Delete(":id/lines/:lineId")
@@ -217,10 +262,16 @@ export class InvoicesController {
   async removeLine(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Param("lineId", ParseUUIDPipe) lineId: string,
   ) {
-    await this.service.removeLine(tenantId, id, lineId, actorId);
+    await this.service.removeLine(tenantId, id, lineId, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Post(":id/post")
@@ -229,9 +280,15 @@ export class InvoicesController {
   post(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.post(tenantId, id, actorId);
+    return this.service.post(tenantId, id, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Post(":id/send")
@@ -258,11 +315,17 @@ export class InvoicesController {
   send(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: SendInvoiceEmailDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.service.send(tenantId, id, dto, actorId, file);
+    return this.service.send(tenantId, id, dto, actorId, file, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Get(":id/format-payload")
@@ -317,6 +380,8 @@ export class InvoicesController {
   async generatePdf(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: StoreInvoicePdfDto,
     @UploadedFile() file?: Express.Multer.File,
@@ -327,6 +392,7 @@ export class InvoicesController {
       actorId,
       file,
       dto,
+      { userId: actorId, role, permissions },
     );
     return {
       file_url: result.fileUrl,
@@ -340,9 +406,16 @@ export class InvoicesController {
   @ApiOperation({ summary: "Get invoice PDF metadata" })
   async getPdfInfo(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    const invoice = await this.service.findOne(tenantId, id);
+    const invoice = await this.service.findOne(tenantId, id, permissions, {
+      userId,
+      role,
+      permissions,
+    });
     return {
       invoice_id: invoice.id,
       invoice_number: invoice.invoice_number,
@@ -357,9 +430,15 @@ export class InvoicesController {
   cancel(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.cancel(tenantId, id, actorId);
+    return this.service.cancel(tenantId, id, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Get(":id/attachments")

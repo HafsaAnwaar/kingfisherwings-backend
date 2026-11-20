@@ -275,6 +275,73 @@ export function invoiceJobTypeScope(
   };
 }
 
+/**
+ * Invoice job scope matching GET /jobs visibility for staff:
+ * job_type grants ∪ org department ∪ ops_user_id, plus job-less invoices.
+ * `undefined` = unrestricted (admin / sees-all / no ops matrix).
+ */
+export function invoiceOpsVisibilityScope(opts: {
+  permissions?: string[] | null;
+  role?: string | null;
+  userId?: string | null;
+  actorDepartmentId?: string | null;
+}): Prisma.InvoiceWhereInput | undefined {
+  if (seesAllJobDepartments(opts.role, opts.permissions)) return undefined;
+  const allowed = visibleJobTypesForActor(opts.permissions, opts.role);
+  // No ops matrix → unrestricted job types (same as job list for non-scoped staff).
+  if (allowed === null) return undefined;
+
+  const orParts: Prisma.InvoiceWhereInput[] = [{ job_id: null }];
+  if (allowed.length > 0) {
+    orParts.push({
+      job: { is: { job_type: { in: allowed }, deleted_at: null } },
+    });
+  }
+  if (opts.actorDepartmentId) {
+    orParts.push({
+      job: {
+        is: { department_id: opts.actorDepartmentId, deleted_at: null },
+      },
+    });
+  }
+  if (opts.userId) {
+    orParts.push({
+      job: { is: { ops_user_id: opts.userId, deleted_at: null } },
+    });
+  }
+  return { OR: orParts };
+}
+
+/** Whether a linked job is visible under the same rules as GET /jobs. */
+export function canAccessJobForInvoiceActor(
+  job: {
+    job_type: JobType;
+    department_id?: string | null;
+    ops_user_id?: string | null;
+  } | null,
+  opts: {
+    permissions?: string[] | null;
+    role?: string | null;
+    userId?: string | null;
+    actorDepartmentId?: string | null;
+  },
+): boolean {
+  if (!job) return true; // manual / job-less invoice
+  if (seesAllJobDepartments(opts.role, opts.permissions)) return true;
+  const allowed = visibleJobTypesForActor(opts.permissions, opts.role);
+  if (allowed === null) return true;
+  if (allowed.includes(job.job_type)) return true;
+  if (
+    opts.actorDepartmentId &&
+    job.department_id &&
+    opts.actorDepartmentId === job.department_id
+  ) {
+    return true;
+  }
+  if (opts.userId && job.ops_user_id === opts.userId) return true;
+  return false;
+}
+
 export function assertJobTypeAccess(
   permissions: string[] | null | undefined,
   jobType: JobType | string | null | undefined,

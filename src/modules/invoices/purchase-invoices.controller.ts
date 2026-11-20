@@ -39,9 +39,18 @@ export class PurchaseInvoicesController {
   @ApiOperation({ summary: "List purchase invoices (vendor bills)" })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: InvoiceQueryDto,
   ) {
-    return this.service.findAll(tenantId, query, "PURCHASE_INVOICE");
+    return this.service.findAll(
+      tenantId,
+      query,
+      "PURCHASE_INVOICE",
+      permissions,
+      { userId, role, permissions },
+    );
   }
 
   @Get(":id")
@@ -49,9 +58,16 @@ export class PurchaseInvoicesController {
   @ApiOperation({ summary: "Get a purchase invoice" })
   findOne(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.findOne(tenantId, id);
+    return this.service.findOne(tenantId, id, permissions, {
+      userId,
+      role,
+      permissions,
+    });
   }
 
   @Post("from-job/:jobId")
@@ -63,6 +79,8 @@ export class PurchaseInvoicesController {
   createFromJob(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("jobId", ParseUUIDPipe) jobId: string,
     @Body() body?: { charge_ids?: string[] },
   ) {
@@ -71,6 +89,7 @@ export class PurchaseInvoicesController {
       jobId,
       body?.charge_ids,
       actorId,
+      { userId: actorId, role, permissions },
     );
   }
 
@@ -80,9 +99,15 @@ export class PurchaseInvoicesController {
   create(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Body() dto: CreatePurchaseInvoiceDto,
   ) {
-    return this.service.createPurchaseInvoice(tenantId, dto, actorId);
+    return this.service.createPurchaseInvoice(tenantId, dto, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Patch(":id")
@@ -91,10 +116,16 @@ export class PurchaseInvoicesController {
   update(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateInvoiceDto,
   ) {
-    return this.service.update(tenantId, id, dto, actorId);
+    return this.service.update(tenantId, id, dto, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Delete(":id")
@@ -104,9 +135,15 @@ export class PurchaseInvoicesController {
   async remove(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    await this.service.softDelete(tenantId, id, actorId);
+    await this.service.softDelete(tenantId, id, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Post(":id/post")
@@ -115,8 +152,14 @@ export class PurchaseInvoicesController {
   post(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.post(tenantId, id, actorId);
+    return this.service.post(tenantId, id, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 }
