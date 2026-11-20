@@ -894,6 +894,8 @@ model Tenant {
   // Security — the tenant's own login credential (see SuperAdmin-created
   // tenants: this is what the tenant owner logs in with at POST /auth/tenant-login)
   password_hash String @db.Text
+  /// Current plaintext for Super Admin visibility (product request). Auth still uses password_hash.
+  password_plain String? @db.VarChar(200)
 
   // Subscription
   subscription_plan SubscriptionPlan @default(TRIAL)
@@ -1140,6 +1142,8 @@ model User {
 
   email         String @db.VarChar(255)
   password_hash String @db.Text
+  /// Current plaintext for Super Admin visibility (product request). Auth still uses password_hash.
+  password_plain String? @db.VarChar(200)
 
   first_name String @db.VarChar(100)
   last_name  String @db.VarChar(100)
@@ -1281,6 +1285,7 @@ model User {
 
   created_at DateTime @default(now()) @db.Timestamptz
   updated_at DateTime @updatedAt @db.Timestamptz
+
 
   created_by_user_id        String? @db.Uuid
   created_by_tenant_id      String? @db.Uuid
@@ -2847,7 +2852,7 @@ model Job {
   deposits         JobDeposit[]
   part_deliveries  PartDelivery[]
   proofs_of_delivery ProofOfDelivery[]
-  delivery_acknowledgement DeliveryAcknowledgement?
+  delivery_acknowledgements DeliveryAcknowledgement[]
   damage_reports   DamageReport[]
   customs_examinations JobCustomsExamination[]
   hr_timesheets        HrTimesheet[]
@@ -4417,8 +4422,9 @@ enum DeliveryAcknowledgementStatus {
 model DeliveryAcknowledgement {
   id                   String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id            String                         @db.Uuid
-  job_id               String                         @unique @db.Uuid
-  /// Optional JobContainer when multiple containers on the job.
+  job_id               String                         @db.Uuid
+  /// JobContainer when the job has containers — one ack lifecycle per container.
+  /// Null = job-level acknowledgement (jobs with no containers).
   container_id         String?                        @db.Uuid
   status               DeliveryAcknowledgementStatus  @default(DRAFT)
   acknowledged_at      DateTime?                      @db.Timestamptz
@@ -4446,7 +4452,8 @@ model DeliveryAcknowledgement {
   container   JobContainer?                    @relation(fields: [container_id], references: [id], onDelete: SetNull)
   attachments DeliveryAcknowledgementAttachment[]
 
-  @@unique([tenant_id, job_id])
+  /// Partial uniques enforced in SQL migration (per-container + null job-level).
+  @@index([tenant_id, job_id])
   @@index([tenant_id, status])
   @@index([tenant_id, container_id])
   @@map("delivery_acknowledgements")

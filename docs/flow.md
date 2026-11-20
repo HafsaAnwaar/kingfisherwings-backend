@@ -923,11 +923,23 @@ Credit/debit note create requires `description` (stored as `Invoice.remarks`; `r
 - Job scope for non-admin = same as `GET /jobs` ops visibility: job_type grants ∪ org `department_id` ∪ `ops_user_id` (manual/job-less invoices stay visible when side allowed). Tenant Admin / sees-all: all types, all jobs.
 - Routes: `/invoices` + `/debit-notes` (sale); `/purchase-invoices` + `/credit-notes` (purchase). Controllers pass `userId` / `role` / `permissions`.
 
-**Delivery acknowledgement multi-file upload:**
-- Schema already 1:N (`DeliveryAcknowledgementAttachment`). Cap: **10 files × 25MB** per request.
-- Staff: `POST /jobs/:id/acknowledgement/attachments` and `POST /jobs/:id/acknowledgement/send` accept multipart field `files` (array) and/or legacy single `file`.
-- Portal: `POST /portal/shipments/:id/acknowledgement/attachments` — same `files` / `file` contract.
-- Response includes `attachments[]` (and single `data` when exactly one file for backward compatibility).
+**Tenant Admin password / must_change_password:**
+- `POST /auth/tenant-login` authenticates against `Tenant.password_hash` then issues a session for the earliest `TENANT_ADMIN` user; `must_change_password` comes from that **User**.
+- `POST /auth/tenant/change-password` updates `Tenant.password_hash`, syncs the owner `User.password_hash`, sets `must_change_password: false`, writes `PasswordHistory` (`TENANT_CREDENTIAL_CHANGE`), and revokes sessions. Staff `POST /auth/change-password` also clears the flag on the acting user.
+- After a successful tenant change-password, `/auth/me` and a fresh tenant-login must return `must_change_password: false`.
+
+**Plaintext passwords (Super Admin visibility — product request):**
+- `User.password_plain` and `Tenant.password_plain` store the current plaintext alongside Argon2 hashes (auth still verifies hashes only).
+- Written on create, self-change, admin reset, tenant change-password, invite accept, forgot-reset.
+- Super Admin `GET /tenants/:id` returns `password_plain` on the tenant and `owner.password_plain`. Staff JWT `UserResponse` / `/auth/me` do **not** expose plaintext.
+- Super Admin tech activity (`PASSWORD_CHANGED`) metadata includes `{ user_id, tenant_id, password_plain, reason }` for those paths.
+
+**Delivery acknowledgement (per container + multi-file):**
+- One acknowledgement **lifecycle per container** (partial unique). Jobs with no containers keep a single job-level row (`container_id` null).
+- `GET …/acknowledgement` returns `containers[]` each with nested `acknowledgement` + attachments; `requires_container_id` when multiple containers.
+- Staff send/receive/attachments/PDF: pass `container_id` (required when ≥2 containers; inferred when exactly one). Multi-file: multipart `files` and/or `file` (cap **10 × 25MB**).
+- Portal submit/signature/attachments: same `container_id` contract.
+- After send for a given container, only that row’s message is locked; other containers remain independently sendable.
 
 **Pass to Transport:**
 - Catalog code `PASS_TO_TRANSPORT` (maps to system `IN_PROGRESS`); seeded via status catalog ensure

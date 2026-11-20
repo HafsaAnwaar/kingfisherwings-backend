@@ -251,7 +251,10 @@ export class PortalShipmentsController {
     schema: {
       type: "object",
       required: ["file"],
-      properties: { file: { type: "string", format: "binary" } },
+      properties: {
+        file: { type: "string", format: "binary" },
+        container_id: { type: "string", format: "uuid" },
+      },
     },
   })
   @UseInterceptors(
@@ -262,6 +265,8 @@ export class PortalShipmentsController {
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
+    @Query("container_id") containerId?: string,
+    @Body("container_id") bodyContainerId?: string,
   ) {
     const jobId = await this.requireJobId(user, id);
     return this.acknowledgement.uploadSignature(
@@ -269,19 +274,25 @@ export class PortalShipmentsController {
       jobId,
       file,
       user.id,
+      containerId ?? bodyContainerId,
     );
   }
 
   @Get(":id/acknowledgement/attachments")
-  @ApiOperation({ summary: "List delivery acknowledgement attachments" })
+  @ApiOperation({
+    summary:
+      "List delivery acknowledgement attachments (container_id when job has containers)",
+  })
   async listAcknowledgementAttachments(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("container_id") containerId?: string,
   ) {
     const jobId = await this.requireJobId(user, id);
     const result = await this.acknowledgement.listAttachments(
       user.tenantId,
       jobId,
+      containerId,
     );
     return {
       ...result,
@@ -322,11 +333,12 @@ export class PortalShipmentsController {
   )
   @ApiOperation({
     summary:
-      "Upload delivery acknowledgement attachment(s) — multipart `files` (multi) or `file` (single)",
+      "Upload delivery acknowledgement attachment(s) — multipart `files` (multi) or `file` (single); container_id when job has containers",
   })
   async uploadAcknowledgementAttachment(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("container_id") containerId?: string,
     @UploadedFiles()
     uploaded?: {
       file?: Express.Multer.File[];
@@ -341,6 +353,7 @@ export class PortalShipmentsController {
       jobId,
       [...(single ? [single] : []), ...multi],
       user.id,
+      containerId,
     );
     const withPaths = result.attachments.map((r) => ({
       ...r,

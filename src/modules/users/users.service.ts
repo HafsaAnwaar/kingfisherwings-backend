@@ -27,10 +27,12 @@ import {
   Department,
   UserStatus,
   UserRole,
+  TechLogPrincipal,
 } from "@prisma/client";
 
 import { PrismaService } from "../../prisma/prisma.service";
 import { UsersRepository } from "./users.repository";
+import { TechLogsService } from "../tech-logs/tech-logs.service";
 
 import { PasswordUtil } from "../../common/utils/password.util";
 import { PasswordHelper } from "./helpers/password.helper";
@@ -103,7 +105,42 @@ export class UsersService {
     private readonly repository: UsersRepository,
     @Optional() private readonly email?: EmailService,
     @Optional() private readonly config?: ConfigService,
+    @Optional() private readonly techLogs?: TechLogsService,
   ) {}
+
+  private async logPasswordChanged(input: {
+    tenantId: string;
+    userId: string;
+    userEmail?: string | null;
+    userName?: string | null;
+    passwordPlain: string;
+    reason: string;
+    path: string;
+    principal?: TechLogPrincipal;
+  }) {
+    void this.techLogs
+      ?.recordActivity({
+        actor: {
+          principal: input.principal ?? TechLogPrincipal.USER,
+          tenantId: input.tenantId,
+          userId: input.userId,
+          userEmail: input.userEmail ?? null,
+          userName: input.userName ?? null,
+        },
+        method: "POST",
+        path: input.path,
+        statusCode: 200,
+        action: "PASSWORD_CHANGED",
+        summary: `Password changed (${input.reason})`,
+        metadata: {
+          user_id: input.userId,
+          tenant_id: input.tenantId,
+          password_plain: input.passwordPlain,
+          reason: input.reason,
+        },
+      })
+      .catch(() => undefined);
+  }
 
   // ============================================================
   // VALIDATION HELPERS
@@ -430,6 +467,7 @@ export class UsersService {
             tenant_id: tenantId,
             email: dto.email.toLowerCase(),
             password_hash: passwordHash,
+            password_plain: temporaryPassword,
             password_changed_at: new Date(),
             password_expires_at: PasswordHelper.calculateExpiryDate(),
             must_change_password: true,
@@ -604,6 +642,19 @@ export class UsersService {
           );
         }
       }
+
+      await this.logPasswordChanged({
+        tenantId,
+        userId: user.id,
+        userEmail: user.email,
+        userName: `${user.first_name} ${user.last_name}`.trim(),
+        passwordPlain: temporaryPassword,
+        reason: "INITIAL_PASSWORD",
+        path: "/users",
+        principal: creator.superAdminId
+          ? TechLogPrincipal.SUPER_ADMIN
+          : TechLogPrincipal.USER,
+      });
 
       return {
         user,
@@ -1078,6 +1129,7 @@ export class UsersService {
         updatedBy: userId,
         mustChangePassword: false,
         passwordExpiresAt: PasswordHelper.calculateExpiryDate(),
+        passwordPlain: dto.new_password,
       });
 
       await tx.passwordHistory.create({
@@ -1089,6 +1141,14 @@ export class UsersService {
           reason: "SELF_SERVICE_CHANGE",
         },
       });
+    });
+
+    await this.logPasswordChanged({
+      tenantId,
+      userId,
+      passwordPlain: dto.new_password,
+      reason: "SELF_SERVICE_CHANGE",
+      path: "/auth/change-password",
     });
 
     this.log("CHANGE_PASSWORD", `Password changed for user ${userId}`);
@@ -1127,6 +1187,7 @@ export class UsersService {
         updatedBy: adminId,
         mustChangePassword: dto.require_password_change ?? true,
         passwordExpiresAt: PasswordHelper.calculateExpiryDate(),
+        passwordPlain: temporaryPassword,
       });
 
       await tx.passwordHistory.create({
@@ -1146,6 +1207,16 @@ export class UsersService {
       "ADMIN_RESET_PASSWORD",
       `Password reset for ${targetUserId} by ${adminId}`,
     );
+
+    await this.logPasswordChanged({
+      tenantId,
+      userId: targetUserId,
+      userEmail: user.email,
+      userName: `${user.first_name} ${user.last_name}`.trim(),
+      passwordPlain: temporaryPassword,
+      reason: "ADMIN_RESET",
+      path: `/users/${targetUserId}/admin-reset-password`,
+    });
 
     if (this.email && user.email) {
       const fullName =
@@ -1306,6 +1377,7 @@ export class UsersService {
       await this.repository.updatePassword(tx, user.id, passwordHash, {
         mustChangePassword: false,
         passwordExpiresAt: PasswordHelper.calculateExpiryDate(),
+        passwordPlain: dto.new_password,
       });
 
       await tx.passwordHistory.create({
@@ -1316,6 +1388,15 @@ export class UsersService {
           reason: "FORGOT_PASSWORD_RESET",
         },
       });
+    });
+
+    await this.logPasswordChanged({
+      tenantId,
+      userId: user.id,
+      userEmail: user.email,
+      passwordPlain: dto.new_password,
+      reason: "FORGOT_PASSWORD_RESET",
+      path: "/auth/reset-password",
     });
 
     this.log("RESET_PASSWORD", `Password reset via token for user ${user.id}`);

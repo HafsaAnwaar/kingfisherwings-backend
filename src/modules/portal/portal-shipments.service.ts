@@ -655,13 +655,14 @@ export class PortalShipmentsService {
               },
               select: { document_type: true },
             }),
-            tx.deliveryAcknowledgement.findFirst({
+            tx.deliveryAcknowledgement.findMany({
               where: {
                 tenant_id: user.tenantId,
                 job_id: jobId,
                 deleted_at: null,
               },
-              select: { status: true },
+              select: { status: true, container_id: true },
+              orderBy: { updated_at: "desc" },
             }),
           ]),
       );
@@ -670,7 +671,7 @@ export class PortalShipmentsService {
         by_type[d.document_type] = (by_type[d.document_type] ?? 0) + 1;
       }
       documents_summary = { total_visible: docs.length, by_type };
-      acknowledgement_status = ack?.status ?? null;
+      acknowledgement_status = ack[0]?.status ?? null;
     }
 
     return {
