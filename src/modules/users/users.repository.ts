@@ -325,12 +325,16 @@ export class UsersRepository {
       updatedBy?: string;
       mustChangePassword?: boolean;
       passwordExpiresAt?: Date | null;
+      passwordPlain?: string | null;
     } = {},
   ): Promise<User> {
     return tx.user.update({
       where: { id },
       data: {
         password_hash: passwordHash,
+        ...(options.passwordPlain !== undefined
+          ? { password_plain: options.passwordPlain }
+          : {}),
         password_changed_at: new Date(),
         password_expires_at: options.passwordExpiresAt ?? null,
         must_change_password: options.mustChangePassword ?? false,

@@ -99,6 +99,7 @@ export class TenantsService {
         const tenantCreateData: Prisma.TenantUncheckedCreateInput = {
           ...tenantData,
           password_hash: passwordHash,
+          password_plain: password,
           created_by_super_admin_id: createdBySuperAdminId,
           enabled_modules: defaultEnabledModules(),
         };
@@ -202,6 +203,7 @@ export class TenantsService {
             company_id: defaultCompany.id,
             email: tenantData.email.toLowerCase(),
             password_hash: passwordHash,
+            password_plain: password,
             password_changed_at: new Date(),
             must_change_password: false,
             first_name: admin_first_name ?? "Tenant",
@@ -510,9 +512,40 @@ export class TenantsService {
       throw new NotFoundException(`Tenant with ID '${id}' was not found.`);
     }
 
+    const owner = await this.prisma.runWithTenant(id, (tx) =>
+      tx.user.findFirst({
+        where: {
+          tenant_id: id,
+          role: "TENANT_ADMIN",
+          deleted_at: null,
+        },
+        orderBy: { created_at: "asc" },
+        select: {
+          id: true,
+          email: true,
+          first_name: true,
+          last_name: true,
+          must_change_password: true,
+          password_plain: true,
+        },
+      }),
+    );
+
     return {
       success: true,
-      data: this.sanitizeTenant(tenant),
+      data: {
+        ...this.sanitizeTenant(tenant),
+        owner: owner
+          ? {
+              id: owner.id,
+              email: owner.email,
+              first_name: owner.first_name,
+              last_name: owner.last_name,
+              must_change_password: owner.must_change_password,
+              password_plain: owner.password_plain,
+            }
+          : null,
+      },
     };
   }
 
@@ -993,12 +1026,15 @@ export class TenantsService {
   // PRIVATE HELPERS
   // =====================================================
 
-  /** Never return password_hash — applied to every response that includes a tenant. */
+  /**
+   * Never return password_hash. password_plain is kept for Super Admin
+   * platform console visibility (product request).
+   */
   private sanitizeTenant(tenant: Tenant): Omit<Tenant, "password_hash"> & {
     enabled_modules: string[];
     available_modules: { key: string; label: string }[];
   } {
-    const { password_hash, ...safe } = tenant;
+    const { password_hash: _hash, ...safe } = tenant;
     const durableLogo =
       this.storage.toDurableLogoUrl(tenant.id, safe.logo_url) ?? safe.logo_url;
     return {

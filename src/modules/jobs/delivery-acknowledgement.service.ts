@@ -71,10 +71,109 @@ export class DeliveryAcknowledgementService {
     };
   }
 
+  private enrichAck(
+    jobId: string,
+    ack: {
+      status: DeliveryAcknowledgementStatus;
+      remarks: string | null;
+      acknowledged_at: Date | null;
+      template_snapshot: unknown;
+      attachments?: unknown[];
+      [key: string]: unknown;
+    } | null,
+  ) {
+    if (!ack) return null;
+    const customerMarked =
+      ack.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER ||
+      ack.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN;
+    const sentOrLater =
+      ack.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER ||
+      ack.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER ||
+      ack.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN ||
+      ack.status === DeliveryAcknowledgementStatus.SUBMITTED;
+    const fieldsLocked = Boolean(sentOrLater);
+    const canAttachProof =
+      ack.status !== DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN;
+    const hasProof = (ack.attachments?.length ?? 0) > 0;
+    const snapshot =
+      ack.template_snapshot &&
+      typeof ack.template_snapshot === "object" &&
+      !Array.isArray(ack.template_snapshot)
+        ? (ack.template_snapshot as Record<string, unknown>)
+        : null;
+    const adminMessage =
+      (typeof snapshot?.message === "string" ? snapshot.message : null) ||
+      ack.remarks ||
+      null;
+    return {
+      ...ack,
+      admin_message: adminMessage,
+      customer_marked_received: customerMarked,
+      customer_acknowledged_at: ack.acknowledged_at,
+      fields_locked: fieldsLocked,
+      can_edit_message: !fieldsLocked,
+      can_attach_proof: canAttachProof,
+      has_proof: hasProof,
+      can_resend_with_proof:
+        canAttachProof &&
+        ack.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER,
+      download_paths: (ack.attachments as { id: string }[] | undefined)?.map(
+        (a) => `/jobs/${jobId}/acknowledgement/attachments/${a.id}/download`,
+      ),
+    };
+  }
+
+  private async listJobContainers(tenantId: string, jobId: string) {
+    return this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.jobContainer.findMany({
+        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        orderBy: [{ line_no: "asc" }, { created_at: "asc" }],
+        select: {
+          id: true,
+          container_number: true,
+          container_kind: true,
+          line_no: true,
+          status: true,
+        },
+      }),
+    );
+  }
+
+  /**
+   * When the job has containers, container_id is required (or inferred if exactly one).
+   * When none, returns null for the job-level acknowledgement row.
+   */
+  private async resolveAckContainerId(
+    tenantId: string,
+    jobId: string,
+    containerId?: string | null,
+  ): Promise<string | null> {
+    const containers = await this.listJobContainers(tenantId, jobId);
+    if (containers.length === 0) {
+      if (containerId) {
+        throw new BadRequestException(
+          "This job has no containers; omit container_id for the job-level acknowledgement.",
+        );
+      }
+      return null;
+    }
+    if (containerId) {
+      if (!containers.some((c) => c.id === containerId)) {
+        throw new NotFoundException("Container not found on this job.");
+      }
+      return containerId;
+    }
+    if (containers.length === 1) return containers[0].id;
+    throw new BadRequestException(
+      "container_id is required when the job has multiple containers.",
+    );
+  }
+
   async getForJob(tenantId: string, jobId: string) {
     const job = await this.assertJob(tenantId, jobId);
-    const ack = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.deliveryAcknowledgement.findFirst({
+    const containers = await this.listJobContainers(tenantId, jobId);
+    const acks = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.deliveryAcknowledgement.findMany({
         where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
         include: {
           attachments: {
@@ -84,54 +183,56 @@ export class DeliveryAcknowledgementService {
         },
       }),
     );
-    const customerMarked =
-      ack?.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER ||
-      ack?.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN;
-    const sentOrLater =
-      ack?.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER ||
-      ack?.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER ||
-      ack?.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN ||
-      ack?.status === DeliveryAcknowledgementStatus.SUBMITTED;
-    const fieldsLocked = Boolean(sentOrLater);
-    const canAttachProof =
-      !!ack &&
-      ack.status !== DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN;
-    const hasProof = (ack?.attachments?.length ?? 0) > 0;
-    const snapshot =
-      ack?.template_snapshot &&
-      typeof ack.template_snapshot === "object" &&
-      !Array.isArray(ack.template_snapshot)
-        ? (ack.template_snapshot as Record<string, unknown>)
-        : null;
-    const adminMessage =
-      (typeof snapshot?.message === "string" ? snapshot.message : null) ||
-      ack?.remarks ||
-      null;
+    const byContainer = new Map(
+      acks
+        .filter((a) => a.container_id)
+        .map((a) => [a.container_id as string, a]),
+    );
+    const jobLevel = acks.find((a) => !a.container_id) ?? null;
+
+    const containerRows = containers.map((c) => ({
+      id: c.id,
+      container_number: c.container_number,
+      container_kind: c.container_kind,
+      line_no: c.line_no,
+      status: c.status,
+      acknowledgement: this.enrichAck(jobId, byContainer.get(c.id) ?? null),
+    }));
+
+    const primaryAck =
+      containers.length === 0
+        ? jobLevel
+        : containers.length === 1
+          ? (byContainer.get(containers[0].id) ?? null)
+          : null;
+
+    const enrichedPrimary = this.enrichAck(jobId, primaryAck);
+    const anyCustomerMarked = acks.some(
+      (a) =>
+        a.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER ||
+        a.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN,
+    );
 
     return {
       success: true,
       data: {
         job_id: jobId,
         job_number: job.job_number,
-        template: this.formalTemplate(job, adminMessage),
-        acknowledgement: ack
-          ? {
-              ...ack,
-              admin_message: adminMessage,
-              customer_marked_received: customerMarked,
-              customer_acknowledged_at: ack.acknowledged_at,
-            }
-          : null,
-        customer_marked_received: customerMarked,
-        /** After first send: message/container locked; proof may still be attached. */
-        fields_locked: fieldsLocked,
-        can_edit_message: !fieldsLocked,
-        can_edit_container: !fieldsLocked,
-        can_attach_proof: canAttachProof,
-        has_proof: hasProof,
-        can_resend_with_proof:
-          canAttachProof &&
-          ack?.status === DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER,
+        requires_container_id: containers.length > 1,
+        containers: containerRows,
+        template: this.formalTemplate(
+          job,
+          enrichedPrimary?.admin_message ?? null,
+        ),
+        /** Legacy single acknowledgement (job-level or sole container). */
+        acknowledgement: enrichedPrimary,
+        customer_marked_received: anyCustomerMarked,
+        fields_locked: enrichedPrimary?.fields_locked ?? false,
+        can_edit_message: enrichedPrimary?.can_edit_message ?? true,
+        can_edit_container: false,
+        can_attach_proof: enrichedPrimary?.can_attach_proof ?? true,
+        has_proof: enrichedPrimary?.has_proof ?? false,
+        can_resend_with_proof: enrichedPrimary?.can_resend_with_proof ?? false,
         path_hints: {
           send: `/jobs/${jobId}/acknowledgement/send`,
           submit: `/portal/shipments/{id}/acknowledgement`,
@@ -157,22 +258,18 @@ export class DeliveryAcknowledgementService {
   ) {
     const proofFiles = this.normalizeUploadFiles(file, files);
     const job = await this.assertJobFull(tenantId, jobId);
-    if (dto.container_id) {
-      const ctr = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.jobContainer.findFirst({
-          where: {
-            id: dto.container_id!,
-            job_id: jobId,
-            tenant_id: tenantId,
-            deleted_at: null,
-          },
-          select: { id: true },
-        }),
-      );
-      if (!ctr) throw new NotFoundException("Container not found on this job.");
-    }
+    const containerId = await this.resolveAckContainerId(
+      tenantId,
+      jobId,
+      dto.container_id,
+    );
 
-    const draft = await this.getOrCreateDraft(tenantId, jobId, actorId);
+    const draft = await this.getOrCreateDraft(
+      tenantId,
+      jobId,
+      containerId,
+      actorId,
+    );
     if (
       draft.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN ||
       draft.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER
@@ -192,12 +289,9 @@ export class DeliveryAcknowledgementService {
       const messageChanged =
         !!incomingMessage &&
         incomingMessage !== (draft.remarks?.trim() || null);
-      const containerChanged =
-        dto.container_id !== undefined &&
-        dto.container_id !== draft.container_id;
-      if (messageChanged || containerChanged) {
+      if (messageChanged) {
         throw new BadRequestException(
-          "Acknowledgement already sent. Message and container are locked — attach proof only (multipart file or POST …/attachments).",
+          "Acknowledgement already sent for this container. Message is locked — attach proof only (multipart file or POST …/attachments).",
         );
       }
       if (!proofFiles.length) {
@@ -210,6 +304,7 @@ export class DeliveryAcknowledgementService {
         jobId,
         proofFiles,
         actorId,
+        containerId,
       );
       await this.notifyAckSent(tenantId, jobId, job, true);
       return {
@@ -241,7 +336,7 @@ export class DeliveryAcknowledgementService {
         where: { id: draft.id },
         data: {
           status: DeliveryAcknowledgementStatus.SENT_TO_CUSTOMER,
-          container_id: dto.container_id ?? draft.container_id,
+          container_id: containerId,
           sent_at: new Date(),
           sent_by_user_id: actorId,
           remarks: message,
@@ -261,6 +356,7 @@ export class DeliveryAcknowledgementService {
           } as Prisma.InputJsonValue,
           metadata: {
             acknowledgement_id: row.id,
+            container_id: containerId,
             message: message.slice(0, 240),
             has_attachment: proofFiles.length > 0,
             attachment_count: proofFiles.length,
@@ -279,6 +375,7 @@ export class DeliveryAcknowledgementService {
         jobId,
         proofFiles,
         actorId,
+        containerId,
       );
       attachments = uploaded.attachments;
     }
@@ -329,8 +426,17 @@ export class DeliveryAcknowledgementService {
     }
   }
 
-  async listAttachments(tenantId: string, jobId: string) {
-    const ack = await this.getOrCreateDraft(tenantId, jobId);
+  async listAttachments(
+    tenantId: string,
+    jobId: string,
+    containerId?: string | null,
+  ) {
+    const resolved = await this.resolveAckContainerId(
+      tenantId,
+      jobId,
+      containerId,
+    );
+    const ack = await this.getOrCreateDraft(tenantId, jobId, resolved);
     const rows = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.deliveryAcknowledgementAttachment.findMany({
         where: {
@@ -345,6 +451,7 @@ export class DeliveryAcknowledgementService {
       success: true,
       data: rows.map((r) => ({
         ...r,
+        container_id: resolved,
         download_path: `/jobs/${jobId}/acknowledgement/attachments/${r.id}/download`,
       })),
     };
@@ -375,12 +482,14 @@ export class DeliveryAcknowledgementService {
     jobId: string,
     file: Express.Multer.File,
     actorId: string,
+    containerId?: string | null,
   ) {
     const result = await this.uploadAttachments(
       tenantId,
       jobId,
       [file],
       actorId,
+      containerId,
     );
     return {
       success: true,
@@ -393,6 +502,7 @@ export class DeliveryAcknowledgementService {
     jobId: string,
     files: Express.Multer.File[],
     actorId: string,
+    containerId?: string | null,
   ) {
     const list = this.normalizeUploadFiles(undefined, files);
     if (!list.length) {
@@ -400,7 +510,17 @@ export class DeliveryAcknowledgementService {
         "File is required (multipart field name: files or file).",
       );
     }
-    const ack = await this.getOrCreateDraft(tenantId, jobId, actorId);
+    const resolved = await this.resolveAckContainerId(
+      tenantId,
+      jobId,
+      containerId,
+    );
+    const ack = await this.getOrCreateDraft(
+      tenantId,
+      jobId,
+      resolved,
+      actorId,
+    );
     if (ack.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN) {
       throw new BadRequestException(
         "Acknowledgement already received by admin; attachments are locked.",
@@ -452,24 +572,21 @@ export class DeliveryAcknowledgementService {
     attachmentId: string,
     res: Response,
   ) {
-    const ack = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.deliveryAcknowledgement.findFirst({
-        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
-        select: { id: true },
-      }),
-    );
-    if (!ack) throw new NotFoundException("No acknowledgement found.");
-
-    const row = await this.prisma.runWithTenant(tenantId, (tx) =>
-      tx.deliveryAcknowledgementAttachment.findFirst({
+    const row = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const attachment = await tx.deliveryAcknowledgementAttachment.findFirst({
         where: {
           id: attachmentId,
           tenant_id: tenantId,
-          acknowledgement_id: ack.id,
           deleted_at: null,
+          acknowledgement: {
+            job_id: jobId,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
         },
-      }),
-    );
+      });
+      return attachment;
+    });
     if (!row) throw new NotFoundException("Attachment not found.");
 
     const file = await this.storage.readByStoredFile(tenantId, {
@@ -491,17 +608,34 @@ export class DeliveryAcknowledgementService {
     res.send(file.buffer);
   }
 
-  async getOrCreateDraft(tenantId: string, jobId: string, actorId?: string) {
+  async getOrCreateDraft(
+    tenantId: string,
+    jobId: string,
+    containerId?: string | null,
+    actorId?: string,
+  ) {
     const job = await this.assertJob(tenantId, jobId);
+    const resolved =
+      containerId === undefined
+        ? await this.resolveAckContainerId(tenantId, jobId, undefined)
+        : containerId;
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const existing = await tx.deliveryAcknowledgement.findFirst({
-        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          ...(resolved
+            ? { container_id: resolved }
+            : { container_id: null }),
+        },
       });
       if (existing) return existing;
       return tx.deliveryAcknowledgement.create({
         data: {
           tenant_id: tenantId,
           job_id: jobId,
+          container_id: resolved,
           status: DeliveryAcknowledgementStatus.DRAFT,
           template_snapshot: this.formalTemplate(job) as never,
           created_by: actorId,
@@ -518,7 +652,17 @@ export class DeliveryAcknowledgementService {
     opts: { userId: string; partyId?: string | null },
   ) {
     const job = await this.assertJob(tenantId, jobId);
-    const draft = await this.getOrCreateDraft(tenantId, jobId, opts.userId);
+    const containerId = await this.resolveAckContainerId(
+      tenantId,
+      jobId,
+      dto.container_id,
+    );
+    const draft = await this.getOrCreateDraft(
+      tenantId,
+      jobId,
+      containerId,
+      opts.userId,
+    );
     if (
       draft.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN ||
       draft.status === DeliveryAcknowledgementStatus.ACKNOWLEDGED_BY_CUSTOMER
@@ -532,21 +676,6 @@ export class DeliveryAcknowledgementService {
       );
     }
 
-    if (dto.container_id) {
-      const ctr = await this.prisma.runWithTenant(tenantId, (tx) =>
-        tx.jobContainer.findFirst({
-          where: {
-            id: dto.container_id!,
-            job_id: jobId,
-            tenant_id: tenantId,
-            deleted_at: null,
-          },
-          select: { id: true },
-        }),
-      );
-      if (!ctr) throw new NotFoundException("Container not found on this job.");
-    }
-
     const updated = await this.prisma.runWithTenant(tenantId, async (tx) => {
       const row = await tx.deliveryAcknowledgement.update({
         where: { id: draft.id },
@@ -557,7 +686,7 @@ export class DeliveryAcknowledgementService {
           receiver_title: dto.receiver_title?.trim() ?? null,
           goods_condition: dto.goods_condition?.trim() ?? null,
           remarks: dto.remarks?.trim() ?? draft.remarks,
-          container_id: dto.container_id ?? draft.container_id,
+          container_id: containerId,
           submitted_by_user_id: opts.userId,
           submitted_by_party_id: opts.partyId ?? null,
           updated_by: opts.userId,
@@ -604,6 +733,7 @@ export class DeliveryAcknowledgementService {
     jobId: string,
     file: Express.Multer.File,
     actorId: string,
+    containerId?: string | null,
   ) {
     await this.assertJob(tenantId, jobId);
     if (!file?.buffer?.length) {
@@ -611,7 +741,17 @@ export class DeliveryAcknowledgementService {
         "File is required (multipart field name: file).",
       );
     }
-    const draft = await this.getOrCreateDraft(tenantId, jobId, actorId);
+    const resolved = await this.resolveAckContainerId(
+      tenantId,
+      jobId,
+      containerId,
+    );
+    const draft = await this.getOrCreateDraft(
+      tenantId,
+      jobId,
+      resolved,
+      actorId,
+    );
     if (draft.status === DeliveryAcknowledgementStatus.RECEIVED_BY_ADMIN) {
       throw new BadRequestException(
         "Acknowledgement already received by admin.",
@@ -643,9 +783,21 @@ export class DeliveryAcknowledgementService {
     actorId: string,
   ) {
     await this.assertJob(tenantId, jobId);
+    const containerId = await this.resolveAckContainerId(
+      tenantId,
+      jobId,
+      dto.container_id,
+    );
     const ack = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.deliveryAcknowledgement.findFirst({
-        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          ...(containerId
+            ? { container_id: containerId }
+            : { container_id: null }),
+        },
       }),
     );
     if (!ack) {
@@ -714,11 +866,26 @@ export class DeliveryAcknowledgementService {
     };
   }
 
-  async generateFormalPdf(tenantId: string, jobId: string, actorId: string) {
+  async generateFormalPdf(
+    tenantId: string,
+    jobId: string,
+    actorId: string,
+    containerId?: string | null,
+  ) {
     const job = await this.assertJob(tenantId, jobId);
+    const resolved = await this.resolveAckContainerId(
+      tenantId,
+      jobId,
+      containerId,
+    );
     const ack = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.deliveryAcknowledgement.findFirst({
-        where: { tenant_id: tenantId, job_id: jobId, deleted_at: null },
+        where: {
+          tenant_id: tenantId,
+          job_id: jobId,
+          deleted_at: null,
+          ...(resolved ? { container_id: resolved } : { container_id: null }),
+        },
       }),
     );
     if (!ack) {

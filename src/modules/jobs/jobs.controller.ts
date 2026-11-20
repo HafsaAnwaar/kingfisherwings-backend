@@ -32,6 +32,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiProduces,
+  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import type { Response } from "express";
@@ -4808,12 +4809,17 @@ export class JobsController {
 
   @Get(":id/acknowledgement/attachments")
   @RequirePermissions(JOBS_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: "List delivery acknowledgement attachments" })
+  @ApiOperation({
+    summary:
+      "List delivery acknowledgement attachments (pass container_id when job has containers)",
+  })
+  @ApiQuery({ name: "container_id", required: false })
   listAcknowledgementAttachments(
     @CurrentUser("tenantId") tenantId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("container_id") containerId?: string,
   ) {
-    return this.acknowledgement.listAttachments(tenantId, id);
+    return this.acknowledgement.listAttachments(tenantId, id, containerId);
   }
 
   @Post(":id/acknowledgement/attachments")
@@ -4847,12 +4853,14 @@ export class JobsController {
   )
   @ApiOperation({
     summary:
-      "Upload delivery acknowledgement attachment(s) — multipart `files` (multi) or `file` (single)",
+      "Upload delivery acknowledgement attachment(s) — multipart `files` (multi) or `file` (single); pass container_id when job has containers",
   })
+  @ApiQuery({ name: "container_id", required: false })
   async uploadAcknowledgementAttachment(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("container_id") containerId?: string,
     @UploadedFiles()
     uploaded?: {
       file?: Express.Multer.File[];
@@ -4866,6 +4874,7 @@ export class JobsController {
       id,
       [...(single ? [single] : []), ...multi],
       actorId,
+      containerId,
     );
     return {
       success: true,
@@ -4935,7 +4944,7 @@ export class JobsController {
   )
   @ApiOperation({
     summary:
-      "Admin sends delivery acknowledgement (optional file/files). After send, only proof attach/resend is allowed.",
+      "Admin sends delivery acknowledgement per container (optional file/files). container_id required when job has multiple containers. After send for that container, only proof attach/resend is allowed on that row.",
   })
   sendAcknowledgement(
     @CurrentUser("tenantId") tenantId: string,
@@ -4978,12 +4987,19 @@ export class JobsController {
     summary:
       "Generate formal acknowledgement PDF as JobDocument PROOF_OF_DELIVERY (visible to customer)",
   })
+  @ApiQuery({ name: "container_id", required: false })
   generateAcknowledgementPdf(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("container_id") containerId?: string,
   ) {
-    return this.acknowledgement.generateFormalPdf(tenantId, id, actorId);
+    return this.acknowledgement.generateFormalPdf(
+      tenantId,
+      id,
+      actorId,
+      containerId,
+    );
   }
 
   @Get(":id/pods")

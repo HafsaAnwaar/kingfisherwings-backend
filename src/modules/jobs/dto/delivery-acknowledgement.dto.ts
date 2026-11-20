@@ -11,7 +11,7 @@ export class SendDeliveryAcknowledgementDto {
   @ApiPropertyOptional({
     format: "uuid",
     description:
-      "JobContainer to acknowledge when the job has multiple containers. Locked after first send.",
+      "JobContainer for this acknowledgement. Required when the job has containers (one ack lifecycle per container).",
   })
   @IsOptional()
   @IsUUID()
@@ -90,6 +90,15 @@ export class SubmitDeliveryAcknowledgementDto {
 }
 
 export class ReceiveDeliveryAcknowledgementDto {
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Container acknowledgement to receive. Required when the job has containers.",
+  })
+  @IsOptional()
+  @IsUUID()
+  container_id?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

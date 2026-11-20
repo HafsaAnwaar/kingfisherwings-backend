@@ -283,9 +283,10 @@ export class AuthController {
   })
   changeTenantPassword(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
     @Body() dto: TenantChangePasswordDto,
   ) {
-    return this.authService.changeTenantPassword(tenantId, dto);
+    return this.authService.changeTenantPassword(tenantId, dto, actorId);
   }
 
   // =====================================================

@@ -12,7 +12,14 @@ import { randomUUID, randomBytes } from "crypto";
 import * as speakeasy from "speakeasy";
 import * as QRCode from "qrcode";
 
-import { Prisma, TenantStatus, UserStatus, User, Tenant } from "@prisma/client";
+import {
+  Prisma,
+  TenantStatus,
+  UserStatus,
+  User,
+  Tenant,
+  TechLogPrincipal,
+} from "@prisma/client";
 
 import { PrismaService } from "../../prisma/prisma.service";
 import { PasswordUtil } from "../../common/utils/password.util";
@@ -62,6 +69,7 @@ import {
   hashInviteToken,
 } from "../../common/utils/invite-token.util";
 import { StaffActivityService } from "../notifications/staff-activity/staff-activity.service";
+import { TechLogsService } from "../tech-logs/tech-logs.service";
 import { staffFrontendUrl } from "../payments/utils/frontend-url.util";
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -78,6 +86,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly sessionCache: SessionCacheService,
     @Optional() private readonly staffActivity?: StaffActivityService,
+    @Optional() private readonly techLogs?: TechLogsService,
   ) {}
 
   // =====================================================
@@ -887,7 +896,11 @@ export class AuthService {
   // owner-level access to the whole tenant.
   // =====================================================
 
-  async changeTenantPassword(tenantId: string, dto: TenantChangePasswordDto) {
+  async changeTenantPassword(
+    tenantId: string,
+    dto: TenantChangePasswordDto,
+    actorUserId?: string,
+  ) {
     const tenant = await this.prisma.tenant.findFirst({
       where: { id: tenantId, deleted_at: null },
     });
@@ -905,16 +918,91 @@ export class AuthService {
       throw new UnauthorizedException("Current tenant password is incorrect.");
     }
 
+    PasswordHelper.assertStrength(dto.new_password);
     const newPasswordHash = await PasswordUtil.hash(dto.new_password);
 
-    await this.prisma.tenant.update({
-      where: { id: tenantId },
-      data: { password_hash: newPasswordHash },
+    const owner = await this.prisma.runWithTenant(tenantId, async (tx) => {
+      await tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          password_hash: newPasswordHash,
+          password_plain: dto.new_password,
+        },
+      });
+
+      const ownerUser = await tx.user.findFirst({
+        where: {
+          tenant_id: tenantId,
+          role: OWNER_ROLE_CODE,
+          deleted_at: null,
+        },
+        orderBy: { created_at: "asc" },
+      });
+
+      if (ownerUser) {
+        await tx.user.update({
+          where: { id: ownerUser.id },
+          data: {
+            password_hash: newPasswordHash,
+            password_plain: dto.new_password,
+            must_change_password: false,
+            password_changed_at: new Date(),
+            password_expires_at: PasswordHelper.calculateExpiryDate(),
+            updated_by: actorUserId ?? ownerUser.id,
+          },
+        });
+
+        await tx.passwordHistory.create({
+          data: {
+            tenant_id: tenantId,
+            user_id: ownerUser.id,
+            password_hash: newPasswordHash,
+            changed_by: actorUserId ?? ownerUser.id,
+            reason: "TENANT_CREDENTIAL_CHANGE",
+          },
+        });
+      }
+
+      return ownerUser;
     });
+
+    if (owner) {
+      await this.prisma.session.updateMany({
+        where: { user_id: owner.id, is_active: true },
+        data: {
+          is_active: false,
+          revoked_at: new Date(),
+          revoked_reason: "PASSWORD_CHANGED",
+        },
+      });
+
+      void this.techLogs
+        ?.recordActivity({
+          actor: {
+            principal: TechLogPrincipal.USER,
+            tenantId,
+            userId: owner.id,
+            userEmail: owner.email,
+            userName: `${owner.first_name} ${owner.last_name}`.trim(),
+          },
+          method: "POST",
+          path: "/auth/tenant/change-password",
+          statusCode: 200,
+          action: "PASSWORD_CHANGED",
+          summary: "Tenant login password changed; owner must_change_password cleared",
+          metadata: {
+            user_id: owner.id,
+            tenant_id: tenantId,
+            password_plain: dto.new_password,
+            reason: "TENANT_CREDENTIAL_CHANGE",
+          },
+        })
+        .catch(() => undefined);
+    }
 
     return {
       success: true,
-      message: "Tenant password changed successfully.",
+      message: "Tenant password changed successfully. Please log in again.",
     };
   }
 
@@ -1581,6 +1669,7 @@ export class AuthService {
         where: { id: user.id },
         data: {
           password_hash: passwordHash,
+          password_plain: dto.password,
           password_changed_at: new Date(),
           password_expires_at: PasswordHelper.calculateExpiryDate(),
           must_change_password: false,
@@ -1593,6 +1682,29 @@ export class AuthService {
         },
       }),
     );
+
+    void this.techLogs
+      ?.recordActivity({
+        actor: {
+          principal: TechLogPrincipal.USER,
+          tenantId: user.tenant_id,
+          userId: user.id,
+          userEmail: user.email,
+          userName: `${updated.first_name} ${updated.last_name}`.trim(),
+        },
+        method: "POST",
+        path: "/auth/accept-invite",
+        statusCode: 200,
+        action: "PASSWORD_CHANGED",
+        summary: "Invite accepted — password set",
+        metadata: {
+          user_id: user.id,
+          tenant_id: user.tenant_id,
+          password_plain: dto.password,
+          reason: "ACCEPT_INVITE",
+        },
+      })
+      .catch(() => undefined);
 
     return {
       success: true,
