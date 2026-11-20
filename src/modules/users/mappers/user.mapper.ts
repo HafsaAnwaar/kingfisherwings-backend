@@ -58,6 +58,11 @@ export class UserMapper {
     response.can_see_cost = user.can_see_cost;
     response.can_see_gp = user.can_see_gp;
     response.can_see_invoices = user.can_see_invoices;
+    response.can_see_sale_invoices = !!(user as { can_see_sale_invoices?: boolean })
+      .can_see_sale_invoices;
+    response.can_see_purchase_invoices = !!(
+      user as { can_see_purchase_invoices?: boolean }
+    ).can_see_purchase_invoices;
     response.can_see_payments = user.can_see_payments;
     response.can_see_bank_balances = user.can_see_bank_balances;
     response.can_see_ar_ap = user.can_see_ar_ap;

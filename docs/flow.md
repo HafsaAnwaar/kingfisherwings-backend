@@ -912,6 +912,22 @@ Credit/debit note create requires `description` (stored as `Invoice.remarks`; `r
 - Detail `actions`: `can_view_costing`, `can_view_sale`, `can_view_cost` (Tenant Admin / sees-all → both true)
 - Write gates on `PATCH …/charges/:id/sale|cost` and sale/purchase invoice-from-charges
 - Staff user create/update/GET already expose these flags for FreightNest permission UI
+- Orthogonal to invoice list flags below (costing generate stays on `can_see_sales` / `can_see_cost`)
+
+**Staff invoice sale/purchase flags (`User.can_see_sale_invoices` / `User.can_see_purchase_invoices`):**
+- Independent of costing `can_see_sales` / `can_see_cost`. Legacy `can_see_invoices` is not the gate (column retained; do not rely on it for list/get).
+- FreightNest staff user form: toggle these two independently on create/update (same pattern as costing flags).
+- Sale side → `CUSTOMER_INVOICE` + `DEBIT_NOTE`; purchase side → `PURCHASE_INVOICE` + `CREDIT_NOTE`.
+- Neither flag (and not Tenant Admin / sees-all) → empty invoice lists / 403 on get-mutate.
+- Allowed side → view + edit + post (+ create/line writes) on that side, still requiring classic `invoices.view|update|post|create`.
+- Job scope for non-admin = same as `GET /jobs` ops visibility: job_type grants ∪ org `department_id` ∪ `ops_user_id` (manual/job-less invoices stay visible when side allowed). Tenant Admin / sees-all: all types, all jobs.
+- Routes: `/invoices` + `/debit-notes` (sale); `/purchase-invoices` + `/credit-notes` (purchase). Controllers pass `userId` / `role` / `permissions`.
+
+**Delivery acknowledgement multi-file upload:**
+- Schema already 1:N (`DeliveryAcknowledgementAttachment`). Cap: **10 files × 25MB** per request.
+- Staff: `POST /jobs/:id/acknowledgement/attachments` and `POST /jobs/:id/acknowledgement/send` accept multipart field `files` (array) and/or legacy single `file`.
+- Portal: `POST /portal/shipments/:id/acknowledgement/attachments` — same `files` / `file` contract.
+- Response includes `attachments[]` (and single `data` when exactly one file for backward compatibility).
 
 **Pass to Transport:**
 - Catalog code `PASS_TO_TRANSPORT` (maps to system `IN_PROGRESS`); seeded via status catalog ensure

@@ -58,6 +58,8 @@ export class UserResponse {
   @ApiProperty() can_see_cost!: boolean;
   @ApiProperty() can_see_gp!: boolean;
   @ApiProperty() can_see_invoices!: boolean;
+  @ApiProperty() can_see_sale_invoices!: boolean;
+  @ApiProperty() can_see_purchase_invoices!: boolean;
   @ApiProperty() can_see_payments!: boolean;
   @ApiProperty() can_see_bank_balances!: boolean;
   @ApiProperty() can_see_ar_ap!: boolean;

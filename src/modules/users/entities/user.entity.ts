@@ -71,6 +71,12 @@ export class UserEntity {
   can_see_invoices!: boolean;
 
   @Expose()
+  can_see_sale_invoices!: boolean;
+
+  @Expose()
+  can_see_purchase_invoices!: boolean;
+
+  @Expose()
   can_see_payments!: boolean;
 
   @Expose()

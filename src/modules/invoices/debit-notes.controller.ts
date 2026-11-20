@@ -52,9 +52,16 @@ export class DebitNotesController {
   @ApiOperation({ summary: "List debit notes" })
   findAll(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Query() query: InvoiceQueryDto,
   ) {
-    return this.service.findAll(tenantId, query, "DEBIT_NOTE");
+    return this.service.findAll(tenantId, query, "DEBIT_NOTE", permissions, {
+      userId,
+      role,
+      permissions,
+    });
   }
 
   @Get(":id")
@@ -64,9 +71,16 @@ export class DebitNotesController {
   })
   async findOne(
     @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.service.assertNoteType(tenantId, id, "DEBIT_NOTE");
+    return this.service.assertNoteType(tenantId, id, "DEBIT_NOTE", permissions, {
+      userId,
+      role,
+      permissions,
+    });
   }
 
   @Post()
@@ -78,9 +92,15 @@ export class DebitNotesController {
   create(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Body() dto: CreateDebitNoteDto,
   ) {
-    return this.service.createDebitNote(tenantId, dto, actorId);
+    return this.service.createDebitNote(tenantId, dto, actorId, {
+      userId: actorId,
+      role,
+      permissions,
+    });
   }
 
   @Patch(":id")
@@ -89,11 +109,20 @@ export class DebitNotesController {
   async update(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateInvoiceDto,
   ) {
-    await this.service.assertNoteType(tenantId, id, "DEBIT_NOTE");
-    return this.service.update(tenantId, id, dto, actorId);
+    const actor = { userId: actorId, role, permissions };
+    await this.service.assertNoteType(
+      tenantId,
+      id,
+      "DEBIT_NOTE",
+      permissions,
+      actor,
+    );
+    return this.service.update(tenantId, id, dto, actorId, actor);
   }
 
   @Post(":id/lines")
@@ -102,11 +131,20 @@ export class DebitNotesController {
   async addLine(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: CreateInvoiceLineDto,
   ) {
-    await this.service.assertNoteType(tenantId, id, "DEBIT_NOTE");
-    return this.service.addLine(tenantId, id, dto, actorId);
+    const actor = { userId: actorId, role, permissions };
+    await this.service.assertNoteType(
+      tenantId,
+      id,
+      "DEBIT_NOTE",
+      permissions,
+      actor,
+    );
+    return this.service.addLine(tenantId, id, dto, actorId, actor);
   }
 
   @Patch(":id/lines/:lineId")
@@ -115,12 +153,21 @@ export class DebitNotesController {
   async updateLine(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Param("lineId", ParseUUIDPipe) lineId: string,
     @Body() dto: UpdateInvoiceLineDto,
   ) {
-    await this.service.assertNoteType(tenantId, id, "DEBIT_NOTE");
-    return this.service.updateLine(tenantId, id, lineId, dto, actorId);
+    const actor = { userId: actorId, role, permissions };
+    await this.service.assertNoteType(
+      tenantId,
+      id,
+      "DEBIT_NOTE",
+      permissions,
+      actor,
+    );
+    return this.service.updateLine(tenantId, id, lineId, dto, actorId, actor);
   }
 
   @Delete(":id/lines/:lineId")
@@ -130,11 +177,20 @@ export class DebitNotesController {
   async removeLine(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Param("lineId", ParseUUIDPipe) lineId: string,
   ) {
-    await this.service.assertNoteType(tenantId, id, "DEBIT_NOTE");
-    await this.service.removeLine(tenantId, id, lineId, actorId);
+    const actor = { userId: actorId, role, permissions };
+    await this.service.assertNoteType(
+      tenantId,
+      id,
+      "DEBIT_NOTE",
+      permissions,
+      actor,
+    );
+    await this.service.removeLine(tenantId, id, lineId, actorId, actor);
   }
 
   @Post(":id/post")
@@ -143,10 +199,19 @@ export class DebitNotesController {
   async post(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    await this.service.assertNoteType(tenantId, id, "DEBIT_NOTE");
-    return this.service.post(tenantId, id, actorId);
+    const actor = { userId: actorId, role, permissions };
+    await this.service.assertNoteType(
+      tenantId,
+      id,
+      "DEBIT_NOTE",
+      permissions,
+      actor,
+    );
+    return this.service.post(tenantId, id, actorId, actor);
   }
 
   @Post(":id/pdf")
@@ -169,17 +234,27 @@ export class DebitNotesController {
   async generatePdf(
     @CurrentUser("tenantId") tenantId: string,
     @CurrentUser("id") actorId: string,
+    @CurrentUser("role") role: string,
+    @CurrentUser("permissions") permissions: string[],
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: StoreInvoicePdfDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    await this.service.assertNoteType(tenantId, id, "DEBIT_NOTE");
+    const actor = { userId: actorId, role, permissions };
+    await this.service.assertNoteType(
+      tenantId,
+      id,
+      "DEBIT_NOTE",
+      permissions,
+      actor,
+    );
     const result = await this.service.generatePdf(
       tenantId,
       id,
       actorId,
       file,
       dto,
+      actor,
     );
     return {
       file_url: result.fileUrl,

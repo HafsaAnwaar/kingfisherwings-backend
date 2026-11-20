@@ -147,6 +147,20 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsBoolean()
   can_see_invoices?: boolean;
 
+  @ApiPropertyOptional({
+    description: "CUSTOMER_INVOICE + DEBIT_NOTE list/get/edit/post",
+  })
+  @IsOptional()
+  @IsBoolean()
+  can_see_sale_invoices?: boolean;
+
+  @ApiPropertyOptional({
+    description: "PURCHASE_INVOICE + CREDIT_NOTE list/get/edit/post",
+  })
+  @IsOptional()
+  @IsBoolean()
+  can_see_purchase_invoices?: boolean;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()

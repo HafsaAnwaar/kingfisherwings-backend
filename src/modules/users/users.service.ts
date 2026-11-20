@@ -454,6 +454,8 @@ export class UsersService {
             can_see_cost: dto.can_see_cost ?? false,
             can_see_gp: dto.can_see_gp ?? false,
             can_see_invoices: dto.can_see_invoices ?? false,
+            can_see_sale_invoices: dto.can_see_sale_invoices ?? false,
+            can_see_purchase_invoices: dto.can_see_purchase_invoices ?? false,
             can_see_payments: dto.can_see_payments ?? false,
             can_see_bank_balances: dto.can_see_bank_balances ?? false,
             can_see_ar_ap: dto.can_see_ar_ap ?? false,

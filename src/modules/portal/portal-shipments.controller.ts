@@ -10,10 +10,14 @@ import {
   Res,
   StreamableFile,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
   ApiBody,
@@ -293,32 +297,59 @@ export class PortalShipmentsController {
   @ApiBody({
     schema: {
       type: "object",
-      required: ["file"],
-      properties: { file: { type: "string", format: "binary" } },
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
+          description: "Single file (backward compatible)",
+        },
+        files: {
+          type: "array",
+          items: { type: "string", format: "binary" },
+          description: "Up to 10 files × 25MB each",
+        },
+      },
     },
   })
   @UseInterceptors(
-    FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }),
+    FileFieldsInterceptor(
+      [
+        { name: "file", maxCount: 1 },
+        { name: "files", maxCount: 10 },
+      ],
+      { limits: { fileSize: 25 * 1024 * 1024 } },
+    ),
   )
-  @ApiOperation({ summary: "Upload a delivery acknowledgement attachment" })
+  @ApiOperation({
+    summary:
+      "Upload delivery acknowledgement attachment(s) — multipart `files` (multi) or `file` (single)",
+  })
   async uploadAcknowledgementAttachment(
     @CurrentPortal() user: CurrentPortalUser,
     @Param("id", ParseUUIDPipe) id: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFiles()
+    uploaded?: {
+      file?: Express.Multer.File[];
+      files?: Express.Multer.File[];
+    },
   ) {
     const jobId = await this.requireJobId(user, id);
-    const result = await this.acknowledgement.uploadAttachment(
+    const single = uploaded?.file?.[0];
+    const multi = uploaded?.files ?? [];
+    const result = await this.acknowledgement.uploadAttachments(
       user.tenantId,
       jobId,
-      file,
+      [...(single ? [single] : []), ...multi],
       user.id,
     );
+    const withPaths = result.attachments.map((r) => ({
+      ...r,
+      download_path: `/portal/shipments/${id}/acknowledgement/attachments/${r.id}/download`,
+    }));
     return {
-      ...result,
-      data: {
-        ...result.data,
-        download_path: `/portal/shipments/${id}/acknowledgement/attachments/${result.data.id}/download`,
-      },
+      success: true,
+      data: withPaths.length === 1 ? withPaths[0] : undefined,
+      attachments: withPaths,
     };
   }
 

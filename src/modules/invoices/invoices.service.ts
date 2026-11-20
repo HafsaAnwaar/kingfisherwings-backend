@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -33,8 +34,22 @@ import { resolveClientPdfBuffer } from "../../common/utils/client-pdf.util";
 import { renderBrandedEmail } from "../../shared/email/branded-email.template";
 import {
   assertJobTypeAccess,
-  invoiceJobTypeScope,
+  canAccessJobForInvoiceActor,
+  invoiceOpsVisibilityScope,
+  seesAllJobDepartments,
 } from "../../common/utils/job-type-access.util";
+import {
+  assertInvoiceSideAccess,
+  hasAnyInvoiceSide,
+  InvoiceSideFlags,
+  invoiceTypesAllowed,
+} from "./utils/invoice-side-access.util";
+
+export type InvoiceActorOpts = {
+  userId?: string | null;
+  role?: string | null;
+  permissions?: string[] | null;
+};
 import {
   CreateCreditNoteDto,
   CreateDebitNoteDto,
@@ -81,12 +96,38 @@ export class InvoicesService {
     query: InvoiceQueryDto,
     invoiceType?: InvoiceType,
     permissions?: string[],
+    actor?: InvoiceActorOpts,
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const actorOpts: InvoiceActorOpts = {
+      userId: actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions ?? permissions,
+    };
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
-      const where = this.buildWhere(tenantId, query, invoiceType, permissions);
+      const flags = await this.loadInvoiceSideFlags(tx, tenantId, actorOpts);
+      if (!hasAnyInvoiceSide(flags, actorOpts)) {
+        return {
+          data: [],
+          meta: { page, limit, total: 0, totalPages: 1 },
+        };
+      }
+
+      const actorDepartmentId = await this.loadActorDepartmentId(
+        tx,
+        tenantId,
+        actorOpts,
+      );
+      const where = this.buildWhere(
+        tenantId,
+        query,
+        invoiceType,
+        actorOpts,
+        flags,
+        actorDepartmentId,
+      );
 
       const [rows, total] = await Promise.all([
         tx.invoice.findMany({
@@ -118,7 +159,17 @@ export class InvoicesService {
     });
   }
 
-  async findOne(tenantId: string, id: string, permissions?: string[]) {
+  async findOne(
+    tenantId: string,
+    id: string,
+    permissions?: string[],
+    actor?: InvoiceActorOpts,
+  ) {
+    const actorOpts: InvoiceActorOpts = {
+      userId: actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions ?? permissions,
+    };
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const invoice = await tx.invoice.findFirst({
         where: { id, tenant_id: tenantId, deleted_at: null },
@@ -140,6 +191,8 @@ export class InvoicesService {
               id: true,
               job_number: true,
               job_type: true,
+              department_id: true,
+              ops_user_id: true,
               origin_port_id: true,
               dest_port_id: true,
               commodity: true,
@@ -172,11 +225,25 @@ export class InvoicesService {
         throw new NotFoundException("Invoice not found.");
       }
 
-      if (invoice.job?.job_type) {
-        assertJobTypeAccess(permissions, invoice.job.job_type, "see");
+      const flags = await this.loadInvoiceSideFlags(tx, tenantId, actorOpts);
+      assertInvoiceSideAccess(invoice.invoice_type, flags, actorOpts);
+
+      const actorDepartmentId = await this.loadActorDepartmentId(
+        tx,
+        tenantId,
+        actorOpts,
+      );
+      if (
+        !canAccessJobForInvoiceActor(invoice.job, {
+          ...actorOpts,
+          actorDepartmentId,
+        })
+      ) {
+        throw new ForbiddenException(
+          "You do not have access to invoices for this job.",
+        );
       }
-      // Manual invoices (no job) are always visible to invoice readers — do not
-      // hide them when the ops job-type matrix is active.
+      // Manual invoices (no job) are always visible when side flag allows.
 
       const [parties, chargeCodes, taxRates, shipment] = await Promise.all([
         this.masterLabels.resolvePartiesWithPrimaryContact(
@@ -281,8 +348,10 @@ export class InvoicesService {
     tenantId: string,
     id: string,
     expected: "CREDIT_NOTE" | "DEBIT_NOTE",
+    permissions?: string[],
+    actor?: InvoiceActorOpts,
   ) {
-    const invoice = await this.findOne(tenantId, id);
+    const invoice = await this.findOne(tenantId, id, permissions, actor);
     if (invoice.invoice_type !== expected) {
       throw new BadRequestException(
         `Expected a ${expected === "CREDIT_NOTE" ? "credit" : "debit"} note.`,
@@ -294,8 +363,13 @@ export class InvoicesService {
   /**
    * Lightweight invoice timeline from AuditLog (staff-activity + other writers).
    */
-  async getHistory(tenantId: string, id: string, permissions?: string[]) {
-    await this.findOne(tenantId, id, permissions);
+  async getHistory(
+    tenantId: string,
+    id: string,
+    permissions?: string[],
+    actor?: InvoiceActorOpts,
+  ) {
+    await this.findOne(tenantId, id, permissions, actor);
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const rows = await tx.auditLog.findMany({
         where: {
@@ -360,11 +434,40 @@ export class InvoicesService {
     actorId: string | undefined,
     invoiceType: InvoiceType = "CUSTOMER_INVOICE",
     permissions?: string[],
+    actor?: InvoiceActorOpts,
   ) {
+    const actorOpts: InvoiceActorOpts = {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions ?? permissions,
+    };
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const flags = await this.loadInvoiceSideFlags(tx, tenantId, actorOpts);
+      assertInvoiceSideAccess(invoiceType, flags, actorOpts);
+    });
+
     await this.assertPartyExists(tenantId, dto.party_id);
     if (dto.job_id) {
       const job = await this.assertJobExists(tenantId, dto.job_id);
-      assertJobTypeAccess(permissions, job.job_type, "write");
+      assertJobTypeAccess(
+        actorOpts.permissions,
+        job.job_type,
+        "write",
+        actorOpts.role,
+      );
+      const dept = await this.prisma.runWithTenant(tenantId, (tx) =>
+        this.loadActorDepartmentId(tx, tenantId, actorOpts),
+      );
+      if (
+        !canAccessJobForInvoiceActor(job, {
+          ...actorOpts,
+          actorDepartmentId: dept,
+        })
+      ) {
+        throw new ForbiddenException(
+          "You do not have access to create invoices for this job.",
+        );
+      }
     }
 
     const companyId =
@@ -462,6 +565,7 @@ export class InvoicesService {
     chargeIds: string[],
     actorId?: string,
     permissions?: string[],
+    actor?: InvoiceActorOpts,
   ) {
     return this.createFromJob(
       tenantId,
@@ -469,6 +573,7 @@ export class InvoicesService {
       actorId,
       chargeIds,
       permissions,
+      actor,
     );
   }
 
@@ -531,12 +636,35 @@ export class InvoicesService {
     jobId: string,
     chargeIds: string[] | undefined,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
+    const actorOpts: InvoiceActorOpts = {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions,
+    };
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const flags = await this.loadInvoiceSideFlags(tx, tenantId, actorOpts);
+      assertInvoiceSideAccess("PURCHASE_INVOICE", flags, actorOpts);
+    });
+
     return this.prisma.runWithTenant(tenantId, async (tx) => {
       const job = await tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
       });
       if (!job) throw new NotFoundException("Job not found.");
+
+      const dept = await this.loadActorDepartmentId(tx, tenantId, actorOpts);
+      if (
+        !canAccessJobForInvoiceActor(job, {
+          ...actorOpts,
+          actorDepartmentId: dept,
+        })
+      ) {
+        throw new ForbiddenException(
+          "You do not have access to create invoices for this job.",
+        );
+      }
 
       const charges = await this.findPendingPurchaseChargesTx(
         tx,
@@ -751,7 +879,18 @@ export class InvoicesService {
     actorId?: string,
     chargeIds?: string[],
     permissions?: string[],
+    actor?: InvoiceActorOpts,
   ) {
+    const actorOpts: InvoiceActorOpts = {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions ?? permissions,
+    };
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const flags = await this.loadInvoiceSideFlags(tx, tenantId, actorOpts);
+      assertInvoiceSideAccess("CUSTOMER_INVOICE", flags, actorOpts);
+    });
+
     const invoiceNumber = await this.numberGenerator.generate(
       tenantId,
       "INVOICE",
@@ -777,7 +916,23 @@ export class InvoicesService {
         throw new NotFoundException("Job not found.");
       }
 
-      assertJobTypeAccess(permissions, job.job_type, "write");
+      assertJobTypeAccess(
+        actorOpts.permissions,
+        job.job_type,
+        "write",
+        actorOpts.role,
+      );
+      const dept = await this.loadActorDepartmentId(tx, tenantId, actorOpts);
+      if (
+        !canAccessJobForInvoiceActor(job, {
+          ...actorOpts,
+          actorDepartmentId: dept,
+        })
+      ) {
+        throw new ForbiddenException(
+          "You do not have access to create invoices for this job.",
+        );
+      }
 
       if (!job.charges.length) {
         throw new BadRequestException(
@@ -1056,14 +1211,36 @@ export class InvoicesService {
     tenantId: string,
     dto: CreateCreditNoteDto,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
+    const actorOpts: InvoiceActorOpts = {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions,
+    };
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const flags = await this.loadInvoiceSideFlags(tx, tenantId, actorOpts);
+      assertInvoiceSideAccess("CREDIT_NOTE", flags, actorOpts);
+    });
+
     // Path A: against a posted customer invoice (classic).
     // Path B: job ledger only — advance / receipt without an invoice.
     if (!dto.credited_invoice_id) {
-      return this.createJobLedgerNote(tenantId, "CREDIT_NOTE", dto, actorId);
+      return this.createJobLedgerNote(
+        tenantId,
+        "CREDIT_NOTE",
+        dto,
+        actorId,
+        actorOpts,
+      );
     }
 
-    const original = await this.findOne(tenantId, dto.credited_invoice_id);
+    const original = await this.findOne(
+      tenantId,
+      dto.credited_invoice_id,
+      actorOpts.permissions ?? undefined,
+      actorOpts,
+    );
 
     if (original.invoice_type !== "CUSTOMER_INVOICE") {
       throw new BadRequestException(
@@ -1144,12 +1321,34 @@ export class InvoicesService {
     tenantId: string,
     dto: CreateDebitNoteDto,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
+    const actorOpts: InvoiceActorOpts = {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions,
+    };
+    await this.prisma.runWithTenant(tenantId, async (tx) => {
+      const flags = await this.loadInvoiceSideFlags(tx, tenantId, actorOpts);
+      assertInvoiceSideAccess("DEBIT_NOTE", flags, actorOpts);
+    });
+
     if (!dto.credited_invoice_id) {
-      return this.createJobLedgerNote(tenantId, "DEBIT_NOTE", dto, actorId);
+      return this.createJobLedgerNote(
+        tenantId,
+        "DEBIT_NOTE",
+        dto,
+        actorId,
+        actorOpts,
+      );
     }
 
-    const original = await this.findOne(tenantId, dto.credited_invoice_id);
+    const original = await this.findOne(
+      tenantId,
+      dto.credited_invoice_id,
+      actorOpts.permissions ?? undefined,
+      actorOpts,
+    );
 
     if (original.invoice_type !== "CUSTOMER_INVOICE") {
       throw new BadRequestException(
@@ -1227,6 +1426,7 @@ export class InvoicesService {
     type: "CREDIT_NOTE" | "DEBIT_NOTE",
     dto: CreateCreditNoteDto | CreateDebitNoteDto,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
     if (!dto.job_id || !dto.party_id) {
       throw new BadRequestException(
@@ -1239,6 +1439,12 @@ export class InvoicesService {
       );
     }
 
+    const actorOpts: InvoiceActorOpts = {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions,
+    };
+
     const job = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: dto.job_id!, tenant_id: tenantId, deleted_at: null },
@@ -1248,10 +1454,26 @@ export class InvoicesService {
           branch_id: true,
           department_id: true,
           billing_party_id: true,
+          job_type: true,
+          ops_user_id: true,
         },
       }),
     );
     if (!job) throw new NotFoundException("Job not found.");
+
+    const dept = await this.prisma.runWithTenant(tenantId, (tx) =>
+      this.loadActorDepartmentId(tx, tenantId, actorOpts),
+    );
+    if (
+      !canAccessJobForInvoiceActor(job, {
+        ...actorOpts,
+        actorDepartmentId: dept,
+      })
+    ) {
+      throw new ForbiddenException(
+        "You do not have access to create notes for this job.",
+      );
+    }
 
     const party = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.party.findFirst({
@@ -1310,8 +1532,16 @@ export class InvoicesService {
     tenantId: string,
     dto: CreatePurchaseInvoiceDto,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
-    return this.create(tenantId, dto, actorId, "PURCHASE_INVOICE");
+    return this.create(
+      tenantId,
+      dto,
+      actorId,
+      "PURCHASE_INVOICE",
+      actor?.permissions ?? undefined,
+      actor,
+    );
   }
 
   /**
@@ -1407,8 +1637,13 @@ export class InvoicesService {
     id: string,
     dto: UpdateInvoiceDto,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
-    const invoice = await this.findOne(tenantId, id);
+    const invoice = await this.findOne(tenantId, id, actor?.permissions ?? undefined, {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions,
+    });
     this.assertEditable(invoice);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -1452,8 +1687,17 @@ export class InvoicesService {
     });
   }
 
-  async softDelete(tenantId: string, id: string, actorId?: string) {
-    const invoice = await this.findOne(tenantId, id);
+  async softDelete(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    actor?: InvoiceActorOpts,
+  ) {
+    const invoice = await this.findOne(tenantId, id, actor?.permissions ?? undefined, {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions,
+    });
     this.assertEditable(invoice);
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -1482,8 +1726,18 @@ export class InvoicesService {
     invoiceId: string,
     dto: CreateInvoiceLineDto,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
-    const invoice = await this.findOne(tenantId, invoiceId);
+    const invoice = await this.findOne(
+      tenantId,
+      invoiceId,
+      actor?.permissions ?? undefined,
+      {
+        userId: actorId ?? actor?.userId,
+        role: actor?.role,
+        permissions: actor?.permissions,
+      },
+    );
     this.assertEditable(invoice);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -1510,8 +1764,18 @@ export class InvoicesService {
     lineId: string,
     dto: UpdateInvoiceLineDto,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
-    const invoice = await this.findOne(tenantId, invoiceId);
+    const invoice = await this.findOne(
+      tenantId,
+      invoiceId,
+      actor?.permissions ?? undefined,
+      {
+        userId: actorId ?? actor?.userId,
+        role: actor?.role,
+        permissions: actor?.permissions,
+      },
+    );
     this.assertEditable(invoice);
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -1567,8 +1831,18 @@ export class InvoicesService {
     invoiceId: string,
     lineId: string,
     actorId?: string,
+    actor?: InvoiceActorOpts,
   ) {
-    const invoice = await this.findOne(tenantId, invoiceId);
+    const invoice = await this.findOne(
+      tenantId,
+      invoiceId,
+      actor?.permissions ?? undefined,
+      {
+        userId: actorId ?? actor?.userId,
+        role: actor?.role,
+        permissions: actor?.permissions,
+      },
+    );
     this.assertEditable(invoice);
 
     await this.prisma.runWithTenant(tenantId, async (tx) => {
@@ -1603,8 +1877,17 @@ export class InvoicesService {
     );
   }
 
-  async post(tenantId: string, id: string, actorId?: string) {
-    const invoice = await this.findOne(tenantId, id);
+  async post(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    actor?: InvoiceActorOpts,
+  ) {
+    const invoice = await this.findOne(tenantId, id, actor?.permissions ?? undefined, {
+      userId: actorId ?? actor?.userId,
+      role: actor?.role,
+      permissions: actor?.permissions,
+    });
 
     if (invoice.status !== "DRAFT") {
       throw new BadRequestException("Only draft invoices can be posted.");
@@ -1804,8 +2087,18 @@ export class InvoicesService {
     dto: SendInvoiceEmailDto,
     actorId?: string,
     file?: Express.Multer.File,
+    actor?: InvoiceActorOpts,
   ) {
-    const invoice = await this.findOne(tenantId, id);
+    const invoice = await this.findOne(
+      tenantId,
+      id,
+      actor?.permissions ?? undefined,
+      {
+        userId: actorId ?? actor?.userId,
+        role: actor?.role,
+        permissions: actor?.permissions,
+      },
+    );
 
     if (!["POSTED", "SENT", "PARTIALLY_PAID"].includes(invoice.status)) {
       throw new BadRequestException("Invoice must be posted before sending.");
@@ -1969,8 +2262,22 @@ export class InvoicesService {
       }));
   }
 
-  async cancel(tenantId: string, id: string, actorId?: string) {
-    const invoice = await this.findOne(tenantId, id);
+  async cancel(
+    tenantId: string,
+    id: string,
+    actorId?: string,
+    actor?: InvoiceActorOpts,
+  ) {
+    const invoice = await this.findOne(
+      tenantId,
+      id,
+      actor?.permissions ?? undefined,
+      {
+        userId: actorId ?? actor?.userId,
+        role: actor?.role,
+        permissions: actor?.permissions,
+      },
+    );
 
     if (["PAID", "CANCELLED", "VOID"].includes(invoice.status)) {
       throw new BadRequestException("This invoice cannot be cancelled.");
@@ -2077,8 +2384,18 @@ export class InvoicesService {
     actorId?: string,
     file?: Express.Multer.File,
     dto?: StoreInvoicePdfDto,
+    actor?: InvoiceActorOpts,
   ) {
-    const invoice = await this.findOne(tenantId, id);
+    const invoice = await this.findOne(
+      tenantId,
+      id,
+      actor?.permissions ?? undefined,
+      {
+        userId: actorId ?? actor?.userId,
+        role: actor?.role,
+        permissions: actor?.permissions,
+      },
+    );
     if (!PDF_DOWNLOADABLE_STATUSES.includes(invoice.status)) {
       throw new BadRequestException(
         "PDF is only available for draft, posted, sent, or paid invoices (not cancelled/void).",
@@ -2158,16 +2475,34 @@ export class InvoicesService {
   private buildWhere(
     tenantId: string,
     query: InvoiceQueryDto,
-    invoiceType?: InvoiceType,
-    permissions?: string[],
+    invoiceType: InvoiceType | undefined,
+    actor: InvoiceActorOpts,
+    flags: InvoiceSideFlags,
+    actorDepartmentId: string | null,
   ): Prisma.InvoiceWhereInput {
     const where: Prisma.InvoiceWhereInput = {
       tenant_id: tenantId,
       deleted_at: null,
     };
 
-    if (invoiceType) where.invoice_type = invoiceType;
-    if (query.invoice_type) where.invoice_type = query.invoice_type;
+    const allowedTypes = invoiceTypesAllowed(flags, actor);
+    // Controller-forced type wins; never let query.invoice_type widen past flags.
+    if (invoiceType) {
+      if (allowedTypes !== null && !allowedTypes.includes(invoiceType)) {
+        where.id = { in: [] };
+        return where;
+      }
+      where.invoice_type = invoiceType;
+    } else if (allowedTypes !== null) {
+      if (allowedTypes.length === 0) {
+        where.id = { in: [] };
+        return where;
+      }
+      where.invoice_type = { in: allowedTypes };
+    } else if (query.invoice_type) {
+      where.invoice_type = query.invoice_type;
+    }
+
     if (query.status) where.status = query.status;
     if (query.party_id) where.party_id = query.party_id;
     if (query.job_id) where.job_id = query.job_id;
@@ -2179,20 +2514,76 @@ export class InvoicesService {
       };
     }
 
+    const andFilters: Prisma.InvoiceWhereInput[] = [];
+
     if (query.search) {
-      where.OR = [
-        { invoice_number: { contains: query.search, mode: "insensitive" } },
-        { lpo_number: { contains: query.search, mode: "insensitive" } },
-        { remarks: { contains: query.search, mode: "insensitive" } },
-      ];
+      andFilters.push({
+        OR: [
+          { invoice_number: { contains: query.search, mode: "insensitive" } },
+          { lpo_number: { contains: query.search, mode: "insensitive" } },
+          { remarks: { contains: query.search, mode: "insensitive" } },
+        ],
+      });
     }
 
-    const scope = invoiceJobTypeScope(permissions);
-    if (scope) {
-      where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), scope];
+    const scope = invoiceOpsVisibilityScope({
+      permissions: actor.permissions,
+      role: actor.role,
+      userId: actor.userId,
+      actorDepartmentId,
+    });
+    if (scope) andFilters.push(scope);
+
+    if (andFilters.length) {
+      where.AND = andFilters;
     }
 
     return where;
+  }
+
+  private async loadInvoiceSideFlags(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    actor: InvoiceActorOpts,
+  ): Promise<InvoiceSideFlags> {
+    if (seesAllJobDepartments(actor.role, actor.permissions)) {
+      return {
+        can_see_sale_invoices: true,
+        can_see_purchase_invoices: true,
+      };
+    }
+    if (!actor.userId) {
+      return {
+        can_see_sale_invoices: false,
+        can_see_purchase_invoices: false,
+      };
+    }
+    const user = await tx.user.findFirst({
+      where: { id: actor.userId, tenant_id: tenantId, deleted_at: null },
+      select: {
+        can_see_sale_invoices: true,
+        can_see_purchase_invoices: true,
+      },
+    });
+    return {
+      can_see_sale_invoices: !!user?.can_see_sale_invoices,
+      can_see_purchase_invoices: !!user?.can_see_purchase_invoices,
+    };
+  }
+
+  private async loadActorDepartmentId(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    actor: InvoiceActorOpts,
+  ): Promise<string | null> {
+    if (!actor.userId || seesAllJobDepartments(actor.role, actor.permissions)) {
+      return null;
+    }
+    const user = await tx.user.findFirst({
+      where: { id: actor.userId, tenant_id: tenantId, deleted_at: null },
+      select: { department_id: true },
+    });
+    return user?.department_id ?? null;
   }
 
   private async createLineInternal(
@@ -2349,7 +2740,12 @@ export class InvoicesService {
     const exists = await this.prisma.runWithTenant(tenantId, (tx) =>
       tx.job.findFirst({
         where: { id: jobId, tenant_id: tenantId, deleted_at: null },
-        select: { id: true, job_type: true },
+        select: {
+          id: true,
+          job_type: true,
+          department_id: true,
+          ops_user_id: true,
+        },
       }),
     );
     if (!exists) throw new NotFoundException("Job not found.");
