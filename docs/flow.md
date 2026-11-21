@@ -934,6 +934,11 @@ Credit/debit note create requires `description` (stored as `Invoice.remarks`; `r
 - Super Admin `GET /tenants/:id` returns `password_plain` on the tenant and `owner.password_plain`. Staff JWT `UserResponse` / `/auth/me` do **not** expose plaintext.
 - Super Admin tech activity (`PASSWORD_CHANGED`) metadata includes `{ user_id, tenant_id, password_plain, reason }` for those paths.
 
+**Super Admin Created Users (tenant roster):**
+- `GET /tenants/:id/users?page&limit&search&role&status` (platform JWT only) — same non-deleted users as Tenant Admin ERP `GET /users` for that tenant; envelope `{ success, data, meta }`; rows may include `password_plain`.
+- `GET /tenants` / `GET /tenants/:id` include `total_users` (non-deleted count) for the Created Users column.
+- Platform tokens still **403** on ERP `GET /users` — do not call that with a Super Admin JWT.
+
 **Delivery acknowledgement (per container + multi-file):**
 - One acknowledgement **lifecycle per container** (partial unique). Jobs with no containers keep a single job-level row (`container_id` null).
 - `GET …/acknowledgement` returns `containers[]` each with nested `acknowledgement` + attachments; `requires_container_id` when multiple containers.

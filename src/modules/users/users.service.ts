@@ -698,6 +698,53 @@ export class UsersService {
     return UserMapper.toPaginated(result);
   }
 
+  /**
+   * Super Admin platform list for a tenant — same non-deleted population as
+   * findAll, but skips active/subscription gates and includes password_plain.
+   */
+  async findAllForPlatform(
+    tenantId: string,
+    query: QueryUserDto,
+  ): Promise<{
+    success: true;
+    data: Array<UserResponse & { password_plain?: string | null }>;
+    meta: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const filters: UserSearchFilters & {
+      sortBy?: string;
+      order?: "asc" | "desc";
+    } = {
+      page: query.page,
+      limit: Math.min(query.limit, USERS_CONSTANTS.MAX_LIMIT),
+      search: query.search,
+      role: query.role,
+      status: query.status,
+      branchId: query.branch_id,
+      departmentId: query.department_id,
+      sortBy: query.sortBy,
+      order: query.order,
+    };
+
+    const result = await this.prisma.runWithTenant(tenantId, (tx) =>
+      this.repository.findMany(tx, tenantId, filters),
+    );
+
+    return {
+      success: true,
+      data: result.users.map((user) => ({
+        ...UserMapper.toResponse(user),
+        password_plain:
+          (user as { password_plain?: string | null }).password_plain ?? null,
+      })),
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+    };
+  }
+
   async findOne(tenantId: string, id: string): Promise<UserResponse> {
     await this.validateTenant(tenantId);
 
