@@ -16,6 +16,8 @@ import { ROLE_CATALOG } from "../../common/constants/role-catalog";
 import { setTenantContextQuery } from "../../common/utils/rls.util";
 
 import { UserMapper } from "../users/mappers/user.mapper";
+import { UsersService } from "../users/users.service";
+import { QueryUserDto } from "../users/dto/query-user.dto";
 
 import { CreateTenantDto } from "./dto/create-tenant.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
@@ -51,6 +53,7 @@ export class TenantsService {
     private readonly worldPorts: WorldPortsSeedService,
     private readonly freightSpecs: FreightSpecsSeedService,
     private readonly storage: StorageService,
+    private readonly usersService: UsersService,
   ) {}
 
   // =====================================================
@@ -483,10 +486,15 @@ export class TenantsService {
       }),
     ]);
 
+    const counts = await this.countUsersByTenantIds(tenants.map((t) => t.id));
+
     return {
       success: true,
 
-      data: tenants.map((tenant) => this.sanitizeTenant(tenant)),
+      data: tenants.map((tenant) => ({
+        ...this.sanitizeTenant(tenant),
+        total_users: counts.get(tenant.id) ?? 0,
+      })),
 
       pagination: {
         page,
@@ -496,6 +504,15 @@ export class TenantsService {
       },
     };
   }
+
+  /**
+   * Super Admin: full staff roster for a tenant (same population as ERP GET /users).
+   */
+  async listUsers(tenantId: string, query: QueryUserDto) {
+    await this.ensureTenantExists(tenantId);
+    return this.usersService.findAllForPlatform(tenantId, query);
+  }
+
   // =====================================================
   // GET TENANT BY ID
   // =====================================================
@@ -512,29 +529,39 @@ export class TenantsService {
       throw new NotFoundException(`Tenant with ID '${id}' was not found.`);
     }
 
-    const owner = await this.prisma.runWithTenant(id, (tx) =>
-      tx.user.findFirst({
-        where: {
-          tenant_id: id,
-          role: "TENANT_ADMIN",
-          deleted_at: null,
-        },
-        orderBy: { created_at: "asc" },
-        select: {
-          id: true,
-          email: true,
-          first_name: true,
-          last_name: true,
-          must_change_password: true,
-          password_plain: true,
-        },
-      }),
+    const [owner, total_users] = await this.prisma.runWithTenant(
+      id,
+      async (tx) => {
+        const [ownerRow, userCount] = await Promise.all([
+          tx.user.findFirst({
+            where: {
+              tenant_id: id,
+              role: "TENANT_ADMIN",
+              deleted_at: null,
+            },
+            orderBy: { created_at: "asc" },
+            select: {
+              id: true,
+              email: true,
+              first_name: true,
+              last_name: true,
+              must_change_password: true,
+              password_plain: true,
+            },
+          }),
+          tx.user.count({
+            where: { tenant_id: id, deleted_at: null },
+          }),
+        ]);
+        return [ownerRow, userCount] as const;
+      },
     );
 
     return {
       success: true,
       data: {
         ...this.sanitizeTenant(tenant),
+        total_users,
         owner: owner
           ? {
               id: owner.id,
@@ -1110,5 +1137,24 @@ export class TenantsService {
     }
 
     return tenant;
+  }
+
+  /** Non-deleted user counts per tenant (FORCE RLS — must set tenant context). */
+  private async countUsersByTenantIds(
+    tenantIds: string[],
+  ): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (!tenantIds.length) return map;
+    await Promise.all(
+      tenantIds.map(async (tenantId) => {
+        const total = await this.prisma.runWithTenant(tenantId, (tx) =>
+          tx.user.count({
+            where: { tenant_id: tenantId, deleted_at: null },
+          }),
+        );
+        map.set(tenantId, total);
+      }),
+    );
+    return map;
   }
 }

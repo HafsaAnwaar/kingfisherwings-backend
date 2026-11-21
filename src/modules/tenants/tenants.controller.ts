@@ -32,6 +32,7 @@ import { TenantsService } from "./tenants.service";
 import { CreateTenantDto } from "./dto/create-tenant.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
 import { TenantQueryDto } from "./dto/tenant-query.dto";
+import { QueryUserDto } from "../users/dto/query-user.dto";
 
 import { SuperAdminGuard } from "../auth/guards/super-admin.guard";
 import { CurrentSuperAdminUser } from "../auth/decorators/current-super-admin.decorator";
@@ -128,6 +129,24 @@ export class TenantsController {
   })
   syncPermissions(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.tenantsService.syncPermissions(id);
+  }
+
+  // =====================================================
+  // TENANT USERS (Created Users roster)
+  // =====================================================
+
+  @Get(":id/users")
+  @ApiOperation({
+    summary:
+      "List all non-deleted users for a tenant (same roster as Tenant Admin GET /users)",
+    description:
+      "Super Admin only. Paginated. Includes password_plain for platform visibility. ERP GET /users remains forbidden for platform tokens.",
+  })
+  listUsers(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Query() query: QueryUserDto,
+  ) {
+    return this.tenantsService.listUsers(id, query);
   }
 
   // =====================================================
