@@ -43,6 +43,17 @@ export class CompaniesController {
     return this.service.findAll(tenantId, query);
   }
 
+  @Get("deleted")
+  @ApiOperation({
+    summary: "List soft-deleted companies (trash) until permanently deleted",
+  })
+  findDeleted(
+    @CurrentUser("tenantId") tenantId: string,
+    @Query() query: MasterQueryDto,
+  ) {
+    return this.service.findDeleted(tenantId, query);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Get a company by id" })
   findOne(
@@ -50,6 +61,29 @@ export class CompaniesController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.service.findOne(tenantId, id);
+  }
+
+  @Post(":id/restore")
+  @ApiOperation({ summary: "Restore a soft-deleted company from trash" })
+  restore(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.restore(tenantId, id, actorId);
+  }
+
+  @Delete(":id/permanent")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      "Permanently delete a soft-deleted company (irreversible; 409 if related data remains)",
+  })
+  permanentDelete(
+    @CurrentUser("tenantId") tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.service.permanentDelete(tenantId, id);
   }
 
   @Post()

@@ -373,6 +373,32 @@ export function buildPasswordResetEmail(opts: {
   });
 }
 
+export function buildSuperAdminOtpEmail(opts: {
+  recipientName: string;
+  otp: string;
+  expiresAt: Date;
+}): { subject: string; html: string } {
+  const subject = `King Fisher Technologies — platform login code`;
+  return renderBrandedEmail({
+    subject,
+    headline: "Your platform login code",
+    recipientName: opts.recipientName,
+    audience: "STAFF",
+    intro: [
+      "Use the one-time code below to finish signing in to the King Fisher Technologies platform console.",
+      "If you did not attempt to sign in, ignore this email and contact support.",
+    ],
+    details: [
+      { label: "Login code", value: opts.otp },
+      { label: "Expires", value: opts.expiresAt.toUTCString() },
+    ],
+    closing: [
+      "Never share this code with anyone.",
+      `For help, write to ${BRAND.supportEmail}.`,
+    ],
+  });
+}
+
 export function buildStaffInviteEmail(opts: {
   recipientName: string;
   inviteUrl: string;

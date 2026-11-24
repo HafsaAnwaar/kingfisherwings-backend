@@ -81,10 +81,12 @@ Authentication uses **JWT Bearer tokens** with **server-side session tracking**.
 ### 3. Super Admin (`principal: 'super_admin'`)
 
 **Endpoints:**
-- `POST /auth/super-admin/signup` — self-registration (platform setup)
-- `POST /auth/super-admin/login` — login
+- `POST /auth/super-admin/signup` — self-registration (no tokens; then log in)
+- `POST /auth/super-admin/login` — password step → emails a 6-digit OTP
+- `POST /auth/super-admin/login/verify-otp` — `{ challenge_id, otp }` → tokens
+- `POST /auth/super-admin/login/resend-otp` — resend OTP (60s cooldown)
 
-**Request:**
+**Request (password step):**
 ```json
 {
   "email": "admin@kingfisherwings.com",
@@ -93,10 +95,12 @@ Authentication uses **JWT Bearer tokens** with **server-side session tracking**.
 ```
 
 **Flow:**
-1. Find `SuperAdmin` by email
-2. Verify password
-3. Create `SuperAdminSession` row
-4. Sign tokens with `principal: 'super_admin'` (no `tenantId`)
+1. Find `SuperAdmin` by email; verify password / lockout
+2. Create `SuperAdminLoginChallenge` (hashed OTP, 10 min TTL) and email the code
+3. Return `{ requires_otp: true, challenge_id, expires_in }` (no tokens yet)
+4. Client posts OTP → create `SuperAdminSession` and sign tokens with `principal: 'super_admin'` (no `tenantId`)
+
+Staff TOTP (`AUTH_2FA_LINKED`) remains separate and unlinked.
 
 ---
 
@@ -237,7 +241,9 @@ Routes marked `@Public()` skip JWT authentication:
 | `POST /auth/login` | Auth |
 | `POST /auth/tenant-login` | Auth |
 | `POST /auth/super-admin/signup` | Auth |
-| `POST /auth/super-admin/login` | Auth |
+| `POST /auth/super-admin/login` | Auth (password → email OTP challenge) |
+| `POST /auth/super-admin/login/verify-otp` | Auth |
+| `POST /auth/super-admin/login/resend-otp` | Auth |
 | `POST /auth/refresh` | Auth |
 
 > **Correction:** `POST /tenants` is **not** public — `TenantsController` requires `@UseGuards(SuperAdminGuard)` on every route (a valid SuperAdmin bearer token). It was previously listed here in error.

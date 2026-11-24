@@ -27,6 +27,7 @@ import { VendorPayoutsService } from "./vendor-payouts.service";
 import { VendorPayoutsController } from "./vendor-payouts.controller";
 import { PlatformFinanceController } from "./platform-finance.controller";
 import { PlatformSubscriptionsService } from "./platform-subscriptions.service";
+import { PlatformBillingPlansSeedService } from "./platform-billing-plans.seed";
 import {
   PublicPaymentLinksController,
   StripeWebhookController,
@@ -71,6 +72,7 @@ import { StripeWebhookService } from "./stripe-webhook.service";
     InvoiceOnlinePaymentsService,
     PlatformBillingService,
     PlatformSubscriptionsService,
+    PlatformBillingPlansSeedService,
     StripeWebhookService,
     PaymentReconciliationService,
     PlatformLedgerService,

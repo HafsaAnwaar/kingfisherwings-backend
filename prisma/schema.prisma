@@ -839,6 +839,7 @@ enum SubscriptionPlan {
   STANDARD
   PROFESSIONAL
   ENTERPRISE
+  DEVELOPER
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -6298,6 +6299,21 @@ model SuperAdmin {
   users_created   User[]   @relation("UserCreatedBySuperAdmin")
 
   @@map("super_admins")
+}
+
+/// Short-lived email OTP challenge for Super Admin login (password → OTP → tokens).
+model SuperAdminLoginChallenge {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  super_admin_id String   @db.Uuid
+  otp_hash       String   @db.Text
+  attempts       Int      @default(0)
+  expires_at     DateTime @db.Timestamptz
+  last_sent_at   DateTime @db.Timestamptz
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  @@index([super_admin_id])
+  @@index([expires_at])
+  @@map("super_admin_login_challenges")
 }
 
 model SuperAdminSession {

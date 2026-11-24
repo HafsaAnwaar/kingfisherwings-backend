@@ -89,6 +89,15 @@ export class TenantsController {
     return this.tenantsService.findAll(query);
   }
 
+  @Get("deleted")
+  @ApiOperation({
+    summary:
+      "List soft-deleted tenants (trash) until permanently deleted",
+  })
+  findDeleted(@Query() query: TenantQueryDto) {
+    return this.tenantsService.findDeleted(query);
+  }
+
   // =====================================================
   // TENANT STATISTICS
   // =====================================================
@@ -242,6 +251,17 @@ export class TenantsController {
     id: string,
   ) {
     return this.tenantsService.restore(id);
+  }
+
+  @Delete(":id/permanent")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      "Permanently delete a soft-deleted tenant (irreversible; 409 if related data remains)",
+  })
+  @ApiResponse({ status: 409, description: "FK / related records still exist" })
+  permanentDelete(@Param("id", new ParseUUIDPipe()) id: string) {
+    return this.tenantsService.permanentDelete(id);
   }
 
   // =====================================================

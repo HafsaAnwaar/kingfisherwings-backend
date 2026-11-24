@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
-import { randomUUID, randomBytes } from "crypto";
+import { randomUUID, randomBytes, randomInt } from "crypto";
 import * as speakeasy from "speakeasy";
 import * as QRCode from "qrcode";
 
@@ -46,6 +46,10 @@ import { LoginDto } from "./dto/login.dto";
 import { TenantLoginDto } from "./dto/tenant-login.dto";
 import { SuperAdminSignupDto } from "./dto/super-admin-signup.dto";
 import { SuperAdminLoginDto } from "./dto/super-admin-login.dto";
+import {
+  SuperAdminResendOtpDto,
+  SuperAdminVerifyOtpDto,
+} from "./dto/super-admin-otp.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import {
   ForgotPasswordDto,
@@ -71,10 +75,14 @@ import {
 import { StaffActivityService } from "../notifications/staff-activity/staff-activity.service";
 import { TechLogsService } from "../tech-logs/tech-logs.service";
 import { staffFrontendUrl } from "../payments/utils/frontend-url.util";
+import { buildSuperAdminOtpEmail } from "../../shared/email/branded-email.template";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 30;
 const OWNER_ROLE_CODE = "TENANT_ADMIN";
+const SA_OTP_TTL_SECONDS = 10 * 60;
+const SA_OTP_MAX_ATTEMPTS = 5;
+const SA_OTP_RESEND_COOLDOWN_SECONDS = 60;
 
 @Injectable()
 export class AuthService {
@@ -263,7 +271,7 @@ export class AuthService {
   // public UIs/docs; callers who know the path can still bootstrap.
   // =====================================================
 
-  async superAdminSignup(dto: SuperAdminSignupDto, meta: LoginMeta) {
+  async superAdminSignup(dto: SuperAdminSignupDto, _meta: LoginMeta) {
     const existing = await this.prisma.superAdmin.findFirst({
       where: { email: dto.email.toLowerCase() },
     });
@@ -285,10 +293,21 @@ export class AuthService {
       },
     });
 
-    return this.completeSuperAdminLogin(superAdmin, meta);
+    // Never issue tokens without email OTP — redirect to login flow.
+    return {
+      success: true,
+      message:
+        "Super Admin account created. Sign in with POST /auth/super-admin/login to receive an email OTP.",
+      data: {
+        id: superAdmin.id,
+        email: superAdmin.email,
+        first_name: superAdmin.first_name,
+        last_name: superAdmin.last_name,
+      },
+    };
   }
 
-  async superAdminLogin(dto: SuperAdminLoginDto, meta: LoginMeta) {
+  async superAdminLogin(dto: SuperAdminLoginDto, _meta: LoginMeta) {
     const superAdmin = await this.prisma.superAdmin.findFirst({
       where: { email: dto.email.toLowerCase(), deleted_at: null },
     });
@@ -329,7 +348,187 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials.");
     }
 
+    // Password OK — reset lock counters, then email OTP (no tokens yet).
+    await this.prisma.superAdmin.update({
+      where: { id: superAdmin.id },
+      data: {
+        failed_login_count: 0,
+        locked_until: null,
+      },
+    });
+
+    return this.startSuperAdminOtpChallenge(superAdmin);
+  }
+
+  async verifySuperAdminOtp(dto: SuperAdminVerifyOtpDto, meta: LoginMeta) {
+    const challenge = await this.prisma.superAdminLoginChallenge.findFirst({
+      where: { id: dto.challenge_id },
+    });
+    if (!challenge) {
+      throw new UnauthorizedException("Invalid or expired login challenge.");
+    }
+    if (challenge.expires_at.getTime() < Date.now()) {
+      await this.prisma.superAdminLoginChallenge
+        .delete({ where: { id: challenge.id } })
+        .catch(() => undefined);
+      throw new UnauthorizedException("Login challenge expired. Sign in again.");
+    }
+    if (challenge.attempts >= SA_OTP_MAX_ATTEMPTS) {
+      await this.prisma.superAdminLoginChallenge
+        .delete({ where: { id: challenge.id } })
+        .catch(() => undefined);
+      throw new ForbiddenException(
+        "Too many invalid OTP attempts. Sign in again.",
+      );
+    }
+
+    const ok = await PasswordUtil.verify(challenge.otp_hash, dto.otp);
+    if (!ok) {
+      await this.prisma.superAdminLoginChallenge.update({
+        where: { id: challenge.id },
+        data: { attempts: { increment: 1 } },
+      });
+      throw new UnauthorizedException("Invalid OTP code.");
+    }
+
+    const superAdmin = await this.prisma.superAdmin.findFirst({
+      where: {
+        id: challenge.super_admin_id,
+        deleted_at: null,
+        is_active: true,
+      },
+    });
+    await this.prisma.superAdminLoginChallenge
+      .delete({ where: { id: challenge.id } })
+      .catch(() => undefined);
+
+    if (!superAdmin) {
+      throw new UnauthorizedException("Account not found or inactive.");
+    }
+
     return this.completeSuperAdminLogin(superAdmin, meta);
+  }
+
+  async resendSuperAdminOtp(dto: SuperAdminResendOtpDto) {
+    const challenge = await this.prisma.superAdminLoginChallenge.findFirst({
+      where: { id: dto.challenge_id },
+    });
+    if (!challenge) {
+      throw new UnauthorizedException("Invalid or expired login challenge.");
+    }
+    if (challenge.expires_at.getTime() < Date.now()) {
+      await this.prisma.superAdminLoginChallenge
+        .delete({ where: { id: challenge.id } })
+        .catch(() => undefined);
+      throw new UnauthorizedException("Login challenge expired. Sign in again.");
+    }
+
+    const elapsed =
+      (Date.now() - challenge.last_sent_at.getTime()) / 1000;
+    if (elapsed < SA_OTP_RESEND_COOLDOWN_SECONDS) {
+      throw new BadRequestException(
+        `Wait ${Math.ceil(SA_OTP_RESEND_COOLDOWN_SECONDS - elapsed)}s before resending the OTP.`,
+      );
+    }
+
+    const superAdmin = await this.prisma.superAdmin.findFirst({
+      where: {
+        id: challenge.super_admin_id,
+        deleted_at: null,
+        is_active: true,
+      },
+    });
+    if (!superAdmin) {
+      throw new UnauthorizedException("Account not found or inactive.");
+    }
+
+    const otp = String(randomInt(100000, 1000000));
+    const otpHash = await PasswordUtil.hash(otp);
+    const expiresAt = new Date(Date.now() + SA_OTP_TTL_SECONDS * 1000);
+
+    await this.prisma.superAdminLoginChallenge.update({
+      where: { id: challenge.id },
+      data: {
+        otp_hash: otpHash,
+        attempts: 0,
+        expires_at: expiresAt,
+        last_sent_at: new Date(),
+      },
+    });
+
+    await this.sendSuperAdminOtpEmail(superAdmin, otp, expiresAt);
+
+    return {
+      success: true,
+      message: "A new login code has been sent to your email.",
+      data: {
+        requires_otp: true,
+        challenge_id: challenge.id,
+        expires_in: SA_OTP_TTL_SECONDS,
+      },
+    };
+  }
+
+  private async startSuperAdminOtpChallenge(superAdmin: {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+  }) {
+    // Drop any prior open challenges for this SA.
+    await this.prisma.superAdminLoginChallenge.deleteMany({
+      where: { super_admin_id: superAdmin.id },
+    });
+
+    const otp = String(randomInt(100000, 1000000));
+    const otpHash = await PasswordUtil.hash(otp);
+    const expiresAt = new Date(Date.now() + SA_OTP_TTL_SECONDS * 1000);
+    const now = new Date();
+
+    const challenge = await this.prisma.superAdminLoginChallenge.create({
+      data: {
+        super_admin_id: superAdmin.id,
+        otp_hash: otpHash,
+        expires_at: expiresAt,
+        last_sent_at: now,
+      },
+    });
+
+    await this.sendSuperAdminOtpEmail(superAdmin, otp, expiresAt);
+
+    return {
+      success: true,
+      message: "A login code has been sent to your email.",
+      data: {
+        requires_otp: true,
+        challenge_id: challenge.id,
+        expires_in: SA_OTP_TTL_SECONDS,
+      },
+    };
+  }
+
+  private async sendSuperAdminOtpEmail(
+    superAdmin: {
+      email: string;
+      first_name: string;
+      last_name: string;
+    },
+    otp: string,
+    expiresAt: Date,
+  ) {
+    const branded = buildSuperAdminOtpEmail({
+      recipientName:
+        [superAdmin.first_name, superAdmin.last_name].filter(Boolean).join(" ") ||
+        superAdmin.email,
+      otp,
+      expiresAt,
+    });
+    await this.emailService.sendPlatform({
+      to: superAdmin.email,
+      subject: branded.subject,
+      body: branded.html,
+      requireDelivery: true,
+    });
   }
 
   private async completeSuperAdminLogin(

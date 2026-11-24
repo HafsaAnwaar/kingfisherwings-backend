@@ -505,6 +505,59 @@ export class TenantsService {
     };
   }
 
+  /** Soft-deleted tenants still in trash (until permanent delete). */
+  async findDeleted(query: TenantQueryDto) {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = "deleted_at",
+      order = "desc",
+    } = query;
+
+    const skip = (page - 1) * limit;
+    const where: Prisma.TenantWhereInput = {
+      deleted_at: { not: null },
+    };
+
+    if (search) {
+      where.OR = [
+        { code: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: "insensitive" } },
+        { display_name: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const [tenants, total] = await this.prisma.$transaction([
+      this.prisma.tenant.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: order },
+      }),
+      this.prisma.tenant.count({ where }),
+    ]);
+
+    const counts = await this.countUsersByTenantIds(tenants.map((t) => t.id));
+
+    return {
+      success: true,
+      data: tenants.map((tenant) => ({
+        ...this.sanitizeTenant(tenant),
+        deleted_at: tenant.deleted_at,
+        total_users: counts.get(tenant.id) ?? 0,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   /**
    * Super Admin: full staff roster for a tenant (same population as ERP GET /users).
    */
@@ -829,6 +882,46 @@ export class TenantsService {
       success: true,
       message: "Tenant restored successfully.",
       data: this.sanitizeTenant(restored),
+    };
+  }
+
+  /**
+   * Hard-delete a soft-deleted tenant. Does not cascade-wipe ERP data —
+   * returns 409 when foreign keys still reference the tenant.
+   */
+  async permanentDelete(id: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException(`Tenant with ID '${id}' was not found.`);
+    }
+
+    if (!tenant.deleted_at) {
+      throw new BadRequestException(
+        "Tenant must be soft-deleted first (move to trash) before permanent delete.",
+      );
+    }
+
+    try {
+      await this.prisma.tenant.delete({ where: { id } });
+    } catch (err: unknown) {
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code: unknown }).code)
+          : "";
+      if (code === "P2003" || code === "P2014") {
+        throw new ConflictException(
+          "Cannot permanently delete this tenant while related records still exist. Remove or reassign dependent data first.",
+        );
+      }
+      throw err;
+    }
+
+    return {
+      success: true,
+      message: "Tenant permanently deleted.",
     };
   }
 
