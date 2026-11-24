@@ -68,7 +68,7 @@ There is no separate worker dyno required for crons (they run in the API). Docum
 | AWB stock | `/awb-stock` |
 | Search | `/search` |
 | Tools (converter) | `/tools/converter/*` (staff); `/portal/tools/converter/*`; `/vendor/tools/converter/*` |
-| Reports catalog | `/reports/templates*`, `/reports/generate`, `/reports/jobs/*` (see [REPORT_CATALOG.md](./REPORT_CATALOG.md)) |
+| Reports catalog | `/reports/templates*`, `/reports/generate`, `/reports/:code/preview` (HTML pilots), `/reports/jobs/*` (see [REPORT_CATALOG.md](./REPORT_CATALOG.md)) |
 | Files | `/files` (stored PDF/upload download) |
 | Invoices | `/invoices`, `/credit-notes`, `/debit-notes`, `/purchase-invoices`, `/payment-requests` |
 | GL | `/gl`, `/gl/accounts`, `/gl/vouchers`, `/gl/payments`, `/gl/cheques`, `/gl/reports`, `/gl/mis`, `/gl/saved-reports` |
@@ -311,10 +311,11 @@ Additive Puppeteer catalog — does **not** replace `POST /invoices/:id/pdf` or 
 GET  /reports/templates/renderers
 POST /reports/templates/:code/bind-renderer | activate
 POST /reports/generate  → poll GET /reports/jobs/:id → download
+POST /reports/:code/preview  → JSON payload only (three HTML pilots; no PDF / no accept)
 GET  /invoices/:id/format-payload?format=INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA  (debug)
 ```
 
-Format-1 pack: `commercial.invoice_tax_india_1`. Full detail: [REPORT_CATALOG.md](./REPORT_CATALOG.md).
+**HTML pilots (Hybrid Option C):** `HBL_DRAFT_REPORT_FORMAT_JASPER` → `sea.hbl_draft`; `INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA` → `commercial.invoice_tax_india_1`; `JOB_LIST_SUMMARY_REPORT_FORMAT` → `finance.job_list_summary`. Missing fields (notify, net weight, SGST/CGST split, freight terms) stay null/omitted. Full detail: [REPORT_CATALOG.md](./REPORT_CATALOG.md).
 
 ### 5.5 Invoicing & AP/AR
 

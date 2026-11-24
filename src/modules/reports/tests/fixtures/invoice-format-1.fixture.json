@@ -1,0 +1,81 @@
+{
+  "code": "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA",
+  "format_key": "commercial.invoice_tax_india_1",
+  "payload": {
+    "format_key": "commercial.invoice_tax_india_1",
+    "template_code": "INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA",
+    "company": {
+      "name": "Pilot Freight Co",
+      "address_lines": ["1 Synthetic Road", "Mumbai", "IN"],
+      "gstin": "22AAAAA0000A1Z5"
+    },
+    "bill_to": {
+      "name": "Pilot Customer Ltd",
+      "address_lines": ["9 Demo Lane", "Dubai", "AE"],
+      "gstin": null
+    },
+    "invoice": {
+      "number": "INV-PILOT-0001",
+      "invoice_date": "2026-03-10",
+      "currency_code": "INR",
+      "exchange_rate": 1
+    },
+    "shipment": {
+      "job_no": "JOB-PILOT-0001",
+      "pol": "INMUN",
+      "pod": "AEJEA",
+      "etd": "2026-03-01",
+      "eta": "2026-03-15",
+      "inco_terms": null
+    },
+    "containers": [
+      {
+        "container_no": "MSCU1234567",
+        "type": "40HC",
+        "gross_weight": "18000",
+        "volume": "55"
+      }
+    ],
+    "lines": [
+      {
+        "description": "Ocean freight",
+        "sac_hsn": "FREIGHT",
+        "qty": 1,
+        "quantity": 1,
+        "amount_per_qty": 10000,
+        "unit_price": 10000,
+        "currency": "INR",
+        "exchange_rate": 1,
+        "fcy_amount": 10000,
+        "taxable_amount": 10000,
+        "non_taxable_amount": 0,
+        "tax_amount": 1800,
+        "line_total": 11800,
+        "sgst_rate": 0,
+        "sgst_amount": 0,
+        "cgst_rate": 0,
+        "cgst_amount": 0,
+        "igst_rate": 18,
+        "igst_amount": 1800,
+        "total_inr": 11800
+      }
+    ],
+    "totals": {
+      "taxable": 10000,
+      "non_taxable": 0,
+      "subtotal": 10000,
+      "sgst": 0,
+      "cgst": 0,
+      "igst": 1800,
+      "tax_total": 1800,
+      "tax_amount": 1800,
+      "grand_total": 11800,
+      "total_amount": 11800,
+      "amount_in_words": "Eleven Thousand Eight Hundred Rupees Only"
+    }
+  },
+  "missing_field_notes": {
+    "sgst_cgst_split": "0 until line-level GST components exist; single tax mapped to IGST",
+    "company_from_body": "never — branding from invoice.company / tenant org"
+  }
+}

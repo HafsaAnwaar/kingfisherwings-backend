@@ -1,0 +1,77 @@
+{
+  "code": "HBL_DRAFT_REPORT_FORMAT_JASPER",
+  "format_key": "sea.hbl_draft",
+  "payload": {
+    "job_number": "JOB-PILOT-0001",
+    "hbl_number": "HBL-PILOT-0001",
+    "mbl_number": "MBL-PILOT-0001",
+    "doc_ref": "HBL-PILOT-0001",
+    "shipper": "Acme Shipper\n100 Demo St",
+    "consignee": "Beta Consignee\n200 Test Ave",
+    "notify": "",
+    "shipper_name": "Acme Shipper",
+    "consignee_name": "Beta Consignee",
+    "parties": {
+      "shipper": {
+        "name": "Acme Shipper",
+        "address": "100 Demo St",
+        "city": "Mumbai",
+        "phone": null,
+        "email": null
+      },
+      "consignee": {
+        "name": "Beta Consignee",
+        "address": "200 Test Ave",
+        "city": "Dubai",
+        "phone": null,
+        "email": null
+      },
+      "notify": null
+    },
+    "routing": {
+      "pol": "INMUN",
+      "pod": "AEJEA",
+      "vessel": "MV Demo",
+      "voyage": "V01",
+      "etd": "2026-03-01",
+      "eta": "2026-03-15"
+    },
+    "pol": "INMUN",
+    "pod": "AEJEA",
+    "place_of_receipt": "INMUN",
+    "place_of_delivery": "AEJEA",
+    "vessel_voyage": "MV Demo / V01",
+    "vessel_name": "MV Demo",
+    "voyage_number": "V01",
+    "etd": "2026-03-01",
+    "eta": "2026-03-15",
+    "containers": "MSCU1234567",
+    "container_rows": [
+      {
+        "container_no": "MSCU1234567",
+        "seal": "SEAL001",
+        "type": "40HC",
+        "gross_weight": "18000",
+        "cbm": "55"
+      }
+    ],
+    "cargo": {
+      "description": "General cargo (synthetic)",
+      "pieces": "100",
+      "gross_weight": "18000",
+      "volume": "55"
+    },
+    "commodity": "General cargo (synthetic)",
+    "pieces": "100",
+    "gross_weight": "18000",
+    "volume_cbm": "55",
+    "freight_terms": null,
+    "is_draft": true,
+    "is_original": false
+  },
+  "missing_field_notes": {
+    "notify": "null/empty when no notify party on job",
+    "net_weight": "omitted — not on Job schema",
+    "freight_terms": "null when incoterms absent"
+  }
+}

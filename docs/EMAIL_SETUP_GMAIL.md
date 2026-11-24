@@ -59,7 +59,7 @@ EMAIL_PROVIDER=resend
 RESEND_API_KEY=re_...
 RESEND_FROM="KingFisher Tech <inquiry@kingfishertec.com>"
 SMTP_FROM_NAME=KingFisher Tech
-SMTP_FROM_EMAIL=inquiry@kingfishertec.com
+SMTP_FROM_EMAIL=gfishertec.com
 ```
 
 Redeploy. Health should show `"provider":"resend"` and `configured: true`.

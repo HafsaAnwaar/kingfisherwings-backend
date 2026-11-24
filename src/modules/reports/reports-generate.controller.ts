@@ -3,12 +3,14 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from "@nestjs/swagger";
@@ -18,6 +20,7 @@ import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { REPORTS_PERMISSIONS } from "./constants/reports-permission.constants";
 import { ReportGenerateDto } from "./dto/report-generate.dto";
+import { ReportPreviewDto } from "./dto/report-preview.dto";
 import { ReportsGenerateService } from "./reports-generate.service";
 
 @ApiTags("Reports — Catalog")
@@ -56,5 +59,33 @@ export class ReportsGenerateController {
     @Body() dto: ReportGenerateDto,
   ) {
     return this.service.generate(tenantId, userId, dto, permissions);
+  }
+
+  @Post(":code/preview")
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(REPORTS_PERMISSIONS.GENERATE)
+  @ApiOperation({
+    summary:
+      "Payload-only preview for HTML pilot codes (HBL Jasper, Invoice Format-1, Job List Summary). JSON only — no PDF, no accept flag.",
+  })
+  @ApiOkResponse({
+    description: "{ success, code, format_key, payload }",
+    schema: {
+      example: {
+        success: true,
+        code: "HBL_DRAFT_REPORT_FORMAT_JASPER",
+        format_key: "sea.hbl_draft",
+        payload: { job_number: "JOB-…", parties: {}, routing: {} },
+      },
+    },
+  })
+  preview(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") userId: string,
+    @CurrentUser("permissions") permissions: string[],
+    @Param("code") code: string,
+    @Body() dto: ReportPreviewDto,
+  ) {
+    return this.service.preview(tenantId, userId, code, dto, permissions);
   }
 }

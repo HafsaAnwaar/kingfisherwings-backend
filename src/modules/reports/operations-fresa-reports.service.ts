@@ -907,8 +907,14 @@ export class OperationsFresaReportsService {
           job_type: true,
           status: true,
           job_date: true,
+          etd: true,
           branch_id: true,
           salesperson_id: true,
+          shipper_id: true,
+          consignee_id: true,
+          billing_party_id: true,
+          origin_port_id: true,
+          dest_port_id: true,
           gp_amount: true,
           revenue_total: true,
           cost_total: true,
@@ -931,6 +937,57 @@ export class OperationsFresaReportsService {
         },
         take: 3000,
       });
+
+      const partyIds = [
+        ...new Set(
+          jobs
+            .flatMap((j) => [
+              j.billing_party_id,
+              j.consignee_id,
+              j.shipper_id,
+            ])
+            .filter((id): id is string => !!id),
+        ),
+      ];
+      const portIds = [
+        ...new Set(
+          jobs
+            .flatMap((j) => [j.origin_port_id, j.dest_port_id])
+            .filter((id): id is string => !!id),
+        ),
+      ];
+      const [parties, ports] = await Promise.all([
+        partyIds.length
+          ? tx.party.findMany({
+              where: {
+                tenant_id: tenantId,
+                id: { in: partyIds },
+                deleted_at: null,
+              },
+              select: { id: true, name: true },
+            })
+          : Promise.resolve([] as Array<{ id: string; name: string }>),
+        portIds.length
+          ? tx.port.findMany({
+              where: {
+                tenant_id: tenantId,
+                id: { in: portIds },
+                deleted_at: null,
+              },
+              select: { id: true, un_locode: true, name: true },
+            })
+          : Promise.resolve(
+              [] as Array<{
+                id: string;
+                un_locode: string | null;
+                name: string;
+              }>,
+            ),
+      ]);
+      const partyName = new Map(parties.map((p) => [p.id, p.name]));
+      const portLabel = new Map(
+        ports.map((p) => [p.id, p.un_locode || p.name || null]),
+      );
 
       const rows = jobs
         .map((j) => {
@@ -961,11 +1018,30 @@ export class OperationsFresaReportsService {
             (s, c) => s + Number(c.chargeable_units ?? 0),
             0,
           );
+          const customer =
+            (j.billing_party_id
+              ? partyName.get(j.billing_party_id)
+              : undefined) ||
+            (j.consignee_id ? partyName.get(j.consignee_id) : undefined) ||
+            (j.shipper_id ? partyName.get(j.shipper_id) : undefined) ||
+            null;
+          const pol = j.origin_port_id
+            ? portLabel.get(j.origin_port_id) ?? null
+            : null;
+          const pod = j.dest_port_id
+            ? portLabel.get(j.dest_port_id) ?? null
+            : null;
+          const etd = j.etd ? j.etd.toISOString().slice(0, 10) : null;
           return {
             job_id: j.id,
+            job: j.job_number,
             job_number: j.job_number,
             job_type: j.job_type,
             status: j.status,
+            customer,
+            pol,
+            pod,
+            etd,
             job_date: j.job_date,
             effective_date: effective,
             branch_id: j.branch_id,
@@ -1018,9 +1094,14 @@ export class OperationsFresaReportsService {
       limit: 2000,
     });
     return res.data.jobs.map((j) => ({
+      job: j.job,
       job_number: j.job_number,
       job_type: j.job_type,
       status: j.status,
+      customer: j.customer,
+      pol: j.pol,
+      pod: j.pod,
+      etd: j.etd,
       job_date: j.job_date,
       chargeable_units: j.chargeable_units,
       revenue_total: j.revenue_total,

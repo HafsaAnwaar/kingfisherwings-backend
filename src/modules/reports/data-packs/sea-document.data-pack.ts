@@ -16,17 +16,28 @@ const DOC_KEYS = new Set([
   "sea.letter_shell",
 ]);
 
-function partyBlock(
-  p: {
-    name?: string | null;
-    address?: string | null;
-    city?: string | null;
-    phone?: string | null;
-    email?: string | null;
-  } | null,
-): string {
+type PartyLike = {
+  name?: string | null;
+  address?: string | null;
+  city?: string | null;
+  phone?: string | null;
+  email?: string | null;
+} | null;
+
+function partyBlock(p: PartyLike): string {
   if (!p) return "";
   return [p.name, p.address, p.city, p.phone, p.email].filter(Boolean).join("\n");
+}
+
+function partyStruct(p: PartyLike) {
+  if (!p) return null;
+  return {
+    name: p.name ?? null,
+    address: p.address ?? null,
+    city: p.city ?? null,
+    phone: p.phone ?? null,
+    email: p.email ?? null,
+  };
 }
 
 @Injectable()
@@ -82,6 +93,16 @@ export class SeaDocumentDataPackService {
       .replace(/_/g, " ")
       .toUpperCase();
 
+    const etd = job.etd?.toISOString().slice(0, 10) ?? "";
+    const eta = job.eta?.toISOString().slice(0, 10) ?? "";
+    const piecesStr = job.pieces != null ? String(job.pieces) : "";
+    const gwStr =
+      job.gross_weight != null ? String(job.gross_weight) : "";
+    const volStr = job.volume_cbm != null ? String(job.volume_cbm) : "";
+    const vesselName = ctx.vessel_name ?? "";
+    const voyageNumber = ctx.voyage_number ?? "";
+    const freightTerms = job.incoterms?.trim() || null;
+
     const payload = {
       job_number: job.job_number,
       hbl_number: ctx.hbl_number ?? "",
@@ -92,24 +113,43 @@ export class SeaDocumentDataPackService {
       notify: partyBlock(ctx.notify),
       shipper_name: ctx.shipper?.name ?? "",
       consignee_name: ctx.consignee?.name ?? "",
+      parties: {
+        shipper: partyStruct(ctx.shipper),
+        consignee: partyStruct(ctx.consignee),
+        // notify stays null when no party — do not invent
+        notify: partyStruct(ctx.notify),
+      },
+      routing: {
+        pol,
+        pod,
+        vessel: vesselName,
+        voyage: voyageNumber,
+        etd: etd || null,
+        eta: eta || null,
+      },
       pol,
       pod,
       place_of_receipt: sea?.place_of_receipt ?? pol,
       place_of_delivery: sea?.place_of_delivery ?? pod,
-      vessel_voyage: [ctx.vessel_name, ctx.voyage_number]
-        .filter(Boolean)
-        .join(" / "),
-      vessel_name: ctx.vessel_name ?? "",
-      voyage_number: ctx.voyage_number ?? "",
-      etd: job.etd?.toISOString().slice(0, 10) ?? "",
-      eta: job.eta?.toISOString().slice(0, 10) ?? "",
+      vessel_voyage: [vesselName, voyageNumber].filter(Boolean).join(" / "),
+      vessel_name: vesselName,
+      voyage_number: voyageNumber,
+      etd,
+      eta,
       containers: containers || "—",
       container_rows: containerRows,
+      cargo: {
+        description: job.commodity ?? "",
+        pieces: piecesStr || null,
+        gross_weight: gwStr || null,
+        volume: volStr || null,
+        // net_weight intentionally omitted — not on Job schema
+      },
       commodity: job.commodity ?? "",
-      pieces: job.pieces != null ? String(job.pieces) : "",
-      gross_weight:
-        job.gross_weight != null ? String(job.gross_weight) : "",
-      volume_cbm: job.volume_cbm != null ? String(job.volume_cbm) : "",
+      pieces: piecesStr,
+      gross_weight: gwStr,
+      volume_cbm: volStr,
+      freight_terms: freightTerms,
       letter_kind: letterKind,
       letter_body: String(
         parameters.letter_body ??
