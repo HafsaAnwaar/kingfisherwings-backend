@@ -22,10 +22,12 @@ import {
   REPORT_TTL_HOURS,
 } from "./constants/reports.constants";
 import { ReportGenerateDto } from "./dto/report-generate.dto";
+import { ReportPreviewDto } from "./dto/report-preview.dto";
 import { ReportDataPackRegistry } from "./data-packs/report-data-pack.registry";
 import { ReportRendererService } from "./renderers/report-renderer.service";
 import { ReportsTemplatesService } from "./reports-templates.service";
 import { ReportParamDef } from "./types/report.types";
+import { isHtmlPilotReportCode } from "./contracts/html-pilot.constants";
 
 @Injectable()
 export class ReportsGenerateService {
@@ -41,6 +43,82 @@ export class ReportsGenerateService {
     @InjectQueue(REPORT_GENERATION_QUEUE)
     private readonly queue: Queue,
   ) {}
+
+  /**
+   * Payload-only preview for the three Hybrid Option C HTML pilot codes.
+   * No PDF, no ReportJob, no accept/sign-off flag. Same ownership gates as generate.
+   * Company branding comes from pack/tenant — never from request body companyId.
+   */
+  async preview(
+    tenantId: string,
+    userId: string,
+    code: string,
+    dto: ReportPreviewDto,
+    permissions: string[] = [],
+  ) {
+    if (!isHtmlPilotReportCode(code)) {
+      throw new BadRequestException(
+        `Payload preview is limited to HTML pilot codes: HBL_DRAFT_REPORT_FORMAT_JASPER, INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA, JOB_LIST_SUMMARY_REPORT_FORMAT. Got "${code}".`,
+      );
+    }
+
+    const template = await this.templates.findTemplate(code, true);
+    if (!template?.is_active) {
+      throw new NotFoundException("Report template not found or inactive");
+    }
+
+    await this.templates.assertFamilyAccess(
+      tenantId,
+      template.family,
+      permissions.length ? permissions : ["reports.generate", "reports.read"],
+    );
+
+    this.validateParameters(template.parameters_schema, dto.parameters ?? {});
+    await this.validateContext(tenantId, dto.context);
+
+    const parameters = {
+      ...(dto.parameters ?? {}),
+      template_code: template.code,
+    };
+    const context = (dto.context ?? {}) as {
+      job_id?: string;
+      quotation_id?: string;
+      invoice_id?: string;
+      party_id?: string;
+    };
+
+    const dataset = await this.dataPacks.load(
+      tenantId,
+      template.renderer_key,
+      parameters,
+      context,
+    );
+
+    const payload =
+      dataset.kind === "document"
+        ? dataset.payload
+        : dataset.kind === "list"
+          ? {
+              columns: dataset.columns,
+              rows: dataset.rows,
+              title: dataset.title,
+            }
+          : dataset;
+
+    await this.writeAudit(tenantId, userId, "REPORT_PREVIEW", template.id, {
+      template_code: template.code,
+      renderer_key: template.renderer_key,
+      parameters: dto.parameters ?? {},
+      context: dto.context ?? {},
+    });
+
+    return {
+      success: true,
+      code: template.code,
+      format_key: template.renderer_key,
+      payload,
+    };
+  }
 
   async generate(
     tenantId: string,

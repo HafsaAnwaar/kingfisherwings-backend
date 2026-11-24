@@ -19,6 +19,8 @@ const EXACT: Record<string, string> = {
   JOBS_LIST: "ops.jobs_list",
   OPS_LIST_GENERIC: "ops.list_generic",
   SEA_HBL_DRAFT: "sea.hbl_draft",
+  /** Hybrid Option C HTML pilot alias (same pack as SEA_HBL_DRAFT). */
+  HBL_DRAFT_REPORT_FORMAT_JASPER: "sea.hbl_draft",
   SEA_HBL_ORIGINAL: "sea.hbl_original",
   SEA_ARRIVAL_NOTICE: "sea.arrival_notice",
   SEA_DELIVERY_ORDER: "sea.delivery_order",

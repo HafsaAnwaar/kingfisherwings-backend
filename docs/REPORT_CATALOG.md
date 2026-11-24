@@ -25,9 +25,39 @@ Puppeteer + Handlebars (PDF) and ExcelJS / csv-stringify (XLSX/CSV). Jasper/JRXM
 | POST | `/reports/templates/:code/activate` | `reports.manage` — activate; optional body `{ "renderer_key": "…" }`; auto-binds from map if pending + pack exists |
 | POST | `/reports/templates/:code/deactivate` | `reports.manage` |
 | POST | `/reports/generate` | **201**; Redis on → `queued`; Redis off → sync `ready` + `download_url`/`expires_at` |
+| POST | `/reports/:code/preview` | **JSON payload only** for the three HTML pilots (below). Same auth/ownership as generate. No PDF, no accept flag. **400** for other codes. |
 | GET | `/reports/jobs/:jobId` | Poll status |
 | GET | `/reports/jobs/:jobId/download` | Binary blob |
 | GET | `/invoices/:id/format-payload?format=` | Debug `InvoiceFormatPayload` (does **not** change default invoice PDF) |
+
+## Hybrid Option C — HTML pilots (payload preview)
+
+Three catalog codes for FE HTML print pilots. Templates receive **display-ready** values; calculations stay in packs. Company/branch from **auth context** — never trust `companyId` from the body. Reports are **not** marked accepted from this path. Classic `POST /invoices/:id/pdf` and thresholds/sign-off are unchanged. FE HTML print remains the primary visual path; catalog Puppeteer is unchanged for other codes.
+
+| Pilot | Code | Pack key |
+|-------|------|----------|
+| HBL Draft Jasper | `HBL_DRAFT_REPORT_FORMAT_JASPER` | `sea.hbl_draft` (same pack as `SEA_HBL_DRAFT`) |
+| Tax Invoice India Format-1 | `INVOICE_REPORT_FORMAT_1_TAX_INVOICE_INDIA` | `commercial.invoice_tax_india_1` |
+| Job List Summary | `JOB_LIST_SUMMARY_REPORT_FORMAT` | `finance.job_list_summary` |
+
+```http
+POST /reports/HBL_DRAFT_REPORT_FORMAT_JASPER/preview
+{ "parameters": { "job_id": "<uuid>" }, "context": { "job_id": "<uuid>" } }
+
+→ { "success": true, "code": "…", "format_key": "sea.hbl_draft", "payload": { … } }
+```
+
+### Missing-field matrix (do not invent)
+
+| Field | Behavior |
+|-------|----------|
+| Notify party | `null` / empty when no notify (or billing-party proxy) on job |
+| Net weight | **Omitted** — not on Job schema |
+| SGST / CGST split | **0** until line-level GST components exist; single `tax_amount` mapped to IGST |
+| Freight terms | `null` when `incoterms` absent |
+| Job list customer / POL / POD / ETD | `null` when relation missing |
+
+Invoice FE aliases (provider-derived, not recalculated): line `quantity`←`qty`, `unit_price`←`amount_per_qty`, `line_total`; totals `subtotal`, `tax_total`/`tax_amount`, `total_amount`. Job list columns: `job`, `customer`, `pol`, `pod`, `etd`, `status` (+ existing revenue/cost/GP).
 
 ### Search contract (`GET /reports/templates`)
 

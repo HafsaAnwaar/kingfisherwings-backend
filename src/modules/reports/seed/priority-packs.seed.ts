@@ -163,6 +163,19 @@ export const PRIORITY_PACKS_SEED: ReportTemplateSeed[] = [
     parameters_schema: [jobIdParam],
   },
   {
+    code: "HBL_DRAFT_REPORT_FORMAT_JASPER",
+    name: "HBL Draft Report Format Jasper (HTML pilot)",
+    family: "sea_docs",
+    contexts: ["job"],
+    formats: ["PDF"],
+    description:
+      "Hybrid Option C pilot alias — same sea.hbl_draft pack as SEA_HBL_DRAFT. Not marked accepted.",
+    is_active: true,
+    renderer_key: "sea.hbl_draft",
+    sort_order: 2000,
+    parameters_schema: [jobIdParam],
+  },
+  {
     code: "SEA_HBL_ORIGINAL",
     name: "HBL Original (document)",
     family: "sea_docs",

@@ -269,23 +269,30 @@ export class InvoiceFormatPayloadService {
       const sac =
         (l.charge_code_id ? chargeMap.get(l.charge_code_id) : undefined) ||
         "";
+      const lineTotal = round2(amount + tax);
+      const taxRounded = round2(tax);
       return {
         description: l.description,
         sac_hsn: sac,
         qty,
+        quantity: qty,
         amount_per_qty: round2(unit),
+        unit_price: round2(unit),
         currency,
         exchange_rate: fx,
         fcy_amount: round2(amount),
         taxable_amount: round2(taxable),
         non_taxable_amount: round2(nonTax),
+        tax_amount: taxRounded,
+        line_total: lineTotal,
+        // SGST/CGST stay 0 until line-level GST exists — do not invent split.
         sgst_rate: 0,
         sgst_amount: 0,
         cgst_rate: 0,
         cgst_amount: 0,
         igst_rate: rate,
-        igst_amount: round2(tax),
-        total_inr: round2(amount + tax),
+        igst_amount: taxRounded,
+        total_inr: lineTotal,
       };
     });
 
@@ -398,10 +405,14 @@ export class InvoiceFormatPayloadService {
       totals: {
         taxable,
         non_taxable,
+        subtotal: taxable,
         sgst,
         cgst,
         igst,
+        tax_total: igst,
+        tax_amount: igst,
         grand_total: grand,
+        total_amount: grand,
         amount_in_words: amountInWords(
           grand,
           currency === "INR" ? "Rupees" : currency,

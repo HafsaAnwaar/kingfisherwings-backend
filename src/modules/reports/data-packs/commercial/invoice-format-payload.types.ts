@@ -57,27 +57,44 @@ export type InvoiceFormatPayload = {
     description: string;
     sac_hsn?: string;
     qty: number;
+    /** FE alias of qty (display-ready; not recalculated). */
+    quantity: number;
     amount_per_qty: number;
+    /** FE alias of amount_per_qty. */
+    unit_price: number;
     currency: string;
     exchange_rate: number;
     fcy_amount: number;
     taxable_amount: number;
     non_taxable_amount: number;
-    sgst_rate?: number;
-    sgst_amount?: number;
-    cgst_rate?: number;
-    cgst_amount?: number;
-    igst_rate?: number;
-    igst_amount?: number;
+    /** Line tax when present (same as igst_amount mapping today). */
+    tax_amount?: number;
+    /** Alias of total_inr for FE pilots. */
+    line_total: number;
+    /** SGST/CGST stay 0 until line-level GST components exist — do not invent split. */
+    sgst_rate?: number | null;
+    sgst_amount?: number | null;
+    cgst_rate?: number | null;
+    cgst_amount?: number | null;
+    igst_rate?: number | null;
+    igst_amount?: number | null;
     total_inr: number;
   }>;
   totals: {
     taxable: number;
     non_taxable: number;
-    sgst: number;
-    cgst: number;
-    igst: number;
+    /** FE alias of taxable (provider-derived from stored lines). */
+    subtotal: number;
+    sgst: number | null;
+    cgst: number | null;
+    igst: number | null;
+    /** FE alias of summed line tax / igst. */
+    tax_total: number;
+    /** FE alias of tax_total. */
+    tax_amount: number;
     grand_total: number;
+    /** FE alias of grand_total (from stored invoice.total_amount). */
+    total_amount: number;
     amount_in_words: string;
     tax_buckets?: Array<{ label: string; amount: number }>;
   };
