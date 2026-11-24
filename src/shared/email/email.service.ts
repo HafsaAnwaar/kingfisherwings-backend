@@ -437,4 +437,49 @@ export class EmailService implements OnModuleInit {
       }),
     );
   }
+
+  /**
+   * Platform (non-tenant) mail — Super Admin OTP, etc. No EmailLog row.
+   * Throws when requireDelivery and SMTP/Resend is not configured or send fails.
+   */
+  async sendPlatform(options: {
+    to: string;
+    subject: string;
+    body: string;
+    requireDelivery?: boolean;
+  }): Promise<void> {
+    if (!this.isConfigured()) {
+      this.bootstrap();
+    }
+    if (!this.isConfigured()) {
+      const msg =
+        "Email not configured. On Render free tier use EMAIL_PROVIDER=resend or gmail_api (HTTPS). See docs/EMAIL_SETUP_GMAIL.md.";
+      this.logger.warn(`${msg} (platform mail to=${options.to})`);
+      if (options.requireDelivery !== false) {
+        throw new ServiceUnavailableException(msg);
+      }
+      return;
+    }
+    try {
+      await this.deliver({
+        from:
+          this.settings!.provider === "resend"
+            ? this.settings!.resendFrom
+            : this.settings!.from,
+        to: options.to,
+        subject: options.subject,
+        html: options.body,
+      });
+    } catch (error: unknown) {
+      const raw =
+        error instanceof Error ? error.message : "Unknown email error";
+      const message = this.formatDeliveryError(raw);
+      this.logger.error(`Platform email failed: ${message}`);
+      if (options.requireDelivery !== false) {
+        throw new ServiceUnavailableException(
+          `Email delivery failed: ${message}`,
+        );
+      }
+    }
+  }
 }

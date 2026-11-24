@@ -1,7 +1,13 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
-import { Company } from "@prisma/client";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Company, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BaseMasterService } from "../masters/base-master.service";
+import { MasterQueryDto } from "../masters/dto/master-query.dto";
 
 @Injectable()
 export class CompaniesService extends BaseMasterService<Company> {
@@ -11,6 +17,85 @@ export class CompaniesService extends BaseMasterService<Company> {
 
   constructor(prisma: PrismaService) {
     super(prisma);
+  }
+
+  /** Soft-deleted companies still in trash (until permanent delete). */
+  async findDeleted(tenantId: string, query: MasterQueryDto) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 20;
+      const where: Prisma.CompanyWhereInput = {
+        tenant_id: tenantId,
+        deleted_at: { not: null },
+      };
+      if (query.search) {
+        where.OR = this.searchFields.map((field) => ({
+          [field]: { contains: query.search, mode: "insensitive" as const },
+        }));
+      }
+      const [data, total] = await Promise.all([
+        tx.company.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { deleted_at: "desc" },
+        }),
+        tx.company.count({ where }),
+      ]);
+      return {
+        data,
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit) || 1,
+        },
+      };
+    });
+  }
+
+  async restore(tenantId: string, id: string, actorId?: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const existing = await tx.company.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: { not: null } },
+      });
+      if (!existing) {
+        throw new NotFoundException("Deleted company not found.");
+      }
+      return tx.company.update({
+        where: { id },
+        data: { deleted_at: null, updated_by: actorId },
+      });
+    });
+  }
+
+  /**
+   * Hard-delete a soft-deleted company. Returns 409 when still referenced.
+   */
+  async permanentDelete(tenantId: string, id: string) {
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const existing = await tx.company.findFirst({
+        where: { id, tenant_id: tenantId, deleted_at: { not: null } },
+      });
+      if (!existing) {
+        throw new NotFoundException("Deleted company not found.");
+      }
+      try {
+        await tx.company.delete({ where: { id } });
+      } catch (err: unknown) {
+        const code =
+          err && typeof err === "object" && "code" in err
+            ? String((err as { code: unknown }).code)
+            : "";
+        if (code === "P2003" || code === "P2014") {
+          throw new ConflictException(
+            "Cannot permanently delete this company while related records still exist (jobs, invoices, branches, etc.).",
+          );
+        }
+        throw err;
+      }
+      return { success: true, message: "Company permanently deleted." };
+    });
   }
 
   async create(

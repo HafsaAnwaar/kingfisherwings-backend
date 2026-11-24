@@ -23,6 +23,10 @@ import { LoginDto } from "./dto/login.dto";
 import { TenantLoginDto } from "./dto/tenant-login.dto";
 import { SuperAdminSignupDto } from "./dto/super-admin-signup.dto";
 import { SuperAdminLoginDto } from "./dto/super-admin-login.dto";
+import {
+  SuperAdminResendOtpDto,
+  SuperAdminVerifyOtpDto,
+} from "./dto/super-admin-otp.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { TenantChangePasswordDto } from "./dto/tenant-change-password.dto";
@@ -103,11 +107,38 @@ export class AuthController {
   @Post("super-admin/login")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Platform super admin login",
-    description: "Rate limited: 3 attempts per minute per email.",
+    summary:
+      "Platform super admin login (password step) — emails a one-time code",
+    description:
+      "Rate limited: 3 attempts per minute per email. On success returns challenge_id; complete with POST /auth/super-admin/login/verify-otp.",
   })
   superAdminLogin(@Body() dto: SuperAdminLoginDto, @Req() req: Request) {
     return this.authService.superAdminLogin(dto, this.extractMeta(req));
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post("super-admin/login/verify-otp")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Complete Super Admin login with email OTP",
+  })
+  verifySuperAdminOtp(
+    @Body() dto: SuperAdminVerifyOtpDto,
+    @Req() req: Request,
+  ) {
+    return this.authService.verifySuperAdminOtp(dto, this.extractMeta(req));
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post("super-admin/login/resend-otp")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Resend Super Admin login OTP (rate-limited cooldown)",
+  })
+  resendSuperAdminOtp(@Body() dto: SuperAdminResendOtpDto) {
+    return this.authService.resendSuperAdminOtp(dto);
   }
 
   // =====================================================
