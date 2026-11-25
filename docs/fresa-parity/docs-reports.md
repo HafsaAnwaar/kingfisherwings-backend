@@ -27,6 +27,33 @@
 - Continuum `OpsEntityAttachment` remains for untyped chatter (see [ops-continuum.md](./ops-continuum.md)).
 - Migration: `…_typed_document_uploads`. Smoke: `src/test/typed-document-uploads.e2e-spec.ts`.
 
+## Documentation Phase 1 (backend) — shipped vs deferred
+
+### Shipped (FreightSaas BE)
+
+| Capability | Method | Path |
+|---|---|---|
+| MPCI list filters (`department_id`, `filing_status` alias, `search`, `from_date`/`to_date`) | GET | `/documentation/mpci/filings` |
+| Closed jobs date/`job_type` filters | GET | `/documentation/delivery-orders/closed-jobs` |
+| Closed-job shipment + BL status (override + audit) | PATCH | `/documentation/jobs/:jobId/shipment-bl-status` |
+| Job doc fields (PortNet, SABER, RA, overseas agent, VGM cutoff, voyage) | PATCH | `/documentation/jobs/:jobId/doc-fields` |
+| Doc fields on jobs list enrichment | GET | `/documentation/jobs` |
+| Soft-delete CRM follow-up | DELETE | `/crm/follow-ups/:id` |
+| Soft-delete ops continuum follow-up | DELETE | `/ops/:entityType/:entityId/follow-ups/:followUpId` |
+
+Also: `Job.portnet_ref_no` (migration `20261125110000_docs_phase1_portnet`); scalar also accepted on main job PATCH via `UpdateJobDto`.
+
+### Deferred (later phases)
+
+- ASYCUDA LK, SCMTR
+- Dubai exit/entry certificate
+- Vendor INV OCR under `/documentation`
+- Bulk sales invoice print/email
+- Air-tonnage / CAL / gate-pass / container-storage reports
+- Container v-weight-from-dimensions
+- Get Job Charges façade under documentation (already on `/jobs/:id/get-job-charges`)
+- FE documentation hub tiles
+
 ## Notes
 
 - Shipment document endpoints require a linked Job (`job_id`); they reuse `DocumentGenerationService.enqueueJobDocument`.

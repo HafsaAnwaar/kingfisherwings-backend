@@ -79,6 +79,25 @@ export class OpsActivityController {
     );
   }
 
+  @Delete(":entityType/:entityId/follow-ups/:followUpId")
+  @ApiOperation({ summary: "Soft-delete a continuum follow-up reminder" })
+  removeFollowUp(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("entityType", new ParseEnumPipe(OpsEntityType))
+    entityType: OpsEntityType,
+    @Param("entityId", ParseUUIDPipe) entityId: string,
+    @Param("followUpId", ParseUUIDPipe) followUpId: string,
+  ) {
+    return this.service.deleteFollowUp(
+      tenantId,
+      entityType,
+      entityId,
+      followUpId,
+      actorId,
+    );
+  }
+
   @Get(":entityType/:entityId/attachments")
   listAttachments(
     @CurrentUser("tenantId") tenantId: string,

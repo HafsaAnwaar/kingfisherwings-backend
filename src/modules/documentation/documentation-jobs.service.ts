@@ -1,5 +1,9 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
-import { JobStatus, Prisma } from "@prisma/client";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { JobPartyReferenceType, JobStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JobsService } from "../jobs/jobs.service";
 import { CreateJobDto } from "../jobs/dto/job.dto";
@@ -7,6 +11,7 @@ import {
   DocumentationJobsQueryDto,
   DocumentationCreateJobDto,
 } from "./dto/documentation-jobs.dto";
+import { PatchJobDocFieldsDto } from "./dto/documentation-doc-fields.dto";
 import { paginated } from "./dto/documentation-pagination.dto";
 import {
   jobTypeFilterFromVisible,
@@ -133,11 +138,273 @@ export class DocumentationJobsService {
           skip: (page - 1) * limit,
           take: limit,
           orderBy: { created_at: "desc" },
+          include: {
+            sea_fcl_details: {
+              select: { vgm_cutoff: true, voyage_number: true },
+            },
+            sea_lcl_details: {
+              select: { voyage_number: true },
+            },
+            party_references: {
+              where: {
+                reference_type: {
+                  in: [
+                    JobPartyReferenceType.SABER,
+                    JobPartyReferenceType.RA_CODE,
+                  ],
+                },
+              },
+              select: {
+                reference_type: true,
+                reference_no: true,
+              },
+            },
+          },
         }),
         tx.job.count({ where }),
       ]);
 
-      return paginated(rows, page, limit, total);
+      const enriched = rows.map((job) => {
+        const refs = job.party_references ?? [];
+        const saber = refs.find(
+          (r) => r.reference_type === JobPartyReferenceType.SABER,
+        );
+        const ra = refs.find(
+          (r) => r.reference_type === JobPartyReferenceType.RA_CODE,
+        );
+        const fcl = job.sea_fcl_details;
+        const lcl = job.sea_lcl_details;
+        const { party_references, sea_fcl_details, sea_lcl_details, ...rest } =
+          job;
+        return {
+          ...rest,
+          portnet_ref_no: job.portnet_ref_no ?? null,
+          overseas_agent_id: job.overseas_agent_id ?? null,
+          voyage_number:
+            job.voyage_number ??
+            fcl?.voyage_number ??
+            lcl?.voyage_number ??
+            null,
+          vgm_cutoff_date: fcl?.vgm_cutoff ?? null,
+          saber_certificate_no: saber?.reference_no ?? null,
+          ra_code: ra?.reference_no ?? null,
+        };
+      });
+
+      return paginated(enriched, page, limit, total);
+    });
+  }
+
+  async patchDocFields(
+    tenantId: string,
+    jobId: string,
+    dto: PatchJobDocFieldsDto,
+    actorId?: string,
+  ) {
+    const keys = Object.keys(dto).filter(
+      (k) => (dto as Record<string, unknown>)[k] !== undefined,
+    );
+    if (keys.length === 0) {
+      throw new BadRequestException("Provide at least one documentation field.");
+    }
+
+    return this.prisma.runWithTenant(tenantId, async (tx) => {
+      const job = await tx.job.findFirst({
+        where: { id: jobId, tenant_id: tenantId, deleted_at: null },
+        include: {
+          sea_fcl_details: { select: { id: true } },
+          sea_lcl_details: { select: { id: true } },
+        },
+      });
+      if (!job) throw new NotFoundException("Job not found.");
+
+      if (dto.overseas_agent_party_id) {
+        const party = await tx.party.findFirst({
+          where: {
+            id: dto.overseas_agent_party_id,
+            tenant_id: tenantId,
+            deleted_at: null,
+          },
+          select: { id: true },
+        });
+        if (!party) {
+          throw new BadRequestException(
+            "overseas_agent_party_id not found in tenant.",
+          );
+        }
+      }
+
+      if (dto.vgm_cutoff_date !== undefined && !job.sea_fcl_details) {
+        throw new BadRequestException(
+          "vgm_cutoff_date applies only to sea FCL jobs.",
+        );
+      }
+
+      await tx.job.update({
+        where: { id: jobId },
+        data: {
+          ...(dto.portnet_ref_no !== undefined
+            ? {
+                portnet_ref_no:
+                  dto.portnet_ref_no === null || dto.portnet_ref_no === ""
+                    ? null
+                    : dto.portnet_ref_no.trim(),
+              }
+            : {}),
+          ...(dto.overseas_agent_party_id !== undefined
+            ? { overseas_agent_id: dto.overseas_agent_party_id }
+            : {}),
+          ...(dto.voyage_number !== undefined
+            ? {
+                voyage_number:
+                  dto.voyage_number === null || dto.voyage_number === ""
+                    ? null
+                    : dto.voyage_number.trim(),
+              }
+            : {}),
+          updated_by: actorId,
+        },
+      });
+
+      if (dto.voyage_number !== undefined || dto.vgm_cutoff_date !== undefined) {
+        const voyage =
+          dto.voyage_number === undefined
+            ? undefined
+            : dto.voyage_number === null || dto.voyage_number === ""
+              ? null
+              : dto.voyage_number.trim();
+        const vgm =
+          dto.vgm_cutoff_date === undefined
+            ? undefined
+            : dto.vgm_cutoff_date === null || dto.vgm_cutoff_date === ""
+              ? null
+              : new Date(dto.vgm_cutoff_date);
+
+        if (job.sea_fcl_details) {
+          await tx.seaFclJobDetail.update({
+            where: { id: job.sea_fcl_details.id },
+            data: {
+              ...(voyage !== undefined ? { voyage_number: voyage } : {}),
+              ...(vgm !== undefined ? { vgm_cutoff: vgm } : {}),
+            },
+          });
+        }
+        if (job.sea_lcl_details && voyage !== undefined) {
+          await tx.seaLclJobDetail.update({
+            where: { id: job.sea_lcl_details.id },
+            data: { voyage_number: voyage },
+          });
+        }
+      }
+
+      await this.upsertPartyRef(
+        tx,
+        tenantId,
+        jobId,
+        JobPartyReferenceType.SABER,
+        dto.saber_certificate_no,
+        actorId,
+      );
+      await this.upsertPartyRef(
+        tx,
+        tenantId,
+        jobId,
+        JobPartyReferenceType.RA_CODE,
+        dto.ra_code,
+        actorId,
+      );
+
+      const refreshed = await tx.job.findFirst({
+        where: { id: jobId },
+        include: {
+          sea_fcl_details: {
+            select: { vgm_cutoff: true, voyage_number: true },
+          },
+          sea_lcl_details: {
+            select: { voyage_number: true },
+          },
+          party_references: {
+            where: {
+              reference_type: {
+                in: [
+                  JobPartyReferenceType.SABER,
+                  JobPartyReferenceType.RA_CODE,
+                ],
+              },
+            },
+            select: { reference_type: true, reference_no: true },
+          },
+        },
+      });
+
+      const fcl = refreshed?.sea_fcl_details;
+      const lcl = refreshed?.sea_lcl_details;
+      const saber = refreshed?.party_references.find(
+        (r) => r.reference_type === JobPartyReferenceType.SABER,
+      );
+      const ra = refreshed?.party_references.find(
+        (r) => r.reference_type === JobPartyReferenceType.RA_CODE,
+      );
+
+      return {
+        success: true,
+        data: {
+          job_id: jobId,
+          portnet_ref_no: refreshed?.portnet_ref_no ?? null,
+          overseas_agent_party_id: refreshed?.overseas_agent_id ?? null,
+          voyage_number:
+            refreshed?.voyage_number ??
+            fcl?.voyage_number ??
+            lcl?.voyage_number ??
+            null,
+          vgm_cutoff_date: fcl?.vgm_cutoff ?? null,
+          saber_certificate_no: saber?.reference_no ?? null,
+          ra_code: ra?.reference_no ?? null,
+        },
+      };
+    });
+  }
+
+  private async upsertPartyRef(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+    referenceType: JobPartyReferenceType,
+    value: string | null | undefined,
+    actorId?: string,
+  ) {
+    if (value === undefined) return;
+    const existing = await tx.jobPartyReference.findFirst({
+      where: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        reference_type: referenceType,
+      },
+    });
+    if (value === null || value.trim() === "") {
+      if (existing) {
+        await tx.jobPartyReference.delete({ where: { id: existing.id } });
+      }
+      return;
+    }
+    const reference_no = value.trim();
+    if (existing) {
+      await tx.jobPartyReference.update({
+        where: { id: existing.id },
+        data: { reference_no, updated_by: actorId },
+      });
+      return;
+    }
+    await tx.jobPartyReference.create({
+      data: {
+        tenant_id: tenantId,
+        job_id: jobId,
+        reference_type: referenceType,
+        reference_no,
+        party_role: "CLIENT",
+        created_by: actorId,
+        updated_by: actorId,
+      },
     });
   }
 

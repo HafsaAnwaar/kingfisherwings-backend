@@ -18,6 +18,7 @@ import { DocumentationDeliveryOrderService } from "./documentation-delivery-orde
 import {
   ClosedJobsQueryDto,
   UpdateDeliveryOrderDto,
+  UpdateShipmentBlStatusDto,
 } from "./dto/documentation-do.dto";
 
 @ApiTags("Documentation — Delivery Orders")
@@ -29,6 +30,10 @@ export class DocumentationDeliveryOrderController {
 
   @Get("delivery-orders/closed-jobs")
   @RequirePermissions(DOCUMENTATION_PERMISSIONS.READ)
+  @ApiOperation({
+    summary:
+      "List closed/completed export jobs (optional from_date, to_date, job_type)",
+  })
   closedJobs(
     @CurrentUser("tenantId") tenantId: string,
     @Query() query: ClosedJobsQueryDto,
@@ -45,5 +50,25 @@ export class DocumentationDeliveryOrderController {
     @Body() dto: UpdateDeliveryOrderDto,
   ) {
     return this.service.updateDeliveryOrder(tenantId, jobId, dto, actorId);
+  }
+
+  @Patch("jobs/:jobId/shipment-bl-status")
+  @RequirePermissions(DOCUMENTATION_PERMISSIONS.MANAGE)
+  @ApiOperation({
+    summary:
+      "Update shipment and/or BL status on a closed/completed job (audited override, no reopen)",
+  })
+  updateShipmentBlStatus(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("jobId", ParseUUIDPipe) jobId: string,
+    @Body() dto: UpdateShipmentBlStatusDto,
+  ) {
+    return this.service.updateShipmentBlStatus(
+      tenantId,
+      jobId,
+      dto,
+      actorId,
+    );
   }
 }

@@ -298,6 +298,45 @@ export class CrmActivityService {
     return { success: true, data: updated };
   }
 
+  async deleteFollowUp(user: CurrentUser, id: string) {
+    const ownerId = salespersonScope(user);
+    const existing = await this.prisma.runWithTenant(user.tenantId, (tx) =>
+      tx.followUp.findFirst({
+        where: {
+          id,
+          tenant_id: user.tenantId,
+          deleted_at: null,
+          ...(ownerId ? { owner_id: ownerId } : {}),
+        },
+      }),
+    );
+    if (!existing) throw new NotFoundException("Follow-up not found.");
+
+    await this.prisma.runWithTenant(user.tenantId, async (tx) => {
+      await tx.followUp.update({
+        where: { id },
+        data: { deleted_at: new Date() },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenant_id: user.tenantId,
+          user_id: user.id ?? null,
+          action: "FOLLOW_UP_DELETE",
+          entity: "FOLLOW_UP",
+          entity_id: id,
+          old_values: {
+            subject: existing.subject,
+            status: existing.status,
+            due_date: existing.due_date,
+          },
+          metadata: { soft_delete: true },
+        },
+      });
+    });
+
+    return { success: true, message: "Follow-up deleted." };
+  }
+
   /**
    * Create-enquiry wizard metadata. Step 1 lists writable operational services
    * (JobType); steps 2–5 field maps stay the same as the Fresa sheet.

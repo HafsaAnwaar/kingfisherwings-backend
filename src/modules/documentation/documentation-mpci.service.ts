@@ -3,24 +3,16 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DocumentationMpciStatus, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DocumentationEdiService } from "./documentation-edi.service";
+import { paginated } from "./dto/documentation-pagination.dto";
 import {
-  DocumentationPaginationDto,
-  paginated,
-} from "./dto/documentation-pagination.dto";
+  CreateMpciFilingDto,
+  MpciQueryDto,
+} from "./dto/documentation-mpci.dto";
 
-export class CreateMpciFilingDto {
-  job_id?: string;
-  filing_type?: string;
-  filing_number?: string;
-}
-
-export class MpciQueryDto extends DocumentationPaginationDto {
-  status?: DocumentationMpciStatus;
-  job_id?: string;
-}
+export { CreateMpciFilingDto, MpciQueryDto };
 
 @Injectable()
 export class DocumentationMpciService {
@@ -32,13 +24,70 @@ export class DocumentationMpciService {
   async findAll(tenantId: string, query: MpciQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const status = query.filing_status ?? query.status;
 
     return this.prisma.runWithTenant(tenantId, async (tx) => {
+      let departmentJobIds: string[] | undefined;
+      if (query.department_id) {
+        const deptJobs = await tx.job.findMany({
+          where: {
+            tenant_id: tenantId,
+            deleted_at: null,
+            department_id: query.department_id,
+          },
+          select: { id: true },
+        });
+        departmentJobIds = deptJobs.map((j) => j.id);
+        if (departmentJobIds.length === 0) {
+          return paginated([], page, limit, 0);
+        }
+      }
+
+      let jobIdFilter: string | { in: string[] } | undefined;
+      if (query.job_id && departmentJobIds) {
+        if (!departmentJobIds.includes(query.job_id)) {
+          return paginated([], page, limit, 0);
+        }
+        jobIdFilter = query.job_id;
+      } else if (query.job_id) {
+        jobIdFilter = query.job_id;
+      } else if (departmentJobIds) {
+        jobIdFilter = { in: departmentJobIds };
+      }
+
       const where: Prisma.DocumentationMpciFilingWhereInput = {
         tenant_id: tenantId,
         deleted_at: null,
-        ...(query.status ? { status: query.status } : {}),
-        ...(query.job_id ? { job_id: query.job_id } : {}),
+        ...(status ? { status } : {}),
+        ...(jobIdFilter !== undefined ? { job_id: jobIdFilter } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                {
+                  filing_number: {
+                    contains: query.search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  filing_type: {
+                    contains: query.search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            }
+          : {}),
+        ...(query.from_date || query.to_date
+          ? {
+              created_at: {
+                ...(query.from_date
+                  ? { gte: new Date(query.from_date) }
+                  : {}),
+                ...(query.to_date ? { lte: new Date(query.to_date) } : {}),
+              },
+            }
+          : {}),
       };
 
       const [items, total] = await Promise.all([

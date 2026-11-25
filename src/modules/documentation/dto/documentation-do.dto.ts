@@ -1,5 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { DocumentationDoStatus } from "@prisma/client";
+import {
+  BlDocumentStatus,
+  DocumentationDoStatus,
+  JobType,
+  ShipmentStatus,
+} from "@prisma/client";
 import {
   IsDateString,
   IsEnum,
@@ -7,6 +12,7 @@ import {
   IsString,
   IsUUID,
   Length,
+  ValidateIf,
 } from "class-validator";
 import { DocumentationPaginationDto } from "./documentation-pagination.dto";
 
@@ -37,4 +43,31 @@ export class ClosedJobsQueryDto extends DocumentationPaginationDto {
   @IsOptional()
   @IsUUID()
   branch_id?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  from_date?: string;
+
+  @ApiPropertyOptional({ format: "date" })
+  @IsOptional()
+  @IsDateString()
+  to_date?: string;
+
+  @ApiPropertyOptional({ enum: JobType })
+  @IsOptional()
+  @IsEnum(JobType)
+  job_type?: JobType;
+}
+
+export class UpdateShipmentBlStatusDto {
+  @ApiPropertyOptional({ enum: ShipmentStatus })
+  @ValidateIf((o: UpdateShipmentBlStatusDto) => o.bl_status == null)
+  @IsEnum(ShipmentStatus)
+  shipment_status?: ShipmentStatus;
+
+  @ApiPropertyOptional({ enum: BlDocumentStatus })
+  @ValidateIf((o: UpdateShipmentBlStatusDto) => o.shipment_status == null)
+  @IsEnum(BlDocumentStatus)
+  bl_status?: BlDocumentStatus;
 }

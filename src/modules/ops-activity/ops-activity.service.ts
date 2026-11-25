@@ -150,6 +150,47 @@ export class OpsActivityService {
     return { success: true, data };
   }
 
+  async deleteFollowUp(
+    tenantId: string,
+    entityType: OpsEntityType,
+    entityId: string,
+    followUpId: string,
+    actorId: string,
+  ) {
+    await this.assertEntityExists(tenantId, entityType, entityId);
+    const existing = await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.followUp.findFirst({
+        where: {
+          id: followUpId,
+          tenant_id: tenantId,
+          deleted_at: null,
+          ...this.followUpFk(entityType, entityId),
+        },
+      }),
+    );
+    if (!existing) throw new NotFoundException("Follow-up not found.");
+
+    await this.prisma.runWithTenant(tenantId, (tx) =>
+      tx.followUp.update({
+        where: { id: followUpId },
+        data: { deleted_at: new Date() },
+      }),
+    );
+    await this.writeHistory(
+      tenantId,
+      entityType,
+      entityId,
+      actorId,
+      "FOLLOW_UP_DELETE",
+      {
+        follow_up_id: followUpId,
+        subject: existing.subject,
+        soft_delete: true,
+      },
+    );
+    return { success: true, message: "Follow-up deleted." };
+  }
+
   /**
    * Customer portal must own the commercial party on the entity.
    * Vendor must have a job-offer / vendor-quote link (JOB/SHIPMENT only).
