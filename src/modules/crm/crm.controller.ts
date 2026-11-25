@@ -220,6 +220,16 @@ export class CrmFollowUpsController {
   ) {
     return this.activity.patchFollowUp(user, id, dto);
   }
+
+  @Delete(":id")
+  @RequirePermissions(CRM_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: "Soft-delete a CRM follow-up reminder" })
+  remove(
+    @CurrentUser() user: CurrentUserType,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.activity.deleteFollowUp(user, id);
+  }
 }
 
 @ApiTags("CRM Enquiries")

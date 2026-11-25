@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RolesGuard } from "../users/guards/roles.guard";
 import { PermissionsGuard } from "../users/guards/permissions.guard";
@@ -10,6 +20,7 @@ import {
   DocumentationCreateJobDto,
   DocumentationJobsQueryDto,
 } from "./dto/documentation-jobs.dto";
+import { PatchJobDocFieldsDto } from "./dto/documentation-doc-fields.dto";
 
 @ApiTags("Documentation — All Jobs")
 @ApiBearerAuth()
@@ -29,6 +40,21 @@ export class DocumentationJobsController {
     @Query() query: DocumentationJobsQueryDto,
   ) {
     return this.service.listJobs(tenantId, query, permissions ?? [], role, userId);
+  }
+
+  @Patch(":jobId/doc-fields")
+  @RequirePermissions(DOCUMENTATION_PERMISSIONS.MANAGE)
+  @ApiOperation({
+    summary:
+      "Patch documentation desk fields (PortNet, SABER, RA, overseas agent, VGM cutoff, voyage)",
+  })
+  patchDocFields(
+    @CurrentUser("tenantId") tenantId: string,
+    @CurrentUser("id") actorId: string,
+    @Param("jobId", ParseUUIDPipe) jobId: string,
+    @Body() dto: PatchJobDocFieldsDto,
+  ) {
+    return this.service.patchDocFields(tenantId, jobId, dto, actorId);
   }
 
   @Post("create-wizard")

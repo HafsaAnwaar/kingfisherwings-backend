@@ -15,11 +15,11 @@ import { PermissionsGuard } from "../users/guards/permissions.guard";
 import { RequirePermissions } from "../users/decorators/permissions.decorator";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
 import { DOCUMENTATION_PERMISSIONS } from "./constants/documentation-permission.constants";
+import { DocumentationMpciService } from "./documentation-mpci.service";
 import {
   CreateMpciFilingDto,
-  DocumentationMpciService,
   MpciQueryDto,
-} from "./documentation-mpci.service";
+} from "./dto/documentation-mpci.dto";
 
 @ApiTags("Documentation — MPCI")
 @ApiBearerAuth()

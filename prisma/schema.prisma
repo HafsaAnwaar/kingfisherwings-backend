@@ -2747,6 +2747,8 @@ model Job {
   agent_id          String?   @db.Uuid
   /// Overseas agent party (Organization tab OVERSEAS_AGENT).
   overseas_agent_id String?   @db.Uuid
+  /// PortNet reference number (Documentation desk / customs EDI).
+  portnet_ref_no    String?   @db.VarChar(50)
   salesperson_id    String?   @db.Uuid
   ops_user_id       String?   @db.Uuid
   origin_port_id    String?   @db.Uuid

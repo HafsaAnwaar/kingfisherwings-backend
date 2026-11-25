@@ -11,6 +11,7 @@ import {
   IsString,
   IsUUID,
   Length,
+  MaxLength,
   Min,
   ValidateIf,
   ValidateNested,
@@ -225,6 +226,15 @@ export class CreateJobDto {
   @IsOptional()
   @IsEnum(CargoCategory)
   cargo_category?: CargoCategory;
+
+  @ApiPropertyOptional({
+    description: "PortNet reference number (documentation)",
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  portnet_ref_no?: string;
 }
 
 export class UpdateJobDto extends PartialType(CreateJobDto) {}
